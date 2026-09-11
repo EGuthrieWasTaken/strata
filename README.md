@@ -46,7 +46,9 @@ Start with:
 1. [Overview, goals and non-goals](docs/spec/00-overview.md)
 2. [Domain model](docs/spec/01-domain-model.md)
 3. [Repository format](docs/spec/02-repository-format.md) — the normative core
-4. [Roadmap and milestones](docs/spec/15-roadmap.md) — the build order
+4. [Testing and CI](docs/spec/14-testing.md) — the pull-request gate, which is
+   the first thing to build
+5. [Roadmap and milestones](docs/spec/15-roadmap.md) — the build order
 
 The original problem statement that seeded this project is preserved verbatim at
 [`docs/origin/ProgramSpec.org`](docs/origin/ProgramSpec.org).

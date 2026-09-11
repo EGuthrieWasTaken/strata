@@ -177,20 +177,272 @@ Recorded findings drive a prioritised issue list. This is a release gate, not a
 nice-to-have: the entire premise is that the tool is usable by people the current
 alternatives fail.
 
-## 9. Continuous integration
+## 9. Continuous integration and the pull-request gate *(normative)*
 
-| Job | Trigger | Blocking |
-|---|---|---|
-| Lint (`ruff`), format, type-check (`mypy --strict`) | Every push | yes |
-| Unit + property + golden + integration + E2E, on Linux/macOS/Windows, Python 3.11/3.12/3.13 | Every push | yes |
-| Statistical fixtures (no R needed) | Every push | yes |
-| Coverage thresholds | Every push | yes |
-| Determinism check (two runs, byte-compare; randomised `PYTHONHASHSEED`) | Every push | yes |
-| Benchmarks | Every push | warn |
-| `metafor` regeneration against live R | Nightly | yes |
-| Fuzzing | Nightly | yes |
-| Dependency audit (`pip-audit`) | Nightly | yes |
-| Benchmarks at 50k | Nightly | yes |
+### 9.1 Build this first
 
-Releases additionally require: a clean full test suite on all platforms, updated
-documentation, a `CHANGELOG` entry, signed artefacts, and a published SBOM.
+**The CI pipeline and its pull-request gate are the first deliverable of M0,
+before the event log and before any feature code.** Not "early in M0" —
+first. The reasoning is specific to this project rather than general good
+practice:
+
+- Three of the correctness guarantees in this specification are **cross-platform
+  byte-identity** claims ([02 §5](02-repository-format.md)), and those cannot be
+  checked on one developer's laptop. A determinism bug introduced in week two and
+  found in month six is expensive; found by the first PR that causes it, it is
+  ten minutes.
+- The statistical validation in §4 is the project's entire credibility argument.
+  A suite that runs only when someone remembers to run it is not a validation
+  argument.
+- The property invariants in §2 — particularly P10 (staleness soundness) and P11
+  (count reconciliation) — protect claims the product is *sold on*. They must be
+  un-skippable.
+
+A repository whose gate arrives late accumulates untested code that nobody wants
+to retrofit tests for, and the retrofit never happens.
+
+### 9.2 Repository layout for CI
+
+The `strata` **source** repository (not a review repository) carries:
+
+```
+.github/
+├── workflows/
+│   ├── ci.yml                  # the pull-request gate (§9.3)
+│   ├── docs.yml               # specification integrity checks (§9.6)
+│   ├── nightly.yml            # scheduled deep checks (§9.5)
+│   ├── release.yml            # tag-triggered build, sign, publish, SBOM
+│   └── codeql.yml             # static security analysis
+├── PULL_REQUEST_TEMPLATE.md   # the checklist in §10.3
+├── ISSUE_TEMPLATE/
+│   ├── bug.yml
+│   └── parser.yml             # "my export file does not import" -- attach it
+└── dependabot.yml
+```
+
+The `parser.yml` issue template exists because the most common external bug
+report will be a database export `strata` mishandles, and the fix always begins
+with getting the file. The template asks for it, asks whether it may be
+redistributed as a test fixture, and routes to §3.
+
+### 9.3 The pull-request gate
+
+Every pull request runs the gate. Merging to `main` requires it to pass; this is
+enforced by branch protection (§9.4), not by convention.
+
+Jobs are tiered so that a contributor gets a useful signal quickly and the
+expensive checks still block the merge:
+
+| Tier | Job | Runs on | Budget | Blocking |
+|---|---|---|---|---|
+| **1** | `lint` — `ruff check`, `ruff format --check`, `mypy --strict` | every push to the PR | < 2 min | yes |
+| **1** | `test-fast` — unit + property, Linux, one Python version | every push to the PR | < 3 min | yes |
+| **2** | `test` — full suite on the 3 OS x 3 Python matrix | every push to the PR | < 15 min | yes |
+| **2** | `statistical` — the committed `metafor` fixtures (no R required) | every push to the PR | < 5 min | yes |
+| **2** | `determinism` — run the pipeline twice, byte-compare, randomised `PYTHONHASHSEED` | every push to the PR | < 10 min | yes |
+| **2** | `coverage` — global floors, the 100%-branch modules, and diff coverage (§10.4) | every push to the PR | < 2 min | yes |
+| **2** | `docs` — specification integrity (§9.6) | every push to the PR | < 1 min | yes |
+| **3** | `benchmark` — the [13 §1](13-nonfunctional.md) targets at 1k/10k | every push to the PR | < 10 min | **warn only** |
+| **3** | `codeql` | every push to the PR | — | warn |
+
+Requirements on the workflow itself:
+
+- **Trigger** is `pull_request`, never `pull_request_target`. Fork pull requests
+  MUST NOT have access to secrets. Any job needing a secret MUST be guarded so it
+  no-ops on forks, and MUST NOT be a required check, or external contribution
+  becomes impossible.
+- **Concurrency**: `group: ci-${{ github.ref }}`, `cancel-in-progress: true`, so a
+  force-push supersedes the previous run instead of queueing behind it.
+- **Timeouts**: every job sets `timeout-minutes`. A hung job that occupies a
+  runner for six hours is a worse outcome than a failure.
+- **Caching**: the dependency environment is cached, keyed on the lock file
+  hash. The cache MUST NOT be keyed on anything that could make a stale
+  dependency set produce a green run.
+- **Pinning**: third-party actions are pinned to a commit SHA, not a tag. A
+  moving tag in a workflow with repository write access is a supply-chain
+  exposure ([13 §5](13-nonfunctional.md)).
+- **Failure artefacts**: a failed `determinism` job MUST upload the differing
+  files and a diff; a failed `test` job MUST upload the `pytest` report; a failed
+  `benchmark` MUST upload the timing JSON. "It failed in CI and I cannot
+  reproduce it" should be a solvable situation, not a dead end.
+
+### 9.4 Branch protection *(normative)*
+
+`main` is protected with:
+
+- Required status checks, strict (the branch must be up to date before merging):
+  `lint`, `test-fast`, `gate`, `statistical`, `determinism`, `coverage`, `docs`.
+- At least one approving review. On a solo project this is waived, but the
+  checks are not.
+- Linear history; no force-push; no deletion.
+- Administrators included. A gate the maintainer can walk past is a gate that
+  gets walked past at 2am, which is exactly when it is most needed.
+
+**The `gate` job.** Path filters and conditional matrices cause skipped jobs, and
+a *skipped* required check blocks a merge forever. The standard remedy, which
+this project MUST implement, is one always-running `gate` job that depends on
+every tier-1 and tier-2 job and asserts each finished `success` or `skipped`.
+`gate` is the required check; the individual jobs are not. This keeps
+documentation-only pull requests mergeable without running the 50k benchmark,
+while making it impossible to skip a check that should have run.
+
+### 9.5 Nightly
+
+| Job | Purpose |
+|---|---|
+| `metafor-live` | Regenerate statistical fixtures against current `metafor`; fail on drift (§4.1) |
+| `fuzz` | Parser fuzzing from the fixture corpus (§6) |
+| `benchmark-50k` | The full-scale performance targets; **blocking** on the nightly branch |
+| `audit` | `pip-audit` and dependency review |
+| `cold-install` | Install the published artefact from scratch on each platform and run the quickstart, so packaging breakage is caught before a user finds it |
+
+Nightly failures open an issue automatically and are triaged like any other bug.
+A nightly that has been red for a week is a broken guarantee, not a nuisance.
+
+### 9.6 Specification integrity checks
+
+The specification is the contract, and it will be edited far more often than
+code in the early milestones. `docs.yml` MUST verify, on every pull request:
+
+1. Every relative markdown link resolves to a file that exists.
+2. Every `#anchor` resolves to a heading that exists in the target file.
+3. Every fenced `toml`, `yaml`, and `json` block in `docs/spec/` parses.
+4. Every document referenced in `docs/spec/README.md` exists, and every document
+   in `docs/spec/` is listed there.
+
+These are cheap and they catch the failure mode a growing specification actually
+has: a section renumbered in one file and still referenced by its old anchor in
+four others.
+
+### 9.7 Flakes
+
+The discipline from [08](08-analysis.md) applies to the test suite too: a failing
+test is a failure until proven otherwise.
+
+- Blanket retry plugins (`pytest-rerunfailures` across the suite) MUST NOT be
+  configured. They convert a real intermittent bug into invisible noise.
+- A job may be re-run at most once, and only when it died before any test body
+  executed (runner loss, checkout failure, network failure during install).
+- Skipping, `xfail`-ing, or quarantining a test to get a green build is
+  forbidden. If a test is wrong, fix or delete it in a pull request that says
+  why; if the code is wrong, fix the code.
+- A test that is genuinely nondeterministic is a bug in the test. Seed it.
+
+### 9.8 Releases
+
+A release additionally requires: a green nightly, a clean full suite on all
+platforms, updated documentation, a `CHANGELOG` entry, signed artefacts, a
+published SBOM, and the `cold-install` job green on the release candidate.
+
+## 10. Definition of done: every change carries its tests *(normative)*
+
+The suite specified in §1–§8 is the **starting** suite, not the final one. It is
+expected to grow with every feature, and the roadmap in
+[15](15-roadmap.md) states per-milestone additions explicitly.
+
+### 10.1 The rule
+
+> No pull request that changes behaviour merges without a test that would have
+> failed before the change.
+
+This is the whole of it. The rest of this section is elaboration.
+
+### 10.2 What each kind of change owes
+
+| Change | Required test work |
+|---|---|
+| **Bug fix** | A regression test that fails on `main` and passes with the fix. Written first, and the pull request description SHOULD show it failing. |
+| **New normative requirement** (a new MUST in the specification) | At least one test asserting it, referenced by requirement id (§10.5). A normative requirement with no test is not implemented. |
+| **New CLI command or flag** | An integration test invoking it, plus an assertion on its exit code ([10 §1](10-cli.md)) and on its `--json` output shape where it has one |
+| **New event type** | Fold cases (create, supersede, conflict), a JSON Schema, schema-validation failure cases, and inclusion in the P1/P2/P9 property generators |
+| **New parser or CSV profile** | A golden fixture, including at least one realistic malformation, plus inclusion in the fuzz corpus |
+| **New estimator or effect measure** | A `metafor` fixture comparison, a published worked example where one exists, and the §4.3 edge cases |
+| **Change to identity, normalisation, canonical serialisation, the fold, or the staleness rules** | New property-test cases **and** a schema-version review ([02 §7](02-repository-format.md)). These five are the 100%-branch-coverage modules; a diff touching them with no new test is rejected on sight. |
+| **New derived view or generated artefact** | A determinism assertion and a regeneration round-trip |
+| **New guardrail or error code** | A test that it fires, and a test that `--force` (where applicable) bypasses it and records the bypass |
+| **Performance-sensitive change** | A benchmark case, if the touched path is not already covered |
+| **Documentation only** | None, but §9.6 still runs |
+
+### 10.3 The pull-request template
+
+`.github/PULL_REQUEST_TEMPLATE.md` carries a checklist that makes the rule
+visible at the moment of authorship:
+
+```markdown
+## What this changes
+
+## Tests
+- [ ] A test exists that fails without this change
+- [ ] New normative requirements are linked to their test ids
+- [ ] Touched one of: ids / normalisation / canon / fold / staleness?
+      -> property cases added, schema version reviewed
+
+## Spec
+- [ ] docs/spec updated, or this changes no specified behaviour
+- [ ] Schema version bumped, or this is not a breaking format change
+```
+
+The template is a prompt, not a gate; the gate is §9.3 plus review. It is here
+because a checklist read at the right moment is a genuinely effective
+intervention, and because it tells a first-time contributor what this project
+expects before they have read 29,000 words of specification.
+
+### 10.4 Diff coverage
+
+Global coverage floors (§1) permit a large well-covered codebase to absorb an
+uncovered new feature without the number moving. The gate therefore also checks
+coverage **of the lines this pull request changed**:
+
+- Changed lines: **>= 95%** covered, via `diff-cover` or equivalent.
+- Changed lines in the five critical modules: **100% branch**, no exemption.
+- A deliberate exclusion requires an inline `# pragma: no cover` with a comment
+  explaining why, and those are reviewed.
+
+### 10.5 Requirement traceability
+
+Every identified requirement in this specification — the property invariants
+P1–P13, the end-to-end scenarios E2E-01 to E2E-12, and the error codes `E_*` in
+[03 §10](03-schemas.md) — MUST have at least one test that names it, so that
+coverage of the *specification* is measurable and not merely asserted.
+
+Tests reference requirements by marker:
+
+```python
+@pytest.mark.req("P10", "E2E-04")
+def test_loosening_does_not_stale_inclusions(): ...
+```
+
+A CI step collects the markers and reports which identified requirements have no
+test. New identified requirements added to the specification get an id at the
+time they are written, and appear in that report as uncovered until a test
+exists. The report is published as a build artefact; **once every current
+requirement is covered, an uncovered requirement becomes a gate failure rather
+than a warning.**
+
+## 11. Continuous integration for *review* repositories
+
+Distinct from everything above, which concerns the `strata` source repository.
+
+A review team collaborating through pull requests — the pattern
+[04 §7](04-git-integration.md) recommends for protocol changes — wants the same
+assurance for their data that this project wants for its code: that a change
+about to be merged does not break the review.
+
+`strata` therefore ships a reusable GitHub Actions workflow and a matching
+`strata verify` action, which `strata init --ci` installs into the review
+repository:
+
+| Check | Effect |
+|---|---|
+| `strata verify` | Schemas, hash chains, dangling references, derived drift, count reconciliation |
+| `strata status --json` | Posts a comment summarising what the change does to the pool: records entering and leaving, decisions invalidated, conflicts opened |
+| Criteria-change detection | Labels the pull request `protocol-amendment` and requests review from the configured methodologist |
+
+This turns the origin scenario in [06 §9](06-workflow-screening.md) into
+something a co-author can *review before it lands*: the pull request says, in the
+diff and in a comment, that this criteria edit invalidates 180 decisions and will
+remove 42 papers from the pool.
+
+It is also the natural place to require that a review repository still verifies
+before a manuscript is submitted. Target milestone M6, though it depends only on
+`strata verify` and `strata status --json` and could land any time after M0.

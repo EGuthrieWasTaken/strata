@@ -7,36 +7,60 @@ it a complete product. Each milestone ends with something a real reviewer could
 use for real work, because a tool in this space only improves through contact
 with actual reviews.
 
-The ordering is deliberate in one respect: **M2 (staleness) comes before
-extraction and analysis**, even though a "complete" review needs those. If the
-staleness engine does not work and does not feel trustworthy, the project has no
-reason to exist, and that should be discovered in month three rather than month
-nine.
+The ordering is deliberate in two respects.
+
+**M2 (staleness) comes before extraction and analysis**, even though a "complete"
+review needs those. If the staleness engine does not work and does not feel
+trustworthy, the project has no reason to exist, and that should be discovered in
+month three rather than month nine.
+
+**CI and the pull-request gate come before everything**, including the event log.
+The reasoning is in [14 §9.1](14-testing.md): three of this project's
+correctness guarantees are cross-platform byte-identity claims that cannot be
+checked on one laptop, and the statistical validation is the entire credibility
+argument. A gate that arrives late is a gate that never retroactively covers the
+code written before it.
+
+**The test suite grows with every milestone.** Each milestone below lists its
+suite additions explicitly, and the standing rule in
+[14 §10](14-testing.md) — no behaviour change merges without a test that would
+have failed before it — applies from M0 onwards. Treat the per-milestone
+additions as the floor, not the ceiling.
 
 ---
 
 ## M0 — Substrate *(4–6 weeks)*
 
-The repository format and the git wrapper. No screening yet.
+CI first, then the repository format and the git wrapper. No screening yet.
 
-**Scope**: `strata init`, `clone`, `doctor`, `config`, `actor`; the event log,
-canonical serialisation, fold, ids and normalisation; `gitio` and structured
-commits; `strata verify`, `status`, `log`; merge drivers and hooks.
-
-**Acceptance**
-- `strata init` produces a valid repository; `strata verify` passes on it.
-- Property tests P1–P7, P13 pass.
-- A round trip through `git clone`, edit, commit, push, pull is clean.
-- Two clones appending disjoint events merge with zero conflicts (E2E-02 skeleton).
-- Determinism check passes on all three platforms.
-
----
-
-## M1 — Literature in *(4–6 weeks)*
+**Scope**: **the pull-request gate, branch protection, and the documentation
+integrity checks ([14 §9](14-testing.md)) — before any feature code**; then
+`strata init`, `clone`, `doctor`, `config`, `actor`; the event log, canonical
+serialisation, fold, ids and normalisation; `gitio` and structured commits;
+`strata verify`, `status`, `log`; merge drivers and hooks.
 
 **Scope**: all parsers; search recording; `strata import` with CSV mapping
 profiles; the deduplication engine and review queue; `strata records`, `why`,
 `fix`.
+
+**Suite additions**: the harness itself — `pytest`, `hypothesis`, the OS x
+Python matrix, the determinism job, coverage floors and diff coverage, the
+requirement marker and its traceability report ([14 §10.5](14-testing.md)), and
+the `docs.yml` link/anchor/config-block checks. **Acceptance** - **The gate
+blocks.** A deliberately broken pull request — a failing test, a
+non-deterministic output, a broken specification anchor — is rejected by CI on
+each of those three grounds. Verified by actually opening it, not by reading the
+workflow file. - Branch protection on `main` requires the `gate` check, includes
+administrators, and a documentation-only pull request still merges cleanly. -
+`strata init` produces a valid repository; `strata verify` passes on it. -
+Property tests P1–P7, P13 pass. - A round trip through `git clone`, edit,
+commit, push, pull is clean. - Two clones appending disjoint events merge with
+zero conflicts (E2E-02 skeleton). - Determinism check passes on all three
+platforms **in CI**, not just locally. --- ## M1 — Literature in *(4–6 weeks)*
+**Suite additions**: the golden parser corpus ([14 §3](14-testing.md)) including
+the malformed cases, the labelled dedup benchmark with its published
+precision/recall/false-merge metrics, the fuzz corpus seeded from the fixtures,
+and P8 (dedup symmetry).
 
 **Acceptance**
 - All golden parser fixtures pass, including the malformed ones.
@@ -52,6 +76,10 @@ profiles; the deduplication engine and review queue; `strata records`, `why`,
 **Scope**: criteria management with direction classification; the staleness
 engine; CLI and web screening surfaces; dual screening, blinding, IRR;
 adjudication; `strata rescreen`, `audit`, `irr`; `strata serve`.
+
+**Suite additions**: P10 (staleness soundness) against the brute-force
+reference, E2E-01 and E2E-04 through E2E-06, the screening-latency benchmark,
+and E2E-09 (interrupt and resume).
 
 **Acceptance**
 - **E2E-01 passes**: the origin scenario produces exactly the expected stale set.
@@ -73,6 +101,10 @@ of real reviews.
 schema, coding forms, units, dual extraction and reconciliation; data-quality
 guards; risk-of-bias instruments; `strata export effects`.
 
+**Suite additions**: unit-conversion round-trips, the data-quality guards of [07
+§3.5](07-workflow-extraction.md) each asserted to fire, RoB 2 algorithmic
+judgements against a published decision set, and reconciliation event coverage.
+
 **Acceptance**
 - A complete review can be conducted through to an analysis-ready dataset.
 - Dual extraction reconciliation records every decision.
@@ -89,6 +121,10 @@ models, all `tau^2` estimators, Knapp–Hartung, heterogeneity, prediction
 intervals, meta-regression, dependency handling, publication bias, diagnostics;
 the deterministic SVG plot emitter; `strata analyze`; guardrails.
 
+**Suite additions**: the full `metafor` fixture set and the nightly live-R drift
+job, the published worked examples of [14 §4.2](14-testing.md), every numerical
+edge case in §4.3, P12, and byte-identical plot comparison across platforms.
+
 **Acceptance**
 - Every estimator matches `metafor` to 1e-8 (1e-6 iterative) on the fixture set.
 - Textbook worked examples reproduce exactly (§[14 §4.2](14-testing.md)).
@@ -104,6 +140,10 @@ the deterministic SVG plot emitter; `strata analyze`; guardrails.
 **Scope**: PRISMA flow diagram and count reconciliation; checklist generation;
 Methods/Results/characteristics/amendments prose; manuscript export via pandoc;
 bibliography export; the reproducibility package; robvis-style RoB plots.
+
+**Suite additions**: P11 (count reconciliation over randomly generated
+histories), E2E-03 end to end, and a check that the reproducibility package
+contains no full texts.
 
 **Acceptance**
 - Flow-diagram counts reconcile under property test P11 for random histories.
@@ -133,6 +173,10 @@ FOSS tool.
   included studies to a collection for citation while writing. This closes the
   one gap the no-PDFs decision leaves open, and it reaches users where they
   already are.
+- The reusable **review-repository CI workflow** and `strata verify` action
+  ([14 §11](14-testing.md)), so review teams get the same pre-merge assurance for
+  their data that this project has for its code. Depends only on M0, so it may
+  land earlier.
 - Translations.
 
 ---

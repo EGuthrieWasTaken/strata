@@ -40,7 +40,7 @@ preserved.
 | 11 | [Local web interface](11-web-ui.md) | normative | Screening and extraction UI |
 | 12 | [Architecture](12-architecture.md) | informative | Stack, module boundaries, plugin points |
 | 13 | [Non-functional requirements](13-nonfunctional.md) | normative | Performance, privacy, a11y, i18n, licensing |
-| 14 | [Testing & validation](14-testing.md) | normative | How correctness is proven |
+| 14 | [Testing & validation](14-testing.md) | normative | How correctness is proven: the suite, the CI pull-request gate, and the rule that every change carries its tests |
 | 15 | [Roadmap](15-roadmap.md) | informative | Milestones with acceptance criteria |
 | 16 | [Open questions](16-open-questions.md) | informative | Decisions still owned by the project lead |
 | 17 | [Zotero integration](17-zotero-integration.md) | normative (post-1.0) | Delegating document storage and citation to Zotero |

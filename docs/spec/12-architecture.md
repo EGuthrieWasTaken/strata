@@ -53,6 +53,11 @@ strata/
 └── schemas/          JSON Schema files (shipped data)
 ```
 
+The repository also carries `.github/` — workflows, the pull-request template,
+and issue templates — specified in [14 §9.2](14-testing.md). The pull-request
+gate is the first thing built ([15](15-roadmap.md)), before any of the modules
+above.
+
 **Invariants**
 
 1. `core.fold` is **pure**: events in, state out. No I/O, no clock, no
