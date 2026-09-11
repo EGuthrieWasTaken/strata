@@ -11,6 +11,7 @@ from strata.cli.main import (
     EXIT_SCHEMA_TOO_NEW,
     EXIT_USAGE,
     EXIT_VALIDATION,
+    _derive_clone_dest_name,
     app,
 )
 from strata.core.events import append_new_event
@@ -96,6 +97,17 @@ def test_clone_command_with_explicit_dest(tmp_path: Path) -> None:
     assert result.exit_code == EXIT_OK, result.output
     assert "cloned and verified" in result.output
     assert (dest / "strata.toml").exists()
+
+
+def test_derive_clone_dest_name_handles_posix_and_windows_separators() -> None:
+    assert _derive_clone_dest_name("https://example.invalid/team/review.git") == "review"
+    assert _derive_clone_dest_name("git@example.invalid:team/review.git") == "review"
+    assert _derive_clone_dest_name("/home/ethan/repos/review.git") == "review"
+    assert _derive_clone_dest_name("/home/ethan/repos/review") == "review"
+    # A Windows-style local path has no "/" for the old rsplit("/", ...) logic
+    # to find at all, so it used to return the entire path unchanged.
+    assert _derive_clone_dest_name(r"C:\Users\ethan\repos\review.git") == "review"
+    assert _derive_clone_dest_name(r"C:\Users\ethan\repos\review\\") == "review"
 
 
 def test_clone_command_derives_dest_name_from_url(tmp_path: Path, monkeypatch) -> None:

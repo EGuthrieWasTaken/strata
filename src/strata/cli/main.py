@@ -9,6 +9,7 @@ layer the (future) web UI will call.
 from __future__ import annotations
 
 import json as json_mod
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -100,6 +101,20 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
 
 
+def _derive_clone_dest_name(url: str) -> str:
+    """The directory `strata clone <url>` creates when no `dest` is given.
+
+    `url` may be a URL (always "/"-separated) or a local filesystem path,
+    which is "\\"-separated on Windows -- split on either so the derived
+    name is correct regardless of which was given or which platform this
+    runs on.
+    """
+    name = re.split(r"[/\\]", url.rstrip("/\\"))[-1]
+    if name.endswith(".git"):
+        name = name[: -len(".git")]
+    return name
+
+
 def _parse_config_value(raw: str) -> bool | int | float | str:
     if raw.lower() in ("true", "false"):
         return raw.lower() == "true"
@@ -160,13 +175,7 @@ def init(
 @app.command()
 def clone(url: str, dest: str | None = typer.Argument(None)) -> None:
     """`git clone` plus merge-driver and hook installation plus `strata verify`."""
-    if dest is not None:
-        dest_path = Path(dest)
-    else:
-        name = url.rstrip("/").rsplit("/", 1)[-1]
-        if name.endswith(".git"):
-            name = name[: -len(".git")]
-        dest_path = Path(name)
+    dest_path = Path(dest) if dest is not None else Path(_derive_clone_dest_name(url))
 
     gitio.clone(url, dest_path)
     repo = open_repo(dest_path)
