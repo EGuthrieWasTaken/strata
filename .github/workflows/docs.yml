@@ -1,0 +1,31 @@
+name: Docs
+
+# Specification integrity checks: docs/spec/14-testing.md §9.6. Kept as its
+# own workflow per docs/spec/12-architecture.md §2 / 14-testing.md §9.2, and
+# required directly in branch protection (§9.4) since GitHub Actions `needs:`
+# cannot reach across workflow files into `ci.yml`'s `gate` job.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - run: uv run python scripts/check_docs.py

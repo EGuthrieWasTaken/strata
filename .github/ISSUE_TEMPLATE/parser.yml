@@ -1,0 +1,67 @@
+name: Parser / import problem
+description: "My export file does not import (docs/spec/14-testing.md §9.2)."
+labels: ["parser"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The most common bug report against `strata` is a database export it
+        mishandles, and the fix always starts with the file. This template
+        exists to get it, and to ask whether it can become a permanent test
+        fixture (docs/spec/14-testing.md §3).
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Source platform
+      options:
+        - PubMed / MEDLINE
+        - Ovid (MEDLINE, Embase, PsycINFO)
+        - EBSCOhost
+        - Scopus
+        - Web of Science
+        - ProQuest
+        - Cochrane CENTRAL
+        - ClinicalTrials.gov
+        - EndNote
+        - Zotero
+        - Google Scholar (Publish or Perish)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Export format
+      options:
+        - RIS
+        - NBIB
+        - BibTeX
+        - EndNote XML
+        - CSV
+        - CSL-JSON
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: What did strata do?
+      description: The exact command and error output, or the incorrect result.
+    validations:
+      required: true
+  - type: checkboxes
+    id: redistributable
+    attributes:
+      label: Fixture permission
+      options:
+        - label: >-
+            I can attach the export file (or a trimmed version with only a
+            few records), and I confirm its bibliographic metadata may be
+            redistributed as a test fixture under this project's licence.
+  - type: textarea
+    id: file
+    attributes:
+      label: The export file
+      description: >-
+        Attach it here, or a minimal excerpt reproducing the problem (a
+        couple of records is usually enough).

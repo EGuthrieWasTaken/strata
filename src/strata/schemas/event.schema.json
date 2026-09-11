@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://strata-review.org/schemas/event.schema.json",
+  "title": "Event envelope",
+  "description": "docs/spec/02-repository-format.md §4.2",
+  "type": "object",
+  "required": ["ev", "id", "ts", "actor", "seq", "body", "tool", "digest"],
+  "additionalProperties": false,
+  "properties": {
+    "ev": {
+      "type": "string",
+      "enum": [
+        "import",
+        "record-add",
+        "record-amend",
+        "dedup-merge",
+        "dedup-distinct",
+        "dedup-unmerge",
+        "assign",
+        "screen",
+        "adjudicate",
+        "retrieval",
+        "study-group",
+        "study-split",
+        "extract",
+        "reconcile",
+        "rob",
+        "criteria-change",
+        "relink",
+        "note"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ev_[0-9a-hjkmnp-tv-z]{26}$"
+    },
+    "ts": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "actor": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "body": {
+      "type": "object"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "prev": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

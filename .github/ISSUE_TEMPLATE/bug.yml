@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in strata behaves incorrectly.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, what did you get instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: strata version
+      description: Output of `strata --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands, in order, from a fresh repository if possible.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output or crash log
+      description: >-
+        A crash writes a full report to `.strata/crash-<timestamp>.log` --
+        please attach it if one was produced.
+      render: shell
