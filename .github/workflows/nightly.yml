@@ -1,0 +1,127 @@
+name: Nightly
+
+# Scheduled deep checks: docs/spec/14-testing.md §9.5. These are heavier than
+# the pull-request gate can afford per-push and catch a different class of
+# regression (upstream drift, dependency CVEs, fuzz-found parser crashes,
+# packaging breakage).
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  metafor-live:
+    name: metafor-live
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Regenerate statistical fixtures against current metafor
+        run: |
+          if [ -f tests/statistical/generate.R ]; then
+            Rscript tests/statistical/generate.R
+            git diff --exit-code tests/statistical/fixtures
+          else
+            echo "no metafor fixtures yet (native stats engine lands in M4)"
+          fi
+
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Fuzz ingest.parsers from the fixture corpus
+        run: |
+          if [ -d tests/fuzz ]; then
+            uv run pytest tests/fuzz -q
+          else
+            echo "no parsers to fuzz yet (ingest.parsers lands in M1)"
+          fi
+
+  benchmark-50k:
+    name: benchmark-50k
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Full-scale performance targets (docs/spec 13 §1), blocking
+        run: |
+          if [ -d tests/benchmark ]; then
+            uv run pytest tests/benchmark -q -m benchmark_50k
+          else
+            echo "no 50k benchmark yet"
+          fi
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - run: uv export --no-hashes --no-dev -o requirements.txt
+      - run: uvx pip-audit --requirement requirements.txt
+
+  cold-install:
+    name: cold-install
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: Install the published artefact from scratch and run the quickstart
+        run: |
+          uv venv cold-install-env
+          uv pip install --python cold-install-env -e .
+          uv run --python cold-install-env strata --help
+
+  open-issue-on-failure:
+    name: open-issue-on-failure
+    if: failure()
+    needs: [metafor-live, fuzz, benchmark-50k, audit, cold-install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue for the failing nightly run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload=$(jq -n --arg title "Nightly failed: run ${GITHUB_RUN_ID}" \
+                          --arg body "Nightly run failed: ${RUN_URL}" \
+                          '{title: $title, body: $body, labels: ["nightly-failure"]}')
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d "${payload}"

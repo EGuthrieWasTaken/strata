@@ -36,7 +36,18 @@ rather have quietly rewritten.
 
 ## Status
 
-**Specification stage. No implementation yet.**
+**M0 (substrate) in progress.** The pull-request gate is live, and the
+repository format's core — the event log, canonical serialisation, identity
+and normalisation, the fold, and the `init`/`clone`/`doctor`/`config`/`actor`/
+`verify`/`status`/`log` commands — is implemented and tested. Screening,
+import, dedup, extraction, and analysis are not built yet; see
+[the roadmap](docs/spec/15-roadmap.md) for what M1 and M2 bring next.
+
+```
+uv sync
+uv run strata init my-review --title "My systematic review" --actor you --actor-name "Your Name"
+uv run strata -C my-review status
+```
 
 The complete design lives in [`docs/spec/`](docs/spec/README.md). It is written
 to be executable by an implementer (human or agent) without further design work.

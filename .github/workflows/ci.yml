@@ -1,0 +1,231 @@
+name: CI
+
+# docs/spec/14-testing.md §9.3: the pull-request gate. Trigger is `pull_request`,
+# never `pull_request_target` — fork PRs must never see secrets.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  UV_LOCKED: "1"
+
+jobs:
+  # ---- Tier 1: fast signal ------------------------------------------------
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src
+
+  test-fast:
+    name: test-fast
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - run: uv run pytest tests/unit tests/property -q
+        env:
+          PYTHONHASHSEED: random
+
+  # ---- Tier 2: full signal, still required to merge -----------------------
+
+  test:
+    name: test
+    needs: [lint, test-fast]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync
+      - name: Configure git identity (needed by integration/e2e tests)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - run: uv run pytest -q --junit-xml=pytest-report.xml
+        env:
+          PYTHONHASHSEED: random
+      - name: Upload pytest report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pytest-report-${{ matrix.os }}-${{ matrix.python-version }}
+          path: pytest-report.xml
+
+  statistical:
+    name: statistical
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Run committed metafor fixture comparisons (docs/spec 14 §4.1)
+        run: |
+          if [ -d tests/statistical ]; then
+            uv run pytest tests/statistical -q
+          else
+            echo "no statistical fixtures yet (native stats engine lands in M4)"
+          fi
+
+  determinism:
+    name: determinism
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Run the fixture emitter twice under different PYTHONHASHSEED values
+        run: |
+          PYTHONHASHSEED=1 uv run python scripts/determinism_check.py run1.txt
+          PYTHONHASHSEED=4294967295 uv run python scripts/determinism_check.py run2.txt
+      - name: Byte-compare
+        run: |
+          if ! diff -u run1.txt run2.txt; then
+            echo "::error::determinism check failed: canonical output differs across PYTHONHASHSEED"
+            exit 1
+          fi
+      - name: Upload differing output
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: determinism-diff
+          path: |
+            run1.txt
+            run2.txt
+
+  coverage:
+    name: coverage
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Configure git identity (needed by integration/e2e tests)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - run: uv run pytest -q --cov=strata --cov-report=xml --cov-report=term-missing
+      - name: Enforce global coverage floors (docs/spec 14 §1)
+        run: uv run coverage report --fail-under=90
+      - name: Diff coverage against base branch (docs/spec 14 §10.4)
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}"
+          uv run diff-cover coverage.xml \
+            --compare-branch="origin/${{ github.base_ref }}" \
+            --fail-under=95
+
+  # `docs` (specification integrity) lives in its own workflow, docs.yml, per
+  # docs/spec/14-testing.md §9.2 -- `needs:` cannot cross workflow files, so it
+  # is not a dependency of `gate` below; branch protection requires it directly
+  # instead (docs/spec 14 §9.4).
+
+  # ---- Tier 3: advisory, never blocks the merge ---------------------------
+
+  benchmark:
+    name: benchmark
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Run benchmarks at 1k/10k (docs/spec 13 §1), warn only
+        run: |
+          if [ -d tests/benchmark ]; then
+            uv run pytest tests/benchmark -q --benchmark-json=benchmark.json
+          else
+            echo "no benchmarks yet"
+          fi
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: benchmark-results
+          path: benchmark.json
+          if-no-files-found: ignore
+
+  # ---- The required check: depends on every tier-1/2 job, tolerates skips -
+
+  gate:
+    name: gate
+    if: always()
+    needs: [lint, test-fast, test, statistical, determinism, coverage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check that every required job succeeded or was skipped
+        run: |
+          echo '${{ toJSON(needs) }}' > needs.json
+          python3 - <<'EOF'
+          import json
+
+          with open("needs.json") as f:
+              needs = json.load(f)
+
+          bad = {
+              name: info["result"]
+              for name, info in needs.items()
+              if info["result"] not in ("success", "skipped")
+          }
+          if bad:
+              print("The following required jobs did not succeed:", bad)
+              raise SystemExit(1)
+          print("All required jobs succeeded or were skipped.")
+          EOF
