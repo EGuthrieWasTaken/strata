@@ -4,7 +4,7 @@
 *.epic.lock
 
 # Full-text PDFs are copyrighted third-party material and MUST NOT be committed.
-# epic tracks them by hash in fulltext/manifest.ndjson instead.
+# epic tracks them by identifier (DOI etc.) in fulltext/manifest.ndjson instead.
 fulltext/
 !fulltext/manifest.ndjson
 !fulltext/.gitkeep

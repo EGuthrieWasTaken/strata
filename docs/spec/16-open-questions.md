@@ -30,6 +30,33 @@ that is also the CLI verb, since a mismatch between `pip install epic-review` an
 `epic` is a small permanent tax on every user. Worth a trademark search rather
 than a guess, given the health-software overlap.
 
+### Candidates
+
+PyPI's single-word namespace is largely exhausted, so "taken" below distinguishes
+a *dead stub* (reclaimable in practice, and harmless either way since the
+distribution name need not match the command name) from an *active project* worth
+avoiding. What actually matters is the command name, the GitHub org, and
+trademark safety.
+
+| Name | Meaning | PyPI | Notes |
+|---|---|---|---|
+| **winnow** | To separate grain from chaff — literally what screening is | stub (2015) | Strongest meaning-to-length ratio. "Winnowing the literature" is already idiom in this field, which helps discoverability and hurts distinctiveness |
+| **cairn** | A stack of stones marking a trail; you add to it as you pass | stub (2019) | Provenance metaphor is exact. **But**: `cairn.info` is a major French-language scholarly publishing portal — adjacent space, real confusion risk |
+| **tessera** | One tile of a mosaic; each study is a tessera, the review is the picture | stub (2017, dead Graphite dashboard) | Distinctive and pretty. Tessera Therapeutics is a biotech — different goods class, but the health adjacency is not zero |
+| **palimpsest** | A manuscript rewritten with the earlier text still legible | stub | The *best* metaphor for this specific product — revision that never erases. Too long to type; would need a short command alias |
+| **stele** | An inscribed stone slab; a permanent public record of decisions | 0.0.0 placeholder | Unique, evocative, but people will not know how to say or spell it |
+| **florilegium** | A medieval compilation of excerpts from many works — a pre-modern meta-analysis | **free outright** | Delightful and completely unclaimed. Far too long as a command; works better as a tagline than a name |
+| **assay** | A systematic test or analysis | never released | Short, scientific, types well. Chemistry/biology connotation may mislead in biomedical contexts |
+| **strata** | Layers, deposited in order and readable as history | never released | Version-history metaphor; slightly generic |
+
+**Avoid** (active projects or strong collisions): `glean` (Mozilla's Glean
+telemetry SDK), `sift` (Sift Science, commercial), `quire` (Getty's Quire is an
+active scholarly publishing tool — same space), `rubric`, `concordance`, and
+anything built on `prism`, which would imply endorsement by the PRISMA group.
+
+**If forced to pick two:** `winnow` for the clearest meaning, `tessera` for the
+most distinctive mark. Both are worth a proper trademark search first.
+
 ---
 
 ## Q2 — Licence for the repository format

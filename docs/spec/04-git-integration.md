@@ -257,7 +257,7 @@ $ epic why rec_3kq8v1r0zx2m4a7b
   2026-03-20  re-screened ethan include   (criteria v4)
   2026-03-20  re-screened sam   include   (criteria v4)
               -> resolved INCLUDE, no longer stale
-  2026-03-28  retrieved         via institutional access, sha256:1a2b...
+  2026-03-28  retrieved         via institutional access, version of record
   2026-04-02  full-text ethan   include   (criteria v4)
   2026-04-02  full-text sam     include   (criteria v4)
   2026-04-03  grouped           into study std_7x2k9m1p3v5r8t0w

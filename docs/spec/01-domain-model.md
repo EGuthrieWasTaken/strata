@@ -46,8 +46,10 @@ never stored as a mutable field.
 
 A retrievable document — usually a journal article PDF. A canonical record
 becomes a report when it is promoted out of title/abstract screening. The report
-tracks retrieval status (`sought`, `retrieved`, `not-retrieved` with reason), a
-content hash of the local file, and the date and source of retrieval.
+tracks retrieval status (`sought`, `retrieved`, `not-retrieved` with reason), the
+identifier of the exact version obtained, and the date and source of retrieval.
+Documents are identified by DOI or equivalent, never by file hash
+([07 §1.1](07-workflow-extraction.md)).
 
 `epic` MUST NOT commit the file itself (see [13 §6](13-nonfunctional.md)).
 

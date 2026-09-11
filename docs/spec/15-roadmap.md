@@ -128,6 +128,11 @@ FOSS tool.
 - Import from Covidence, Rayyan, and EPPI-Reviewer exports — an explicit
   migration path off the paid tools, which is how this project gets its first
   users.
+- **Zotero integration** ([17](17-zotero-integration.md)): pull a collection as
+  an import source, resolve full texts during screening and extraction, push
+  included studies to a collection for citation while writing. This closes the
+  one gap the no-PDFs decision leaves open, and it reaches users where they
+  already are.
 - Translations.
 
 ---
@@ -141,6 +146,8 @@ Ordered by expected value, not by ease:
 | Vevea–Hedges selection models, p-curve, p-uniform* | Completes the publication-bias toolkit |
 | Living systematic reviews | Scheduled re-searches with automatic staleness — a very natural fit for this architecture, and arguably its best long-term differentiator |
 | Machine-assisted prioritisation | Via the `Prioritiser` interface ([12 §5](12-architecture.md)): reordering only, never deciding |
+| Zotero annotations as extraction sources ([17 §7](17-zotero-integration.md)) | Highlight a number in the PDF, get the source locator for free |
+| Other reference managers (Mendeley, EndNote, Paperpile) | Via the same generic interface |
 | PRISMA-S, PRISMA-ScR, PRISMA-IPD extensions | Scoping reviews are a large and under-served share of the market |
 | GRADE certainty assessment | Item 22; currently author work |
 | Network meta-analysis | Large; possibly better delegated to R via export |

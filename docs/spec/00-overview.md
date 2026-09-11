@@ -115,10 +115,15 @@ reproducibility. Optional, opt-in enrichment from *open* APIs (Crossref,
 OpenAlex, PubMed E-utilities, Unpaywall) is in scope.
 
 **N2 — Not a reference manager.** Zotero exists, is excellent, and is FOSS.
-`epic` interoperates with it (CSL-JSON in both directions) rather than competing.
+`epic` interoperates with it rather than competing: CSL-JSON in both directions,
+and — from M6 — a real integration in which **Zotero owns the documents and
+`epic` owns the decisions** ([17](17-zotero-integration.md)). That division is
+what lets `epic` decline to store PDFs at all without leaving users to manage a
+folder of them by hand.
 
 **N3 — Not a PDF repository.** Full-text PDFs are third-party copyrighted works.
-`epic` tracks them by hash and path, and MUST NOT commit them by default.
+`epic` tracks them by identifier (DOI or equivalent) and MUST NOT commit them by
+default.
 
 **N4 — Not a statistics language.** `epic` implements the standard meta-analytic
 toolkit well and correctly. It is not a substitute for R when you need a

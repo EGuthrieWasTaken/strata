@@ -101,8 +101,10 @@ involves mass-downloading copyrighted articles.
   without an explicit override. Committing 400 publisher PDFs to a GitHub
   repository is copyright infringement at scale, and the tool must not lead
   users there casually.
-- **Hashes, not files.** `fulltext/manifest.ndjson` preserves the provenance
-  chain (which document was assessed) without redistributing the document.
+- **Identifiers, not files.** `fulltext/manifest.ndjson` preserves the provenance
+  chain (which document was assessed, in which version) by DOI or equivalent,
+  without redistributing the document. Content hashes are explicitly not used
+  for this, for the reasons in [07 §1.1](07-workflow-extraction.md).
 - **`epic` MUST NOT retrieve articles from unauthorised sources.** No Sci-Hub, no
   LibGen, no institutional-proxy credential handling. Unpaywall integration is
   limited to surfacing links to legally open copies.

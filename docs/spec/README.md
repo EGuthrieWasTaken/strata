@@ -43,6 +43,7 @@ preserved.
 | 14 | [Testing & validation](14-testing.md) | normative | How correctness is proven |
 | 15 | [Roadmap](15-roadmap.md) | informative | Milestones with acceptance criteria |
 | 16 | [Open questions](16-open-questions.md) | informative | Decisions still owned by the project lead |
+| 17 | [Zotero integration](17-zotero-integration.md) | normative (post-1.0) | Delegating document storage and citation to Zotero |
 
 ### A note on the name
 

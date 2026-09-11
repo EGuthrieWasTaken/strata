@@ -88,7 +88,7 @@ my-review/
 │   ├── prisma-checklist.md
 │   └── manuscript/
 ├── fulltext/                        # GITIGNORED except the manifest
-│   └── manifest.ndjson              # hash, path, retrieval date, source
+│   └── manifest.ndjson              # DOI/identifier, version, date, source
 ├── .epic/
 │   ├── hooks/                       # versioned git hooks (core.hooksPath)
 │   ├── schema-version              # format version, e.g. "1"
@@ -220,7 +220,7 @@ means "discuss it", and the discussion is the adjudication queue.
 | `assign` | `epic assign` | `stage`, `records` or `filter`, `actors` |
 | `screen` | `epic screen` | `stage`, `record`, `decision`, `criteria[]`, `note`, `criteria_version`, `criteria_digest`, `confidence` |
 | `adjudicate` | `epic adjudicate` | `stage`, `record`, `decision`, `criteria[]`, `rationale`, `supersedes[]` |
-| `retrieval` | `epic retrieve` | `report`, `status`, `source`, `file_digest`, `reason` |
+| `retrieval` | `epic retrieve` | `report`, `status`, `source`, `locator`, `version`, `reason` |
 | `study-group` | `epic studies` | `study`, `reports[]`, `rationale` |
 | `study-split` | `epic studies` | `report`, `studies[]`, `rationale` |
 | `extract` | `epic extract` | `study`, `actor`, `fields_changed[]`, `digest` |

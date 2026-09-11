@@ -19,17 +19,48 @@ $ epic retrieve
     [n] not retrievable      [s] skip
 ```
 
-`[f]` prompts for a path, hashes the file, copies or links it into `fulltext/`
-(gitignored), and appends to `fulltext/manifest.ndjson`:
+`[f]` records that the document was obtained and appends to
+`fulltext/manifest.ndjson`:
 
 ```json
-{"report":"rpt_3kq8v1r0zx2m4a7b","sha256":"1a2b...","filename":"cepeda-2008.pdf","bytes":842113,"retrieved":"2026-03-28","source":"institutional-access","actor":"ethan"}
+{"report":"rpt_3kq8v1r0zx2m4a7b","locator":{"doi":"10.1111/j.1467-9280.2008.02209.x","pmid":"19076480"},"version":"version-of-record","path":"cepeda-2008.pdf","retrieved":"2026-03-28","source":"institutional-access","actor":"ethan"}
 ```
 
-The manifest is committed; the PDF is not ([13 §6](13-nonfunctional.md)). A
-collaborator who has the same PDF gets a matching hash, which confirms both
-reviewers assessed the same document — a real and under-appreciated source of
-error when a "supplementary materials" version differs from the published one.
+The manifest is committed; the PDF is not ([13 §6](13-nonfunctional.md)).
+
+### 1.1 Identify documents by identifier, not by bytes *(normative)*
+
+The manifest's authoritative field is `locator` — the DOI, or PMID/PMCID/arXiv id
+/ ISBN / URL where no DOI exists. That is what makes the document findable again
+by anyone, on any machine, years later. `path` is a local convenience and carries
+no guarantee; a collaborator's copy will live somewhere else and may well be
+named something else.
+
+`epic` MUST NOT require, and MUST NOT depend on, a content hash of the retrieved
+file. A reviewer who highlights a passage, adds a sticky note, or opens the PDF
+in a reader that rewrites metadata changes the bytes without changing the
+document — and annotating while reading is exactly what full-text screening
+involves. A hash-based equivalence check would therefore report disagreement on
+two copies of the same paper in the ordinary case, which makes it worse than no
+check at all.
+
+Where two reviewers genuinely might assess *different documents* — a preprint
+versus the version of record, or a paper with an erratum — the distinction is
+recorded explicitly and by identifier:
+
+| Field | Values |
+|---|---|
+| `version` | `preprint`, `accepted-manuscript`, `version-of-record`, `corrected`, `retracted`, `unknown` |
+| `locator` | The identifier **of that version**; preprints carry their own DOI, which is precisely the identifier that distinguishes them |
+| `related` | Optional: identifiers of other versions (`{"preprint": "10.1101/..."}`) |
+
+This is both more robust and more informative than a hash: `version:
+"preprint"` tells a reader something, whereas `sha256: 1a2b...` tells them only
+that two files differ, without saying how or whether it matters.
+
+A `sha256` field MAY be recorded and is OPTIONAL. If present it is advisory
+metadata only; `epic` MUST NOT treat a mismatch as an error, MUST NOT warn on
+one, and MUST NOT use it to decide whether two reviewers saw the same document.
 
 `[n]` requires a reason from a fixed vocabulary (`no-access`, `not-found`,
 `retracted`, `language`, `no-response-from-author`, `other` + free text). These
