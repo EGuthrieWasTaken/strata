@@ -1,0 +1,34 @@
+#+TITLE: Meta-Analysis Program Spec
+#+AUTHOR: Ethan Guthrie
+#+DATE: <2026-09-10 Thu>
+#+OPTIONS: toc:nil num:nil
+#+LATEX_HEADER: \usepackage[margin=0.75in]{geometry}
+
+Current Meta-Analysis programs are close-source proprietary softwares which charge extortionate fees. Unfortunately, there currently exists no FOSS alternative. This program seeks to fill that gap. A typical meta-analysis flow involves:
+
+1. Establish research idea
+
+   a. Establish overall scope of question
+   
+   b. Identify moderators or variables which may need to be controlled
+   
+   c. Produce list of requirements for paper to be included in meta-analysis
+   
+2. Create search terms and databases to be used
+   
+3. Get mass of literature from search terms (2)
+   
+4. Filter out papers which do not meet requirements specified in (1c)
+   
+   a. This should give the final list of papers
+   
+5. Extract relevant values from all papers and conduct analyses
+
+6. Write up findings in a meta-analysis
+   
+Taking a look at [[file:PRISMA Checklist.png][PRISMA (2020) guidelines]] there are several points at which it would be helpful to take notes during steps 1-5 to streamline the writing of the final analysis. Current approaches with common office software suites enable easy collaboration but are clumsy; suppose the following example. You and a colleague have established your research question and described your inclusion/exclusion criteria. As you collect data, however, you realize that your initial list of criteria is incomplete. So, you update your list from (1c). This in turn requires an update to many or all of the subsequent steps. Without painstaking cross-referencing (e.g. in a spreadsheet) and meticulous scribing within a shared document, you may pollute your candidate literature pool with many papers which had already been previously filtered out in step 4, requiring you to start the process from the beginning.
+
+Some of these issues come down to the lack of versioning done by office suite programs. There are, however, alteratives. `git` is a FOSS product which (when paired with free resources such as GitHub) enables collaboration as well as versioning. A change as described above may look something like this in `git`: you update a text file containing line-delineated search terms. you then run the additional search term and export the results as a table. can then commit these changes/additions with a message explaining why you did this. `git` can also identify what specific papers are added/removed from the candidate pool through `git diff`. Looking back on this change later on will show you exactly what search term changed, why (through your commit note), and what effect this had on the candidate pool. The user has only two steps in this process; write the commit note, and de-dupe the updated candidate pool. This program would be designed to streamline both steps; since databases (such as those run by EBSCO) can export results as a CSV which may easily be filtered using programs like `R` or `python`, and the "why" for the change can be requested interactively. In this way, the even a user with minimal or no familiarity with `git` can reap these benefits.
+
+In this way, this program is intended as a purpose-built frontend to git. 
+

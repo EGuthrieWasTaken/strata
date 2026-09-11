@@ -1,0 +1,30 @@
+# epic project-repository artifacts (these are *derived*, never authoritative)
+.epic/cache/
+.epic/tmp/
+*.epic.lock
+
+# Full-text PDFs are copyrighted third-party material and MUST NOT be committed.
+# epic tracks them by hash in fulltext/manifest.ndjson instead.
+fulltext/
+!fulltext/manifest.ndjson
+!fulltext/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
