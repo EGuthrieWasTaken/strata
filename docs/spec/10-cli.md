@@ -1,0 +1,254 @@
+# 10 — Command-line interface *(normative)*
+
+## 1. Conventions
+
+```
+strata [global options] <command> [subcommand] [arguments] [options]
+```
+
+**Global options**
+
+| Option | Effect |
+|---|---|
+| `-C <path>` | Run as if started in `<path>` |
+| `--why <text>` | Supply the commit rationale non-interactively |
+| `--why-file <path>` | Read the rationale from a file |
+| `--no-commit` | Perform the operation, stage nothing, leave the tree dirty |
+| `--json` | Machine-readable output on stdout; human output moves to stderr |
+| `-q` / `-v` / `-vv` | Quieter / verbose / debug |
+| `--yes` | Assume yes for confirmations. Never bypasses a rationale prompt. |
+| `--no-color` | Also honoured via `NO_COLOR` |
+| `--version`, `--help` | Standard |
+
+**Conventions**
+
+- Every command that mutates the repository commits, unless `--no-commit`.
+- Every command that mutates the repository is safe to interrupt: events are
+  appended and fsynced before any derived regeneration, so `Ctrl-C` loses at most
+  the commit, which `strata status` then offers to complete.
+- Long operations show progress on stderr and are silent under `-q`.
+- `--json` output is a stable, versioned contract; breaking it is a minor-version
+  bump.
+- Record ids may be abbreviated to any unambiguous prefix, as in git.
+
+**Exit codes**
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Generic failure |
+| 2 | Usage error |
+| 3 | Not a `strata` repository |
+| 4 | Validation failure (`strata verify` found problems) |
+| 5 | Merge/sync conflict requiring human resolution |
+| 6 | Schema version too new (`E_SCHEMA_TOO_NEW`) |
+| 7 | Refused: the operation would require a rationale and none was available |
+| 8 | Refused: a guardrail blocked the operation (use `--force`) |
+
+## 2. Command reference
+
+### Setup
+
+| Command | Description |
+|---|---|
+| `strata init [--title T] [--remote URL]` | Create a repository: layout, `strata.toml`, `.gitattributes`, hooks, merge drivers, initial commit. Interactive unless `--title` given. |
+| `strata clone <url>` | `git clone` plus merge-driver and hook installation plus `strata verify` |
+| `strata doctor` | Diagnose and repair: missing merge drivers, missing hooks, stale cache, git version, unreadable files. `--fix` applies repairs. |
+| `strata migrate` | Upgrade the repository to the current schema version |
+| `strata config <key> [value]` | Read or set `strata.toml` values |
+| `strata actor add\|list\|deactivate` | Manage contributors |
+
+### Protocol
+
+| Command | Description |
+|---|---|
+| `strata criteria list [--at STAGE] [--version N]` | Show criteria |
+| `strata criteria add` | Add a criterion (interactive or flags) |
+| `strata criteria edit <ID>` | Edit; prompts for direction ([06 §3.2](06-workflow-screening.md)) |
+| `strata criteria retire <ID>` | Retire; behaves as `loosened` |
+| `strata criteria diff <v1> <v2>` | Show what changed between versions and what it invalidated |
+| `strata search add [--id ID]` | Record an executed search |
+| `strata search list` | Show all searches with dates and hit counts |
+| `strata moderators add\|list\|edit` | Manage planned moderators |
+
+### Literature
+
+| Command | Description |
+|---|---|
+| `strata import <file>... --search <id>` | Import exports. `--via`, `--map`, `--format`, `--dry-run` |
+| `strata dedup [--review] [--strict]` | Run deduplication; `--review` opens the queue |
+| `strata dedup --undo <canonical> <absorbed>` | Reverse a merge |
+| `strata records list [--filter EXPR]` | List records; `--format tsv\|json\|csl` |
+| `strata records show <id>` | Full record with sources and provenance |
+| `strata fix <id> --field <f> --value <v>` | Correct a metadata field, recording the change |
+
+### Screening
+
+| Command | Description |
+|---|---|
+| `strata screen <stage> [--filter EXPR] [--limit N]` | Open the screening queue |
+| `strata rescreen [--stage S]` | Open the stale queue |
+| `strata adjudicate [--stage S]` | Resolve conflicts |
+| `strata assign <stage> --actors a,b [--filter EXPR]` | Assign reviewers |
+| `strata irr [--stage S]` | Inter-rater reliability report |
+| `strata audit --criteria [--sample N]` | Re-present a random sample of past exclusions for verification ([06 §4.3](06-workflow-screening.md)) |
+
+### Full text and extraction
+
+| Command | Description |
+|---|---|
+| `strata retrieve` | Work the retrieval queue |
+| `strata studies` | Group reports into studies; suggest groupings and splits |
+| `strata extract init` | Generate a draft coding form from the protocol |
+| `strata extract [<study>] [--missing]` | Extract data |
+| `strata extract --reconcile [<study>]` | Reconcile dual extractions |
+| `strata rob [<study>]` | Risk-of-bias assessment |
+
+### Analysis and reporting
+
+| Command | Description |
+|---|---|
+| `strata analyze [<id>] [--all]` | Run an analysis specification; writes `analysis/results/<id>/` |
+| `strata analyze --check` | Validate analysis specs and report guardrails without computing |
+| `strata prisma [--format F] [--columns one\|both]` | Flow diagram |
+| `strata report <section>` | `methods`, `results`, `characteristics`, `amendments`, `checklist`, `rob`, `manuscript` |
+| `strata export <what> --format F` | `effects`, `records`, `bibliography`, `package` |
+
+### Repository operations
+
+| Command | Description |
+|---|---|
+| `strata status` | The dashboard: stage counts, conflicts, stale, missing data, outstanding requirements |
+| `strata sync` | Fetch, merge, regenerate, verify, push ([04 §5](04-git-integration.md)) |
+| `strata verify [--fast] [--fix]` | Validate the whole repository ([03 §10](03-schemas.md)) |
+| `strata log [--criteria] [--stage S] [--actor A]` | Domain-level history |
+| `strata why <id>` | Full provenance for a record, report, study, or effect |
+| `strata diff <ref>..<ref>` | Domain-level diff between two commits |
+| `strata serve [--port N]` | Start the local web UI ([11](11-web-ui.md)) |
+
+## 3. Filter expressions *(normative)*
+
+`--filter` accepts a small, safe expression language used identically in the CLI,
+the web UI, and analysis specifications. It MUST NOT be implemented by evaluating
+the host language (no `eval`, no `exec`); it is parsed to an AST and interpreted.
+
+**Grammar**
+
+```
+expr    := or_expr
+or_expr := and_expr ("or" and_expr)*
+and_expr:= not_expr ("and" not_expr)*
+not_expr:= "not" not_expr | primary
+primary := "(" expr ")" | comparison | field
+comparison := field op value
+op      := "==" | "!=" | "<" | "<=" | ">" | ">=" | "in" | "not in" | "contains" | "matches"
+value   := string | number | boolean | null | list
+```
+
+**Available fields**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id`, `doi`, `pmid` | string | |
+| `title`, `abstract`, `journal` | string | `contains` is case-insensitive substring; `matches` is a regex |
+| `year` | integer | |
+| `authors` | list of strings | `contains` tests any family name |
+| `tiab`, `fulltext` | string | Screening state |
+| `stale` | boolean | |
+| `criteria` | list | Criteria cited at the resolved decision |
+| `via` | string | `database`, `citation-searching`, ... |
+| `search` | string | Search id |
+| `actor_decision.<handle>` | string | One reviewer's opinion |
+| `<moderator>` / `<extraction field>` | per schema | Available once extracted |
+| `rob_overall`, `rob.<domain>` | string | |
+| `derived_from_pvalue`, `assumed_correlation` | boolean/number | Effect-level |
+
+`matches` MUST use a linear-time regex engine or enforce a timeout; user-supplied
+patterns must not be able to hang the tool.
+
+**Examples**
+
+```
+year >= 2000 and tiab == 'include'
+abstract contains 'randomi' and not (journal contains 'Proceedings')
+stale == true and fulltext == 'include'
+rob_overall in ['low', 'some-concerns']
+criteria contains 'EXC-03'
+```
+
+## 4. `strata status` output
+
+The default view, and the answer to "where am I?":
+
+```
+$ strata status
+
+  Spaced retrieval and long-term retention                   criteria v4
+  38 commits · 2 actors · last sync 2 hours ago · clean
+
+  SEARCHES        4 databases, 7,282 records identified, last run 2026-03-04
+                  ! S-04-psycinfo has no query string recorded  (PRISMA item 7)
+
+  DEDUPLICATION   2,918 canonical  (4,364 duplicates removed)
+                  47 pairs awaiting review                      strata dedup --review
+
+  TITLE/ABSTRACT  2,918 records
+                  ############################......  4,002 / 4,182 resolved
+                  14 conflicts                                  strata adjudicate
+                  180 stale                                     strata rescreen
+
+  FULL TEXT       204 reports · 196 assessed · 8 not retrieved
+                  21 stale (upstream)
+
+  EXTRACTION      38 studies · 31 complete · 5 partial · 2 not started
+                  3 studies with unreconciled disagreements     strata extract --reconcile
+
+  ANALYSIS        primary        stale (data changed since last run)
+                  sensitivity    up to date
+
+  NEXT                                                          strata rescreen        180 records, ~55 min at your recent pace
+```
+
+Every line that reports a problem MUST name the command that addresses it. The
+tool should never report a state the user cannot act on.
+
+## 5. Non-interactive use
+
+Every interactive workflow MUST have a scriptable equivalent, so that reviews can
+be driven from CI or reproduced from a script:
+
+```
+strata import *.ris --search S-01 --why "initial MEDLINE search"
+strata screen title-abstract --decisions decisions.tsv --why "imported from pilot"
+strata analyze --all --json > results.json
+strata verify --json
+```
+
+`strata screen --decisions <file>` accepts a TSV of
+`record_id  decision  criteria  note` and is the supported path for importing
+screening work done in another tool. Imported decisions MUST be attributed to the
+declared actor and marked `imported: true` in the event body, because their
+independence cannot be verified.
+
+## 6. Error message requirements *(normative)*
+
+Every error MUST state what happened, why, and what to do next. The tool's users
+are researchers under deadline pressure, not developers.
+
+```
+  error: cannot run `strata analyze primary`
+
+  3 included studies have no reconciled extraction:
+
+    std_7x2k9m1p3v5r8t0w   Larsen et al. (2009)
+    std_2b8n4k6m0p2r4t6v   Kornell (2009)
+    std_9v3x1z5c7b9n1m3q   Roediger & Karpicke (2006)
+
+  Extract them first:   strata extract --missing
+  Or exclude them from this analysis by editing the `include.filter`
+  in analysis/primary.yaml.
+```
+
+Errors MUST NOT include stack traces unless `-vv` is set. A crash MUST write a
+full report to `.strata/crash-<timestamp>.log` and print the path plus the issue
+tracker URL.

@@ -1,0 +1,30 @@
+# strata project-repository artifacts (these are *derived*, never authoritative)
+.strata/cache/
+.strata/tmp/
+*.strata.lock
+
+# Full-text PDFs are copyrighted third-party material and MUST NOT be committed.
+# strata tracks them by identifier (DOI etc.) in fulltext/manifest.ndjson instead.
+fulltext/
+!fulltext/manifest.ndjson
+!fulltext/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
