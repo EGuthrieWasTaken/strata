@@ -1,3 +1,5 @@
+import pytest
+
 from strata.core.canon import CanonError, canonical_json, dump_yaml_str, serialise_envelope
 
 
@@ -76,3 +78,18 @@ def test_serialise_envelope_omits_absent_fields() -> None:
 def test_dump_yaml_str_preserves_key_order() -> None:
     text = dump_yaml_str({"z": 1, "a": 2})
     assert text.index("z:") < text.index("a:")
+
+
+def test_canonical_json_float_uses_repr() -> None:
+    assert canonical_json(1.5) == "1.5"
+    assert canonical_json({"v": 0.1}) == '{"v":0.1}'
+
+
+def test_canonical_json_rejects_unsupported_type() -> None:
+    with pytest.raises(CanonError, match="unsupported type"):
+        canonical_json(object())
+
+
+def test_serialise_envelope_rejects_unknown_field() -> None:
+    with pytest.raises(CanonError, match="unknown envelope field"):
+        serialise_envelope({"ev": "note", "id": "ev_x", "bogus": 1})

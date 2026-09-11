@@ -74,17 +74,17 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
     return referenced_records
 
 
-def _load_ndjson_ids(path: Path) -> set[str]:
+def _load_ndjson_field(path: Path, field: str) -> set[str]:
     if not path.exists():
         return set()
-    ids = set()
+    values: set[str] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         obj = json.loads(line)
-        if "id" in obj:
-            ids.add(obj["id"])
-    return ids
+        if field in obj:
+            values.add(obj[field])
+    return values
 
 
 def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
@@ -110,8 +110,11 @@ def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
 
 
 def _verify_dangling_refs(repo: Repo, report: VerifyReport, referenced_records: set[str]) -> None:
-    record_ids = _load_ndjson_ids(repo.path("records", "records.ndjson"))
-    alias_ids = _load_ndjson_ids(repo.path("records", "aliases.ndjson"))
+    # aliases.ndjson entries key the absorbed record's id as "alias", not
+    # "id" (docs/spec/02-repository-format.md §3.3) -- a non-canonical
+    # record id therefore never appears in records.ndjson at all.
+    record_ids = _load_ndjson_field(repo.path("records", "records.ndjson"), "id")
+    alias_ids = _load_ndjson_field(repo.path("records", "aliases.ndjson"), "alias")
     known = record_ids | alias_ids
     for ref in sorted(referenced_records):
         if ref not in known:

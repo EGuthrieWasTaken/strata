@@ -24,15 +24,18 @@ def validate_rationale(text: str | None) -> str:
     stripped = text.strip()
     if not stripped:
         raise RationaleRejectedError("the rationale must not be empty or whitespace")
-    if len(stripped) < MIN_RATIONALE_LENGTH:
-        raise RationaleRejectedError(
-            f"the rationale must be at least {MIN_RATIONALE_LENGTH} characters "
-            "(this goes in the permanent record)"
-        )
+    # Checked before the length floor: every stop-listed word is short enough
+    # that the length check would otherwise mask it behind a generic
+    # "too short" message instead of this more instructive one.
     if stripped.lower() in _RATIONALE_STOPLIST:
         raise RationaleRejectedError(
             f"{stripped!r} is not a rationale — say what changed and why, "
             "because this is what a peer reviewer or your future self reads"
+        )
+    if len(stripped) < MIN_RATIONALE_LENGTH:
+        raise RationaleRejectedError(
+            f"the rationale must be at least {MIN_RATIONALE_LENGTH} characters "
+            "(this goes in the permanent record)"
         )
     return stripped
 

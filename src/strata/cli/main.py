@@ -52,6 +52,15 @@ err_console = Console(stderr=True)
 out_console = Console()
 
 
+def _print_json(value: object) -> None:
+    """Print a `--json` payload verbatim: no word-wrap, no markup/highlight
+    interpretation of its content. `--json` output is a stable, versioned
+    contract (docs/spec/10-cli.md §1); Rich's default `print` would otherwise
+    wrap long lines and treat a literal `[...]` in the data as a markup tag.
+    """
+    out_console.print(json_mod.dumps(value), soft_wrap=True, markup=False, highlight=False)
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -225,16 +234,13 @@ def verify(
     report = verify_mod.verify_repository(repo, fast=fast)
     del fix  # regeneration-based repair lands with the derived views in M1
     if ctx.obj["json"]:
-        out_console.print(
-            json_mod.dumps(
-                {
-                    "ok": report.ok,
-                    "issues": [
-                        {"code": i.code, "message": i.message, "path": i.path}
-                        for i in report.issues
-                    ],
-                }
-            )
+        _print_json(
+            {
+                "ok": report.ok,
+                "issues": [
+                    {"code": i.code, "message": i.message, "path": i.path} for i in report.issues
+                ],
+            }
         )
     elif report.ok:
         out_console.print("[green]ok[/] — repository is valid")
@@ -251,7 +257,7 @@ def status(ctx: typer.Context) -> None:
     repo = _resolve_repo(ctx)
     s = status_mod.compute_status(repo)
     if ctx.obj["json"]:
-        out_console.print(json_mod.dumps(vars(s)))
+        _print_json(vars(s))
         return
     out_console.print(f"[bold]{s.title}[/]  criteria v{s.criteria_version}")
     clean = "clean" if s.is_clean else "dirty"
@@ -295,7 +301,7 @@ def actor_list(ctx: typer.Context) -> None:
     repo = _resolve_repo(ctx)
     actors = actor_mod.list_actors(repo)
     if ctx.obj["json"]:
-        out_console.print(json_mod.dumps(actors))
+        _print_json(actors)
         return
     for a in actors:
         out_console.print(f"{a['handle']:<16} {a.get('name', ''):<24} {a.get('role', '')}")

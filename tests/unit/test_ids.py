@@ -1,8 +1,10 @@
 import pytest
 
 from strata.core.ids import (
+    assign_record_id,
     base32_crockford,
     canonical_key,
+    new_import_id,
     normalise_author_family,
     normalise_doi,
     normalise_journal,
@@ -130,3 +132,55 @@ def test_base32_crockford_excludes_ambiguous_letters() -> None:
     encoded = base32_crockford(bytes(range(10)))
     assert set(encoded) <= set("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
     assert not set(encoded) & set("ILOU")
+
+
+def test_normalise_author_family_empty_input() -> None:
+    assert normalise_author_family(None) == ("", "")
+    assert normalise_author_family("") == ("", "")
+
+
+def test_normalise_year_skips_out_of_range_match_before_valid_one() -> None:
+    assert normalise_year("ref 9999, published 2020") == 2020
+
+
+def test_normalise_journal_empty_input_returns_empty() -> None:
+    assert normalise_journal(None) == ""
+    assert normalise_journal("") == ""
+
+
+def test_canonical_key_pmid_non_numeric_falls_through_to_pmcid() -> None:
+    record = {"PMID": "not-a-number", "PMCID": "PMC777"}
+    key, deterministic = canonical_key(record)
+    assert key == "pmcid:PMC777"
+    assert deterministic is True
+
+
+def test_canonical_key_pmcid_branch() -> None:
+    key, deterministic = canonical_key({"PMCID": "PMC00123"})
+    assert key == "pmcid:PMC00123"
+    assert deterministic is True
+
+
+def test_canonical_key_arxiv_branch() -> None:
+    key, deterministic = canonical_key({"arxiv": "arXiv:2301.12345"})
+    assert key == "arxiv:2301.12345"
+    assert deterministic is True
+
+
+def test_canonical_key_isbn_branch() -> None:
+    key, deterministic = canonical_key({"ISBN": "978-0-13-468599-1"})
+    assert key == "isbn:9780134685991"
+    assert deterministic is True
+
+
+def test_assign_record_id_returns_id_key_and_determinism_flag() -> None:
+    rid, key, deterministic = assign_record_id({"DOI": "10.1000/abc"})
+    assert rid == record_id(key)
+    assert key == "doi:10.1000/abc"
+    assert deterministic is True
+
+
+def test_new_import_id_has_expected_prefix_and_length() -> None:
+    import_id = new_import_id()
+    assert import_id.startswith("imp_")
+    assert len(import_id) == len("imp_") + 26

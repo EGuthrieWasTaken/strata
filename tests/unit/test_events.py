@@ -1,10 +1,15 @@
+import json
 from pathlib import Path
 
+import pytest
+
 from strata.core.events import (
+    ChainError,
     append_event,
     append_new_event,
     build_envelope,
     compute_digest,
+    iter_event_files,
     last_digest,
     next_seq,
     read_events,
@@ -89,3 +94,39 @@ def test_next_seq_and_last_digest_on_empty_file(tmp_path: Path) -> None:
     path = tmp_path / "events.ndjson"
     assert next_seq(path) == 1
     assert last_digest(path) is None
+
+
+def test_read_events_skips_blank_lines(tmp_path: Path) -> None:
+    path = tmp_path / "events.ndjson"
+    envelope = build_envelope(ev="note", actor="ethan", seq=1, body={"subject": "a", "text": "1"})
+    path.write_text(json.dumps(envelope) + "\n\n", encoding="utf-8")
+    events = read_events(path)
+    assert len(events) == 1
+
+
+def test_read_events_raises_on_malformed_non_trailing_line(tmp_path: Path) -> None:
+    path = tmp_path / "events.ndjson"
+    envelope = build_envelope(ev="note", actor="ethan", seq=1, body={"subject": "a", "text": "1"})
+    path.write_text('{"broken": \n' + json.dumps(envelope) + "\n", encoding="utf-8")
+    with pytest.raises(ChainError, match="not the last line"):
+        read_events(path)
+
+
+def test_verify_chain_skips_seen_digests_update_when_digest_missing(tmp_path: Path) -> None:
+    path = tmp_path / "events.ndjson"
+    envelope = build_envelope(ev="note", actor="ethan", seq=1, body={"subject": "a", "text": "1"})
+    del envelope["digest"]
+    path.write_text(json.dumps(envelope) + "\n", encoding="utf-8")
+    violations = verify_chain(path)
+    assert any(v.reason == "digest mismatch" for v in violations)
+
+
+def test_iter_event_files_empty_when_no_events_dir(tmp_path: Path) -> None:
+    assert iter_event_files(tmp_path) == []
+
+
+def test_iter_event_files_finds_ndjson_files(tmp_path: Path) -> None:
+    path = tmp_path / "events" / "screen" / "title-abstract.ethan.ndjson"
+    append_new_event(path, ev="note", actor="ethan", body={"subject": "a", "text": "1"})
+    files = iter_event_files(tmp_path)
+    assert files == [path]
