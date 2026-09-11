@@ -314,16 +314,24 @@ effects:
     outcome: "recall"
     design: "two-group-means"
     timepoint: "1 week"
-    n1: 74, m1: 0.62, sd1: 0.18
-    n2: 74, m2: 0.48, sd2: 0.21
+    n1: 74
+    m1: 0.62
+    sd1: 0.18
+    n2: 74
+    m2: 0.48
+    sd2: 0.21
     source: "Table 2"
     moderators: {dose: 3, condition: "spaced"}
   - id: "eff_7x2k9m1p3v5r8t0w_0002"
     outcome: "recognition"
     design: "two-group-means"
     timepoint: "1 week"
-    n1: 74, m1: 0.81, sd1: 0.12
-    n2: 74, m2: 0.77, sd2: 0.14
+    n1: 74
+    m1: 0.81
+    sd1: 0.12
+    n2: 74
+    m2: 0.77
+    sd2: 0.14
     source: "Table 2"
     moderators: {dose: 3, condition: "spaced"}
 ```
