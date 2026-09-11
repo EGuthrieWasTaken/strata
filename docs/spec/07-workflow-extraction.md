@@ -8,7 +8,7 @@ assessed for eligibility"; the gap between them is reports you could not get, an
 it must be reported.
 
 ```
-$ epic retrieve
+$ strata retrieve
 
   204 reports sought. 8 outstanding.
 
@@ -36,7 +36,7 @@ by anyone, on any machine, years later. `path` is a local convenience and carrie
 no guarantee; a collaborator's copy will live somewhere else and may well be
 named something else.
 
-`epic` MUST NOT require, and MUST NOT depend on, a content hash of the retrieved
+`strata` MUST NOT require, and MUST NOT depend on, a content hash of the retrieved
 file. A reviewer who highlights a passage, adds a sticky note, or opens the PDF
 in a reader that rewrites metadata changes the bytes without changing the
 document — and annotating while reading is exactly what full-text screening
@@ -59,14 +59,14 @@ This is both more robust and more informative than a hash: `version:
 that two files differ, without saying how or whether it matters.
 
 A `sha256` field MAY be recorded and is OPTIONAL. If present it is advisory
-metadata only; `epic` MUST NOT treat a mismatch as an error, MUST NOT warn on
+metadata only; `strata` MUST NOT treat a mismatch as an error, MUST NOT warn on
 one, and MUST NOT use it to decide whether two reviewers saw the same document.
 
 `[n]` requires a reason from a fixed vocabulary (`no-access`, `not-found`,
 `retracted`, `language`, `no-response-from-author`, `other` + free text). These
 reasons populate the "Reports not retrieved" box of the flow diagram.
 
-Optional, opt-in: with `enrichment.enabled`, `epic` MAY query Unpaywall for a
+Optional, opt-in: with `enrichment.enabled`, `strata` MAY query Unpaywall for a
 legal open-access copy and offer the link. It MUST NOT download anything
 automatically, and MUST NOT touch Sci-Hub or comparable sources.
 
@@ -76,7 +76,7 @@ After full-text inclusion, reports are grouped into studies
 ([01 §2.3](01-domain-model.md)).
 
 ```
-$ epic studies
+$ strata studies
 
   41 included reports -> 38 studies
 
@@ -103,13 +103,13 @@ the grouping decisions should be visible to a reader.
 
 ### 3.1 The coding form
 
-`extraction/schema.yaml` ([03 §6](03-schemas.md)) defines the form. `epic` MUST
+`extraction/schema.yaml` ([03 §6](03-schemas.md)) defines the form. `strata` MUST
 support generating a draft schema from the protocol's declared moderators and
-outcomes (`epic extract init`), so the user does not start from a blank file.
+outcomes (`strata extract init`), so the user does not start from a blank file.
 
 The form is versioned. Adding a field to the schema mid-extraction marks existing
-extractions **incomplete** for that field, not invalid — `epic status` lists
-studies with missing values and `epic extract --missing` queues exactly those.
+extractions **incomplete** for that field, not invalid — `strata status` lists
+studies with missing values and `strata extract --missing` queues exactly those.
 
 ### 3.2 Dual extraction
 
@@ -118,7 +118,7 @@ people extract independently into `extraction/by-reviewer/<handle>/`, then
 reconcile into `extraction/consensus/`.
 
 ```
-$ epic extract --reconcile std_7x2k9m1p3v5r8t0w
+$ strata extract --reconcile std_7x2k9m1p3v5r8t0w
 
   Cepeda et al. (2008)                       11 fields, 2 disagreements
 
@@ -134,7 +134,7 @@ $ epic extract --reconcile std_7x2k9m1p3v5r8t0w
 ```
 
 Every reconciliation writes a `reconcile` event with the chosen value, its
-source, and a rationale. `epic report` MUST be able to state the extraction
+source, and a rationale. `strata report` MUST be able to state the extraction
 agreement rate, which reviewers ask for.
 
 ### 3.3 Units
@@ -144,12 +144,12 @@ value. Recording "1 week" as 168 hours without keeping "1 week" makes the
 extraction unverifiable against the paper; recording only "1 week" makes it
 unanalysable. Both are kept.
 
-Unit conversion tables ship with `epic` for time, mass, length, and dose, and are
+Unit conversion tables ship with `strata` for time, mass, length, and dose, and are
 extensible per project. An unconvertible unit is `E_UNIT` and blocks analysis.
 
 ### 3.4 Effect data entry
 
-The form adapts to the declared effect design ([03 §6](03-schemas.md)). `epic`
+The form adapts to the declared effect design ([03 §6](03-schemas.md)). `strata`
 MUST support entering an effect in whatever form the paper reports, and
 converting:
 
@@ -165,14 +165,14 @@ converting:
 | Pre-computed | `yi, vi, measure` |
 | Pre-post | `n, m_pre, sd_pre, m_post, sd_post, r` |
 
-Conversions are specified in [08 §3](08-analysis.md). `epic` MUST show the
+Conversions are specified in [08 §3](08-analysis.md). `strata` MUST show the
 computed effect size immediately as the user types, so a data-entry error
 (transposed digits, SD entered as SE) is visible at the moment it is made rather
 than in the forest plot three weeks later.
 
 ### 3.5 Data quality guards *(normative)*
 
-`epic` MUST warn — not block — on:
+`strata` MUST warn — not block — on:
 
 - An SD that is more than 3x or less than 1/3 of the median SD for that outcome
   across studies (commonly an SE entered as an SD, or a unit mismatch).
@@ -194,10 +194,10 @@ nag on every subsequent run and so the acknowledgement is itself auditable.
 RoB assessment is structurally identical to extraction: an instrument definition
 ([03 §8](03-schemas.md)), per-reviewer assessments, reconciliation, and a
 consensus record. It is specified separately only because the instruments are
-standardised and `epic` ships them.
+standardised and `strata` ships them.
 
 ```
-$ epic rob std_7x2k9m1p3v5r8t0w
+$ strata rob std_7x2k9m1p3v5r8t0w
 
   RoB 2 -- Domain 1: Randomisation process
 
@@ -209,9 +209,9 @@ $ epic rob std_7x2k9m1p3v5r8t0w
   Your judgement: [l] low  [s] some concerns  [h] high      Support: ______
 ```
 
-`epic` MUST compute the instrument's algorithmic suggestion where the instrument
+`strata` MUST compute the instrument's algorithmic suggestion where the instrument
 defines one (RoB 2 does) and MUST allow the reviewer to override it with a
-recorded justification. `epic report rob` emits a robvis-compatible traffic-light
+recorded justification. `strata report rob` emits a robvis-compatible traffic-light
 plot and a summary bar plot.
 
 RoB judgements are available as moderators in analysis, which is how a
@@ -219,9 +219,9 @@ RoB judgements are available as moderators in analysis, which is how a
 
 ## 5. Exporting for outside analysis
 
-`epic export effects --format csv|tsv|xlsx|rds|json` emits one row per effect
+`strata export effects --format csv|tsv|xlsx|rds|json` emits one row per effect
 with all study-level and effect-level moderators joined, ready for `metafor`,
 `R`, or anything else. This is a first-class, supported path, not an escape
-hatch: the review's value is the curated dataset, and `epic` must never hold it
+hatch: the review's value is the curated dataset, and `strata` must never hold it
 hostage. The export MUST include the `study_id` and `effect_id` so results can be
 traced back.

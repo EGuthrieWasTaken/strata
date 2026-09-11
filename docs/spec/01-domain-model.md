@@ -4,7 +4,7 @@
 
 PRISMA counts three different things and calls them by three different names.
 Conflating them is the single most common source of a flow diagram that does not
-reconcile. `epic` models them separately and derives every count from the model.
+reconcile. `strata` models them separately and derives every count from the model.
 
 ```
    Search hit          Deduplicated       Document             Research
@@ -27,7 +27,7 @@ reconcile. `epic` models them separately and derives every count from the model.
 - **Reports sought for retrieval** = canonical records promoted to `Report`.
 - **Reports assessed for eligibility** = reports whose full text was obtained.
 - **Studies included** and **reports of included studies** are different numbers
-  whenever one study is reported in more than one paper. `epic` MUST report both.
+  whenever one study is reported in more than one paper. `strata` MUST report both.
 
 ## 2. Entities
 
@@ -51,7 +51,7 @@ identifier of the exact version obtained, and the date and source of retrieval.
 Documents are identified by DOI or equivalent, never by file hash
 ([07 §1.1](07-workflow-extraction.md)).
 
-`epic` MUST NOT commit the file itself (see [13 §6](13-nonfunctional.md)).
+`strata` MUST NOT commit the file itself (see [13 §6](13-nonfunctional.md)).
 
 ### 2.3 Study
 
@@ -84,7 +84,7 @@ staleness is computed. See [06 §3](06-workflow-screening.md).
 
 One executed query against one database on one date: the platform, the exact
 query string, field tags, applied limits, the number of hits, and the export
-file(s) it produced. PRISMA item 7 requires this verbatim. `epic` MUST preserve
+file(s) it produced. PRISMA item 7 requires this verbatim. `strata` MUST preserve
 the query string byte-for-byte, including whitespace and line breaks.
 
 ### 2.7 Event
@@ -214,8 +214,8 @@ state, derived from the fold (see [02 §4.3](02-repository-format.md)):
 
 `stale` is an **overlay**, not a seventh state: a stale record retains its prior
 decision and cited criteria so that the flow diagram remains well defined while
-re-screening is in progress. `epic status` MUST report both the resolved count
-and the stale count, and `epic prisma` MUST refuse to emit a final diagram while
+re-screening is in progress. `strata status` MUST report both the resolved count
+and the stale count, and `strata prisma` MUST refuse to emit a final diagram while
 any record is stale unless `--allow-stale` is passed.
 
 ## 5. Stage graph

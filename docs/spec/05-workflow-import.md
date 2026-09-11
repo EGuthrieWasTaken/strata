@@ -2,18 +2,18 @@
 
 ## 1. Recording a search
 
-Before importing, the search that produced the export is recorded. `epic search
+Before importing, the search that produced the export is recorded. `strata search
 add` walks the user through it and writes `protocol/searches/<id>.yaml`
 ([03 §5](03-schemas.md)).
 
 The tool MUST NOT let the user skip the query string. PRISMA item 7 requires the
 full search strategy for every database, and reconstructing it after the fact is
 the single most common reason systematic reviews fail replication. If the user
-does not have the query to hand, `epic` records `query: "PENDING"` and
-`epic status` reports it as an outstanding requirement until supplied.
+does not have the query to hand, `strata` records `query: "PENDING"` and
+`strata status` reports it as an outstanding requirement until supplied.
 
 Where the export format carries the query (PubMed `.nbib` sometimes does, Ovid
-exports often do), `epic import` MUST offer to pre-fill it and MUST show the user
+exports often do), `strata import` MUST offer to pre-fill it and MUST show the user
 what it extracted for confirmation rather than accepting it silently.
 
 ## 2. Import
@@ -45,7 +45,7 @@ records loudly.
 ### 2.2 CSV column mapping
 
 CSV exports vary per platform and per user configuration, so mapping cannot be
-hard-coded. `epic` MUST:
+hard-coded. `strata` MUST:
 
 1. Ship detection profiles for common exports (EBSCOhost, Scopus, Web of Science,
    ProQuest, Dimensions, Google Scholar via Publish or Perish), matched by
@@ -58,14 +58,14 @@ hard-coded. `epic` MUST:
 ### 2.3 What import does
 
 ```
-$ epic import ~/Downloads/medline-2026-03-04.nbib --search S-01-medline
+$ strata import ~/Downloads/medline-2026-03-04.nbib --search S-01-medline
 ```
 
 1. Copy the file **unmodified** to `imports/<import-id>/raw/`. This file is the
    ground truth and is never edited. Record its sha256.
 2. Parse into records; apply normalisation ([01 §3.2](01-domain-model.md)).
 3. Compute record ids; emit `record-add` events.
-4. For an id already present, append to `epic.sources` rather than creating a
+4. For an id already present, append to `strata.sources` rather than creating a
    duplicate row — an exact-id match is a same-record re-import, not a dedup
    candidate.
 5. Write `imports/<id>/manifest.yaml`: source file, digest, parser, encoding
@@ -79,11 +79,11 @@ rather than appearing to succeed silently.
 ### 2.4 Other sources
 
 PRISMA 2020 tracks records found outside database searching separately, and the
-flow diagram has a whole second column for it. `epic import --via
+flow diagram has a whole second column for it. `strata import --via
 citation-searching | website | organisation | registry | contact` tags records
 accordingly, and those tags flow through to the correct column of the diagram.
 
-Backward and forward citation chasing is a common and valuable method; `epic`
+Backward and forward citation chasing is a common and valuable method; `strata`
 v1 supports importing its results (as a normal export file with `--via
 citation-searching`) but does not perform the chasing.
 
@@ -97,14 +97,14 @@ over-eager merge deletes a real study. Both are publishable errors.
 ### 3.1 Design requirements
 
 - **Sticky.** Every merge and every non-merge is recorded as an event. Re-running
-  `epic dedup` after a new import never re-asks about a pair a human already
+  `strata dedup` after a new import never re-asks about a pair a human already
   judged.
-- **Reversible.** `epic dedup --undo <canonical> <absorbed>` restores a record
+- **Reversible.** `strata dedup --undo <canonical> <absorbed>` restores a record
   and records why.
 - **Conservative.** When uncertain, ask. The cost of a review question is
   seconds; the cost of a wrong merge is a retraction.
 - **Explainable.** Every automatic merge stores the features that drove it, so
-  `epic why` can show them.
+  `strata why` can show them.
 
 ### 3.2 Blocking *(normative)*
 
@@ -169,7 +169,7 @@ features into the review queue rather than discarding them, and label them
 | `>= review_threshold` (default 0.80) | Queue for human review |
 | `< review_threshold` | Distinct; no event recorded (absence is the default) |
 
-`epic dedup --strict` sets both thresholds to 1.0, so every non-exact pair is
+`strata dedup --strict` sets both thresholds to 1.0, so every non-exact pair is
 reviewed. Recommended for reviews small enough to afford it.
 
 ### 3.5 Merge semantics
@@ -185,16 +185,16 @@ Field-wise merge into the canonical record:
 - `abstract`: the longest non-empty value wins (truncated abstracts are the
   common case).
 - `keyword`: set union.
-- `epic.sources`: append.
-- Every field's origin is recorded in `epic.field_provenance`.
+- `strata.sources`: append.
+- Every field's origin is recorded in `strata.field_provenance`.
 
-The absorbed record is retained in `records.ndjson` with `epic.canonical: false`
+The absorbed record is retained in `records.ndjson` with `strata.canonical: false`
 and an entry in `aliases.ndjson`. Nothing is deleted, ever.
 
 ### 3.6 The review queue
 
 ```
-$ epic dedup --review
+$ strata dedup --review
 
   Pair 3 of 47                                       score 0.88   doi-conflict
 

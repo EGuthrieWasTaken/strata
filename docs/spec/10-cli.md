@@ -3,7 +3,7 @@
 ## 1. Conventions
 
 ```
-epic [global options] <command> [subcommand] [arguments] [options]
+strata [global options] <command> [subcommand] [arguments] [options]
 ```
 
 **Global options**
@@ -25,7 +25,7 @@ epic [global options] <command> [subcommand] [arguments] [options]
 - Every command that mutates the repository commits, unless `--no-commit`.
 - Every command that mutates the repository is safe to interrupt: events are
   appended and fsynced before any derived regeneration, so `Ctrl-C` loses at most
-  the commit, which `epic status` then offers to complete.
+  the commit, which `strata status` then offers to complete.
 - Long operations show progress on stderr and are silent under `-q`.
 - `--json` output is a stable, versioned contract; breaking it is a minor-version
   bump.
@@ -38,8 +38,8 @@ epic [global options] <command> [subcommand] [arguments] [options]
 | 0 | Success |
 | 1 | Generic failure |
 | 2 | Usage error |
-| 3 | Not an `epic` repository |
-| 4 | Validation failure (`epic verify` found problems) |
+| 3 | Not a `strata` repository |
+| 4 | Validation failure (`strata verify` found problems) |
 | 5 | Merge/sync conflict requiring human resolution |
 | 6 | Schema version too new (`E_SCHEMA_TOO_NEW`) |
 | 7 | Refused: the operation would require a rationale and none was available |
@@ -51,80 +51,80 @@ epic [global options] <command> [subcommand] [arguments] [options]
 
 | Command | Description |
 |---|---|
-| `epic init [--title T] [--remote URL]` | Create a repository: layout, `epic.toml`, `.gitattributes`, hooks, merge drivers, initial commit. Interactive unless `--title` given. |
-| `epic clone <url>` | `git clone` plus merge-driver and hook installation plus `epic verify` |
-| `epic doctor` | Diagnose and repair: missing merge drivers, missing hooks, stale cache, git version, unreadable files. `--fix` applies repairs. |
-| `epic migrate` | Upgrade the repository to the current schema version |
-| `epic config <key> [value]` | Read or set `epic.toml` values |
-| `epic actor add\|list\|deactivate` | Manage contributors |
+| `strata init [--title T] [--remote URL]` | Create a repository: layout, `strata.toml`, `.gitattributes`, hooks, merge drivers, initial commit. Interactive unless `--title` given. |
+| `strata clone <url>` | `git clone` plus merge-driver and hook installation plus `strata verify` |
+| `strata doctor` | Diagnose and repair: missing merge drivers, missing hooks, stale cache, git version, unreadable files. `--fix` applies repairs. |
+| `strata migrate` | Upgrade the repository to the current schema version |
+| `strata config <key> [value]` | Read or set `strata.toml` values |
+| `strata actor add\|list\|deactivate` | Manage contributors |
 
 ### Protocol
 
 | Command | Description |
 |---|---|
-| `epic criteria list [--at STAGE] [--version N]` | Show criteria |
-| `epic criteria add` | Add a criterion (interactive or flags) |
-| `epic criteria edit <ID>` | Edit; prompts for direction ([06 §3.2](06-workflow-screening.md)) |
-| `epic criteria retire <ID>` | Retire; behaves as `loosened` |
-| `epic criteria diff <v1> <v2>` | Show what changed between versions and what it invalidated |
-| `epic search add [--id ID]` | Record an executed search |
-| `epic search list` | Show all searches with dates and hit counts |
-| `epic moderators add\|list\|edit` | Manage planned moderators |
+| `strata criteria list [--at STAGE] [--version N]` | Show criteria |
+| `strata criteria add` | Add a criterion (interactive or flags) |
+| `strata criteria edit <ID>` | Edit; prompts for direction ([06 §3.2](06-workflow-screening.md)) |
+| `strata criteria retire <ID>` | Retire; behaves as `loosened` |
+| `strata criteria diff <v1> <v2>` | Show what changed between versions and what it invalidated |
+| `strata search add [--id ID]` | Record an executed search |
+| `strata search list` | Show all searches with dates and hit counts |
+| `strata moderators add\|list\|edit` | Manage planned moderators |
 
 ### Literature
 
 | Command | Description |
 |---|---|
-| `epic import <file>... --search <id>` | Import exports. `--via`, `--map`, `--format`, `--dry-run` |
-| `epic dedup [--review] [--strict]` | Run deduplication; `--review` opens the queue |
-| `epic dedup --undo <canonical> <absorbed>` | Reverse a merge |
-| `epic records list [--filter EXPR]` | List records; `--format tsv\|json\|csl` |
-| `epic records show <id>` | Full record with sources and provenance |
-| `epic fix <id> --field <f> --value <v>` | Correct a metadata field, recording the change |
+| `strata import <file>... --search <id>` | Import exports. `--via`, `--map`, `--format`, `--dry-run` |
+| `strata dedup [--review] [--strict]` | Run deduplication; `--review` opens the queue |
+| `strata dedup --undo <canonical> <absorbed>` | Reverse a merge |
+| `strata records list [--filter EXPR]` | List records; `--format tsv\|json\|csl` |
+| `strata records show <id>` | Full record with sources and provenance |
+| `strata fix <id> --field <f> --value <v>` | Correct a metadata field, recording the change |
 
 ### Screening
 
 | Command | Description |
 |---|---|
-| `epic screen <stage> [--filter EXPR] [--limit N]` | Open the screening queue |
-| `epic rescreen [--stage S]` | Open the stale queue |
-| `epic adjudicate [--stage S]` | Resolve conflicts |
-| `epic assign <stage> --actors a,b [--filter EXPR]` | Assign reviewers |
-| `epic irr [--stage S]` | Inter-rater reliability report |
-| `epic audit --criteria [--sample N]` | Re-present a random sample of past exclusions for verification ([06 §4.3](06-workflow-screening.md)) |
+| `strata screen <stage> [--filter EXPR] [--limit N]` | Open the screening queue |
+| `strata rescreen [--stage S]` | Open the stale queue |
+| `strata adjudicate [--stage S]` | Resolve conflicts |
+| `strata assign <stage> --actors a,b [--filter EXPR]` | Assign reviewers |
+| `strata irr [--stage S]` | Inter-rater reliability report |
+| `strata audit --criteria [--sample N]` | Re-present a random sample of past exclusions for verification ([06 §4.3](06-workflow-screening.md)) |
 
 ### Full text and extraction
 
 | Command | Description |
 |---|---|
-| `epic retrieve` | Work the retrieval queue |
-| `epic studies` | Group reports into studies; suggest groupings and splits |
-| `epic extract init` | Generate a draft coding form from the protocol |
-| `epic extract [<study>] [--missing]` | Extract data |
-| `epic extract --reconcile [<study>]` | Reconcile dual extractions |
-| `epic rob [<study>]` | Risk-of-bias assessment |
+| `strata retrieve` | Work the retrieval queue |
+| `strata studies` | Group reports into studies; suggest groupings and splits |
+| `strata extract init` | Generate a draft coding form from the protocol |
+| `strata extract [<study>] [--missing]` | Extract data |
+| `strata extract --reconcile [<study>]` | Reconcile dual extractions |
+| `strata rob [<study>]` | Risk-of-bias assessment |
 
 ### Analysis and reporting
 
 | Command | Description |
 |---|---|
-| `epic analyze [<id>] [--all]` | Run an analysis specification; writes `analysis/results/<id>/` |
-| `epic analyze --check` | Validate analysis specs and report guardrails without computing |
-| `epic prisma [--format F] [--columns one\|both]` | Flow diagram |
-| `epic report <section>` | `methods`, `results`, `characteristics`, `amendments`, `checklist`, `rob`, `manuscript` |
-| `epic export <what> --format F` | `effects`, `records`, `bibliography`, `package` |
+| `strata analyze [<id>] [--all]` | Run an analysis specification; writes `analysis/results/<id>/` |
+| `strata analyze --check` | Validate analysis specs and report guardrails without computing |
+| `strata prisma [--format F] [--columns one\|both]` | Flow diagram |
+| `strata report <section>` | `methods`, `results`, `characteristics`, `amendments`, `checklist`, `rob`, `manuscript` |
+| `strata export <what> --format F` | `effects`, `records`, `bibliography`, `package` |
 
 ### Repository operations
 
 | Command | Description |
 |---|---|
-| `epic status` | The dashboard: stage counts, conflicts, stale, missing data, outstanding requirements |
-| `epic sync` | Fetch, merge, regenerate, verify, push ([04 §5](04-git-integration.md)) |
-| `epic verify [--fast] [--fix]` | Validate the whole repository ([03 §10](03-schemas.md)) |
-| `epic log [--criteria] [--stage S] [--actor A]` | Domain-level history |
-| `epic why <id>` | Full provenance for a record, report, study, or effect |
-| `epic diff <ref>..<ref>` | Domain-level diff between two commits |
-| `epic serve [--port N]` | Start the local web UI ([11](11-web-ui.md)) |
+| `strata status` | The dashboard: stage counts, conflicts, stale, missing data, outstanding requirements |
+| `strata sync` | Fetch, merge, regenerate, verify, push ([04 §5](04-git-integration.md)) |
+| `strata verify [--fast] [--fix]` | Validate the whole repository ([03 §10](03-schemas.md)) |
+| `strata log [--criteria] [--stage S] [--actor A]` | Domain-level history |
+| `strata why <id>` | Full provenance for a record, report, study, or effect |
+| `strata diff <ref>..<ref>` | Domain-level diff between two commits |
+| `strata serve [--port N]` | Start the local web UI ([11](11-web-ui.md)) |
 
 ## 3. Filter expressions *(normative)*
 
@@ -176,12 +176,12 @@ rob_overall in ['low', 'some-concerns']
 criteria contains 'EXC-03'
 ```
 
-## 4. `epic status` output
+## 4. `strata status` output
 
 The default view, and the answer to "where am I?":
 
 ```
-$ epic status
+$ strata status
 
   Spaced retrieval and long-term retention                   criteria v4
   38 commits · 2 actors · last sync 2 hours ago · clean
@@ -190,23 +190,23 @@ $ epic status
                   ! S-04-psycinfo has no query string recorded  (PRISMA item 7)
 
   DEDUPLICATION   2,918 canonical  (4,364 duplicates removed)
-                  47 pairs awaiting review                     epic dedup --review
+                  47 pairs awaiting review                      strata dedup --review
 
   TITLE/ABSTRACT  2,918 records
                   ############################......  4,002 / 4,182 resolved
-                  14 conflicts                                 epic adjudicate
-                  180 stale                                    epic rescreen
+                  14 conflicts                                  strata adjudicate
+                  180 stale                                     strata rescreen
 
   FULL TEXT       204 reports · 196 assessed · 8 not retrieved
                   21 stale (upstream)
 
   EXTRACTION      38 studies · 31 complete · 5 partial · 2 not started
-                  3 studies with unreconciled disagreements     epic extract --reconcile
+                  3 studies with unreconciled disagreements     strata extract --reconcile
 
   ANALYSIS        primary        stale (data changed since last run)
                   sensitivity    up to date
 
-  NEXT            epic rescreen        180 records, ~55 min at your recent pace
+  NEXT                                                          strata rescreen        180 records, ~55 min at your recent pace
 ```
 
 Every line that reports a problem MUST name the command that addresses it. The
@@ -218,13 +218,13 @@ Every interactive workflow MUST have a scriptable equivalent, so that reviews ca
 be driven from CI or reproduced from a script:
 
 ```
-epic import *.ris --search S-01 --why "initial MEDLINE search"
-epic screen title-abstract --decisions decisions.tsv --why "imported from pilot"
-epic analyze --all --json > results.json
-epic verify --json
+strata import *.ris --search S-01 --why "initial MEDLINE search"
+strata screen title-abstract --decisions decisions.tsv --why "imported from pilot"
+strata analyze --all --json > results.json
+strata verify --json
 ```
 
-`epic screen --decisions <file>` accepts a TSV of
+`strata screen --decisions <file>` accepts a TSV of
 `record_id  decision  criteria  note` and is the supported path for importing
 screening work done in another tool. Imported decisions MUST be attributed to the
 declared actor and marked `imported: true` in the event body, because their
@@ -236,7 +236,7 @@ Every error MUST state what happened, why, and what to do next. The tool's users
 are researchers under deadline pressure, not developers.
 
 ```
-  error: cannot run `epic analyze primary`
+  error: cannot run `strata analyze primary`
 
   3 included studies have no reconciled extraction:
 
@@ -244,11 +244,11 @@ are researchers under deadline pressure, not developers.
     std_2b8n4k6m0p2r4t6v   Kornell (2009)
     std_9v3x1z5c7b9n1m3q   Roediger & Karpicke (2006)
 
-  Extract them first:   epic extract --missing
+  Extract them first:   strata extract --missing
   Or exclude them from this analysis by editing the `include.filter`
   in analysis/primary.yaml.
 ```
 
 Errors MUST NOT include stack traces unless `-vv` is set. A crash MUST write a
-full report to `.epic/crash-<timestamp>.log` and print the path plus the issue
+full report to `.strata/crash-<timestamp>.log` and print the path plus the issue
 tracker URL.

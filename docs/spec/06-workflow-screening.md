@@ -1,6 +1,6 @@
 # 06 — Screening and the staleness engine *(normative)*
 
-This is the feature the project exists for. Everything else in `epic` is
+This is the feature the project exists for. Everything else in `strata` is
 competent infrastructure; §4–§6 are the part no other tool does.
 
 ## 1. Screening stages
@@ -32,7 +32,7 @@ disagreements are adjudicated.
   repository — they would have to deliberately open someone else's file.
 - IRR is computed over **first opinions only** ([02 §6.5](02-repository-format.md)).
 
-`single` mode is supported for pilot and scoping work, and `epic report` MUST
+`single` mode is supported for pilot and scoping work, and `strata report` MUST
 state plainly in generated Methods text that screening was performed by a single
 reviewer, since that is a limitation reviewers will ask about.
 
@@ -41,10 +41,10 @@ reviewer, since that is a limitation reviewers will ask about.
 ### 3.1 Editing criteria
 
 ```
-$ epic criteria add --kind exclusion --label "Mean sample age under 18"
-$ epic criteria edit EXC-03
-$ epic criteria retire INC-05
-$ epic criteria list --at full-text
+$ strata criteria add --kind exclusion --label "Mean sample age under 18"
+$ strata criteria edit EXC-03
+$ strata criteria retire INC-05
+$ strata criteria list --at full-text
 ```
 
 Any change to the active criteria set increments `criteria.version` by one,
@@ -52,7 +52,7 @@ recomputes digests, and emits a `criteria-change` event carrying the deltas.
 
 ### 3.2 Declaring the direction of a change *(normative)*
 
-When a criterion's `definition` changes, `epic` MUST ask the user to classify the
+When a criterion's `definition` changes, `strata` MUST ask the user to classify the
 change, because the classification determines how much work becomes stale and the
 tool cannot reliably infer it from text:
 
@@ -77,10 +77,10 @@ tool cannot reliably infer it from text:
 | `tightened` | For an exclusion criterion, excludes more; for an inclusion criterion, includes fewer. In both cases: **the included pool can only shrink** | May invalidate prior inclusions |
 | `loosened` | The included pool can only grow | May invalidate prior exclusions citing it |
 | `both` | Unknown or genuinely bidirectional | Invalidates both directions |
-| `editorial` | No semantic change | Invalidates nothing; per-criterion digest is unchanged by construction, so `epic` MUST verify the claim by checking that only `label`/`examples`/whitespace changed, and MUST refuse `editorial` if the `definition` text changed in any other way |
+| `editorial` | No semantic change | Invalidates nothing; per-criterion digest is unchanged by construction, so `strata` MUST verify the claim by checking that only `label`/`examples`/whitespace changed, and MUST refuse `editorial` if the `definition` text changed in any other way |
 
 The `editorial` guard matters: it is the one option that lets a user assert
-"nothing to redo", and it is therefore the one a rushed user will reach for. `epic`
+"nothing to redo", and it is therefore the one a rushed user will reach for. `strata`
 MUST NOT accept the assertion on trust. If the definition's meaning-bearing text
 changed, the honest options are `tightened`, `loosened`, or `both`, and `both` is
 always safe.
@@ -149,9 +149,9 @@ carelessly — excludes a rodent study but clicks `EXC-05 (wrong outcome)` inste
 of `EXC-02 (animal model)` — then retiring `EXC-05` will correctly flag the
 record as stale (no harm), but retiring `EXC-02` will *not* flag it, and the
 record stays excluded on a ground that no longer exists. The mitigations are:
-`epic` MUST support citing multiple criteria on one exclusion and MUST make it
+`strata` MUST support citing multiple criteria on one exclusion and MUST make it
 one keystroke each; the UI MUST show the criterion's full definition on hover or
-focus, not just its label; and `epic audit --criteria` MUST offer a sampling
+focus, not just its label; and `strata audit --criteria` MUST offer a sampling
 workflow that re-presents a random subset of past exclusions for verification.
 The tool cannot fully protect against a miscited reason, and the documentation
 MUST say so rather than implying a guarantee it cannot make.
@@ -160,7 +160,7 @@ MUST say so rather than implying a guarantee it cannot make.
 
 A record whose title/abstract decision becomes stale and is then *excluded* on
 re-screening leaves the pool, which invalidates any downstream full-text
-decision, extraction, and analysis participation. `epic` MUST:
+decision, extraction, and analysis participation. `strata` MUST:
 
 - Cascade staleness forward: a stale `include` at title/abstract marks the
   dependent full-text decision stale as well.
@@ -182,20 +182,20 @@ decision, extraction, and analysis participation. `epic` MUST:
 | `criterion-both` | A bidirectional change |
 | `maybe-any-change` | The decision was `maybe` and anything changed |
 | `upstream-stale` | A prior-stage decision for this record is stale (§4.4) |
-| `manual` | A user explicitly invalidated it with `epic rescreen --mark <records>` |
+| `manual` | A user explicitly invalidated it with `strata rescreen --mark <records>` |
 
 ## 6. The re-screening workflow
 
 ```
-$ epic status
+$ strata status
 
   Criteria v4 (changed 2026-03-19: EXC-07 added, EXC-03 tightened)
 
   Title/abstract          4,182 records
     resolved                4,002   (3,798 exclude, 204 include)
     unscreened                  0
-    conflicts                  14   -> epic adjudicate
-    STALE                     180   -> epic rescreen
+    conflicts                  14   -> strata adjudicate
+    STALE                     180   -> strata rescreen
                                        138 included, now that EXC-07 applies
                                         42 excluded citing EXC-03, now loosened
 
@@ -207,7 +207,7 @@ $ epic status
   Estimated re-screening effort: ~55 minutes at your recent pace (18s/record)
 ```
 
-`epic rescreen` opens the stale queue in the screening UI, showing each record
+`strata rescreen` opens the stale queue in the screening UI, showing each record
 *with its prior decision and reason visible* — the reviewer is re-deciding, not
 deciding fresh, and hiding the prior judgement would waste their earlier
 thinking and destroy consistency. The prior decision is displayed, clearly marked
@@ -230,7 +230,7 @@ as prior, with the change that invalidated it:
 
 `[k]` (keep) is a first-class action: it appends a fresh `screen` event with the
 same decision at the new criteria version, which clears staleness and records
-that a human actually re-considered it. It is *not* a bulk no-op — `epic` MUST
+that a human actually re-considered it. It is *not* a bulk no-op — `strata` MUST
 NOT offer "mark all stale decisions as still valid" without an explicit
 `--i-have-reviewed-these` flag and a rationale, because that flag is the one
 place where the tool's integrity guarantee could be quietly hollowed out.
@@ -257,7 +257,7 @@ require at least one criterion on exclusion.
 ## 8. Adjudication
 
 ```
-$ epic adjudicate
+$ strata adjudicate
 
   Conflict 3 of 14                                    title-abstract
 
@@ -281,7 +281,7 @@ $ epic adjudicate
   peer reviewer will question.
 - Adjudicating without having screened the record oneself is allowed and is the
   common case (the lead adjudicates). Adjudicating one's *own* conflict is
-  allowed but MUST be noted in the event, and `epic report` MUST count it.
+  allowed but MUST be noted in the event, and `strata report` MUST count it.
 - `[d]` records a `note` event and leaves the conflict open, for the "let's
   discuss at the Tuesday meeting" case.
 
@@ -292,16 +292,16 @@ is also acceptance test `E2E-01` ([14 §5](14-testing.md)).
 
 ```
 # Day 1 -- set up, search, import, screen
-$ epic init --title "Spaced retrieval and long-term retention"
-$ epic criteria add ...                      # 6 criteria, version 1
-$ epic search add S-01-medline               # records the Ovid query verbatim
-$ epic import medline.nbib --search S-01-medline     # 4,182 records
-$ epic import embase.ris   --search S-02-embase      # 3,100 records
-$ epic dedup                                 # 2,918 canonical, 4,364 duplicates removed
-$ epic screen title-abstract                 # ethan and sam, over two weeks
+$ strata init --title "Spaced retrieval and long-term retention"
+$ strata criteria add ...                      # 6 criteria, version 1
+$ strata search add S-01-medline               # records the Ovid query verbatim
+$ strata import medline.nbib --search S-01-medline     # 4,182 records
+$ strata import embase.ris   --search S-02-embase      # 3,100 records
+$ strata dedup                                 # 2,918 canonical, 4,364 duplicates removed
+$ strata screen title-abstract                 # ethan and sam, over two weeks
 
 # Day 15 -- the problem
-$ epic criteria add --kind exclusion --label "Mean sample age under 18"
+$ strata criteria add --kind exclusion --label "Mean sample age under 18"
   Direction: added (treated as tightened)
   Why did you make this change?
   > Pilot extraction showed 9 of the first 40 studies used child samples.
@@ -313,12 +313,12 @@ $ epic criteria add --kind exclusion --label "Mean sample age under 18"
           2,738 decisions remain valid and require no action.
 
 # Day 15 -- the fix
-$ epic rescreen                              # 180 records, ~55 minutes
-$ epic sync                                  # sam gets the same queue on his machine
+$ strata rescreen                              # 180 records, ~55 minutes
+$ strata sync                                  # sam gets the same queue on his machine
 
 # Day 90 -- writing up
-$ epic prisma                                # flow diagram, counts reconcile
-$ epic report amendments                     # generates the protocol-change section:
+$ strata prisma                                # flow diagram, counts reconcile
+$ strata report amendments                     # generates the protocol-change section:
 ```
 
 > **Amendments to the protocol.** One exclusion criterion (mean sample age under

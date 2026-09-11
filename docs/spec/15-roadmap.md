@@ -19,12 +19,12 @@ nine.
 
 The repository format and the git wrapper. No screening yet.
 
-**Scope**: `epic init`, `clone`, `doctor`, `config`, `actor`; the event log,
+**Scope**: `strata init`, `clone`, `doctor`, `config`, `actor`; the event log,
 canonical serialisation, fold, ids and normalisation; `gitio` and structured
-commits; `epic verify`, `status`, `log`; merge drivers and hooks.
+commits; `strata verify`, `status`, `log`; merge drivers and hooks.
 
 **Acceptance**
-- `epic init` produces a valid repository; `epic verify` passes on it.
+- `strata init` produces a valid repository; `strata verify` passes on it.
 - Property tests P1–P7, P13 pass.
 - A round trip through `git clone`, edit, commit, push, pull is clean.
 - Two clones appending disjoint events merge with zero conflicts (E2E-02 skeleton).
@@ -34,15 +34,15 @@ commits; `epic verify`, `status`, `log`; merge drivers and hooks.
 
 ## M1 — Literature in *(4–6 weeks)*
 
-**Scope**: all parsers; search recording; `epic import` with CSV mapping
-profiles; the deduplication engine and review queue; `epic records`, `why`,
+**Scope**: all parsers; search recording; `strata import` with CSV mapping
+profiles; the deduplication engine and review queue; `strata records`, `why`,
 `fix`.
 
 **Acceptance**
 - All golden parser fixtures pass, including the malformed ones.
 - Dedup benchmark: recall >= 0.95, false-merge rate <= 0.001 on a labelled set.
 - 50,000-record import under 60 s; dedup under 300 s.
-- `epic why` shows the full import and dedup provenance chain.
+- `strata why` shows the full import and dedup provenance chain.
 - Re-running dedup after a new import re-raises no previously judged pair.
 
 ---
@@ -51,7 +51,7 @@ profiles; the deduplication engine and review queue; `epic records`, `why`,
 
 **Scope**: criteria management with direction classification; the staleness
 engine; CLI and web screening surfaces; dual screening, blinding, IRR;
-adjudication; `epic rescreen`, `audit`, `irr`; `epic serve`.
+adjudication; `strata rescreen`, `audit`, `irr`; `strata serve`.
 
 **Acceptance**
 - **E2E-01 passes**: the origin scenario produces exactly the expected stale set.
@@ -71,13 +71,13 @@ of real reviews.
 
 **Scope**: retrieval queue and full-text manifest; study grouping; extraction
 schema, coding forms, units, dual extraction and reconciliation; data-quality
-guards; risk-of-bias instruments; `epic export effects`.
+guards; risk-of-bias instruments; `strata export effects`.
 
 **Acceptance**
 - A complete review can be conducted through to an analysis-ready dataset.
 - Dual extraction reconciliation records every decision.
 - RoB 2 algorithmic suggestions match the published decision rules on a test set.
-- `epic export effects` output is directly loadable by `metafor::rma()`.
+- `strata export effects` output is directly loadable by `metafor::rma()`.
 - E2E-03 passes up to the analysis step.
 
 ---
@@ -87,7 +87,7 @@ guards; risk-of-bias instruments; `epic export effects`.
 **Scope**: `stats` in full — effect-size computation and conversion, pooling
 models, all `tau^2` estimators, Knapp–Hartung, heterogeneity, prediction
 intervals, meta-regression, dependency handling, publication bias, diagnostics;
-the deterministic SVG plot emitter; `epic analyze`; guardrails.
+the deterministic SVG plot emitter; `strata analyze`; guardrails.
 
 **Acceptance**
 - Every estimator matches `metafor` to 1e-8 (1e-6 iterative) on the fixture set.
@@ -95,7 +95,7 @@ the deterministic SVG plot emitter; `epic analyze`; guardrails.
 - All numerical edge cases produce a correct value or a specific error.
 - Plots are byte-identical across platforms.
 - Every guardrail in [08 §8](08-analysis.md) fires under test.
-- `epic diff` shows a pooled estimate moving when the pool changes.
+- `strata diff` shows a pooled estimate moving when the pool changes.
 
 ---
 

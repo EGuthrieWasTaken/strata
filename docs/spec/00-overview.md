@@ -56,10 +56,10 @@ changed and why". It does not solve them *for this domain*, because the domain
 objects are not text files a researcher wants to edit by hand, and because the
 interface is hostile to someone who does not already know it.
 
-`epic` is therefore **a purpose-built front end to git for evidence synthesis**:
+`strata` is therefore **a purpose-built front end to git for evidence synthesis**:
 
 - The review lives in a git repository as plain, diffable text.
-- Domain operations (`epic screen`, `epic dedup`, `epic analyze`) are the user
+- Domain operations (`strata screen`, `strata dedup`, `strata analyze`) are the user
   interface; git is the storage engine and the audit log.
 - Every operation that changes the review prompts for a one-line rationale and
   writes it into a structured commit message.
@@ -74,15 +74,21 @@ A researcher who never learns git still gets versioning, provenance, blame, and
 conflict-free collaboration. A researcher who does know git gets a repository
 they can inspect, branch, and review with ordinary tools.
 
+The name follows from the architecture: sedimentary strata are layers laid down
+in order, never rewritten, and readable afterwards as a record of what happened
+and when. Every design decision in this specification — the append-only event
+log, the versioned criteria, the refusal to rewrite published history — is in
+service of keeping the layers legible.
+
 ## 3. Goals
 
 **G1 — Nothing is lost.** Every decision, and the reason for it, is recoverable
-forever. `epic why <record>` reconstructs the full provenance chain for any
+forever. `strata why <record>` reconstructs the full provenance chain for any
 record: which search found it, which duplicates it absorbed, who screened it,
 under which version of the criteria, citing which criterion, with what stated
 reason, in which commit.
 
-**G2 — Changing your mind is cheap and safe.** When the protocol changes, `epic`
+**G2 — Changing your mind is cheap and safe.** When the protocol changes, `strata`
 computes the minimal set of decisions that must be revisited, proves the rest
 are still valid, and queues the work. Re-screening 180 records instead of 4,000
 is the difference between updating your criteria and not.
@@ -96,7 +102,7 @@ the data, and the diagram is regenerated on demand.
 accident — must never produce a git merge conflict. Disagreements surface as a
 domain-level adjudication queue, which is where they belong.
 
-**G5 — Reproducible analysis.** Given the repository, `epic verify && epic
+**G5 — Reproducible analysis.** Given the repository, `strata verify && strata
 analyze` reproduces every number in the manuscript, byte for byte, on another
 machine.
 
@@ -106,26 +112,26 @@ revoke.
 
 ## 4. Non-goals
 
-**N1 — Not a literature search engine.** `epic` does not query EBSCO, Web of
+**N1 — Not a literature search engine.** `strata` does not query EBSCO, Web of
 Science, Scopus, or PubMed on your behalf in v1. Database licensing and
-anti-automation terms make this a legal and operational minefield. `epic`
+anti-automation terms make this a legal and operational minefield. `strata`
 ingests the exports those platforms already produce (RIS, NBIB, BibTeX, CSV,
 EndNote XML) and records the query string, platform, date, and hit count for
 reproducibility. Optional, opt-in enrichment from *open* APIs (Crossref,
 OpenAlex, PubMed E-utilities, Unpaywall) is in scope.
 
 **N2 — Not a reference manager.** Zotero exists, is excellent, and is FOSS.
-`epic` interoperates with it rather than competing: CSL-JSON in both directions,
+`strata` interoperates with it rather than competing: CSL-JSON in both directions,
 and — from M6 — a real integration in which **Zotero owns the documents and
-`epic` owns the decisions** ([17](17-zotero-integration.md)). That division is
-what lets `epic` decline to store PDFs at all without leaving users to manage a
+`strata` owns the decisions** ([17](17-zotero-integration.md)). That division is
+what lets `strata` decline to store PDFs at all without leaving users to manage a
 folder of them by hand.
 
 **N3 — Not a PDF repository.** Full-text PDFs are third-party copyrighted works.
-`epic` tracks them by identifier (DOI or equivalent) and MUST NOT commit them by
+`strata` tracks them by identifier (DOI or equivalent) and MUST NOT commit them by
 default.
 
-**N4 — Not a statistics language.** `epic` implements the standard meta-analytic
+**N4 — Not a statistics language.** `strata` implements the standard meta-analytic
 toolkit well and correctly. It is not a substitute for R when you need a
 Bayesian hierarchical network meta-analysis; it exports clean data so you can go
 do that.
@@ -148,7 +154,7 @@ thesis. Her success criterion: she never sees the word "rebase".
 
 **Ethan — the review lead.** Comfortable in a terminal and an editor. Writes the
 protocol, runs the searches, owns the analysis, and adjudicates screening
-conflicts. Lives in `epic` at the CLI. Wants `git log` to be a real audit trail.
+conflicts. Lives in `strata` at the CLI. Wants `git log` to be a real audit trail.
 
 **Sam — the second screener.** A colleague or a paid RA, often at another
 institution, contributing 20 hours to title/abstract screening and nothing else.
@@ -169,7 +175,7 @@ equivalent that spans protocol → screening → extraction → analysis → rep
 But the individual stages are well served by free software, and the implementer
 should reuse rather than rebuild:
 
-| Stage | Existing FOSS / free tools | `epic`'s posture |
+| Stage | Existing FOSS / free tools | `strata`'s posture |
 |---|---|---|
 | Deduplication | ASySD, revtools (R) | Reimplement heuristics; validate against their published benchmarks |
 | Screening | ASReview, Colandr, CADIMA, Abstrackr; Rayyan (freemium) | Rebuild — this is where provenance must live |
@@ -186,6 +192,6 @@ propagates correctly and legibly to phases 4, 5, and 6. That is what this
 specification builds. Everything else is in service of it.
 
 The corollary for the implementer: where a mature FOSS tool already does a
-sub-task well, `epic`'s job is to own the *record of the decision*, not
+sub-task well, `strata`'s job is to own the *record of the decision*, not
 necessarily the computation. Validating against `metafor` is worth more than
 inventing a new estimator.

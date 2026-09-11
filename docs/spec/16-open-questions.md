@@ -5,63 +5,63 @@ has a recommendation; none blocks starting M0.
 
 ---
 
-## Q1 — Project name
+## Q1 — Project name — **DECIDED: `strata`**
 
-**The concern.** `epic` has three collisions that matter in exactly this domain:
+The project is named **strata**, and `strata` is the command. This section is
+retained because the reasoning affects release tasks that are still outstanding.
 
-- **Epic Systems Corporation** — the dominant US electronic health record
-  vendor, with an aggressively defended trademark in health software. A
-  systematic-review tool sold to (or given to) health researchers is plausibly
-  the same class of goods. This is the serious one.
+**Why.** Sedimentary strata are layers laid down in order, never rewritten, and
+readable afterwards as a history of what happened and when. That is a precise
+description of this tool's architecture: an append-only event log, a versioned
+protocol, and a git history in which every layer of the review stays legible.
+The name also carries no methodological claim, which matters for a tool whose
+output goes into published work.
+
+**What it replaced, and why not the others.** The working name was `epic`, which
+had three collisions in exactly this domain:
+
+- **Epic Systems Corporation** — the dominant US electronic health record vendor,
+  with an aggressively defended trademark in health software. A systematic-review
+  tool given to health researchers is plausibly the same class of goods. This was
+  the serious one.
 - **EPIC** — the European Prospective Investigation into Cancer and Nutrition, a
   half-million-participant cohort study that appears constantly in the
-  epidemiological literature this tool will be used to review. "We screened the
-  EPIC records in epic" is a genuinely confusing sentence.
+  epidemiological literature this tool is used to review.
 - **Epic Games**, and **EPIC** the Electronic Privacy Information Center — less
   likely to matter, but they own the search results.
 
-**Also settled by checking:** the PyPI name `epic` is already taken (a different
-project); `epic-review` is currently free.
+Other candidates considered: `winnow` (clearest meaning, but "winnowing the
+literature" is existing idiom and therefore weak as a mark), `cairn` (exact
+provenance metaphor, but `cairn.info` is a major French-language scholarly
+publishing portal — adjacent space), `tessera` (distinctive, but Tessera
+Therapeutics is a biotech and the health adjacency is not zero), `palimpsest`
+(the best metaphor of all — revision that never erases — but too long to type),
+`stele`, `florilegium`, `assay`. Rejected outright for collisions with active
+projects: `glean` (Mozilla's Glean SDK), `sift` (Sift Science), `quire` (Getty's
+Quire, an active scholarly publishing tool), and anything built on `prism`, which
+would imply endorsement by the PRISMA group.
 
-**Recommendation.** Keep `epic` as the working name and the CLI verb for now —
-it is short, memorable, and typing `epic screen` is pleasant. Choose a
-distinguishable published name before the first public release, and ideally one
-that is also the CLI verb, since a mismatch between `pip install epic-review` and
-`epic` is a small permanent tax on every user. Worth a trademark search rather
-than a guess, given the health-software overlap.
+**Outstanding before first public release:**
 
-### Candidates
-
-PyPI's single-word namespace is largely exhausted, so "taken" below distinguishes
-a *dead stub* (reclaimable in practice, and harmless either way since the
-distribution name need not match the command name) from an *active project* worth
-avoiding. What actually matters is the command name, the GitHub org, and
-trademark safety.
-
-| Name | Meaning | PyPI | Notes |
-|---|---|---|---|
-| **winnow** | To separate grain from chaff — literally what screening is | stub (2015) | Strongest meaning-to-length ratio. "Winnowing the literature" is already idiom in this field, which helps discoverability and hurts distinctiveness |
-| **cairn** | A stack of stones marking a trail; you add to it as you pass | stub (2019) | Provenance metaphor is exact. **But**: `cairn.info` is a major French-language scholarly publishing portal — adjacent space, real confusion risk |
-| **tessera** | One tile of a mosaic; each study is a tessera, the review is the picture | stub (2017, dead Graphite dashboard) | Distinctive and pretty. Tessera Therapeutics is a biotech — different goods class, but the health adjacency is not zero |
-| **palimpsest** | A manuscript rewritten with the earlier text still legible | stub | The *best* metaphor for this specific product — revision that never erases. Too long to type; would need a short command alias |
-| **stele** | An inscribed stone slab; a permanent public record of decisions | 0.0.0 placeholder | Unique, evocative, but people will not know how to say or spell it |
-| **florilegium** | A medieval compilation of excerpts from many works — a pre-modern meta-analysis | **free outright** | Delightful and completely unclaimed. Far too long as a command; works better as a tagline than a name |
-| **assay** | A systematic test or analysis | never released | Short, scientific, types well. Chemistry/biology connotation may mislead in biomedical contexts |
-| **strata** | Layers, deposited in order and readable as history | never released | Version-history metaphor; slightly generic |
-
-**Avoid** (active projects or strong collisions): `glean` (Mozilla's Glean
-telemetry SDK), `sift` (Sift Science, commercial), `quire` (Getty's Quire is an
-active scholarly publishing tool — same space), `rubric`, `concordance`, and
-anything built on `prism`, which would imply endorsement by the PRISMA group.
-
-**If forced to pick two:** `winnow` for the clearest meaning, `tessera` for the
-most distinctive mark. Both are worth a proper trademark search first.
+1. **Trademark search.** "Strata" is a common English word used across many
+   software products; none found so far is in evidence synthesis or health
+   research, but a proper search is still warranted given that the tool's users
+   are in exactly the sector where the earlier name failed.
+2. **PyPI distribution name.** The name `strata` on PyPI is registered but has
+   **never had a release** (`0.0.0dev`, no files). It is therefore a candidate
+   for the PEP 541 name-claim process, which is worth attempting. Until that
+   succeeds, ship as **`strata-review`** (confirmed free), so the install line is
+   `pipx install strata-review` and the command is `strata`. A mismatch between
+   distribution name and command is a mild and very common tax (`ripgrep`
+   installs `rg`); losing the command name would be worse.
+3. **GitHub.** The repository is still named `epic`; rename it, and reserve the
+   command name on Homebrew and conda-forge at the same time.
 
 ---
 
 ## Q2 — Licence for the repository format
 
-`epic` itself is GPL-3.0-or-later, as decided. Separately: a file format that
+`strata` itself is GPL-3.0-or-later, as decided. Separately: a file format that
 only one implementation can legally read is not a format. Should
 [02](02-repository-format.md) and [03](03-schemas.md) — and a minimal reference
 reader library — be released permissively (CC0, Apache-2.0, or MIT) so that
@@ -90,11 +90,11 @@ all, mostly a different flow diagram and checklist; they are a cheap M6 addition
 
 ## Q4 — Does `analysis/results/` really belong in git?
 
-Committing generated results is what makes `epic diff` show a pooled estimate
+Committing generated results is what makes `strata diff` show a pooled estimate
 moving when the pool changes — a genuinely compelling feature. It also means
 every analysis run dirties the working tree and adds noise to history.
 
-**Recommendation.** Commit them, but only when the user runs `epic analyze`
+**Recommendation.** Commit them, but only when the user runs `strata analyze`
 deliberately, never as a side effect of another command, and keep plots out of
 `git diff` via `.gitattributes`. Revisit if history noise becomes a real
 complaint from users.
@@ -103,7 +103,7 @@ complaint from users.
 
 ## Q5 — How aggressively should the tool block bad practice?
 
-`epic` can refuse a publication-bias test at `k < 10`, refuse meta-regression at
+`strata` can refuse a publication-bias test at `k < 10`, refuse meta-regression at
 `k <= p`, and refuse a PRISMA diagram with stale decisions. Every such block is a
 methodological opinion imposed on a user who may know better.
 
@@ -129,14 +129,14 @@ flow diagram considerably. Revisit if users ask.
 ## Q7 — Conflict-of-interest and funding metadata
 
 PRISMA items 25 and 26 require reporting competing interests and funding sources.
-These could live in `epic.toml` and flow into generated output.
+These could live in `strata.toml` and flow into generated output.
 
-**Recommendation.** Add them to `epic.toml` in M5. Cheap, and it removes two more
+**Recommendation.** Add them to `strata.toml` in M5. Cheap, and it removes two more
 items from the author's manual checklist.
 
 ---
 
-## Q8 — How much should `epic` help write the manuscript?
+## Q8 — How much should `strata` help write the manuscript?
 
 [09 §5.1](09-reporting.md) draws the line at generated Methods and Results prose,
 and explicitly refuses to generate a Discussion or Conclusion. That line could be
@@ -179,7 +179,7 @@ application than a proposal.
 
 ---
 
-## Q11 — Should `epic` ship a hosted option?
+## Q11 — Should `strata` ship a hosted option?
 
 [00 §4](00-overview.md) rules out a hosted service as a non-goal. But the
 collaborator who will not install software is a real and common obstacle, and

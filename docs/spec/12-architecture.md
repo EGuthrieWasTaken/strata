@@ -24,7 +24,7 @@ loses on everything else, which is not.
 ## 2. Module boundaries *(normative — the seams matter)*
 
 ```
-epic/
+strata/
 ├── cli/              Typer commands; argument parsing; output formatting only
 ├── web/              FastAPI app, Jinja templates, static assets
 ├── core/
@@ -71,7 +71,7 @@ epic/
 
 ## 3. Derived-state cache
 
-`.epic/cache/state.sqlite` holds the fold result, keyed by the digest of the
+`.strata/cache/state.sqlite` holds the fold result, keyed by the digest of the
 event-log inputs. It is an optimisation only:
 
 - Gitignored, never authoritative.
@@ -91,7 +91,7 @@ recomputation of the affected slice.
 
 The web server and the CLI can run simultaneously against one repository.
 
-- A single advisory lock file `.epic/lock` guards *mutating* operations, taken
+- A single advisory lock file `.strata/lock` guards *mutating* operations, taken
   for the duration of the append-plus-commit, with a 30-second timeout and a
   clear message naming the holding process.
 - Readers never take the lock. A reader that sees a partially written last line
@@ -135,7 +135,7 @@ implement, and — more importantly — as the validation oracle in CI
 
 | Channel | Notes |
 |---|---|
-| PyPI | `pipx install epic-review` / `uv tool install epic-review` — the primary path |
+| PyPI | `pipx install strata-review` / `uv tool install strata-review` — the primary path |
 | Homebrew | macOS and Linux formula |
 | Standalone binaries | PyInstaller builds for macOS (universal), Windows (x64), Linux (x64, musl) attached to each release — for Sam, who will not install Python |
 | Docker | For CI and reproducibility archives |

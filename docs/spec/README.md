@@ -1,6 +1,6 @@
-# epic — Software Specification
+# strata — Software Specification
 
-Version 0.1 (draft) · Target implementation: `epic` 0.1.0 → 1.0.0
+Version 0.1 (draft) · Target implementation: `strata` 0.1.0 → 1.0.0
 
 ## How to read this document set
 
@@ -47,6 +47,6 @@ preserved.
 
 ### A note on the name
 
-`epic` is provisional. Before any public release, see the trademark and
-namespace concerns raised in [16-open-questions.md](16-open-questions.md#q1--project-name);
+`strata` is provisional. Before any public release, see the trademark and
+namespace concerns raised in [16-open-questions.md](16-open-questions.md#q1--project-name--decided-strata);
 they are non-trivial in exactly the research domain this tool targets.

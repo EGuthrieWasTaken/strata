@@ -7,16 +7,16 @@ Sized against a large but ordinary review: four databases, 50,000 raw records,
 
 | Operation | Target | Hard limit |
 |---|---|---|
-| `epic import` of a 20,000-record RIS file | < 30 s | 60 s |
-| `epic dedup` over 50,000 records | < 120 s | 300 s |
-| `epic status` | < 1 s | 3 s |
+| `strata import` of a 20,000-record RIS file | < 30 s | 60 s |
+| `strata dedup` over 50,000 records | < 120 s | 300 s |
+| `strata status` | < 1 s | 3 s |
 | Staleness computation over 50,000 decisions | < 2 s | 5 s |
 | Fold from cold (no cache) | < 5 s | 15 s |
 | Derived-view regeneration | < 10 s | 30 s |
-| `epic verify --fast` (pre-commit) | < 2 s | 5 s |
-| `epic verify` (full) | < 60 s | 180 s |
+| `strata verify --fast` (pre-commit) | < 2 s | 5 s |
+| `strata verify` (full) | < 60 s | 180 s |
 | Screening decision round trip | < 100 ms p95 | 250 ms |
-| `epic analyze` (60 studies, RE + moderators + diagnostics) | < 5 s | 20 s |
+| `strata analyze` (60 studies, RE + moderators + diagnostics) | < 5 s | 20 s |
 | Peak RSS, any operation at 50k records | < 2 GB | 4 GB |
 | Repository size at 50k records | < 200 MB | 500 MB |
 
@@ -28,15 +28,15 @@ build.
 
 - **No silent data loss, ever.** Every mutation is an append to a log that is
   fsynced before the user sees confirmation. A power failure mid-session loses at
-  most the uncommitted tail, which `epic status` detects and offers to commit.
+  most the uncommitted tail, which `strata status` detects and offers to commit.
 - **Crash safety.** Interrupting any command leaves the repository in a valid
   state. A partially written NDJSON line has no valid digest and is skipped by
-  readers and truncated by `epic verify --fix`.
-- **Recoverability.** `epic verify --fix` regenerates every derived artefact and
+  readers and truncated by `strata verify --fix`.
+- **Recoverability.** `strata verify --fix` regenerates every derived artefact and
   re-links event chains after arbitrary manual git surgery.
 - **No destructive defaults.** Nothing is deleted. Deduplication absorbs;
   retirement retains; exclusion records. The only command that removes data is
-  `epic gc --imports`, which prunes raw import files, requires confirmation, and
+  `strata gc --imports`, which prunes raw import files, requires confirmation, and
   is documented as breaking reproducibility.
 
 ## 3. Portability
@@ -52,26 +52,26 @@ build.
   input, not edge cases. Filenames derived from user data MUST be sanitised, and
   ids are already restricted to `[a-z0-9_]`.
 - Git 2.23+ required (for `git switch` and modern merge-driver behaviour);
-  checked by `epic doctor`.
+  checked by `strata doctor`.
 
 ## 4. Privacy and network use *(normative)*
 
 - **No telemetry.** None. Not anonymous usage statistics, not crash reporting,
   not a version check. If the project later wants usage data, it asks users to
   send it deliberately.
-- **Offline by default.** With `enrichment.enabled = false` (the default), `epic`
+- **Offline by default.** With `enrichment.enabled = false` (the default), `strata`
   makes no network request except those the user explicitly initiates
-  (`epic sync`, which talks only to the configured git remote).
+  (`strata sync`, which talks only to the configured git remote).
 - **Enrichment is opt-in, per-provider, and logged.** When enabled, every
-  outbound request MUST be recorded in `.epic/network.log` with timestamp,
+  outbound request MUST be recorded in `.strata/network.log` with timestamp,
   endpoint, and purpose, so a user can audit exactly what left the machine.
 - **Polite API use.** Crossref, OpenAlex, and PubMed provide free APIs with
-  published etiquette. `epic` MUST send a descriptive `User-Agent` including the
+  published etiquette. `strata` MUST send a descriptive `User-Agent` including the
   configured `contact_email`, MUST respect `Retry-After` and rate limits, MUST
   back off exponentially on 429/503, and MUST cache responses locally keyed by
   DOI so a re-run does not re-query. Abusing a free scholarly API on behalf of
   thousands of users would be both wrong and self-defeating.
-- **No credentials stored by `epic`.** Git remote authentication is delegated
+- **No credentials stored by `strata`.** Git remote authentication is delegated
   entirely to the user's git credential helper or SSH agent.
 
 ## 5. Security
@@ -97,7 +97,7 @@ This matters more than is usual for a research tool, because the natural workflo
 involves mass-downloading copyrighted articles.
 
 - **Full-text PDFs MUST NOT be committed by default.** `.gitignore` excludes
-  `fulltext/`, and `epic` MUST refuse to `git add` a PDF from that directory
+  `fulltext/`, and `strata` MUST refuse to `git add` a PDF from that directory
   without an explicit override. Committing 400 publisher PDFs to a GitHub
   repository is copyright infringement at scale, and the tool must not lead
   users there casually.
@@ -105,18 +105,18 @@ involves mass-downloading copyrighted articles.
   chain (which document was assessed, in which version) by DOI or equivalent,
   without redistributing the document. Content hashes are explicitly not used
   for this, for the reasons in [07 §1.1](07-workflow-extraction.md).
-- **`epic` MUST NOT retrieve articles from unauthorised sources.** No Sci-Hub, no
+- **`strata` MUST NOT retrieve articles from unauthorised sources.** No Sci-Hub, no
   LibGen, no institutional-proxy credential handling. Unpaywall integration is
   limited to surfacing links to legally open copies.
-- **Database terms of service.** `epic` does not scrape or automate queries
+- **Database terms of service.** `strata` does not scrape or automate queries
   against subscription databases ([00 §4](00-overview.md), N1); it consumes the
   exports those platforms provide for exactly this purpose.
 - **Third-party content in generated output.** PRISMA materials are CC BY 4.0;
   generated diagrams and checklists MUST carry the required attribution. RoB 2
   and ROBINS-I are used under their respective terms, which MUST be checked and
   documented before shipping those instrument definitions.
-- **The review's own data.** `project.license` in `epic.toml` declares the licence
-  for the review data, and `epic export package` includes it. Bibliographic
+- **The review's own data.** `project.license` in `strata.toml` declares the licence
+  for the review data, and `strata export package` includes it. Bibliographic
   metadata is generally not copyrightable; abstracts generally are, which is
   worth a note in the documentation for users planning to publish their
   screening dataset.
@@ -153,10 +153,10 @@ Every CLI command's `--help` MUST include at least one worked example.
 
 ## 9. Licensing
 
-- `epic` itself: **GNU General Public License v3.0 or later**, as committed.
+- `strata` itself: **GNU General Public License v3.0 or later**, as committed.
 - The repository-format specification ([02](02-repository-format.md),
   [03](03-schemas.md)): licensed permissively (CC0 or Apache-2.0) at release, so
-  that other tools can read and write `epic` repositories without licence
+  that other tools can read and write `strata` repositories without licence
   friction. A format that only one implementation can legally use is not a
   format. **OPEN** — see [16](16-open-questions.md).
 - Test fixtures derived from published datasets retain their original licences

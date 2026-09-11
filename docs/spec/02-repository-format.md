@@ -23,31 +23,31 @@ entire point of the product. They are never read back as input.
 the normal collaborative operation — two people screening the same records —
 produces zero git conflicts.
 
-**P5 — Canonical serialisation.** Any file `epic` writes MUST be byte-identical
+**P5 — Canonical serialisation.** Any file `strata` writes MUST be byte-identical
 given the same logical content, on any platform. See §5.
 
 ## 2. Directory layout
 
 ```
 my-review/
-├── epic.toml                        # project manifest and configuration
+├── strata.toml                          # project manifest and configuration
 ├── protocol/
-│   ├── question.md                  # research question, PICO(TS), rationale
-│   ├── criteria.yaml                # inclusion/exclusion criteria (versioned)
-│   ├── moderators.yaml              # planned moderators and their coding
-│   ├── outcomes.yaml                # outcome definitions
+│   ├── question.md                      # research question, PICO(TS), rationale
+│   ├── criteria.yaml                    # inclusion/exclusion criteria (versioned)
+│   ├── moderators.yaml                  # planned moderators and their coding
+│   ├── outcomes.yaml                    # outcome definitions
 │   ├── searches/
-│   │   ├── S-01-medline.yaml        # one file per executed search
+│   │   ├── S-01-medline.yaml            # one file per executed search
 │   │   └── S-02-embase.yaml
-│   └── amendments.md                # GENERATED: protocol change log
+│   └── amendments.md                    # GENERATED: protocol change log
 ├── imports/
 │   └── imp_01j9x.../
-│       ├── manifest.yaml            # what was imported, from where, hashes
+│       ├── manifest.yaml                # what was imported, from where, hashes
 │       └── raw/
-│           └── medline-2026-03-04.nbib   # untouched export, source of truth
+│           └── medline-2026-03-04.nbib  # untouched export, source of truth
 ├── records/
-│   ├── records.ndjson               # canonical bibliographic records
-│   └── aliases.ndjson               # absorbed-id -> canonical-id
+│   ├── records.ndjson                   # canonical bibliographic records
+│   └── aliases.ndjson                   # absorbed-id -> canonical-id
 ├── events/
 │   ├── screen/
 │   │   ├── title-abstract.ethan.ndjson
@@ -57,55 +57,55 @@ my-review/
 │   ├── retrieval/ethan.ndjson
 │   └── adjudication/ethan.ndjson
 ├── extraction/
-│   ├── schema.yaml                  # the coding form definition
+│   ├── schema.yaml                      # the coding form definition
 │   ├── by-reviewer/
 │   │   ├── ethan/std_7x2k....yaml
 │   │   └── sam/std_7x2k....yaml
-│   └── consensus/std_7x2k....yaml   # the reconciled, analysis-ready record
+│   └── consensus/std_7x2k....yaml       # the reconciled, analysis-ready record
 ├── rob/
-│   ├── instrument.yaml              # RoB 2 / ROBINS-I / NOS / custom
+│   ├── instrument.yaml                  # RoB 2 / ROBINS-I / NOS / custom
 │   └── by-reviewer/ethan/std_7x2k....yaml
 ├── analysis/
-│   ├── primary.yaml                 # declarative analysis specification
+│   ├── primary.yaml                     # declarative analysis specification
 │   ├── sensitivity-rct-only.yaml
-│   └── results/                     # GENERATED
+│   └── results/                         # GENERATED
 │       └── primary/
 │           ├── estimates.json
 │           ├── studies.tsv
 │           ├── forest.svg
 │           ├── funnel.svg
 │           ├── summary.md
-│           └── run.json             # versions, seed, input digest
-├── derived/                         # GENERATED, committed, never read as input
-│   ├── pool.tsv                     # the candidate pool, human-diffable
-│   ├── counts.json                  # every PRISMA count
-│   ├── conflicts.tsv                # open screening disagreements
-│   ├── stale.tsv                    # decisions invalidated by protocol change
-│   └── irr.json                     # inter-rater reliability by stage/pair
-├── reports/                         # GENERATED
+│           └── run.json                 # versions, seed, input digest
+├── derived/                             # GENERATED, committed, never read as input
+│   ├── pool.tsv                         # the candidate pool, human-diffable
+│   ├── counts.json                      # every PRISMA count
+│   ├── conflicts.tsv                    # open screening disagreements
+│   ├── stale.tsv                        # decisions invalidated by protocol change
+│   └── irr.json                         # inter-rater reliability by stage/pair
+├── reports/                             # GENERATED
 │   ├── prisma-flow.svg
 │   ├── prisma-flow.json
 │   ├── prisma-checklist.md
 │   └── manuscript/
-├── fulltext/                        # GITIGNORED except the manifest
-│   └── manifest.ndjson              # DOI/identifier, version, date, source
-├── .epic/
-│   ├── hooks/                       # versioned git hooks (core.hooksPath)
-│   ├── schema-version              # format version, e.g. "1"
-│   └── cache/                       # GITIGNORED: SQLite fold cache
-├── .gitattributes                   # GENERATED by `epic init`
-└── .gitignore                       # GENERATED by `epic init`
+├── fulltext/                            # GITIGNORED except the manifest
+│   └── manifest.ndjson                  # DOI/identifier, version, date, source
+├── .strata/
+│   ├── hooks/                           # versioned git hooks (core.hooksPath)
+│   ├── schema-version                   # format version, e.g. "1"
+│   └── cache/                           # GITIGNORED: SQLite fold cache
+├── .gitattributes                       # GENERATED by `strata init`
+└── .gitignore                           # GENERATED by `strata init`
 ```
 
-Files marked GENERATED are produced by `epic` and MUST be reproducible from the
-authoritative inputs. `epic verify` regenerates them into a temporary directory
+Files marked GENERATED are produced by `strata` and MUST be reproducible from the
+authoritative inputs. `strata verify` regenerates them into a temporary directory
 and fails if the result differs from what is committed.
 
 ## 3. Authoritative vs derived *(normative)*
 
 | Path | Authoritative | Committed | Editable by hand |
 |---|---|---|---|
-| `epic.toml` | yes | yes | yes |
+| `strata.toml` | yes | yes | yes |
 | `protocol/**` except `amendments.md` | yes | yes | yes |
 | `protocol/amendments.md` | no | yes | no |
 | `imports/*/raw/**` | yes (immutable) | yes | never |
@@ -120,9 +120,9 @@ and fails if the result differs from what is committed.
 | `reports/**` | no | yes | no |
 | `fulltext/manifest.ndjson` | yes | yes | no |
 | `fulltext/*.pdf` | — | **no** | — |
-| `.epic/cache/**` | no | **no** | no |
+| `.strata/cache/**` | no | **no** | no |
 
-Hand-editing an append-only event file is a data-integrity error. `epic verify`
+Hand-editing an append-only event file is a data-integrity error. `strata verify`
 MUST detect it (per-event digests, §4.2) and refuse to proceed.
 
 ## 4. The event log *(normative)*
@@ -145,7 +145,7 @@ Three requirements force an event log:
 One JSON object per line, no pretty-printing, keys in the order below:
 
 ```json
-{"ev":"screen","id":"ev_01j9x7m2q4h8s0v3n5k1t6w2yb","ts":"2026-03-04T14:02:11Z","actor":"ethan","seq":1183,"body":{"stage":"title-abstract","record":"rec_3kq8v1r0zx2m4a7b","decision":"exclude","criteria":["EXC-02"],"note":"rodent model","criteria_version":3,"criteria_digest":"sha256:9f1c...","confidence":"high"},"tool":"epic/0.4.1","prev":"sha256:1a2b...","digest":"sha256:3c4d..."}
+{"ev":"screen","id":"ev_01j9x7m2q4h8s0v3n5k1t6w2yb","ts":"2026-03-04T14:02:11Z","actor":"ethan","seq":1183,"body":{"stage":"title-abstract","record":"rec_3kq8v1r0zx2m4a7b","decision":"exclude","criteria":["EXC-02"],"note":"rodent model","criteria_version":3,"criteria_digest":"sha256:9f1c...","confidence":"high"},"tool":"strata/0.4.1","prev":"sha256:1a2b...","digest":"sha256:3c4d..."}
 ```
 
 | Field | Type | Required | Meaning |
@@ -153,7 +153,7 @@ One JSON object per line, no pretty-printing, keys in the order below:
 | `ev` | string | yes | Event type (§4.4) |
 | `id` | string | yes | `ev_` + lowercase ULID; globally unique; time-ordered |
 | `ts` | string | yes | RFC 3339, UTC, second precision, always `Z` |
-| `actor` | string | yes | Actor handle from `epic.toml` |
+| `actor` | string | yes | Actor handle from `strata.toml` |
 | `seq` | integer | yes | Monotonic per (actor, file); starts at 1 |
 | `body` | object | yes | Type-specific payload |
 | `tool` | string | yes | Producing tool and version |
@@ -164,13 +164,13 @@ One JSON object per line, no pretty-printing, keys in the order below:
 determined adversary (who could rewrite the chain), and MUST NOT be described as
 doing so. It defends against the realistic failure: a well-meaning collaborator
 opening an event file in Excel, or a partial write from a crashed process.
-`epic verify` MUST check the chain and report the first broken line.
+`strata verify` MUST check the chain and report the first broken line.
 
 **Union-merge caveat (normative).** Git's `union` driver concatenates both sides
 of a divergent append, which breaks a single linear `prev` chain across a merge.
 Implementations MUST therefore validate the chain *per contiguous run* and treat
 a chain restart as valid if and only if the restarting line's `prev` matches the
-digest of some earlier line in the same file. `epic sync` MUST rewrite a merged
+digest of some earlier line in the same file. `strata sync` MUST rewrite a merged
 event file into canonical order (§4.3) and re-link the chain as part of the
 merge, recording an `ev:"relink"` event so the rewrite itself is auditable.
 
@@ -192,7 +192,7 @@ Current state is computed by folding all events. The fold MUST be:
 Resolution from per-actor opinions to a record's state:
 
 ```
-assigned  = reviewers assigned to (stage, record)   # from epic.toml or an assign event
+assigned  = reviewers assigned to (stage, record)   # from strata.toml or an assign event
 opinions  = latest event per assigned actor
 adjudicated = latest adjudication event for (stage, record), if any
 
@@ -211,26 +211,26 @@ means "discuss it", and the discussion is the adjudication queue.
 
 | `ev` | Emitted by | Key body fields |
 |---|---|---|
-| `import` | `epic import` | `import_id`, `search_id`, `source`, `count`, `file_digest` |
-| `record-add` | `epic import` | `record`, `import_id`, `raw_row_digest` |
-| `record-amend` | `epic fix` | `record`, `field`, `old`, `new`, `source` |
-| `dedup-merge` | `epic dedup` | `canonical`, `absorbed`, `score`, `method`, `features` |
-| `dedup-distinct` | `epic dedup` | `a`, `b`, `score`, `method` — a sticky "not duplicates" |
-| `dedup-unmerge` | `epic dedup --undo` | `canonical`, `restored` |
-| `assign` | `epic assign` | `stage`, `records` or `filter`, `actors` |
-| `screen` | `epic screen` | `stage`, `record`, `decision`, `criteria[]`, `note`, `criteria_version`, `criteria_digest`, `confidence` |
-| `adjudicate` | `epic adjudicate` | `stage`, `record`, `decision`, `criteria[]`, `rationale`, `supersedes[]` |
-| `retrieval` | `epic retrieve` | `report`, `status`, `source`, `locator`, `version`, `reason` |
-| `study-group` | `epic studies` | `study`, `reports[]`, `rationale` |
-| `study-split` | `epic studies` | `report`, `studies[]`, `rationale` |
-| `extract` | `epic extract` | `study`, `actor`, `fields_changed[]`, `digest` |
-| `reconcile` | `epic extract --reconcile` | `study`, `field`, `chosen`, `from`, `rationale` |
-| `rob` | `epic rob` | `study`, `domain`, `judgement`, `support` |
-| `criteria-change` | `epic criteria` | `from_version`, `to_version`, `deltas[]`, `rationale`, `amendment_id` |
-| `relink` | `epic sync` | `file`, `lines_reordered`, `reason` |
-| `note` | `epic note` | `subject`, `text` — free-form, attaches to any entity |
+| `import` | `strata import` | `import_id`, `search_id`, `source`, `count`, `file_digest` |
+| `record-add` | `strata import` | `record`, `import_id`, `raw_row_digest` |
+| `record-amend` | `strata fix` | `record`, `field`, `old`, `new`, `source` |
+| `dedup-merge` | `strata dedup` | `canonical`, `absorbed`, `score`, `method`, `features` |
+| `dedup-distinct` | `strata dedup` | `a`, `b`, `score`, `method` — a sticky "not duplicates" |
+| `dedup-unmerge` | `strata dedup --undo` | `canonical`, `restored` |
+| `assign` | `strata assign` | `stage`, `records` or `filter`, `actors` |
+| `screen` | `strata screen` | `stage`, `record`, `decision`, `criteria[]`, `note`, `criteria_version`, `criteria_digest`, `confidence` |
+| `adjudicate` | `strata adjudicate` | `stage`, `record`, `decision`, `criteria[]`, `rationale`, `supersedes[]` |
+| `retrieval` | `strata retrieve` | `report`, `status`, `source`, `locator`, `version`, `reason` |
+| `study-group` | `strata studies` | `study`, `reports[]`, `rationale` |
+| `study-split` | `strata studies` | `report`, `studies[]`, `rationale` |
+| `extract` | `strata extract` | `study`, `actor`, `fields_changed[]`, `digest` |
+| `reconcile` | `strata extract --reconcile` | `study`, `field`, `chosen`, `from`, `rationale` |
+| `rob` | `strata rob` | `study`, `domain`, `judgement`, `support` |
+| `criteria-change` | `strata criteria` | `from_version`, `to_version`, `deltas[]`, `rationale`, `amendment_id` |
+| `relink` | `strata sync` | `file`, `lines_reordered`, `reason` |
+| `note` | `strata note` | `subject`, `text` — free-form, attaches to any entity |
 
-Every event type MUST have a JSON Schema in `epic`'s source tree and be validated
+Every event type MUST have a JSON Schema in `strata`'s source tree and be validated
 on write and on load.
 
 ### 4.5 File sharding
@@ -239,7 +239,7 @@ Event files are sharded as `events/<domain>/<stage>.<actor>.ndjson`, or
 `events/<domain>/<actor>.ndjson` where the domain has no stage. One writer per
 file is the invariant that makes `union` merge safe: two actors never append to
 the same file, so the only way to get interleaved lines is a genuine merge of two
-branches by the same actor, which `epic sync` normalises.
+branches by the same actor, which `strata sync` normalises.
 
 A file SHOULD be split when it exceeds 100,000 lines, by appending `.2`, `.3` to
 the stem. The fold MUST read all matching shards.
@@ -289,7 +289,7 @@ fixed per view (§6). Rows sorted by the view's declared sort key.
 
 ### 5.5 Floating point in generated output
 
-Analysis results are compared byte-for-byte by `epic verify`, so they MUST be
+Analysis results are compared byte-for-byte by `strata verify`, so they MUST be
 stable across platforms. Implementations MUST round every float in
 `analysis/results/**/*.json` to **12 significant digits** before serialisation,
 and MUST NOT embed timestamps, hostnames, absolute paths, locale-dependent
@@ -348,12 +348,12 @@ the first event per `(stage, record, actor)` as well as the last.
 
 ## 7. Format versioning *(normative)*
 
-`.epic/schema-version` holds a single integer. `epic.toml` records the
-`epic` version that created the repository.
+`.strata/schema-version` holds a single integer. `strata.toml` records the
+`strata` version that created the repository.
 
 - A tool reading a repository with a **higher** schema version than it supports
   MUST refuse to operate and say so (`E_SCHEMA_TOO_NEW`).
-- A tool reading a **lower** version MUST offer `epic migrate`, which performs
+- A tool reading a **lower** version MUST offer `strata migrate`, which performs
   the upgrade as an ordinary commit with a generated message, and MUST NOT
   migrate implicitly.
 - Migrations MUST be forward-only, idempotent, and MUST NOT rewrite history.

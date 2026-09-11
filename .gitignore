@@ -1,10 +1,10 @@
-# epic project-repository artifacts (these are *derived*, never authoritative)
-.epic/cache/
-.epic/tmp/
-*.epic.lock
+# strata project-repository artifacts (these are *derived*, never authoritative)
+.strata/cache/
+.strata/tmp/
+*.strata.lock
 
 # Full-text PDFs are copyrighted third-party material and MUST NOT be committed.
-# epic tracks them by identifier (DOI etc.) in fulltext/manifest.ndjson instead.
+# strata tracks them by identifier (DOI etc.) in fulltext/manifest.ndjson instead.
 fulltext/
 !fulltext/manifest.ndjson
 !fulltext/.gitkeep

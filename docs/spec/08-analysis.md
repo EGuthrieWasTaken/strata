@@ -2,7 +2,7 @@
 
 ## 1. Posture
 
-`epic` must be *trustworthy* before it is *comprehensive*. A meta-analysis tool
+`strata` must be *trustworthy* before it is *comprehensive*. A meta-analysis tool
 that is subtly wrong is worse than no tool, because its output looks
 authoritative and lands in the published literature.
 
@@ -12,8 +12,8 @@ Therefore:
   `metafor` to a relative tolerance of 1e-8 on the fixture datasets in
   [14 §4](14-testing.md). Where `metafor` and another reference disagree,
   `metafor`'s convention is authoritative and the difference MUST be documented.
-- Any model `epic` cannot compute correctly MUST be absent, not approximated.
-  `epic export effects` exists so the user can go to R.
+- Any model `strata` cannot compute correctly MUST be absent, not approximated.
+  `strata export effects` exists so the user can go to R.
 - Guardrails (§8) are not optional polish. Meta-analysis is notoriously easy to
   do wrongly with small `k`, and the tool should say so at the point of use.
 
@@ -121,7 +121,7 @@ risk difference  yi = a/n1 - c/n2               vi = a*b/n1^3 + c*d/n2^3
 that effect. If both arms have zero events, the study contributes no information
 to a ratio measure and MUST be excluded from the ratio analysis with a reported
 count — silently including it with an invented correction is a known source of
-bias. `epic` MUST report the number of studies so excluded.
+bias. `strata` MUST report the number of studies so excluded.
 
 ### 3.4 Correlations (`ZCOR`)
 
@@ -152,7 +152,7 @@ Freeman-Tukey  yi = asin(sqrt(x/(n+1))) + asin(sqrt((x+1)/(n+1)))
 ```
 
 Freeman–Tukey double-arcsine back-transformation is unstable when study sizes
-vary widely (Schwarzer et al. 2019). `epic` MUST warn when it is used with a
+vary widely (Schwarzer et al. 2019). `strata` MUST warn when it is used with a
 sample-size ratio above 10 and SHOULD default to logit with a random-effects
 model (GLMM is out of scope for v1).
 
@@ -164,7 +164,7 @@ SMCR (change vs raw pre-test SD, correlation r required)
   vi = 2*(1 - r)/n + yi^2/(2*n)
 ```
 
-`r` is rarely reported. `epic` MUST require an explicit assumed value, record it
+`r` is rarely reported. `strata` MUST require an explicit assumed value, record it
 on the effect as `assumed_correlation`, and automatically include a sensitivity
 analysis over `r` in {0.3, 0.5, 0.7} whenever any effect uses an assumed value.
 Quietly defaulting to 0.5 and never mentioning it is a common and consequential
@@ -197,7 +197,7 @@ mu   = sum(w_i * y_i) / sum(w_i)
 var  = 1 / sum(w_i)
 ```
 
-`epic` MUST call this "common-effect" in output, with "fixed-effect" as an alias,
+`strata` MUST call this "common-effect" in output, with "fixed-effect" as an alias,
 and MUST NOT select it by default. Its assumption — that every study estimates
 exactly the same parameter — is almost never defensible in the social and health
 sciences, and defaults in this field are sticky.
@@ -236,7 +236,7 @@ CI   = mu +/- t_{k-1, (1+L)/2} * se
 ```
 
 Knapp–Hartung maintains nominal coverage far better than Wald with small `k`,
-which is the regime almost every real meta-analysis is in. `epic` MUST apply the
+which is the regime almost every real meta-analysis is in. `strata` MUST apply the
 `ad hoc` truncation used by `metafor` (never let the HK standard error fall below
 the Wald standard error) and MUST document that it does.
 
@@ -285,13 +285,13 @@ Categorical moderators are dummy-coded against the declared reference level.
 Continuous moderators are mean-centred when `centering: mean`, and the centring
 constant MUST be reported so coefficients are interpretable.
 
-`epic` MUST warn when `k / p < 10` — the conventional minimum of about ten
+`strata` MUST warn when `k / p < 10` — the conventional minimum of about ten
 studies per covariate — and MUST refuse to fit when `k <= p`.
 
 ## 5. Dependent effect sizes *(normative)*
 
 One study reporting three outcomes contributes three statistically dependent
-estimates. Ignoring this understates standard errors, sometimes badly. `epic`
+estimates. Ignoring this understates standard errors, sometimes badly. `strata`
 MUST NOT allow it to happen silently: if any `study_id` contributes more than one
 effect and `dependency.handling == "none"`, the analysis MUST emit a prominent
 warning naming the affected studies.
@@ -308,12 +308,12 @@ a compound-symmetric within-study correlation `rho`, combined with CR2
 cluster-robust inference — is the current best-practice default and is what
 `cluster-robust` SHOULD implement.
 
-`rho` is an assumption, not data. `epic` MUST require it explicitly, record it in
+`rho` is an assumption, not data. `strata` MUST require it explicitly, record it in
 the results, and run the analysis at `rho` in {0.2, 0.5, 0.8} as an automatic
 sensitivity check.
 
 **Cluster-count guardrail.** Cluster-robust inference is unreliable with few
-clusters. `epic` MUST warn below 20 clusters and warn strongly below 10, naming
+clusters. `strata` MUST warn below 20 clusters and warn strongly below 10, naming
 the Satterthwaite df actually achieved.
 
 ## 6. Publication bias and small-study effects
@@ -330,11 +330,11 @@ the Satterthwaite df actually achieved.
 
 **Guardrail.** Tests for funnel-plot asymmetry are underpowered and prone to
 false positives with fewer than 10 studies; Cochrane recommends against them
-below that threshold. `epic` MUST refuse to compute Egger/Begg/PET-PEESE with
+below that threshold. `strata` MUST refuse to compute Egger/Begg/PET-PEESE with
 `k < 10` unless `--force` is given, and MUST label the result accordingly when
 forced.
 
-`epic` MUST NOT describe any of these as "correcting for publication bias".
+`strata` MUST NOT describe any of these as "correcting for publication bias".
 Generated prose MUST use language such as "consistent with small-study effects",
 since asymmetry has several possible causes.
 
@@ -355,7 +355,7 @@ decision that belongs in a declared sensitivity analysis with a rationale.
 
 ## 8. Guardrails *(normative)*
 
-`epic analyze` MUST emit these, each as a named, suppressible-with-acknowledgement
+`strata analyze` MUST emit these, each as a named, suppressible-with-acknowledgement
 warning recorded in `run.json`:
 
 | Condition | Warning |
@@ -378,7 +378,7 @@ warning recorded in `run.json`:
 ```json
 {
   "analysis": "primary",
-  "epic_version": "0.4.1",
+  "strata_version": "0.4.1",
   "engine": "native",
   "schema_version": 1,
   "input_digest": "sha256:...",
@@ -394,10 +394,10 @@ warning recorded in `run.json`:
 
 `input_digest` is a hash over the canonical serialisation of the exact effect
 rows and options fed to the estimator — not over the whole repository — so that
-`epic verify` can tell "the analysis is stale because the data changed" apart
+`strata verify` can tell "the analysis is stale because the data changed" apart
 from "the analysis is stale because the tool changed".
 
-Given the same repository at the same commit, `epic analyze` MUST produce
+Given the same repository at the same commit, `strata analyze` MUST produce
 byte-identical output on any platform ([02 §5.5](02-repository-format.md)).
 
 ## 10. Plots

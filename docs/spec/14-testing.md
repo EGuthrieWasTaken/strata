@@ -95,7 +95,7 @@ Knapp–Hartung intervals, `Q`/`I2`/`H2`/`tau^2` CIs, prediction intervals,
 meta-regression with continuous and categorical moderators, Egger, Begg,
 trim-and-fill, leave-one-out, and the full influence-diagnostics set.
 
-Where `epic` deliberately differs (the prediction-interval df convention,
+Where `strata` deliberately differs (the prediction-interval df convention,
 [08 §4.4](08-analysis.md)), the fixture MUST pin `metafor`'s matching option
 explicitly and a comment MUST explain the difference. A silent tolerance bump to
 paper over a convention mismatch is the specific failure this rule exists to
@@ -142,7 +142,7 @@ contents, counts, and generated output.
 | E2E-05 | A criterion retired after exclusions cited it; assert cascade and re-screen |
 | E2E-06 | Cascading staleness: a title/abstract reversal orphans a full-text decision and an extraction, without deleting the extraction |
 | E2E-07 | Deduplication after a late fourth import, asserting that earlier manual dedup decisions are not re-raised |
-| E2E-08 | Recovery: corrupt a derived file, truncate an event file mid-line, delete the cache, then `epic verify --fix` restores a valid repository |
+| E2E-08 | Recovery: corrupt a derived file, truncate an event file mid-line, delete the cache, then `strata verify --fix` restores a valid repository |
 | E2E-09 | Interrupted screening (SIGKILL mid-session), then resume with no lost decisions |
 | E2E-10 | A repository created by an older schema version, migrated forward |
 | E2E-11 | Import of a 50,000-record export, asserting performance targets |

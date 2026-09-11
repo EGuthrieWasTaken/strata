@@ -10,11 +10,11 @@ screening, extraction, and adjudication it is the primary one.
 
 It is, however, **strictly local**:
 
-- `epic serve` binds to `127.0.0.1` on an ephemeral port by default and opens a
+- `strata serve` binds to `127.0.0.1` on an ephemeral port by default and opens a
   browser. Binding to any other interface requires `--host` **and** `--token`,
   and the tool MUST print a warning explaining the exposure.
 - There is no account system, no login, and no multi-tenancy. The person at the
-  keyboard is the actor configured in `epic.toml`, selectable at startup when
+  keyboard is the actor configured in `strata.toml`, selectable at startup when
   more than one actor is configured on the same machine.
 - No data leaves the machine. No CDN, no analytics, no fonts fetched from a
   third party, no error reporting. All assets are bundled and served locally, so
@@ -27,13 +27,13 @@ It is, however, **strictly local**:
 
 | Route | Purpose |
 |---|---|
-| `/` | Dashboard — the `epic status` content, with actions as links |
+| `/` | Dashboard — the `strata status` content, with actions as links |
 | `/screen/<stage>` | The screening surface |
 | `/rescreen` | The stale queue, with prior decisions shown |
 | `/adjudicate` | Conflict resolution |
 | `/dedup` | Duplicate review queue |
 | `/records` | Searchable, filterable record table |
-| `/records/<id>` | Record detail with the `epic why` provenance timeline |
+| `/records/<id>` | Record detail with the `strata why` provenance timeline |
 | `/criteria` | Criteria editor, with live impact preview |
 | `/extract/<study>` | The coding form |
 | `/extract/<study>/reconcile` | Field-by-field reconciliation |

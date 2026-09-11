@@ -1,15 +1,15 @@
 # 03 — Schemas *(normative)*
 
 Every schema here MUST have a machine-readable JSON Schema (Draft 2020-12)
-shipped in the `epic` source tree under `epic/schemas/`, and MUST be validated on
+shipped in the `strata` source tree under `strata/schemas/`, and MUST be validated on
 write and on load. The tables below are the human-readable contract; where they
 disagree with the shipped schema, the shipped schema is a bug.
 
-## 1. `epic.toml` — project manifest
+## 1. `strata.toml` — project manifest
 
 ```toml
 schema_version = 1
-created_with   = "epic/0.4.1"
+created_with   = "strata/0.4.1"
 
 [project]
 id       = "prj_01j9x7m2q4h8s0v3n5k1t6w2yb"
@@ -72,14 +72,14 @@ Rules:
 - `screening.mode = "dual"` with an assignment list of length 1 is a
   configuration error (`E_CONFIG`).
 - `enrichment.enabled = true` with an empty `contact_email` is a configuration
-  error: the open APIs `epic` uses require a contact address for their polite
+  error: the open APIs `strata` uses require a contact address for their polite
   pools, and sending requests without one is abuse of a free service.
 
 ## 2. Record — `records/records.ndjson`
 
 The record schema is **CSL-JSON** (the Citation Style Language data model used by
 Zotero, pandoc, and citeproc) with a single namespaced extension object. This
-buys interoperability for free: `epic export --format csl` feeds pandoc directly,
+buys interoperability for free: `strata export --format csl` feeds pandoc directly,
 and Zotero libraries import without a translation layer.
 
 ```json
@@ -95,7 +95,7 @@ and Zotero libraries import without a translation layer.
   "PMID": "19076480",
   "abstract": "...",
   "language": "en",
-  "epic": {
+  "strata": {
     "canonical_key": "doi:10.1111/j.1467-9280.2008.02209.x",
     "canonical": true,
     "absorbed": ["rec_9m2p0000000000ab"],
@@ -119,16 +119,16 @@ and Zotero libraries import without a translation layer.
 | `issued` | no | CSL date; `date-parts` only, no raw strings |
 | `DOI`, `PMID`, `PMCID`, `URL`, `ISBN` | no | Normalised per [01 §3.2](01-domain-model.md) |
 | `abstract` | no | Verbatim from source; structured-abstract labels preserved |
-| `keyword` | no | CSL is a single string; `epic` stores a `;`-joined list |
-| `epic.canonical` | yes | `false` means this row is retained only for provenance |
-| `epic.sources` | yes | Append-only; one entry per import that saw this record |
-| `epic.field_provenance` | no | Which source each field's current value came from |
-| `epic.flags` | no | `no-abstract`, `no-doi`, `retracted`, `preprint`, `non-english`, `id-unstable` |
+| `keyword` | no | CSL is a single string; `strata` stores a `;`-joined list |
+| `strata.canonical` | yes | `false` means this row is retained only for provenance |
+| `strata.sources` | yes | Append-only; one entry per import that saw this record |
+| `strata.field_provenance` | no | Which source each field's current value came from |
+| `strata.flags` | no | `no-abstract`, `no-doi`, `retracted`, `preprint`, `non-english`, `id-unstable` |
 
-Unknown CSL fields MUST be preserved on round-trip. `epic` is not permitted to
+Unknown CSL fields MUST be preserved on round-trip. `strata` is not permitted to
 silently drop metadata.
 
-**Retraction flag.** If enrichment is enabled, `epic` SHOULD check Crossref for
+**Retraction flag.** If enrichment is enabled, `strata` SHOULD check Crossref for
 `update-to` relations and set the `retracted` flag. A retracted study in an
 included pool is a publishable-error-level problem, and the check is nearly free.
 
@@ -288,12 +288,12 @@ Field types: `integer`, `number`, `quantity` (number + unit, normalised),
 (a page/table/figure pointer into the source report).
 
 Every extracted value SHOULD carry a **source locator** (`p. 1098, Table 2`).
-The UI MUST make entering one a single keystroke, and `epic report` MUST be able
+The UI MUST make entering one a single keystroke, and `strata report` MUST be able
 to emit a per-value provenance table, because "where did this number come from"
 is the question a reviewer asks about every number in the forest plot.
 
 Schema changes bump `version`. Adding a required field makes every existing
-extraction **incomplete**, not stale — `epic status` reports it as missing data
+extraction **incomplete**, not stale — `strata status` reports it as missing data
 rather than invalidating prior work.
 
 ## 7. Extraction record — `extraction/consensus/std_7x2k....yaml`
@@ -354,7 +354,7 @@ overall:
   algorithm: "worst-domain"     # worst-domain | custom
 ```
 
-`epic` MUST ship RoB 2, ROBINS-I, and the Newcastle-Ottawa Scale as built-in
+`strata` MUST ship RoB 2, ROBINS-I, and the Newcastle-Ottawa Scale as built-in
 instrument definitions, and MUST allow a custom instrument in the same shape. A
 per-study RoB file mirrors the extraction record's structure: judgement plus
 free-text support plus a source locator per domain.
@@ -365,7 +365,7 @@ See [08 §2](08-analysis.md) for the full field reference and semantics.
 
 ## 10. Validation rules that cross schemas *(normative)*
 
-`epic verify` MUST enforce all of the following and report every violation, not
+`strata verify` MUST enforce all of the following and report every violation, not
 just the first:
 
 | Code | Rule |
