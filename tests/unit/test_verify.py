@@ -153,6 +153,45 @@ def test_verify_detects_alias_cycle(tmp_path: Path) -> None:
     assert any(i.code == "E_ALIAS_CYCLE" for i in report.issues)
 
 
+def test_verify_reports_invalid_search_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    searches_path = repo.path("protocol", "searches", "S-01-medline.yaml")
+    searches_path.parent.mkdir(parents=True, exist_ok=True)
+    # Missing the required `query` field.
+    searches_path.write_text(
+        "id: S-01-medline\ndatabase: MEDLINE\nplatform: Ovid\n"
+        "executed: '2026-03-04'\nexecuted_by: ethan\n",
+        encoding="utf-8",
+    )
+    report = verify_repository(repo)
+    assert any(
+        i.code == "E_SCHEMA" and i.path == "protocol/searches/S-01-medline.yaml"
+        for i in report.issues
+    )
+
+
+def test_verify_accepts_valid_search_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    searches_path = repo.path("protocol", "searches", "S-01-medline.yaml")
+    searches_path.parent.mkdir(parents=True, exist_ok=True)
+    searches_path.write_text(
+        "id: S-01-medline\ndatabase: MEDLINE\nplatform: Ovid\n"
+        "executed: '2026-03-04'\nexecuted_by: ethan\nquery: |\n  1 exp Learning/\n",
+        encoding="utf-8",
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_SCHEMA" and "searches" in (i.path or "") for i in report.issues)
+
+
+def test_verify_ignores_blank_search_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    searches_path = repo.path("protocol", "searches", "S-01-blank.yaml")
+    searches_path.parent.mkdir(parents=True, exist_ok=True)
+    searches_path.write_text("", encoding="utf-8")
+    report = verify_repository(repo)
+    assert not any("searches" in (i.path or "") for i in report.issues)
+
+
 def test_verify_fast_mode_skips_alias_and_dangling_checks(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     aliases_path = repo.path("records", "aliases.ndjson")
