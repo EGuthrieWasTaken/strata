@@ -50,7 +50,7 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
     """Validate every event file's schema and hash chain. Returns all record ids referenced."""
     referenced_records: set[str] = set()
     for path in events_mod.iter_event_files(repo.root):
-        rel = str(path.relative_to(repo.root))
+        rel = path.relative_to(repo.root).as_posix()
         raw_events = events_mod.read_events(path)
         for i, envelope in enumerate(raw_events):
             try:
@@ -93,7 +93,7 @@ def _verify_searches(repo: Repo, report: VerifyReport) -> None:
     if not searches_dir.exists():
         return
     for path in sorted(searches_dir.glob("*.yaml")):
-        rel = str(path.relative_to(repo.root))
+        rel = path.relative_to(repo.root).as_posix()
         data = load_yaml_str(path.read_text(encoding="utf-8"))
         if not data:
             continue
