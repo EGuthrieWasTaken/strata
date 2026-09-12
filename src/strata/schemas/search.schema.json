@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://strata-review.org/schemas/search.schema.json",
+  "title": "Search",
+  "description": "docs/spec/03-schemas.md §5 — protocol/searches/<id>.yaml",
+  "type": "object",
+  "required": ["id", "database", "platform", "executed", "executed_by", "query"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^S-[A-Za-z0-9][A-Za-z0-9-]*$"
+    },
+    "database": { "type": "string", "minLength": 1 },
+    "platform": { "type": "string", "minLength": 1 },
+    "executed": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "executed_by": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+    },
+    "query": { "type": "string", "minLength": 1 },
+    "limits": {
+      "type": ["object", "null"],
+      "properties": {
+        "language": { "type": "array", "items": { "type": "string" } },
+        "years": { "type": "string" },
+        "publication_types_excluded": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "hits": { "type": ["integer", "null"], "minimum": 0 },
+    "export_files": { "type": "array", "items": { "type": "string" } },
+    "peer_reviewed_by": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] },
+    "supersedes": { "type": ["string", "null"] }
+  }
+}

@@ -12,6 +12,7 @@ import json as json_mod
 import re
 import shutil
 import sys
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -25,8 +26,11 @@ from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import status as status_mod
 from strata.core import verify as verify_mod
+from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
+from strata.core.validate import SchemaValidationError
+from strata.protocol import searches as searches_mod
 
 EXIT_OK = 0
 EXIT_GENERIC = 1
@@ -38,6 +42,10 @@ EXIT_SCHEMA_TOO_NEW = 6
 EXIT_RATIONALE_REFUSED = 7
 EXIT_GUARDRAIL = 8
 
+# A repeatable list-typed typer.Option default must live at module scope,
+# not inline in a signature, or ruff's flake8-bugbear B008 flags it.
+_EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
+
 app = typer.Typer(
     name="strata",
     no_args_is_help=True,
@@ -45,8 +53,12 @@ app = typer.Typer(
     help="A version-controlled workbench for systematic reviews and meta-analyses.",
 )
 actor_app = typer.Typer(name="actor", help="Manage contributors.", no_args_is_help=True)
+search_app = typer.Typer(
+    name="search", help="Record and list executed searches.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
+app.add_typer(search_app, name="search")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -71,6 +83,13 @@ def main(
     verbose: int = typer.Option(0, "-v", count=True),
     no_color: bool = typer.Option(False, "--no-color"),
     yes: bool = typer.Option(False, "--yes"),
+    why: str | None = typer.Option(
+        None, "--why", help="Supply the commit rationale non-interactively"
+    ),
+    why_file: str | None = typer.Option(None, "--why-file", help="Read the rationale from a file"),
+    no_commit: bool = typer.Option(
+        False, "--no-commit", help="Perform the operation, stage nothing, leave the tree dirty"
+    ),
 ) -> None:
     ctx.obj = {
         "directory": directory,
@@ -78,6 +97,9 @@ def main(
         "quiet": quiet,
         "verbose": verbose,
         "yes": yes,
+        "why": why,
+        "why_file": why_file,
+        "no_commit": no_commit,
     }
     if no_color:
         err_console.no_color = True
@@ -99,6 +121,42 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
     except SchemaTooNewError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
+
+
+def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
+    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
+
+    Returns `None` when `git.require_rationale` is false and no rationale was
+    supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
+    unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
+    `validate_rationale` (empty, stop-listed, or too short).
+    """
+    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+    why_file = ctx.obj.get("why_file")
+    why = ctx.obj.get("why")
+
+    text: str | None
+    if why_file:
+        text = Path(why_file).read_text(encoding="utf-8")
+    elif why:
+        text = why
+    elif not require:
+        return None
+    elif sys.stdin.isatty():
+        out_console.print(context_lines)
+        text = typer.prompt("Why? (this goes in the permanent record)")
+    else:
+        err_console.print(
+            "[red]error:[/] a rationale is required (git.require_rationale is true); "
+            "pass --why or --why-file in a non-interactive context"
+        )
+        raise typer.Exit(EXIT_RATIONALE_REFUSED)
+
+    try:
+        return validate_rationale(text)
+    except RationaleRejectedError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
 
 
 def _derive_clone_dest_name(url: str) -> str:
@@ -271,7 +329,9 @@ def status(ctx: typer.Context) -> None:
     out_console.print(f"[bold]{s.title}[/]  criteria v{s.criteria_version}")
     clean = "clean" if s.is_clean else "dirty"
     out_console.print(f"{s.commit_count} commits · {s.actor_count} actors · {clean}")
-    out_console.print(f"{s.record_count} records")
+    out_console.print(f"{s.record_count} records · {s.search_count} searches recorded")
+    for search_id in s.pending_searches:
+        out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
 
 
 @app.command("log")
@@ -325,6 +385,96 @@ def actor_deactivate(ctx: typer.Context, handle: str) -> None:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
     out_console.print(f"[green]deactivated[/] actor {handle}")
+
+
+@search_app.command("add")
+def search_add(
+    ctx: typer.Context,
+    database: str = typer.Option(..., "--database", help="e.g. MEDLINE, Embase, PsycINFO"),
+    platform: str = typer.Option(..., "--platform", help="Interface actually used, e.g. Ovid"),
+    executed_by: str = typer.Option(..., "--by", help="Actor handle who ran the search"),
+    search_id: str | None = typer.Option(None, "--id", help="Defaults to S-<nn>-<database>"),
+    executed: str | None = typer.Option(
+        None, "--executed", help="Date run YYYY-MM-DD; default today"
+    ),
+    query: str | None = typer.Option(None, "--query", help="The verbatim query string"),
+    query_file: str | None = typer.Option(None, "--query-file", help="Read the query from a file"),
+    hits: int | None = typer.Option(None, "--hits"),
+    export_file: list[str] | None = _EXPORT_FILE_OPTION,
+    peer_reviewed_by: str | None = typer.Option(None, "--peer-reviewed-by"),
+    notes: str | None = typer.Option(None, "--notes"),
+    supersedes: str | None = typer.Option(None, "--supersedes", help="Id of an earlier version"),
+) -> None:
+    """Record an executed search: `protocol/searches/<id>.yaml`."""
+    repo = _resolve_repo(ctx)
+
+    if query_file:
+        query = Path(query_file).read_text(encoding="utf-8")
+    resolved_executed = executed or date.today().isoformat()
+
+    try:
+        record = searches_mod.add_search(
+            repo,
+            database=database,
+            platform=platform,
+            executed=resolved_executed,
+            executed_by=executed_by,
+            search_id=search_id,
+            query=query,
+            hits=hits,
+            export_files=list(export_file) if export_file else [],
+            peer_reviewed_by=peer_reviewed_by,
+            notes=notes,
+            supersedes=supersedes,
+        )
+    except (searches_mod.SearchError, SchemaValidationError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if record["query"] == searches_mod.PENDING_QUERY:
+        out_console.print(
+            f"[yellow]warning:[/] no query string recorded for {record['id']} "
+            "(PRISMA item 7) — supply it before the review is finalised"
+        )
+
+    if ctx.obj["no_commit"]:
+        out_console.print(f"[green]recorded[/] search {record['id']} (not committed)")
+        return
+
+    rationale = _get_rationale(
+        ctx,
+        repo,
+        f"You recorded search {record['id']} ({record['database']} via {record['platform']}).",
+    )
+    commit_obj = StructuredCommit(
+        op="search-add",
+        scope=record["id"],
+        summary=f"record search {record['id']}",
+        body=rationale,
+        trailers={"Op": "search-add", "Search": record["id"], "Actor": executed_by},
+    )
+    gitio.add(repo.root, ["protocol/searches"])
+    gitio.commit(repo.root, commit_obj.message())
+    out_console.print(f"[green]recorded[/] search {record['id']}")
+
+
+@search_app.command("list")
+def search_list(ctx: typer.Context) -> None:
+    """Show all searches with dates and hit counts."""
+    repo = _resolve_repo(ctx)
+    records = searches_mod.list_searches(repo)
+    if ctx.obj["json"]:
+        _print_json(records)
+        return
+    if not records:
+        out_console.print("no searches recorded yet — `strata search add`")
+        return
+    for s in records:
+        is_pending = s["query"] == searches_mod.PENDING_QUERY
+        pending = " [yellow]! no query recorded[/]" if is_pending else ""
+        hits = s.get("hits")
+        hits_str = f"{hits} hits" if hits is not None else "hits unknown"
+        out_console.print(f"{s['id']:<20} {s['database']:<14} {s['executed']}  {hits_str}{pending}")
 
 
 @internal_app.command("hook-pre-commit")

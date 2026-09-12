@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from strata import gitio
 from strata.core.canon import load_yaml_str
 from strata.core.repo import Repo
+from strata.protocol.searches import list_searches, pending_search_ids
 
 
 @dataclass
@@ -24,6 +25,8 @@ class StatusReport:
     is_clean: bool
     criteria_version: int
     record_count: int
+    search_count: int
+    pending_searches: list[str]
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -54,4 +57,6 @@ def compute_status(repo: Repo) -> StatusReport:
         is_clean=not gitio.is_dirty(repo.root),
         criteria_version=_read_criteria_version(repo),
         record_count=_count_ndjson_lines(repo.path("records", "records.ndjson")),
+        search_count=len(list_searches(repo)),
+        pending_searches=pending_search_ids(repo),
     )
