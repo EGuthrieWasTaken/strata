@@ -1,0 +1,60 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "Single-space tags & a missing year",
+      "author": [
+        {
+          "family": "Smith",
+          "given": "John"
+        }
+      ],
+      "container-title": "Journal of Odd Exports"
+    },
+    {
+      "type": "article-journal",
+      "title": "Record with no closing ER tag",
+      "author": [
+        {
+          "family": "Doe",
+          "given": "Jane"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2019
+          ]
+        ]
+      },
+      "container-title": "Journal of Odd Exports "
+    },
+    {
+      "type": "article-journal",
+      "title": "DOI with trailing punctuation",
+      "author": [
+        {
+          "family": "Blogg",
+          "given": "Joe"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2021
+          ]
+        ]
+      },
+      "DOI": "10.1234/example.doi.",
+      "abstract": "This abstract wraps across a continuation line indented with inconsistent depth."
+    }
+  ],
+  "rejected": [
+    {
+      "line": 13,
+      "raw": "TY  - JOUR\nAU  - Roe, Richard\nTI  - \nPY  - 2020\nER  - \n",
+      "error": "missing or empty title"
+    }
+  ]
+}

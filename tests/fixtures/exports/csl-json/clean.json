@@ -1,0 +1,33 @@
+[
+  {
+    "id": "1",
+    "type": "article-journal",
+    "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+    "author": [
+      { "family": "Cepeda", "given": "Nicholas J." },
+      { "family": "Vul", "given": "Edward" }
+    ],
+    "issued": { "date-parts": [[2008]] },
+    "container-title": "Psychological Science",
+    "volume": "19",
+    "issue": "11",
+    "page": "1095-1102",
+    "DOI": "10.1111/j.1467-9280.2008.02209.x",
+    "abstract": "We tested the effects of spacing on retention.",
+    "keyword": "spacing;learning;memory"
+  },
+  {
+    "id": "2",
+    "type": "report",
+    "title": "Guidelines for reporting systematic reviews",
+    "author": [{ "literal": "World Health Organization" }],
+    "issued": { "date-parts": [[2021]] },
+    "publisher-place": "Geneva"
+  },
+  {
+    "id": "3",
+    "title": "Über memory and learning in bilingual samples",
+    "author": [{ "family": "Müller", "given": "Anna" }],
+    "issued": { "date-parts": [[2015]] }
+  }
+]

@@ -1,0 +1,27 @@
+TY - JOUR
+AU - Smith, John
+TI - Single-space tags &amp; a missing year
+JO - Journal of Odd Exports
+ER -
+
+TY  - JOUR
+AU  - Doe, Jane
+TI  - Record with no closing ER tag
+PY  - 2019
+JO  - Journal of Odd Exports
+
+TY  - JOUR
+AU  - Roe, Richard
+TI  -
+PY  - 2020
+ER  -
+
+TY  - JOUR
+AU  - Blogg, Joe
+TI  - DOI with trailing punctuation
+DO  - 10.1234/example.doi.
+PY  - 2021
+AB  - This abstract wraps across
+    a continuation line indented
+        with inconsistent depth.
+ER  -

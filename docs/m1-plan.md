@@ -87,7 +87,7 @@ session (no tool for it) — check via the GitHub UI/API if that matters.
 | # | Sub-objective | Status |
 |---|---|---|
 | 1 | Search recording (`strata search add`/`list`) | **done** |
-| 2 | Parsers: CSL-JSON, RIS, BibTeX | not started |
+| 2 | Parsers: CSL-JSON, RIS, BibTeX | **done** |
 | 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | not started |
 | 4 | `strata import` pipeline | not started |
 | 5 | Dedup engine: blocking + scoring + P8 | not started |
@@ -109,30 +109,54 @@ recorded (PRISMA item 7), `strata verify` validating every
 `--no-commit` global options + `_get_rationale()` helper (see Conventions
 above) that later sub-objectives should reuse rather than reinvent.
 
-### 2. Parsers: CSL-JSON, RIS, BibTeX
+### 2. Parsers: CSL-JSON, RIS, BibTeX — done
 
-Spec: `docs/spec/05-workflow-import.md` §2.1, §2.3 (normalisation on parse);
-`docs/spec/01-domain-model.md` §3.2 (field normalisation rules, already
-implemented in `strata.core.ids` — reuse, don't reimplement).
+Delivered: `src/strata/ingest/parsers/__init__.py` (shared `ParseResult`/
+`RejectedRow`, `decode_bytes` — the BOM/UTF-8/CP1252/Latin-1 fallback chain
+from §2.1 — and `normalise_newlines`); `csl_json.py`, `ris.py`, `bibtex.py`,
+each exposing `parse(text: str) -> ParseResult` (text already decoded and
+newline-normalised by the caller). Golden fixtures under
+`tests/fixtures/exports/{csl-json,ris,bibtex}/` with `*.expected.json`
+snapshots, provenance and a malformation-coverage table in
+`tests/fixtures/SOURCES.md`; unit tests in `tests/unit/test_parsers_*.py` and
+`tests/unit/test_ingest_parsers_common.py`; golden tests in
+`tests/golden/test_golden_parsers.py`. All three parser modules are at 100%
+line+branch coverage.
 
-Scope:
-- `src/strata/ingest/parsers/` — one module per format (`csl_json.py`,
-  `ris.py`, `bibtex.py`), each exposing a `parse(path_or_text) ->
-  list[dict]` returning CSL-JSON-shaped dicts (the `records/records.ndjson`
-  shape from `docs/spec/03-schemas.md` §2, minus the `strata` extension
-  object, which import (#4) attaches).
-- `rispy` and `bibtexparser` are already dependencies (see `pyproject.toml`)
-  — use them rather than hand-rolling RIS/BibTeX tokenisers; CSL-JSON parsing
-  is a thin JSON-Schema-validated passthrough (round-trips losslessly per
-  spec).
-- A row that fails to parse must not abort the whole file (§2.1) — return
-  parse failures alongside successes rather than raising, so #4 can write
-  them to `imports/<id>/rejected.txt`.
-- Golden fixtures: `tests/fixtures/exports/` (create it), with at least one
-  clean and one malformed example per format from the table in
-  `docs/spec/14-testing.md` §3 that these three parsers cover, plus expected
-  parsed output as a fixture. Document fixture provenance in
-  `tests/fixtures/SOURCES.md` per that section's redistributability rule.
+Notable implementation decisions future sub-objectives should know about:
+- `rispy` (installed: 0.9.x per `pyproject.toml`, resolved 0.10.0) is strict
+  about `TY  - ` two-space tag spacing and **silently drops** a record with
+  no `ER` line instead of raising — both would violate §2.1's "never lose a
+  record silently" rule. `ris.py` therefore isolates each `TY...ER` block
+  itself (`_split_records`), synthesises a missing `ER` line, and canonicalises
+  tag-line spacing before handing one block at a time to `rispy.loads`.
+- `bibtexparser` resolved to **2.0.1**, not the 1.x line the sub-objective
+  description assumed — its API is unrelated to 1.x (`parse_string`,
+  `Library.entries`/`.failed_blocks`, a `SplitNameParts`/`SeparateCoAuthors`
+  middleware pipeline for author names, not a dict-of-strings model). Malformed
+  entries land in `library.failed_blocks` with their own line/error, giving
+  per-entry isolation for free from the library.
+- An empty/missing title is treated as a **rejected row**, not a raised error
+  and not a silently-accepted record — reconciles §2.1's "never abort the
+  import" with §03-schemas.md §2's "empty title is a hard import error": the
+  record just doesn't make it in, same as any other unparseable row.
+- HTML-entity decoding (§2.1) is applied to title/abstract/container-title in
+  `ris.py` and to every string field in `bibtex.py`'s `_clean` helper; BibTeX's
+  own protective mid-value braces (`{DNA}`) are stripped the same way LaTeX
+  users rely on them being invisible in rendered output.
+- **Known gap, not addressed this sitting**: legacy LaTeX-escaped diacritics in
+  BibTeX (`M\"uller` rather than a literal `Müller`) are not decoded — no
+  `LatexDecodingMiddleware` is wired in. Low priority (modern BibTeX exports
+  are UTF-8), but worth a fixture + fix whenever sub-objective 3 or 8 next
+  touches this file.
+- Two lines in `ris.py` (`rispy.loads` raising, and returning a record count
+  other than 1) and one in `bibtex.py` (a non-list `author` field value after
+  `SeparateCoAuthors`) are marked `# pragma: no cover` with inline
+  justification rather than forced with contrived inputs — they're defensive
+  boundaries against library-internal edge cases, not reachable through
+  `_split_records`'s/`SeparateCoAuthors`'s own invariants. The nightly fuzz
+  corpus (sub-objective 8) is the intended real exercise for these paths;
+  revisit the pragmas if fuzzing ever hits them.
 
 ### 3. Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles
 

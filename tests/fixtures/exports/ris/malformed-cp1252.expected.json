@@ -1,0 +1,24 @@
+{
+  "encoding": "cp1252",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "A title with “smart quotes” from a CP1252 export",
+      "author": [
+        {
+          "family": "Winder",
+          "given": "Sam"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2012
+          ]
+        ]
+      },
+      "container-title": "Journal of Legacy Encodings"
+    }
+  ],
+  "rejected": []
+}

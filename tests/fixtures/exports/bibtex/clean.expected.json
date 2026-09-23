@@ -1,0 +1,73 @@
+[
+  {
+    "type": "article-journal",
+    "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+    "author": [
+      {
+        "family": "Cepeda",
+        "given": "Nicholas J."
+      },
+      {
+        "family": "Vul",
+        "given": "Edward"
+      },
+      {
+        "family": "Rohrer",
+        "given": "Doug"
+      }
+    ],
+    "issued": {
+      "date-parts": [
+        [
+          2008
+        ]
+      ]
+    },
+    "container-title": "Psychological Science",
+    "volume": "19",
+    "issue": "11",
+    "page": "1095-1102",
+    "DOI": "10.1111/j.1467-9280.2008.02209.x",
+    "keyword": "spacing, learning, memory"
+  },
+  {
+    "type": "report",
+    "title": "Guidelines for reporting systematic reviews",
+    "author": [
+      {
+        "literal": "World Health Organization"
+      }
+    ],
+    "issued": {
+      "date-parts": [
+        [
+          2021
+        ]
+      ]
+    },
+    "note": "institution: WHO"
+  },
+  {
+    "type": "article-journal",
+    "title": "DNA repair and long-term memory consolidation",
+    "author": [
+      {
+        "family": "Müller",
+        "given": "Anna"
+      },
+      {
+        "family": "van Beethoven",
+        "given": "Ludwig"
+      }
+    ],
+    "issued": {
+      "date-parts": [
+        [
+          2015
+        ]
+      ]
+    },
+    "container-title": "Journal of Neuroscience",
+    "volume": "35"
+  }
+]

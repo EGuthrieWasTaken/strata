@@ -7,6 +7,11 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- Bibliographic export parsers for CSL-JSON, RIS, and BibTeX
+  (`strata.ingest.parsers`), tolerant of the malformations
+  `docs/spec/05-workflow-import.md` §2.1 requires (BOM, CRLF/CR, non-UTF-8
+  encodings, missing RIS `ER` lines, HTML entities), with a golden fixture
+  corpus under `tests/fixtures/exports/`.
 - The pull-request gate: tiered CI (`lint`, `test-fast`, `test` across a 3 OS
   x 3 Python matrix, `statistical`, `determinism`, `coverage`, `docs`,
   advisory `benchmark`/`codeql`), the always-running `gate` check, and the

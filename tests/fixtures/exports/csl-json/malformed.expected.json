@@ -1,0 +1,41 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "id": "good-1",
+      "type": "article-journal",
+      "title": "A valid record before the bad ones",
+      "issued": {
+        "date-parts": [
+          [
+            2010
+          ]
+        ]
+      }
+    },
+    {
+      "id": "good-2",
+      "type": "article-journal",
+      "title": "A valid record after the bad ones",
+      "issued": {
+        "date-parts": [
+          [
+            2011
+          ]
+        ]
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "line": 2,
+      "raw": "{\"id\": \"empty-title\", \"type\": \"article-journal\", \"title\": \"\"}",
+      "error": "missing or empty title"
+    },
+    {
+      "line": 3,
+      "raw": "\"this entry is a bare string, not an object\"",
+      "error": "entry is not an object"
+    }
+  ]
+}
