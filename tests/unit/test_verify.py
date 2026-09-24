@@ -353,6 +353,226 @@ def test_verify_does_not_flag_edit_or_retire_as_reuse(tmp_path: Path) -> None:
     assert not any(i.code == "E_CRITERION_REUSE" for i in report.issues)
 
 
+def _add_active_criterion(repo: Repo, *, criterion_id: str, applies_at: list[str]) -> None:
+    path = repo.path("events", "criteria", "ethan.ndjson")
+    delta = {
+        "id": criterion_id,
+        "origin": "added",
+        "direction": "tightened",
+        "kind": "exclusion",
+        "label": "x",
+        "definition": "x",
+        "applies_at": applies_at,
+        "since_version": 1,
+        "status": "active",
+    }
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 0, "to_version": 1, "deltas": [delta], "rationale": "r"},
+    )
+
+
+@pytest.mark.req("E_EXCLUSION_NO_CRITERION")
+def test_verify_reports_exclusion_with_no_criterion_when_required(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": [],
+            "criteria_version": 0,
+        },
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_EXCLUSION_NO_CRITERION" for i in report.issues)
+
+
+def test_verify_allows_exclusion_with_no_criterion_when_not_required(tmp_path: Path) -> None:
+    manifest = _VALID_MANIFEST.replace(
+        'role = "lead"\n', 'role = "lead"\n\n[screening]\nrequire_exclusion_reason = false\n'
+    )
+    repo = _make_repo(tmp_path, manifest)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": [],
+            "criteria_version": 0,
+        },
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_EXCLUSION_NO_CRITERION" for i in report.issues)
+
+
+def test_verify_full_text_exclusion_always_needs_a_criterion(tmp_path: Path) -> None:
+    manifest = _VALID_MANIFEST.replace(
+        'role = "lead"\n', 'role = "lead"\n\n[screening]\nrequire_exclusion_reason = false\n'
+    )
+    repo = _make_repo(tmp_path, manifest)
+    path = repo.path("events", "screen", "full-text.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "full-text",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": [],
+            "criteria_version": 0,
+        },
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_EXCLUSION_NO_CRITERION" for i in report.issues)
+
+
+@pytest.mark.req("E_CRITERION_STAGE")
+def test_verify_reports_citation_of_criterion_not_applicable_at_stage(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    _add_active_criterion(repo, criterion_id="EXC-01", applies_at=["full-text"])
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": ["EXC-01"],
+            "criteria_version": 1,
+        },
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_CRITERION_STAGE" for i in report.issues)
+
+
+def test_verify_reports_citation_of_unknown_or_retired_criterion(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": ["EXC-99"],
+            "criteria_version": 1,
+        },
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_CRITERION_STAGE" and "EXC-99" in i.message for i in report.issues)
+
+
+def test_verify_accepts_valid_citation_at_the_right_stage(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    _add_active_criterion(repo, criterion_id="EXC-01", applies_at=["title-abstract"])
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": ["EXC-01"],
+            "criteria_version": 1,
+        },
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_CRITERION_STAGE" for i in report.issues)
+
+
+def test_verify_skips_criterion_stage_check_when_no_criteria_cited(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "include",
+            "criteria": [],
+            "criteria_version": 1,
+        },
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_CRITERION_STAGE" for i in report.issues)
+
+
+def test_verify_skips_criterion_stage_check_when_version_missing(tmp_path: Path) -> None:
+    """An `imported: true` decision recorded before this milestone's own
+    validation existed might lack `criteria_version` entirely -- the check
+    must not crash on it, just skip (nothing to reconstruct against)."""
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(
+        path,
+        ev="screen",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "exclude",
+            "criteria": ["EXC-01"],
+        },
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_CRITERION_STAGE" for i in report.issues)
+
+
+def test_verify_ignores_non_screen_events_in_the_screen_directory(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    append_new_event(path, ev="note", actor="ethan", body={"subject": "s", "text": "t"})
+    report = verify_repository(repo)
+    assert not any(
+        i.code in ("E_EXCLUSION_NO_CRITERION", "E_CRITERION_STAGE") for i in report.issues
+    )
+
+
+def test_verify_reuses_reconstructed_criteria_across_events_at_the_same_version(
+    tmp_path: Path,
+) -> None:
+    """Two screen events citing criteria at the same `criteria_version` share
+    one `reconstruct_at_version` call rather than recomputing it per event."""
+    repo = _make_repo(tmp_path)
+    _add_active_criterion(repo, criterion_id="EXC-01", applies_at=["title-abstract"])
+    path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
+    for record_id in ("rec_0000000000000001", "rec_0000000000000002"):
+        append_new_event(
+            path,
+            ev="screen",
+            actor="ethan",
+            body={
+                "stage": "title-abstract",
+                "record": record_id,
+                "decision": "exclude",
+                "criteria": ["EXC-01"],
+                "criteria_version": 1,
+            },
+        )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_CRITERION_STAGE" for i in report.issues)
+
+
 def test_verify_fast_mode_skips_alias_and_dangling_checks(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     aliases_path = repo.path("records", "aliases.ndjson")

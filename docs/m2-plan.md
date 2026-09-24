@@ -101,7 +101,7 @@ M2:
 |---|---|---|
 | 1 | Criteria management: schema, CRUD, versioning, direction classification, digests | **done** |
 | 2 | Staleness engine: `protocol/staleness.py`, P10 + brute-force reference | **done** |
-| 3 | Screening core + CLI: `protocol/screening.py`, `screen`/`assign` events, `strata screen`/`strata assign` | not started |
+| 3 | Screening core + CLI: `protocol/screening.py`, `screen`/`assign` events, `strata screen`/`strata assign` | **done** |
 | 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | not started |
 | 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | not started |
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | not started |
@@ -222,41 +222,74 @@ decisions/criteria-change sets, `@pytest.mark.req("P10")`.
   `compute_stale_records`, which calls `evaluate_staleness` per resolved
   decision and adds those two reasons around it.
 
-### 3. Screening core + CLI
+### 3. Screening core + CLI — done
 
 Spec: `docs/spec/06-workflow-screening.md` §1-§2, §7,
 `docs/spec/02-repository-format.md` §4.3 (fold resolution — already
 implemented in `core/fold.py`), `docs/spec/10-cli.md` §"Screening".
 
-`src/strata/protocol/screening.py`: reads `events/screen/<stage>.*.ndjson`
-per actor, calls `core.fold.resolve_screening` per `(stage, record)` using
-`assigned` from `strata.toml`'s `[screening.assignment]` (or all
-non-inactive actors with role `screener`/`lead` if unset), returns per-record
-`ScreeningState`. `record_screen_decision(repo, *, stage, record, decision,
-criteria, note, actor, confidence=None)` validates: `decision` is one of
-`include|exclude|maybe`; `require_exclusion_reason` (from config) rejects an
-`exclude` with no `criteria` (this is `E_EXCLUSION_NO_CRITERION`, add to
-`verify.py` too); every cited criterion must be `status: active` and have
-`stage` in its `applies_at` (`E_CRITERION_STAGE`, also add to `verify.py`).
-Stamps `criteria_version`/`criteria_digest` from the *current* criteria file
-at decision time, appends a `screen` event. `strata screen <stage>
-[--filter EXPR] [--limit N]`: an interactive per-record loop (`i`/`e`/`m`
-decide, digits cite criteria per §7's table, `u` undo via a correcting
-append — not a delete, since events are append-only; "undo" here means "let
-the reviewer immediately re-decide," which is just another `screen` event,
-last-write-wins already handles it) over records `unscreened` or `partial`
-for the current actor at that stage, ordered deterministically (by record
-id) so `--limit` and resumability are well defined. `strata screen
---decisions <file>` per `docs/spec/10-cli.md` §5: TSV `record_id decision
-criteria note`, attributed to `--by`, `imported: true` in the event body.
-`strata assign <stage> --actors a,b [--filter EXPR]`: `assign` event
-(`stage`, `records` or `filter`, `actors`); only meaningful once
-`[screening.assignment]` isn't authoritative for a filtered subset — keep
-`resolve_screening`'s `assigned` computation checking assign events layered
-over the config default. Full-text stage additionally requires >=1 citation
-on exclude regardless of `require_exclusion_reason` (§7, "Full-text
-screening additionally MUST... require at least one criterion on
-exclusion").
+Delivered: `src/strata/protocol/screening.py` (`assigned_actors`,
+`resolve_record_state`, `stage_queue`, `record_screen_decision`,
+`import_decisions_tsv`, `assign_reviewers`), `strata screen`/`strata assign`
+in `cli/main.py`, `E_EXCLUSION_NO_CRITERION`/`E_CRITERION_STAGE` added to
+`core/verify.py`, `tests/unit/test_screening.py` /
+`tests/integration/test_cli_screen.py` / additions to `tests/unit/
+test_verify.py` (100% line+branch on `screening.py`).
+
+- **Assignment resolution**: `assigned_actors(repo, stage, record_id)`
+  checks the most recent `assign` event naming that record at that stage
+  first (last-write-wins, same shape as every other fold here), falling
+  back to `[screening.assignment]` in `strata.toml`, and finally to every
+  configured `screener`/`lead` actor if neither is set — so a fresh repo
+  with two screeners and no explicit assignment config works out of the box
+  in dual mode, matching the manifest's own default.
+- **`stage_queue`** (an actor's remaining work at a stage) reads every
+  `screen` event for the stage *once* and groups by record in memory,
+  rather than calling `resolve_record_state` (which would re-read per
+  record) in a loop — the same O(n²)-avoidance shape M1's
+  `append_new_events` fix already established for this codebase. This is a
+  one-time per-session cost, not per-decision, so it doesn't bear on the
+  <100ms decision-latency target (sub-objective 10) at all — that target
+  is about `record_screen_decision`, which is a single `append_new_event`
+  call, O(1) regardless of repository size.
+- **Validation order in `_validate_and_build_body`**: stage exists, decision
+  is valid, the record exists, every cited criterion is active *and*
+  applies at this stage (one combined check, one error message — a
+  criterion that's merely inactive and one that's merely wrong-stage are
+  both just "not usable here right now," and splitting the message in two
+  didn't seem worth the complexity), then the exclusion-needs-a-criterion
+  rule: **full-text stage requires a citation unconditionally** (§7, no
+  config escape), other stages only when `screening.
+  require_exclusion_reason` is set. Both the single-decision path
+  (`record_screen_decision`) and the bulk TSV path (`import_decisions_tsv`)
+  share this one validator, so they can never drift apart.
+- **The CLI screening loop is `typer.prompt`-based** (type a letter, press
+  Enter), the same UX level M1's `strata dedup --review` already
+  established, not a raw single-keystroke terminal capture — matching
+  `docs/spec/11-web-ui.md`'s framing that the *web* UI is where §7's
+  keyboard-first requirements are fully realized (S1-S14); the CLI's job
+  is a serviceable, scriptable-adjacent surface, which `--decisions` already
+  covers for real bulk/non-interactive throughput. `u`ndo re-visits the
+  immediately-previous record for a fresh decision (append, not delete —
+  P13 territory); it does not chain arbitrarily far back, which the code
+  comments and tests document as a deliberate scope boundary rather than
+  a bug.
+- **Bug found and fixed by this sitting's full-suite run**:
+  `_verify_screen_events` (the new `E_EXCLUSION_NO_CRITERION`/
+  `E_CRITERION_STAGE` checks) was first wired into `verify_repository`
+  unconditionally, including `fast=True` — the mode `strata`'s pre-commit
+  hook uses on *every* commit. This broke
+  `tests/e2e/test_e2e_02_concurrent_clones.py` (an M0-era skeleton that
+  hand-crafts `screen` events citing a criterion that was never actually
+  registered, because M0 predates criteria existing at all) the moment any
+  commit touching `events/screen/**` ran through the hook. Fixed by moving
+  `_verify_screen_events` next to `_verify_aliases`/`_verify_dangling_refs`
+  under the existing `if not fast:` branch — it's the same category of
+  check (reconstructs cross-event state, not a cheap per-line schema/chain
+  check), and every real write path already validates before appending
+  regardless, so fast mode losing it costs nothing in practice. A useful
+  reminder that a new verify check needs to be graded into the fast/full
+  split deliberately, not just appended to the end of the function.
 
 ### 4. Rescreen + cascading staleness
 

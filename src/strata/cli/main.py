@@ -38,6 +38,7 @@ from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 
 EXIT_OK = 0
@@ -839,6 +840,26 @@ def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in record.items() if k != "strata"}
 
 
+def _apply_record_filter(records: list[dict[str, Any]], filter_expr: str) -> list[dict[str, Any]]:
+    """Shared `--filter` evaluation (docs/spec/10-cli.md §3), used by `records list`,
+    `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
+    that can't be evaluated, rather than raising past the CLI boundary."""
+    try:
+        ast = filters_mod.parse(filter_expr)
+    except filters_mod.FilterSyntaxError as exc:
+        err_console.print(f"[red]error:[/] invalid --filter: {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    matched = []
+    for record in records:
+        try:
+            if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
+                matched.append(record)
+        except filters_mod.FilterEvaluationError as exc:
+            err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+    return matched
+
+
 @records_app.command("list")
 def records_list(
     ctx: typer.Context,
@@ -861,20 +882,7 @@ def records_list(
         records = [r for r in records if r.get("strata", {}).get("canonical", True)]
 
     if filter_expr:
-        try:
-            ast = filters_mod.parse(filter_expr)
-        except filters_mod.FilterSyntaxError as exc:
-            err_console.print(f"[red]error:[/] invalid --filter: {exc}")
-            raise typer.Exit(EXIT_USAGE) from None
-        matched = []
-        for record in records:
-            try:
-                if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
-                    matched.append(record)
-            except filters_mod.FilterEvaluationError as exc:
-                err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
-                raise typer.Exit(EXIT_USAGE) from None
-        records = matched
+        records = _apply_record_filter(records, filter_expr)
 
     if fmt == "json":
         _print_json(records)
@@ -1176,6 +1184,228 @@ def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
         return
     for d in deltas:
         out_console.print(f"{d['id']:<8} {d['origin']:<8} {d['direction']:<10} {d['label']}")
+
+
+def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
+    """Canonical record ids matching `--filter`, per docs/spec/10-cli.md §3."""
+    records = [
+        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
+    ]
+    return {r["id"] for r in _apply_record_filter(records, filter_expr)}
+
+
+_DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
+
+
+def _parse_criteria_numbers(raw: str, active_criteria: list[dict[str, Any]]) -> list[str]:
+    """`1,3` -> the ids of the 1st and 3rd listed criteria (docs/spec/06 §7's
+    "digits 1-9 cite criteria"). Out-of-range numbers are reported and skipped
+    rather than aborting the whole citation."""
+    ids: list[str] = []
+    for token in raw.replace(",", " ").split():
+        try:
+            n = int(token)
+        except ValueError:
+            out_console.print(f"[yellow]warning:[/] ignoring non-numeric criterion {token!r}")
+            continue
+        if not (1 <= n <= len(active_criteria)):
+            out_console.print(f"[yellow]warning:[/] no criterion numbered {n}")
+            continue
+        ids.append(active_criteria[n - 1]["id"])
+    return ids
+
+
+def _render_screen_record(
+    index: int,
+    total: int,
+    stage: str,
+    record: dict[str, Any],
+    active_criteria: list[dict[str, Any]],
+) -> str:
+    year = _record_year(record)
+    authors = _author_display(record)
+    lines = [f"{stage}  record {index + 1} of {total}", ""]
+    lines.append(record.get("title") or "(no title)")
+    byline = " · ".join(
+        p for p in (authors, record.get("container-title"), str(year) if year else "") if p
+    )
+    if byline:
+        lines.append(byline)
+    lines.append("")
+    lines.append(record.get("abstract") or "[yellow](no abstract)[/]")
+    if active_criteria:
+        lines.append("")
+        lines.append("Criteria:")
+        for i, c in enumerate(active_criteria, start=1):
+            lines.append(f"  {i}  {c['id']}  {c['label']}")
+    return "\n".join(lines)
+
+
+@app.command("screen")
+def screen_command(
+    ctx: typer.Context,
+    stage: str,
+    by: str = typer.Option(..., "--by", help="Actor handle doing the screening"),
+    filter_expr: str | None = typer.Option(None, "--filter", help="Narrow the queue"),
+    limit: int | None = typer.Option(None, "--limit", help="Screen at most N records"),
+    decisions_file: str | None = typer.Option(
+        None, "--decisions", help="TSV of record_id/decision/criteria/note (docs/spec/10 §5)"
+    ),
+) -> None:
+    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`."""
+    repo = _resolve_repo(ctx)
+
+    if decisions_file:
+        text = Path(decisions_file).read_text(encoding="utf-8")
+        try:
+            envelopes = screening_mod.import_decisions_tsv(repo, stage=stage, text=text, actor=by)
+        except screening_mod.ScreeningError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        if ctx.obj["json"]:
+            _print_json({"stage": stage, "recorded": len(envelopes)})
+        else:
+            out_console.print(f"[green]recorded[/] {len(envelopes)} decision(s) for {stage}")
+        if envelopes:
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="screen-import",
+                scope=stage,
+                summary=f"imported {len(envelopes)} {stage} decisions",
+                by=by,
+            )
+        return
+
+    only_ids = _resolve_filter_ids(repo, filter_expr) if filter_expr else None
+    try:
+        queue = screening_mod.stage_queue(repo, stage, by, only_ids=only_ids)
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if limit is not None:
+        queue = queue[:limit]
+
+    if not queue:
+        out_console.print(f"[green]nothing to screen[/] at {stage} for {by}")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    active_criteria = [
+        c for c in criteria_mod.list_criteria(repo, at=stage) if c["status"] == "active"
+    ]
+
+    decided = 0
+    last_decided_index: int | None = None
+    index = 0
+    while index < len(queue):
+        record_id = queue[index]
+        out_console.print(
+            _render_screen_record(index, len(queue), stage, records[record_id], active_criteria)
+        )
+        choice = typer.prompt("[i]nclude [e]xclude [m]aybe [s]kip [u]ndo [q]uit", default="s")
+        choice = choice.strip().lower()
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+        if choice == "u":
+            if last_decided_index is None:
+                out_console.print("[yellow]nothing to undo yet[/]")
+                continue
+            index = last_decided_index
+            last_decided_index = None
+            continue
+        if choice not in _DECISION_KEYS:
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        decision = _DECISION_KEYS[choice]
+        cited: list[str] = []
+        if choice == "e" and active_criteria:
+            raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+            cited = _parse_criteria_numbers(raw, active_criteria)
+        note = typer.prompt("Note (optional)", default="") or None
+
+        try:
+            screening_mod.record_screen_decision(
+                repo,
+                stage=stage,
+                record_id=record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                cited=cited,
+                note=note,
+            )
+        except screening_mod.ScreeningError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        last_decided_index = index
+        index += 1
+
+    if decided:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="screen",
+            scope=stage,
+            summary=f"screened {decided} {stage} record(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"stage": stage, "decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
+
+
+@app.command("assign")
+def assign_command(
+    ctx: typer.Context,
+    stage: str,
+    actors: str = typer.Option(..., "--actors", help="Comma-separated actor handles"),
+    by: str = typer.Option(..., "--by", help="Actor handle recording the assignment"),
+    filter_expr: str | None = typer.Option(None, "--filter", help="Assign only matching records"),
+) -> None:
+    """Assign reviewers to records at `stage` (all canonical records by default)."""
+    repo = _resolve_repo(ctx)
+    actor_list = [a.strip() for a in actors.split(",") if a.strip()]
+    if filter_expr:
+        record_ids = _resolve_filter_ids(repo, filter_expr)
+    else:
+        record_ids = {
+            r["id"]
+            for r in records_mod.read_records(repo)
+            if r.get("strata", {}).get("canonical", True)
+        }
+
+    try:
+        screening_mod.assign_reviewers(
+            repo,
+            stage=stage,
+            actors=actor_list,
+            record_ids=sorted(record_ids),
+            actor=by,
+            filter_expr=filter_expr,
+        )
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    out_console.print(
+        f"[green]assigned[/] {len(record_ids)} record(s) at {stage} to {', '.join(actor_list)}"
+    )
+    _commit_domain_op(
+        ctx,
+        repo,
+        op="assign",
+        scope=stage,
+        summary=f"assigned {len(record_ids)} {stage} record(s)",
+        by=by,
+        extra_trailers={"Actors": ",".join(actor_list)},
+    )
 
 
 @internal_app.command("hook-pre-commit")

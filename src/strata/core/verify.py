@@ -12,11 +12,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from strata.core import events as events_mod
 from strata.core.canon import load_yaml_str
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate
+from strata.protocol import criteria as criteria_mod
 
 
 @dataclass
@@ -164,6 +166,72 @@ def _verify_criteria(repo: Repo, report: VerifyReport) -> None:
     _verify_criteria_reuse(repo, report)
 
 
+def _verify_screen_events(repo: Repo, report: VerifyReport) -> None:
+    """`E_EXCLUSION_NO_CRITERION` and `E_CRITERION_STAGE` (docs/spec/03-schemas.md
+    §10) over persisted `screen` events -- a defensive check against a
+    hand-edited or corrupted event file, since `protocol.screening.
+    record_screen_decision` already refuses to write either violation.
+
+    Citations are checked against the criteria set *as it stood at the
+    event's own `criteria_version`* (via `reconstruct_at_version`), not the
+    current set -- a criterion changing stage applicability after a
+    decision was made is exactly what staleness (not a schema/integrity
+    violation) is for.
+
+    Full-mode only (like `_verify_aliases`/`_verify_dangling_refs`): this
+    reconstructs criteria state from the event log, which is exactly the
+    kind of cross-referencing check `fast=True` (the pre-commit hook) skips
+    for speed and because every write through this module's own commands
+    already validates before appending.
+    """
+    screen_dir = repo.path("events", "screen")
+    if not screen_dir.exists():
+        return
+    require_reason = bool(repo.config.get("screening", {}).get("require_exclusion_reason", True))
+    reconstructed_cache: dict[int, dict[str, dict[str, Any]]] = {}
+
+    for path in sorted(screen_dir.glob("*.ndjson")):
+        rel = path.relative_to(repo.root).as_posix()
+        for envelope in events_mod.read_events(path):
+            if envelope.get("ev") != "screen":
+                continue
+            body = envelope.get("body", {})
+            stage = body.get("stage")
+            decision = body.get("decision")
+            cited = body.get("criteria") or []
+
+            if decision == "exclude" and not cited and (stage == "full-text" or require_reason):
+                report.add(
+                    "E_EXCLUSION_NO_CRITERION",
+                    f"exclude decision for {body.get('record')!r} at stage {stage!r} "
+                    "cites no criterion",
+                    path=rel,
+                )
+
+            version = body.get("criteria_version")
+            if not cited or version is None:
+                continue
+            if version not in reconstructed_cache:
+                reconstructed_cache[version] = {
+                    c["id"]: c for c in criteria_mod.reconstruct_at_version(repo, int(version))
+                }
+            criteria_at_version = reconstructed_cache[version]
+            for criterion_id in cited:
+                criterion = criteria_at_version.get(criterion_id)
+                if criterion is None or criterion["status"] != "active":
+                    report.add(
+                        "E_CRITERION_STAGE",
+                        f"{criterion_id!r} was not an active criterion at criteria v{version}",
+                        path=rel,
+                    )
+                elif stage not in criterion["applies_at"]:
+                    report.add(
+                        "E_CRITERION_STAGE",
+                        f"{criterion_id!r} does not apply at stage {stage!r} (criteria v{version})",
+                        path=rel,
+                    )
+
+
 def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
     aliases_path = repo.path("records", "aliases.ndjson")
     if not aliases_path.exists():
@@ -206,6 +274,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     _verify_records(repo, report)
     _verify_criteria(repo, report)
     if not fast:
+        _verify_screen_events(repo, report)
         _verify_aliases(repo, report)
         _verify_dangling_refs(repo, report, referenced_records)
     return report
