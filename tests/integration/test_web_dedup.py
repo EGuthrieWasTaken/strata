@@ -306,7 +306,10 @@ def test_dedup_decide_carries_skip_list_into_redirect(tmp_path: Path) -> None:
         follow_redirects=False,
     )
     assert r.status_code == 303
-    assert "skip=rec_0000000000000098:rec_0000000000000099" in r.headers["location"]
+    # The redirect percent-encodes query values (CodeQL py/url-redirection
+    # fix, web/routes.py's `_redirect`) -- the colon separator survives as
+    # %3A, decoded back losslessly by the next GET's query-param parsing.
+    assert "skip=rec_0000000000000098%3Arec_0000000000000099" in r.headers["location"]
 
 
 def test_dedup_skip_moves_past_a_pair_without_resolving(tmp_path: Path) -> None:

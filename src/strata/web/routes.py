@@ -55,9 +55,10 @@ alongside sitting (b).
 from __future__ import annotations
 
 from typing import Any, cast
+from urllib.parse import quote
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from strata import gitio
@@ -117,6 +118,34 @@ def _render(
     )
 
 
+def _error(message: str, *, status_code: int) -> PlainTextResponse:
+    """A short, non-templated error message (an unknown stage/id, a
+    rejected decision, a domain-validation failure). These carry no HTML
+    markup, so they belong on `text/plain`, not `text/html`: several of
+    them interpolate a path or form value the caller controls (`stage`,
+    `record_id`, `criterion_id`, ...) straight into the string, and a
+    `text/html` response would let a value like `<script>` execute in the
+    browser (reflected XSS) even though nothing here is meant to be
+    rendered as markup in the first place. `text/plain` closes that off
+    entirely rather than escaping around it."""
+    return PlainTextResponse(message, status_code=status_code)
+
+
+def _redirect(path: str, **query: str) -> RedirectResponse:
+    """Build a same-origin redirect, percent-encoding every query value
+    (skip lists, record ids carried forward as `prev`/`redo`) so none of
+    them can break out of the query string into a different path or inject
+    a header -- decoded back losslessly by Starlette's own query-param
+    parsing on the next request, so this changes nothing a caller can
+    observe. Callers percent-encode any *path* segment themselves (e.g.
+    `stage`) with the same `urllib.parse.quote` before it reaches here.
+    """
+    pairs = [(key, value) for key, value in query.items() if value]
+    if pairs:
+        path += "?" + "&".join(f"{key}={quote(value, safe='')}" for key, value in pairs)
+    return RedirectResponse(url=path, status_code=303)
+
+
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
     state: AppState = request.app.state.strata
@@ -133,13 +162,13 @@ def _canonical_ids(repo: Any) -> list[str]:
     )
 
 
-@router.get("/screen/{stage}", response_class=HTMLResponse)
-async def screen_stage(request: Request, stage: str) -> HTMLResponse:
+@router.get("/screen/{stage}", response_class=HTMLResponse, response_model=None)
+async def screen_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
 
     if stage not in screening_mod.configured_stages(repo):
-        return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+        return _error(f"unknown stage {stage!r}", status_code=404)
 
     skip_ids = set(_parse_id_list(request.query_params.get("skip")))
     redo_id = request.query_params.get("redo")
@@ -276,17 +305,14 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
             status_code=422,
         )
 
-    redirect_url = f"/screen/{stage}?prev={record_id}"
-    if skip_csv:
-        redirect_url += f"&skip={skip_csv}"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return _redirect(f"/screen/{quote(stage, safe='')}", prev=record_id, skip=skip_csv)
 
 
 # --------------------------------------------------------------- rescreen
 
 
-@router.get("/rescreen/{stage}", response_class=HTMLResponse)
-async def rescreen_stage(request: Request, stage: str) -> HTMLResponse:
+@router.get("/rescreen/{stage}", response_class=HTMLResponse, response_model=None)
+async def rescreen_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
     """The stale queue (docs/spec/06 §6, docs/spec/11 §3.2): identical to
     `/screen/<stage>` (same statelessness, skip/undo design -- see this
     module's docstring), plus the prior decision/reason shown and a fourth
@@ -304,7 +330,7 @@ async def rescreen_stage(request: Request, stage: str) -> HTMLResponse:
     try:
         full_queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
     except rescreen_mod.RescreenError:
-        return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+        return _error(f"unknown stage {stage!r}", status_code=404)
 
     skip_ids = set(_parse_id_list(request.query_params.get("skip")))
     redo_id = request.query_params.get("redo")
@@ -349,7 +375,9 @@ async def rescreen_stage(request: Request, stage: str) -> HTMLResponse:
 
 
 @router.post("/rescreen/{stage}", response_model=None)
-async def rescreen_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
+async def rescreen_stage_submit(
+    request: Request, stage: str
+) -> RedirectResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     form = request.state.form
@@ -363,10 +391,10 @@ async def rescreen_stage_submit(request: Request, stage: str) -> RedirectRespons
         try:
             queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
         except rescreen_mod.RescreenError:
-            return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+            return _error(f"unknown stage {stage!r}", status_code=404)
         stale = next((s for s in queue if s.record_id == record_id), None)
         if stale is None:
-            return HTMLResponse(
+            return _error(
                 f"{record_id!r} is no longer in the stale queue for {stage!r}", status_code=422
             )
         decision = stale.prior_decision
@@ -382,19 +410,16 @@ async def rescreen_stage_submit(request: Request, stage: str) -> RedirectRespons
             cited=cited,
         )
     except screening_mod.ScreeningError as exc:
-        return HTMLResponse(str(exc), status_code=422)
+        return _error(str(exc), status_code=422)
 
-    redirect_url = f"/rescreen/{stage}?prev={record_id}"
-    if skip_csv:
-        redirect_url += f"&skip={skip_csv}"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return _redirect(f"/rescreen/{quote(stage, safe='')}", prev=record_id, skip=skip_csv)
 
 
 # ------------------------------------------------------------- adjudicate
 
 
-@router.get("/adjudicate/{stage}", response_class=HTMLResponse)
-async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse:
+@router.get("/adjudicate/{stage}", response_class=HTMLResponse, response_model=None)
+async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
     """Conflict resolution (docs/spec/06 §8). Same skip-list statelessness
     as `/screen`/`/rescreen`; there is no "undo" here since an adjudication
     is a one-way resolution of a disagreement, not a routine decision."""
@@ -404,7 +429,7 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse:
     try:
         full_queue = adjudication_mod.conflict_queue(repo, stage)
     except adjudication_mod.AdjudicationError:
-        return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+        return _error(f"unknown stage {stage!r}", status_code=404)
 
     skip_ids = set(_parse_id_list(request.query_params.get("skip")))
     queue = [rid for rid in full_queue if rid not in skip_ids]
@@ -444,7 +469,9 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse:
 
 
 @router.post("/adjudicate/{stage}", response_model=None)
-async def adjudicate_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
+async def adjudicate_stage_submit(
+    request: Request, stage: str
+) -> RedirectResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     form = request.state.form
@@ -467,7 +494,7 @@ async def adjudicate_stage_submit(request: Request, stage: str) -> RedirectRespo
             cited=cited,
         )
     except (RationaleRejectedError, adjudication_mod.AdjudicationError) as exc:
-        return HTMLResponse(str(exc), status_code=422)
+        return _error(str(exc), status_code=422)
 
     pool_mod.regenerate_all(repo)
     # Short subject: a record id is a ~20-char ULID, and
@@ -486,10 +513,7 @@ async def adjudicate_stage_submit(request: Request, stage: str) -> RedirectRespo
     gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
-    redirect_url = f"/adjudicate/{stage}"
-    if skip_csv:
-        redirect_url += f"?skip={skip_csv}"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return _redirect(f"/adjudicate/{quote(stage, safe='')}", skip=skip_csv)
 
 
 # ---------------------------------------------------------------- criteria
@@ -572,13 +596,15 @@ def _criteria_edit_context(
     }
 
 
-@router.get("/criteria/{criterion_id}/edit", response_class=HTMLResponse)
-async def criteria_edit_view(request: Request, criterion_id: str) -> HTMLResponse:
+@router.get("/criteria/{criterion_id}/edit", response_class=HTMLResponse, response_model=None)
+async def criteria_edit_view(
+    request: Request, criterion_id: str
+) -> HTMLResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
-        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+        return _error(f"unknown criterion {criterion_id!r}", status_code=404)
     return _render(
         request,
         "criteria_edit.html",
@@ -589,12 +615,12 @@ async def criteria_edit_view(request: Request, criterion_id: str) -> HTMLRespons
 @router.post("/criteria/{criterion_id}/edit", response_model=None)
 async def criteria_edit_submit(
     request: Request, criterion_id: str
-) -> RedirectResponse | HTMLResponse:
+) -> RedirectResponse | HTMLResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
-        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+        return _error(f"unknown criterion {criterion_id!r}", status_code=404)
 
     form = request.state.form
     direction = str(form.get("direction") or "")
@@ -636,13 +662,15 @@ async def criteria_edit_submit(
     return RedirectResponse(url="/criteria", status_code=303)
 
 
-@router.get("/criteria/{criterion_id}/retire", response_class=HTMLResponse)
-async def criteria_retire_view(request: Request, criterion_id: str) -> HTMLResponse:
+@router.get("/criteria/{criterion_id}/retire", response_class=HTMLResponse, response_model=None)
+async def criteria_retire_view(
+    request: Request, criterion_id: str
+) -> HTMLResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
-        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+        return _error(f"unknown criterion {criterion_id!r}", status_code=404)
     return _render(
         request,
         "criteria_edit.html",
@@ -653,12 +681,12 @@ async def criteria_retire_view(request: Request, criterion_id: str) -> HTMLRespo
 @router.post("/criteria/{criterion_id}/retire", response_model=None)
 async def criteria_retire_submit(
     request: Request, criterion_id: str
-) -> RedirectResponse | HTMLResponse:
+) -> RedirectResponse | HTMLResponse | PlainTextResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
-        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+        return _error(f"unknown criterion {criterion_id!r}", status_code=404)
 
     form = request.state.form
     raw_rationale = str(form.get("rationale") or "")
@@ -793,7 +821,7 @@ async def dedup_queue(request: Request) -> HTMLResponse:
 
 
 @router.post("/dedup/run", response_model=None)
-async def dedup_run(request: Request) -> RedirectResponse | HTMLResponse:
+async def dedup_run(request: Request) -> RedirectResponse | PlainTextResponse:
     """Run the real auto-merge pass (`run_dedup`) -- the one `/dedup`
     action not scoped to a single pair. An explicit, deliberate `POST` a
     reviewer takes after seeing the "would auto-merge" list on `GET
@@ -805,7 +833,7 @@ async def dedup_run(request: Request) -> RedirectResponse | HTMLResponse:
 
     rationale, error = _dedup_rationale(repo, raw_rationale)
     if error is not None:
-        return HTMLResponse(error, status_code=422)
+        return _error(error, status_code=422)
 
     outcome = engine_mod.run_dedup(repo, actor=state.actor)
     if outcome.auto_merged:
@@ -821,7 +849,7 @@ async def dedup_run(request: Request) -> RedirectResponse | HTMLResponse:
 
 
 @router.post("/dedup/decide", response_model=None)
-async def dedup_decide(request: Request) -> RedirectResponse | HTMLResponse:
+async def dedup_decide(request: Request) -> RedirectResponse | PlainTextResponse:
     """Resolve one pair from the review queue: `merge` (docs/spec/05-
     workflow-import.md §3.6) or `keep` (records a sticky `dedup-distinct`,
     §3.1, so the pair is never raised again). Re-checks the submitted pair
@@ -840,7 +868,7 @@ async def dedup_decide(request: Request) -> RedirectResponse | HTMLResponse:
     skip_csv = str(form.get("skip") or "")
 
     if decision not in ("merge", "keep"):
-        return HTMLResponse(f"unknown decision {decision!r}", status_code=422)
+        return _error(f"unknown decision {decision!r}", status_code=422)
 
     outcome = engine_mod.preview_dedup(repo)
     candidate = next(
@@ -852,13 +880,13 @@ async def dedup_decide(request: Request) -> RedirectResponse | HTMLResponse:
         None,
     )
     if candidate is None:
-        return HTMLResponse(
+        return _error(
             f"{record_a_id!r}/{record_b_id!r} is no longer pending review", status_code=422
         )
 
     rationale, error = _dedup_rationale(repo, raw_rationale)
     if error is not None:
-        return HTMLResponse(error, status_code=422)
+        return _error(error, status_code=422)
 
     engine_mod.apply_review_decision(
         repo,
@@ -892,10 +920,7 @@ async def dedup_decide(request: Request) -> RedirectResponse | HTMLResponse:
         extra_trailers={trailer_key: candidate.record_b},
     )
 
-    redirect_url = "/dedup"
-    if skip_csv:
-        redirect_url += f"?skip={skip_csv}"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return _redirect("/dedup", skip=skip_csv)
 
 
 # ----------------------------------------------------------------- records
@@ -946,15 +971,15 @@ async def records_list_view(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/records/{record_id}", response_class=HTMLResponse)
-async def record_detail_view(request: Request, record_id: str) -> HTMLResponse:
+@router.get("/records/{record_id}", response_class=HTMLResponse, response_model=None)
+async def record_detail_view(request: Request, record_id: str) -> HTMLResponse | PlainTextResponse:
     """Record detail + provenance timeline (`strata why`'s data,
     `core.provenance.build_provenance`)."""
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     record = records_mod.get_record(repo, record_id)
     if record is None:
-        return HTMLResponse(f"unknown record {record_id!r}", status_code=404)
+        return _error(f"unknown record {record_id!r}", status_code=404)
     provenance = provenance_mod.build_provenance(repo, record_id)
     return _render(
         request,
