@@ -106,7 +106,7 @@ M2:
 | 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | **done** |
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | **done** |
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | **done** |
-| 8 | `strata audit --criteria` sampling workflow | not started |
+| 8 | `strata audit --criteria` sampling workflow | **done** |
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | not started |
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | not started |
 | 11 | Web UI: `strata serve` — dashboard, screening, rescreen, adjudicate, criteria editor w/ impact preview | not started |
@@ -487,18 +487,35 @@ line+branch on `pool.py`).
   `test_pool_tsv_marks_stale_columns` covers the cascaded
   `title-abstract` + `full-text` case together.
 
-### 8. `strata audit --criteria` sampling
+### 8. `strata audit --criteria` sampling — done
 
 Spec: `docs/spec/06-workflow-screening.md` §4.3.
 
-A deterministic-but-unpredictable-to-the-user random sample (seeded from
-something stable per invocation, e.g. `--seed`, defaulting to a fresh
-seed printed so a run is reproducible on request) of past `exclude`
-decisions, re-presented for the auditor to confirm the cited criterion
-still looks right. `strata audit --criteria --sample N`. This is a review
-aid, not a mutating command by default — no event emitted unless the
-auditor explicitly corrects something, which routes through existing
-`strata fix`/re-screen mechanisms rather than inventing a new one.
+Delivered: `src/strata/protocol/audit.py` (`all_exclusions`,
+`sample_exclusions`), `strata audit --criteria [--sample N] [--seed N]` in
+`cli/main.py`, `tests/unit/test_audit.py` /
+`tests/integration/test_cli_audit.py` (100% line+branch on `audit.py`).
+
+- **Current standing opinion only**: `all_exclusions` folds each actor's
+  screen events last-write-wins per `(stage, record, actor)` before
+  filtering to `decision == "exclude"` — a reviewer who excluded and later
+  changed their mind is correctly absent from the audit pool, since there
+  is nothing live to verify. `test_all_exclusions_reports_current_opinion_only`
+  pins this.
+- **Reproducibility**: `sample_exclusions` always returns the seed it used
+  (freshly generated via `random.SystemRandom` when the caller doesn't
+  supply one, echoed back otherwise), and samples from a list pre-sorted by
+  `(stage, record_id, actor)` so the result depends only on the seed, never
+  on event-file iteration order. The CLI prints `rerun with --seed N to
+  reproduce` and accepts `--seed` to do exactly that.
+- **Pure review aid, no mutation**: neither the protocol module nor the CLI
+  command appends any event or touches `records.ndjson`/derived views — a
+  correction found during audit is expected to go through the existing
+  `strata fix` (metadata) or `strata rescreen --mark` (re-examine) paths
+  rather than a new bespoke mechanism.
+- `strata audit` currently only implements `--criteria` (the one variant
+  the spec names); calling it without that flag is a usage error naming
+  what's missing rather than silently doing nothing.
 
 ### 9. E2E scenarios
 

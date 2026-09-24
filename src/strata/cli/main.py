@@ -38,6 +38,7 @@ from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
+from strata.protocol import audit as audit_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import irr as irr_mod
 from strata.protocol import pool as pool_mod
@@ -1687,6 +1688,62 @@ def adjudicate_command(
         _print_json({"decided": decided})
     else:
         out_console.print(f"[green]done[/] -- {decided} conflict(s) resolved")
+
+
+@app.command("audit")
+def audit_command(
+    ctx: typer.Context,
+    criteria: bool = typer.Option(
+        False, "--criteria", help="Sample past exclusions for criterion-citation review"
+    ),
+    sample: int = typer.Option(20, "--sample", help="Sample size"),
+    seed: int | None = typer.Option(None, "--seed", help="Reproduce a specific sample"),
+) -> None:
+    """Re-present a random sample of past exclusions for verification (docs/spec/06 §4.3)."""
+    if not criteria:
+        err_console.print("[red]error:[/] strata audit currently only supports --criteria")
+        raise typer.Exit(EXIT_USAGE)
+
+    repo = _resolve_repo(ctx)
+    sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "seed": used_seed,
+                "items": [
+                    {
+                        "record": item.record_id,
+                        "stage": item.stage,
+                        "actor": item.actor,
+                        "criteria": list(item.criteria),
+                        "note": item.note,
+                    }
+                    for item in sampled
+                ],
+            }
+        )
+        return
+
+    if not sampled:
+        out_console.print("no exclusion decisions recorded yet to audit")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    out_console.print(
+        f"Sampling {len(sampled)} exclusion(s) (seed {used_seed}; "
+        f"rerun with --seed {used_seed} to reproduce)"
+    )
+    for item in sampled:
+        record = records.get(item.record_id)
+        title = record.get("title") if record else "(unknown record)"
+        criteria_list = ", ".join(item.criteria) or "(none)"
+        out_console.print(
+            f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
+        )
+        out_console.print(f"  {title}")
+        if item.note:
+            out_console.print(f'  note: "{item.note}"')
 
 
 @app.command("irr")
