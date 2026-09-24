@@ -107,7 +107,7 @@ M2:
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | **done** |
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | **done** |
 | 8 | `strata audit --criteria` sampling workflow | **done** |
-| 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | not started |
+| 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | **done** |
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | not started |
 | 11 | Web UI: `strata serve` — dashboard, screening, rescreen, adjudicate, criteria editor w/ impact preview | not started |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | not started |
@@ -517,7 +517,7 @@ Delivered: `src/strata/protocol/audit.py` (`all_exclusions`,
   the spec names); calling it without that flag is a usage error naming
   what's missing rather than silently doing nothing.
 
-### 9. E2E scenarios
+### 9. E2E scenarios — done
 
 Spec: `docs/spec/14-testing.md` §5; `docs/spec/06-workflow-screening.md` §9
 for E2E-01's exact script.
@@ -630,9 +630,56 @@ using to paper over the missing commit) and added direct coverage
 `test_actor_add_no_commit_leaves_working_tree_dirty`,
 `test_actor_deactivate_unknown_handle_is_usage_error`) in `test_cli_init.py`.
 
-Remaining for this sub-objective: `test_e2e_04...loosened`,
-`test_e2e_05...retired`, `test_e2e_06...cascading`, `test_e2e_09...interrupt`
-(see the plan above each).
+#### E2E-04, E2E-05, E2E-06, E2E-09 — done
+
+The remaining four E2E scenarios, single-reviewer (assignment defaults to
+the one actor when `screening.assignment` is unset) since each is about
+criteria/staleness/interruption mechanics, not dual-review interaction —
+that ground is E2E-01's alone:
+
+- `tests/e2e/test_e2e_04_loosened_criterion.py`: a 2-record repo, one
+  `include` and one `exclude` citing a criterion later loosened. Asserts
+  only the exclusion goes stale (`criterion-loosened`), the inclusion is
+  untouched, then re-screens and checks the final pool.
+- `tests/e2e/test_e2e_05_retired_criterion.py`: 4 records — two exclusions
+  citing a criterion that gets retired (the "cascade" §5 calls for: a
+  ripple across every decision that relied on it), one exclusion citing a
+  *different*, still-active criterion, one plain inclusion. Retiring
+  stales exactly the two that cited it; re-screening sends them to
+  deliberately different outcomes (one still excluded on separate
+  grounds, one promoted to include) to show re-screening isn't a rubber
+  stamp. Caught and fixed a test-writing mistake worth noting for anyone
+  extending these: `rescreen`'s prompt loop has no note prompt (unlike
+  `screen`), so a trailing blank line in scripted input silently
+  desyncs the *next* record's choice from `[s]kip`'s default — invisible
+  with a 1-item queue (nothing left to desync), a real failure at 2+.
+- `tests/e2e/test_e2e_06_cascading_staleness.py`: one record cleared
+  through both stages, then a title-abstract tightening. Asserts the
+  forward cascade while pending (title-abstract native-stale +
+  full-text `upstream-stale`, docs/spec/06 §4.4), then reverses
+  title-abstract to `exclude` on re-screen and asserts what §4.4 actually
+  promises post-reversal: not a lingering stale flag (extraction is what
+  gets permanently marked `orphaned` per `E_ORPHAN_EXTRACTION`, and
+  extraction doesn't exist until M3 — same scope reduction M1 documented
+  for EndNote/Excel) but retention — the full-text `include` event is
+  still there, untouched, in the append-only log, and still visible in
+  `derived/pool.tsv`'s `fulltext` column even though `tiab` now governs
+  the record excluded.
+- `tests/e2e/test_e2e_09_interrupted_screening.py`: the one test in this
+  suite that drives a real `strata` subprocess instead of
+  `typer.testing.CliRunner` (in-process, can't be SIGKILLed mid-call).
+  Feeds one decision, polls stdout for the second record's prompt (proof
+  the first was fully processed), `SIGKILL`s, then asserts against
+  docs/spec/04-git-integration.md §2.4 directly: the first decision
+  survived (appended+fsynced immediately) but nothing was committed
+  (batched screening commits only at session end) — repo is correctly
+  dirty, `strata verify` still passes (no torn write), and an ordinary
+  follow-up `strata screen` session resumes cleanly with each of the 3
+  records decided exactly once. Stable across 5 repeated local runs.
+
+Full suite after this sub-objective: 849 passed, 97.8% overall coverage,
+`rescreen.py`/every other new-this-milestone module still at 100%
+line+branch.
 
 ### 10. Screening-latency benchmark
 
