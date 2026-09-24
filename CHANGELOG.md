@@ -7,6 +7,13 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- The deduplication engine's pure blocking and scoring functions
+  (`strata.dedup.blocking`, `strata.dedup.scoring`): all six
+  `docs/spec/05-workflow-import.md` §3.2 block keys (including a genuine
+  128-permutation MinHash/LSH over title 3-grams), and the §3.3 pairwise
+  scoring formula with its DOI veto. Property-tested for symmetry (P8).
+  Thresholds, actions, the review queue, and merge semantics are not built
+  yet.
 - `strata import`: copies a bibliographic export unmodified, parses it,
   normalises and assigns record ids, appends to an existing record's sources
   on an exact-id match instead of duplicating it, and commits — idempotent by

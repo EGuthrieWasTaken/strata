@@ -44,7 +44,9 @@ implemented and tested. Recording searches (`strata search add`/`list`) and
 importing literature (`strata import`, with CSL-JSON/RIS/BibTeX/PubMed-MEDLINE/
 CSV-TSV parsers and detection profiles for six major database platforms) both
 work end to end, including idempotent re-import and full provenance.
-Deduplication, screening, extraction, and analysis are not built yet; see
+The deduplication engine's blocking and scoring logic is implemented and
+tested, but not yet wired to a CLI command, threshold-driven decisions, or a
+review queue. Screening, extraction, and analysis are not built yet; see
 [the roadmap](docs/spec/15-roadmap.md) for M1's remainder and what M2 brings
 next, and [`docs/m1-plan.md`](docs/m1-plan.md) for the current
 sub-objective-by-sub-objective status.

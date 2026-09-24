@@ -90,7 +90,7 @@ session (no tool for it) — check via the GitHub UI/API if that matters.
 | 2 | Parsers: CSL-JSON, RIS, BibTeX | **done** |
 | 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | **partial** (MEDLINE, CSV/TSV + 6 detection profiles done; EndNote XML/Excel/PRISMA-text remain) |
 | 4 | `strata import` pipeline | **done** |
-| 5 | Dedup engine: blocking + scoring + P8 | not started |
+| 5 | Dedup engine: blocking + scoring + P8 | **done** |
 | 6 | Dedup CLI, review queue, merge semantics, labelled benchmark | not started |
 | 7 | `strata records`/`why`/`fix` + filter expression language | not started |
 | 8 | Fuzz corpus + requirement-traceability report + M1 acceptance polish | not started |
@@ -285,22 +285,61 @@ half-written and dirty.
 landed alongside `csv_tsv.py`/`profiles/` since the two were natural to build
 together — see sub-objective 3's write-up above for what it does.
 
-### 5. Dedup engine: blocking + scoring + P8
+### 5. Dedup engine: blocking + scoring + P8 — done
 
 Spec: `docs/spec/05-workflow-import.md` §3.1–§3.3 (blocking keys including
 the MinHash/LSH title band, scoring formula, the DOI veto).
 
-Scope:
-- `src/strata/dedup/blocking.py`, `src/strata/dedup/scoring.py` (pure
-  functions, no I/O — keep them as fold.py-style pure modules so they're
-  easy to property-test).
-- All six block keys from §3.2, with the 2,000-member cap and split-by-year
-  warning.
-- The scoring formula from §3.3 exactly, including the DOI-veto and
-  `doi-conflict` labelling for pairs that veto on DOI but score high on
-  everything else.
-- `tests/property/test_dedup_properties.py` — P8 (`score(a, b) ==
-  score(b, a)`), generated via `hypothesis`.
+Delivered: `src/strata/dedup/blocking.py` and `src/strata/dedup/scoring.py`,
+both pure functions (no I/O), 100% line+branch coverage
+(`tests/unit/test_blocking.py`, `tests/unit/test_scoring.py`), plus
+`tests/property/test_dedup_properties.py` (P8, `@pytest.mark.req("P8")`,
+`hypothesis`-generated records).
+
+`blocking.compute_block_keys` implements all six §3.2 block keys: `doi`,
+`pmid`, `title-prefix` (first 12 normalised chars + year), `author-year-vol`,
+`first-page`, and `title-lsh` (a genuine 128-permutation MinHash over
+character 3-grams, banded 32×4 per the spec's own tuning). `find_candidate_pairs`
+groups a `{id: record}` map into blocks, unions same-block pairs, and applies
+the 2,000-member cap + split-by-year + warning §3.2 requires.
+
+`scoring.score_pair` implements the §3.3 formula exactly (title/author/year/
+journal/locator sub-scores at their specified weights, the hard DOI veto),
+plus `PairScore.non_doi_score` so a *caller* (sub-objective 6) can apply the
+`doi-conflict` rule ("route DOI-mismatched pairs scoring high on everything
+else into review, don't discard them") against its own `review_threshold` —
+that threshold and the resulting action belong to §3.4, out of this
+sub-objective's pure-function scope.
+
+**Decisions worth knowing about**:
+- Every similarity function returns **0.0**, never 1.0, when the relevant
+  field is missing on **both** sides (e.g. neither record has a journal). The
+  spec doesn't address this case explicitly; the choice favours the
+  false-merge-rate priority §3.8 states outright ("a false merge destroys
+  data... weighted most heavily") over crediting missing data as agreement.
+  Applied uniformly across `title_sim`/`author_sim`/`year_sim`/
+  `journal_sim`/`locator_sim`.
+- MinHash's universal-hash coefficients come from `random.Random(FIXED_SEED)`
+  at module load — a fixed seed, not a random one, and unrelated to Python's
+  per-process-randomised `hash()`/`PYTHONHASHSEED` (verified: the same
+  signature comes out under `PYTHONHASHSEED=1` and `PYTHONHASHSEED=42`).
+  Per-shingle hashing uses `zlib.crc32`, also `PYTHONHASHSEED`-independent.
+  This matters because two collaborators must compute the *same* blocks from
+  the same records regardless of platform or process, or dedup silently
+  becomes non-reproducible between machines.
+- `locator_sim`'s and `author-year-vol`'s volume comparison reuses
+  `core.ids.normalise_pages` (documented in-code as intentional: "first
+  integer run of a value" is exactly the transformation a volume number
+  needs too, despite the function's page-oriented name).
+- Levenshtein distance is a plain O(n·m) pure-Python DP (no
+  `rapidfuzz`/`python-Levenshtein` dependency added) — fine at title/journal
+  string lengths; revisit only if the sub-objective 6/8 benchmark work finds
+  it's a bottleneck at 50k-record scale.
+- Not built here (explicitly sub-objective 6's scope, per the split in this
+  file): thresholds/actions, `doi-conflict` labelling's actual call site, the
+  review queue, merge semantics, `dedup-merge`/`dedup-distinct`/
+  `dedup-unmerge` events, the labelled benchmark, and performance validation
+  at 50k records.
 
 ### 6. Dedup CLI, review queue, merge semantics, labelled benchmark
 
