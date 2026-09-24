@@ -190,6 +190,22 @@ def _parse_config_value(raw: str) -> bool | int | float | str:
     return raw
 
 
+def _parse_map_option(raw: str) -> dict[str, str]:
+    """`--map title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
+
+    docs/spec/05-workflow-import.md §2.2's own example uses exactly this
+    comma-separated `field=Column Name` syntax; a column name containing a
+    literal comma isn't expressible this way, a known limitation.
+    """
+    mapping: dict[str, str] = {}
+    for pair in raw.split(","):
+        if "=" not in pair:
+            raise typer.BadParameter(f"--map entry {pair!r} is not of the form field=Column")
+        field_name, column = pair.split("=", 1)
+        mapping[field_name.strip()] = column.strip()
+    return mapping
+
+
 @app.command()
 def init(
     ctx: typer.Context,
@@ -492,6 +508,11 @@ def import_command(
         None, "--via", help="citation-searching | website | organisation | registry | contact"
     ),
     fmt: str | None = typer.Option(None, "--format", help="Override automatic format detection"),
+    map_option: str | None = typer.Option(
+        None,
+        "--map",
+        help="CSV/TSV column mapping, e.g. title=Article Title,author=Authors,doi=DOI",
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Parse and report without writing anything"
     ),
@@ -506,6 +527,7 @@ def import_command(
     repo = _resolve_repo(ctx)
     exit_code = EXIT_OK
     results = []
+    mapping = _parse_map_option(map_option) if map_option else None
 
     for file in files:
         try:
@@ -516,6 +538,7 @@ def import_command(
                 search_id=search_id,
                 via=via,
                 fmt=fmt,
+                mapping=mapping,
                 dry_run=dry_run,
             )
         except pipeline_mod.ImportPipelineError as exc:

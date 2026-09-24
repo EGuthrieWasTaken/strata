@@ -1,0 +1,75 @@
+{
+  "encoding": "utf-8-sig",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "A valid record before the bad one",
+      "author": [
+        {
+          "family": "Doe",
+          "given": "Jane"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2010
+          ]
+        ]
+      },
+      "container-title": "A Journal",
+      "volume": "1",
+      "issue": "1",
+      "DOI": "10.1000/good1"
+    },
+    {
+      "type": "article-journal",
+      "title": "Diacritics & HTML entities in this title",
+      "author": [
+        {
+          "family": "Müller",
+          "given": "Anna"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2015
+          ]
+        ]
+      },
+      "container-title": "A Journal",
+      "volume": "3",
+      "issue": "3",
+      "DOI": "10.1000/good2"
+    },
+    {
+      "type": "article-journal",
+      "title": "A valid record after the bad one",
+      "author": [
+        {
+          "family": "Doe",
+          "given": "Jane"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2011
+          ]
+        ]
+      },
+      "container-title": "A Journal",
+      "volume": "4",
+      "issue": "4",
+      "DOI": "10.1000/good3"
+    }
+  ],
+  "rejected": [
+    {
+      "line": 3,
+      "raw": "Roe, Richard,,2020,A Journal,2,2,10.1000/bad,2-s2.0-11",
+      "error": "missing or empty title"
+    }
+  ]
+}

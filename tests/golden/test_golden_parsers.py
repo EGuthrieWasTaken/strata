@@ -19,8 +19,10 @@ import pytest
 from strata.ingest.parsers import ParseResult, decode_bytes, normalise_newlines
 from strata.ingest.parsers import bibtex as bibtex_parser
 from strata.ingest.parsers import csl_json as csl_json_parser
+from strata.ingest.parsers import csv_tsv as csv_tsv_parser
 from strata.ingest.parsers import medline as medline_parser
 from strata.ingest.parsers import ris as ris_parser
+from strata.ingest.profiles import detect_profile
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "exports"
 
@@ -115,6 +117,51 @@ def test_medline_malformed_fixture_isolates_bad_records() -> None:
         "A valid record before the bad one",
         "Diacritics in author names & an inconsistently indented abstract",
         "A valid record after the bad ones",
+    ]
+    assert len(result.rejected) == 1
+
+
+def _parse_csv_fixture(filename: str) -> tuple[ParseResult, str, str]:
+    """Unlike the uniform-interface parsers, CSV needs a profile-resolved mapping first."""
+    raw = (FIXTURES / "csv" / filename).read_bytes()
+    text, encoding = decode_bytes(raw)
+    text = normalise_newlines(text)
+    header = csv_tsv_parser.read_header(text, delimiter=",")
+    profile = detect_profile(header)
+    assert profile is not None, f"no profile matched {filename}'s header: {header!r}"
+    header_set = set(header)
+    mapping = {f: c for f, c in profile.mapping.items() if c in header_set}
+    return csv_tsv_parser.parse(text, delimiter=",", mapping=mapping), encoding, profile.name
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected_profile"),
+    [("scopus-clean.csv", "scopus"), ("wos-clean.csv", "web-of-science")],
+)
+def test_csv_clean_fixture_matches_expected_records(filename: str, expected_profile: str) -> None:
+    result, _encoding, profile_name = _parse_csv_fixture(filename)
+    assert profile_name == expected_profile
+    expected = _load_expected("csv", filename.rsplit(".", 1)[0] + ".expected.json")
+    assert result.rejected == []
+    assert result.records == expected
+
+
+def test_csv_malformed_fixture_matches_expected() -> None:
+    result, encoding, profile_name = _parse_csv_fixture("scopus-malformed.csv")
+    assert profile_name == "scopus"
+    expected = _load_expected("csv", "scopus-malformed.expected.json")
+    assert encoding == expected["encoding"]
+    assert result.records == expected["records"]
+    assert [dataclasses.asdict(r) for r in result.rejected] == expected["rejected"]
+
+
+def test_csv_malformed_fixture_isolates_bad_rows() -> None:
+    result, _encoding, _profile = _parse_csv_fixture("scopus-malformed.csv")
+    titles = [r["title"] for r in result.records]
+    assert titles == [
+        "A valid record before the bad one",
+        "Diacritics & HTML entities in this title",
+        "A valid record after the bad one",
     ]
     assert len(result.rejected) == 1
 

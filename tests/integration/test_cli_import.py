@@ -312,6 +312,47 @@ def test_import_via_flag_without_search(tmp_path: Path) -> None:
     assert result.exit_code == EXIT_OK, result.output
 
 
+def test_import_map_option_for_csv(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _add_search(root)
+    export = tmp_path / "custom.csv"
+    export.write_text('MyTitle,MyAuthor\nA Title,"Doe, Jane"\n', encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "--why",
+            "importing a CSV export with an unrecognised header",
+            "-C",
+            str(root),
+            "import",
+            str(export),
+            "--by",
+            "ethan",
+            "--search",
+            "S-01-medline",
+            "--map",
+            "title=MyTitle,author=MyAuthor",
+        ],
+    )
+    assert result.exit_code == EXIT_OK, result.output
+    assert "1 new" in result.output
+
+
+def test_import_csv_without_map_or_known_profile_reports_usage_error(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    _add_search(root)
+    export = tmp_path / "unknown.csv"
+    export.write_text("ColumnA,ColumnB\nx,y\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["-C", str(root), "import", str(export), "--by", "ethan", "--search", "S-01-medline"],
+    )
+    assert result.exit_code == EXIT_USAGE, result.output
+    assert "could not detect a known export platform" in " ".join(result.output.split())
+
+
 def test_import_rejects_both_search_and_via(tmp_path: Path) -> None:
     root = _init(tmp_path)
     _add_search(root)

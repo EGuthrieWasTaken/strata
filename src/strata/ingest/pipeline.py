@@ -35,8 +35,10 @@ from strata.core.validate import validate
 from strata.ingest.parsers import ParseResult, RejectedRow, decode_bytes, normalise_newlines
 from strata.ingest.parsers import bibtex as bibtex_parser
 from strata.ingest.parsers import csl_json as csl_json_parser
+from strata.ingest.parsers import csv_tsv as csv_tsv_parser
 from strata.ingest.parsers import medline as medline_parser
 from strata.ingest.parsers import ris as ris_parser
+from strata.ingest.profiles import detect_profile
 from strata.protocol import searches as searches_mod
 
 IMPORTS_DIR = ("imports",)
@@ -50,11 +52,18 @@ _PARSERS = {
     "medline": medline_parser.parse,
 }
 
+# CSV/TSV are handled separately (see `_parse_csv_like`): they need a column
+# mapping resolved from the header row before `csv_tsv_parser.parse` can run,
+# so they don't fit the uniform `parse(text) -> ParseResult` shape above.
+_CSV_LIKE_DELIMITERS = {"csv": ",", "tsv": "\t"}
+
 _EXTENSION_FORMATS = {
     ".json": "csl-json",
     ".ris": "ris",
     ".bib": "bibtex",
     ".nbib": "medline",
+    ".csv": "csv",
+    ".tsv": "tsv",
 }
 
 # `.txt` is ambiguous (RIS, MEDLINE, and PRISMA-text exports all use it, per
@@ -81,6 +90,7 @@ class ImportOutcome:
     existing_ids_appended: int
     rejected: list[RejectedRow] = field(default_factory=list)
     nondeterministic_rows: list[int] = field(default_factory=list)
+    column_mapping: dict[str, str] | None = None
 
 
 def imports_dir(repo: Repo) -> Path:
@@ -160,6 +170,28 @@ def _write_rejected(path: Path, rejected: list[RejectedRow]) -> None:
     path.write_text("\n".join(blocks), encoding="utf-8")
 
 
+def _resolve_csv_mapping(
+    resolved_format: str, text: str, mapping: dict[str, str] | None
+) -> dict[str, str]:
+    """An explicit `--map` wins (strict: a named column absent from the header is an error,
+    almost always a typo). Otherwise, detect a known platform by its header row and use only
+    the fields *this* export actually has -- a profile lists every column a platform might
+    emit, not the ones a particular export was configured to include.
+    """
+    if mapping is not None:
+        return mapping
+    delimiter = _CSV_LIKE_DELIMITERS[resolved_format]
+    header = csv_tsv_parser.read_header(text, delimiter=delimiter)
+    profile = detect_profile(header)
+    if profile is None:
+        raise ImportPipelineError(
+            "could not detect a known export platform from this file's header row "
+            f"({header!r}); pass --map title=<column>,author=<column>,..."
+        )
+    header_columns = set(header)
+    return {field: column for field, column in profile.mapping.items() if column in header_columns}
+
+
 def import_file(
     repo: Repo,
     source_path: str | Path,
@@ -168,6 +200,7 @@ def import_file(
     search_id: str | None = None,
     via: str | None = None,
     fmt: str | None = None,
+    mapping: dict[str, str] | None = None,
     dry_run: bool = False,
 ) -> ImportOutcome:
     source_path = Path(source_path)
@@ -199,15 +232,28 @@ def import_file(
             records_created=0,
             rows_rejected=int(existing["rows_rejected"]),
             existing_ids_appended=0,
+            column_mapping=existing.get("column_mapping"),
         )
 
     text, encoding = decode_bytes(raw)
     text = normalise_newlines(text)
     resolved_format = fmt or detect_format(source_path, text)
-    parser = _PARSERS.get(resolved_format)
-    if parser is None:
-        raise ImportPipelineError(f"unsupported format {resolved_format!r}")
-    parsed: ParseResult = parser(text)
+
+    resolved_mapping: dict[str, str] | None = None
+    parsed: ParseResult
+    if resolved_format in _CSV_LIKE_DELIMITERS:
+        resolved_mapping = _resolve_csv_mapping(resolved_format, text, mapping)
+        try:
+            parsed = csv_tsv_parser.parse(
+                text, delimiter=_CSV_LIKE_DELIMITERS[resolved_format], mapping=resolved_mapping
+            )
+        except csv_tsv_parser.ColumnMappingError as exc:
+            raise ImportPipelineError(str(exc)) from None
+    else:
+        parser = _PARSERS.get(resolved_format)
+        if parser is None:
+            raise ImportPipelineError(f"unsupported format {resolved_format!r}")
+        parsed = parser(text)
 
     import_id = new_import_id()
     by_id = records_mod.index_by_id(records_mod.read_records(repo))
@@ -257,6 +303,7 @@ def import_file(
         existing_ids_appended=existing_ids_appended,
         rejected=parsed.rejected,
         nondeterministic_rows=nondeterministic_rows,
+        column_mapping=resolved_mapping,
     )
     if dry_run:
         return outcome
@@ -277,7 +324,7 @@ def import_file(
         "digest": digest,
         "format": resolved_format,
         "encoding": encoding,
-        "column_mapping": None,
+        "column_mapping": resolved_mapping,
         "rows_read": outcome.rows_read,
         "records_created": outcome.records_created,
         "rows_rejected": outcome.rows_rejected,

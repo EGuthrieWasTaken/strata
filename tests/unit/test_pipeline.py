@@ -213,6 +213,75 @@ def test_import_file_txt_sniffs_ris_and_medline(tmp_path: Path) -> None:
     assert medline_outcome.format == "medline"
 
 
+def test_import_file_csv_with_detected_profile(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    search_id = _with_search(repo)
+    content = (
+        "Authors,Title,Year,Source title,Volume,Issue,DOI,EID\n"
+        "Doe; Roe,A Scopus Paper,2020,A Journal,19,11,10.1000/scopus,2-s2.0-1\n"
+    )
+    outcome = import_file(
+        repo, _write(tmp_path, "scopus.csv", content), imported_by="ethan", search_id=search_id
+    )
+    assert outcome.format == "csv"
+    assert outcome.records_created == 1
+    assert outcome.column_mapping is not None
+    assert outcome.column_mapping["title"] == "Title"
+    # The full Scopus profile also maps "abstract"/"keyword"/etc., but this
+    # export doesn't have those columns -- only present columns are kept.
+    assert "abstract" not in outcome.column_mapping
+    assert "keyword" not in outcome.column_mapping
+    records = read_records(repo)
+    assert records[0]["title"] == "A Scopus Paper"
+    assert records[0]["DOI"] == "10.1000/scopus"
+
+    manifest_path = repo.path("imports", outcome.import_id, "manifest.yaml")
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    assert "column_mapping" in manifest_text
+    assert "Title" in manifest_text
+
+
+def test_import_file_tsv_with_explicit_map(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    search_id = _with_search(repo)
+    content = "MyTitle\tMyAuthor\nA Title\tDoe, Jane\n"
+    outcome = import_file(
+        repo,
+        _write(tmp_path, "custom.tsv", content),
+        imported_by="ethan",
+        search_id=search_id,
+        mapping={"title": "MyTitle", "author": "MyAuthor"},
+    )
+    assert outcome.format == "tsv"
+    records = read_records(repo)
+    assert records[0]["title"] == "A Title"
+    assert records[0]["author"] == [{"family": "Doe", "given": "Jane"}]
+
+
+def test_import_file_csv_without_recognised_header_raises(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    search_id = _with_search(repo)
+    content = "SomeColumn,OtherColumn\nx,y\n"
+    with pytest.raises(ImportPipelineError, match="could not detect a known export platform"):
+        import_file(
+            repo, _write(tmp_path, "e.csv", content), imported_by="ethan", search_id=search_id
+        )
+
+
+def test_import_file_csv_invalid_map_raises(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    search_id = _with_search(repo)
+    content = "Title\nT\n"
+    with pytest.raises(ImportPipelineError, match="not found in header"):
+        import_file(
+            repo,
+            _write(tmp_path, "e.csv", content),
+            imported_by="ethan",
+            search_id=search_id,
+            mapping={"title": "Title", "author": "NoSuchColumn"},
+        )
+
+
 def test_detect_format_unrecognisable_txt_raises(tmp_path: Path) -> None:
     path = _write(tmp_path, "plain.txt", "just some free text\nwith no recognisable tags\n")
     with pytest.raises(ImportPipelineError, match="cannot determine the format"):
@@ -242,7 +311,7 @@ def test_import_file_explicit_format_not_in_parser_table_raises(tmp_path: Path) 
     search_id = _with_search(repo)
     source = _write(tmp_path, "e.json", _CLEAN_CSL)
     with pytest.raises(ImportPipelineError, match="unsupported format"):
-        import_file(repo, source, imported_by="ethan", search_id=search_id, fmt="csv")
+        import_file(repo, source, imported_by="ethan", search_id=search_id, fmt="endnote-xml")
 
 
 def test_import_file_invalid_doi_left_unchanged(tmp_path: Path) -> None:

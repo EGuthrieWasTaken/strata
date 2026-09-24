@@ -88,7 +88,7 @@ session (no tool for it) — check via the GitHub UI/API if that matters.
 |---|---|---|
 | 1 | Search recording (`strata search add`/`list`) | **done** |
 | 2 | Parsers: CSL-JSON, RIS, BibTeX | **done** |
-| 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | **partial** (MEDLINE done; EndNote XML/CSV/TSV/Excel/PRISMA-text remain) |
+| 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | **partial** (MEDLINE, CSV/TSV + 6 detection profiles done; EndNote XML/Excel/PRISMA-text remain) |
 | 4 | `strata import` pipeline | **done** |
 | 5 | Dedup engine: blocking + scoring + P8 | not started |
 | 6 | Dedup CLI, review queue, merge semantics, labelled benchmark | not started |
@@ -169,24 +169,48 @@ non-UTF-8 encodings tried in the specified order, HTML entities, missing
 tags, six-space continuation lines, `FAU` preferred over `AU` for author
 names with a distinct `CN` tag for corporate/collective authors, DOI pulled
 out of `LID`/`AID`'s `[doi]`-suffixed values, MeSH headings (`MH`) folded
-into `keyword`. 100% line+branch coverage
-(`tests/unit/test_parsers_medline.py`, golden fixtures in
-`tests/fixtures/exports/medline/`). `.txt` files are dispatched to this
-parser or to RIS by sniffing the first non-blank line's tag
-(`strata.ingest.pipeline.detect_format`), since the format table maps `.txt`
-to RIS, MEDLINE, *and* PRISMA-text ambiguously.
+into `keyword`. `.txt` files are dispatched to this parser or to RIS by
+sniffing the first non-blank line's tag (`strata.ingest.pipeline.
+detect_format`), since the format table maps `.txt` to RIS, MEDLINE, *and*
+PRISMA-text ambiguously.
 
-**Not yet started**: EndNote XML, CSV/TSV, Excel (`.xlsx`), PRISMA-style
-plain-text citation lists, and the CSV column-mapping/detection-profile
-machinery (`src/strata/ingest/profiles/` is still an empty stub). CSV/TSV is
-almost certainly the highest-value of these to build next — it's the format
-table's most common real-world source (Scopus, Web of Science, EBSCOhost,
-Google Scholar all export CSV) and the one `strata import`'s `--format`/
-`--map` surface was deliberately left ready for (see #4 below): a
-`.csv`/`.tsv`/`.xlsx` file currently hits `detect_format`'s "unsupported file
-extension" branch, not a wrong-parser bug. Extend
-`tests/fixtures/SOURCES.md`'s malformation-coverage table as each format
-lands.
+Also delivered: the CSV/TSV parser (`src/strata/ingest/parsers/csv_tsv.py`)
+and the detection-profile registry (`src/strata/ingest/profiles/`, six
+profiles: Scopus, Web of Science, EBSCOhost, ProQuest, Dimensions, Google
+Scholar via Publish or Perish). Unlike the other parsers, `csv_tsv.parse`
+takes an explicit `mapping` (target field -> source column) rather than
+resolving one itself — `strata.ingest.pipeline._resolve_csv_mapping` does
+that, from an explicit `--map` (strict: a named column absent from the
+header is an error) or by matching the header row against a profile
+(lenient: only the columns *this* export actually has are used, since a
+profile lists every column a platform *might* emit, not what one particular
+export was configured to include — a real early bug this sitting hit and
+fixed). `strata import`'s `--map field=Column,field2=Column2` CLI option is
+wired up (`strata.cli.main._parse_map_option`). Every new module is at 100%
+line+branch coverage (`tests/unit/test_parsers_csv_tsv.py`,
+`tests/unit/test_profiles.py`, golden fixtures in
+`tests/fixtures/exports/csv/`).
+
+**Known limitation, disclosed in code**: the six CSV profiles' column names
+are compiled from public export documentation and community references, not
+verified against a live export from every platform — see the caveat in
+`strata/ingest/profiles/__init__.py`'s docstring and in
+`tests/fixtures/SOURCES.md`. Scopus and Web of Science are the two most
+likely to be exactly right (their export formats are the most stable and
+widely documented); EBSCOhost/ProQuest/Dimensions/Google-Scholar-PoP have no
+golden fixture and haven't been checked against a real file. Worst case a
+wrong signature just fails to match (falls through to the `--map` error
+message, which is always correct regardless of profile accuracy) rather than
+silently mismapping a column — but if a real export from any of these six
+platforms turns up, diff its header against the profile in
+`strata/ingest/profiles/__init__.py` and fix whichever is wrong, per the
+project's own `parser.yml` issue-template philosophy.
+
+**Not yet started**: EndNote XML, Excel (`.xlsx`), and PRISMA-style
+plain-text citation lists. A `.xml`/`.xlsx` file currently hits
+`detect_format`'s "unsupported file extension" branch, not a wrong-parser
+bug. Extend `tests/fixtures/SOURCES.md`'s malformation-coverage table as each
+format lands.
 
 ### 4. `strata import` pipeline — done
 
@@ -200,9 +224,10 @@ Delivered: `src/strata/ingest/pipeline.py` (`import_file`, `detect_format`,
 §5.2), two new schemas (`record.schema.json`, `import-manifest.schema.json`),
 `strata verify`'s new `_verify_records` check, and the `strata import
 <file>... --by <actor> (--search <id> | --via <tag>) [--format <fmt>]
-[--dry-run]` CLI command. `tests/unit/test_pipeline.py` (24 cases, 100%
-line+branch) and `tests/integration/test_cli_import.py` (11 cases) cover it,
-including a full round trip re-verified with `strata verify`.
+[--map ...] [--dry-run]` CLI command. `tests/unit/test_pipeline.py` (28
+cases, 100% line+branch) and `tests/integration/test_cli_import.py` (12
+cases) cover it, including a full round trip re-verified with `strata
+verify`.
 
 What it does, per file: copies the raw bytes unmodified to
 `imports/<id>/raw/`; decodes/newline-normalises and dispatches to the right
@@ -254,17 +279,11 @@ half-written and dirty.
   both the pipeline's storage-normalisation step and `canonical_key` itself.
   `ids.py` is one of the five 100%-branch-coverage modules; the refactor
   stayed at 100% (`tests/unit/test_ids.py`).
-- `--map`/CSV column mapping is intentionally **not** on the CLI yet — it has
-  no consumer until CSV/TSV parsing exists (sub-objective 3 continuation)
-  and stubbing it in now would just be an unused flag.
-- An exact-id match on a fresh import appends to `strata.sources` rather
-  than duplicating (§2.3 point 4).
-- `strata import <file>... --search <id> [--via ...] [--map ...] [--dry-run]`
-  CLI command, committing via the established rationale flow.
-- This is also where `derived/pool.tsv` regeneration first becomes
-  meaningful — check whether `strata verify`'s derived-drift check
-  (`E_DERIVED_DRIFT`, not yet implemented as of M1.1) needs to land here or
-  can wait for #6.
+
+**Update from sub-objective 3's CSV work**: `--map`/CSV column mapping
+*is* now on the CLI (`strata import ... --map title=Column,author=Column`),
+landed alongside `csv_tsv.py`/`profiles/` since the two were natural to build
+together — see sub-objective 3's write-up above for what it does.
 
 ### 5. Dedup engine: blocking + scoring + P8
 

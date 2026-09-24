@@ -13,11 +13,14 @@ All notable changes to `strata` are documented here. Format follows
   file digest, one commit per file. Adds `records/records.ndjson` read/write
   (`core.records`), the `record` and `import-manifest` JSON schemas, and a
   `strata verify` check for every record's schema.
-- Bibliographic export parsers for CSL-JSON, RIS, BibTeX, and PubMed/MEDLINE
-  (`strata.ingest.parsers`), tolerant of the malformations
+- Bibliographic export parsers for CSL-JSON, RIS, BibTeX, PubMed/MEDLINE, and
+  CSV/TSV (`strata.ingest.parsers`), tolerant of the malformations
   `docs/spec/05-workflow-import.md` §2.1 requires (BOM, CRLF/CR, non-UTF-8
   encodings, missing RIS `ER` lines, HTML entities), with a golden fixture
-  corpus under `tests/fixtures/exports/`.
+  corpus under `tests/fixtures/exports/`. CSV/TSV column mapping
+  (`strata import --map field=Column,...`) and detection profiles for six
+  platforms (Scopus, Web of Science, EBSCOhost, ProQuest, Dimensions, Google
+  Scholar via Publish or Perish) under `strata.ingest.profiles`.
 - The pull-request gate: tiered CI (`lint`, `test-fast`, `test` across a 3 OS
   x 3 Python matrix, `statistical`, `determinism`, `coverage`, `docs`,
   advisory `benchmark`/`codeql`), the always-running `gate` check, and the

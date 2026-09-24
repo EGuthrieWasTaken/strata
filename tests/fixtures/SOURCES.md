@@ -35,6 +35,13 @@ export.
   `TI  - ` convention). `malformed.nbib`'s line endings were converted to CRLF
   with a small script (not checked in) after being written, for the same
   reason as the RIS encoding fixtures above.
+- `csv/scopus-clean.csv`, `csv/wos-clean.csv`, `csv/scopus-malformed.csv` --
+  CSV, hand-written with header rows matching the Scopus and Web of Science
+  detection profiles in `strata.ingest.profiles` (see that module's own
+  docstring for the same "compiled from documentation, not a live export"
+  caveat -- these fixtures are only as realistic as those profiles are).
+  `scopus-malformed.csv` was converted to CRLF line endings and given a
+  leading UTF-8 BOM with a small script (not checked in) after being written.
 
 Each `clean.*` fixture has a committed `*.expected.json`: the exact list of
 CSL-JSON-shaped records the corresponding parser must produce. Each
@@ -49,19 +56,23 @@ Tracking against the list in `docs/spec/14-testing.md` §3:
 
 | Malformation | Covered by |
 |---|---|
-| BOM at start of file | `ris/malformed-bom.ris` |
-| CRLF line endings | `ris/malformed.ris`, `medline/malformed.nbib` |
+| BOM at start of file | `ris/malformed-bom.ris`, `csv/scopus-malformed.csv` |
+| CRLF line endings | `ris/malformed.ris`, `medline/malformed.nbib`, `csv/scopus-malformed.csv` |
 | Missing `ER  -` | `ris/malformed.ris` |
 | `TY - ` (single-space) tag spacing | `ris/malformed.ris` |
 | CP1252 smart quotes | `ris/malformed-cp1252.ris` |
-| HTML entities in titles | `ris/malformed.ris`, `medline/malformed.nbib` (`&amp;`) |
+| HTML entities in titles | `ris/malformed.ris`, `medline/malformed.nbib`,
+  `csv/scopus-malformed.csv` (`&amp;`) |
 | Multi-line abstract, inconsistent indentation | `ris/malformed.ris`, `medline/malformed.nbib` |
-| Diacritics in author names | `ris/clean.ris`, `bibtex/clean.bib`, `medline/malformed.nbib` (Müller) |
-| Corporate authors | `ris/clean.ris`, `bibtex/clean.bib`, `medline/clean.nbib` (World Health Organization) |
+| Diacritics in author names | `ris/clean.ris`, `bibtex/clean.bib`,
+  `medline/malformed.nbib`, `csv/scopus-malformed.csv` (Müller) |
+| Corporate authors | `ris/clean.ris`, `bibtex/clean.bib`, `medline/clean.nbib`,
+  `csv/scopus-clean.csv` (World Health Organization) |
 | Missing years | `ris/malformed.ris` |
 | DOIs with trailing punctuation | `ris/malformed.ris` |
 | Empty title | one record in each of `ris/malformed.ris`,
-  `bibtex/malformed.bib`, `csl-json/malformed.json`, `medline/malformed.nbib` |
+  `bibtex/malformed.bib`, `csl-json/malformed.json`, `medline/malformed.nbib`,
+  `csv/scopus-malformed.csv` |
 | Brace-unbalanced / syntactically broken entry | `bibtex/malformed.bib` |
 | Non-UTF-8 whole-document / non-array JSON | `csl-json/broken-document.json` |
 
@@ -70,6 +81,8 @@ CR-only (old Mac) line endings; a lone-CR variant; LaTeX-escaped diacritics
 (`\"u`) rather than literal UTF-8 in BibTeX author names, since this
 implementation does not run `bibtexparser`'s LaTeX-decoding middleware; and
 the remaining platform-specific fixtures the table in §3 asks for by name
-(Ovid, EBSCOhost, Scopus, Web of Science, ProQuest, Cochrane CENTRAL,
+(Ovid, EBSCOhost RIS/CSV live examples, ProQuest, Cochrane CENTRAL,
 ClinicalTrials.gov, EndNote, Google Scholar), which belong to the EndNote XML
-and CSV/TSV/Excel parsers of sub-objective 3, not yet implemented.
+and Excel parsers of sub-objective 3 (not yet implemented) or would need a
+real export to verify the EBSCOhost/ProQuest/Dimensions/Google-Scholar-PoP CSV
+profiles in `strata.ingest.profiles` against.
