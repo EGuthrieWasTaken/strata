@@ -110,7 +110,8 @@ M2:
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | **done** |
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
 | 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
-| 11b | Web UI, sitting 2: rescreen/adjudicate/criteria-editor screens w/ impact preview | not started |
+| 11b | Web UI, sitting 2: criteria editor w/ live, non-mutating impact preview (M2 acceptance bullet) | **done** |
+| 11c | Web UI, sitting 3: rescreen/adjudicate/dedup/records/history screens | not started |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | not started |
 
 ### 1. Criteria management — done
@@ -887,18 +888,79 @@ route in this surface). New dev dependency: `httpx2` (this environment's
 installed Starlette version deprecated plain `httpx` for
 `starlette.testclient.TestClient`).
 
-### 11b. Web UI, sitting 2 (not started)
+### 11b. Web UI, sitting 2 — done
 
-Remaining from `docs/spec/11-web-ui.md` §2's route table and §4: `/rescreen`
-(stale queue, prior decision + reason shown, `[k]eep previous`), `/adjudicate`
-(conflict resolution), `/criteria` (editor with the live, non-mutating
-impact preview — compute a stale-count preview by running sub-objective 4's
-`compute_stale_records` against a *hypothetical* direction without writing
-anything, so the preview function needs to take the proposed change as a
-parameter rather than reading a committed `criteria.yaml`). `/dedup`,
-`/records`, `/records/<id>`, `/history` can reuse M1 data and are lower risk
-to add alongside if time allows. Consider htmx partial updates for S2's
-"asynchronous" half once the full-page-reload baseline from 11a is trusted.
+Spec: `docs/spec/11-web-ui.md` §4, plus the `/criteria` row of §2's route
+table. This is the one web-UI piece the M2 roadmap acceptance checklist
+names outright: "The criteria editor's impact preview is correct and
+non-mutating" (`docs/spec/15-roadmap.md`).
+
+**New**: `rescreen.preview_criterion_change_impact(repo, *, criterion_id,
+direction, origin="edited")` in `protocol/rescreen.py` — layers one
+hypothetical `CriterionChange` (at `current_version + 1`, the version the
+change *would* create) on top of the real change history and runs the
+exact same `evaluate_staleness` evaluation `compute_stale_records` runs
+for a change that actually happened, without ever calling
+`edit_criterion`/`retire_criterion` or touching disk. `_compute_stale`
+(the function both `compute_stale_records` and `rescreen_queue` already
+shared) grew two new optional parameters, `extra_changes`/
+`version_override`, defaulting to a no-op so neither existing caller's
+behavior changed. `origin="retired"` previews a retirement — direction is
+irrelevant there, matching `CriterionChange.effective_direction`'s own
+origin-overrides-direction rule, the same as a real retirement.
+
+**New web routes**: `GET /criteria` (list, active/retired status, links to
+edit/retire), `GET`/`POST /criteria/<id>/edit` (direction radios +
+definition textarea + live preview + rationale + save), `GET`/`POST
+/criteria/<id>/retire` (same shape, direction fixed to the retirement
+case). The "live" part of the preview (§4: "MUST update as the direction
+radio changes") is a plain GET resubmit as the no-JS baseline — changing
+the radio doesn't do anything without JavaScript until the reviewer clicks
+"Preview" — plus a small, generic addition to `keyboard.js`
+(`data-auto-submit-on-change`, opted into per form) that auto-resubmits
+via the `formmethod="get"` "Preview" button the instant the radio changes,
+so with JavaScript enabled it does feel live. Values already typed into
+the definition/rationale fields are carried forward through a preview
+refresh via query parameters, rather than reset to the on-disk value each
+time — a GET request that just so happens to also carry those two fields
+along for the ride, functionally harmless since preview computation never
+reads them.
+
+Saving reuses the identical rationale validation
+(`core.commit.validate_rationale`) and structured-commit shape
+(`cli.main._commit_criteria_op`'s pattern, restated for the web layer as
+`routes._commit_criteria_change` — regenerate derived views, then one
+commit staging `protocol/criteria.yaml`/`events/criteria`/`derived`) the
+CLI already uses, so `strata criteria edit`/`retire` and the web editor
+produce indistinguishable history. Unlike screening decisions (see 11a's
+note on the deferred batched-commit policy), a criteria save always
+commits immediately — it is one deliberate, already-confirmed action with
+its own rationale, not one of many decisions accumulating in a session.
+
+**Testing**: `tests/unit/test_rescreen.py` gained six tests for the
+preview function, including one that asserts it against the *real*
+post-edit `compute_stale_records` result (not just its own internals) and
+one confirming two consecutive preview calls never bump
+`criteria.yaml`'s version — `rescreen.py` stayed at 100% line+branch
+through the change. `tests/integration/test_web_criteria.py` (16 tests:
+list, preview for each direction including the "no impact" tightened-vs-
+exclusion case docs/spec/06 §4.2 predicts, non-mutation across all four
+directions, value carry-forward, save+commit, rationale/CSRF/unknown-
+criterion rejections, retire-already-retired) plus `routes.py` staying at
+100% combined with 11a's existing tests. Full suite after this
+sub-objective: 935 passed, 97.5% overall coverage.
+
+### 11c. Web UI, sitting 3 (not started)
+
+Remaining from `docs/spec/11-web-ui.md` §2's route table: `/rescreen`
+(stale queue, prior decision + reason shown, `[k]eep previous`),
+`/adjudicate` (conflict resolution), `/dedup`, `/records`, `/records/<id>`,
+`/history` — the last four can reuse M1 data and are lower risk to add
+alongside if time allows. Consider htmx partial updates for S2's
+"asynchronous" half once the full-page-reload baseline from 11a/11b is
+trusted, and the §2.4 batched-commit policy for web screening sessions
+specifically (still just "append immediately, commit later via the CLI"
+as of 11a).
 
 ### 12. Traceability, roadmap acceptance pass, docs polish
 

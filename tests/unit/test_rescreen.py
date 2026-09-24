@@ -6,12 +6,14 @@ import pytest
 from strata.core import manifest as manifest_mod
 from strata.core.init import init_repository
 from strata.core.repo import open_repo
+from strata.protocol import criteria as criteria_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol.criteria import add_criterion, edit_criterion, retire_criterion
 from strata.protocol.rescreen import (
     RescreenError,
     compute_stale_records,
     mark_manual_stale,
+    preview_criterion_change_impact,
     regenerate_stale_tsv,
     rescreen_queue,
     stale_records_for_stage,
@@ -700,3 +702,149 @@ def test_regenerate_stale_tsv_empty_when_nothing_stale(tmp_path: Path) -> None:
     assert (
         text == "record_id\tstage\tprior_decision\tprior_criteria\treason\tsince_version\ttitle\n"
     )
+
+
+def test_preview_matches_what_the_real_edit_would_produce(tmp_path: Path) -> None:
+    """The preview's whole point (docs/spec/11-web-ui.md §4) is that it
+    tells the truth about what saving would do -- so assert it against the
+    real, post-edit `compute_stale_records` result, not just its own
+    internals."""
+    repo = _init_single(tmp_path)
+    _add_records(repo, ["rec_0000000000000001", "rec_0000000000000002"])
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="Not in English",
+        definition="Not in English.",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Establishing the initial protocol criteria.",
+        criterion_id="EXC-03",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="exclude",
+        actor="ethan",
+        cited=["EXC-03"],
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000002",
+        decision="include",
+        actor="ethan",
+    )
+
+    preview = preview_criterion_change_impact(repo, criterion_id="EXC-03", direction="loosened")
+    assert len(preview) == 1
+    assert preview[0].record_id == "rec_0000000000000001"
+    assert preview[0].reason == "criterion-loosened"
+
+    # Nothing was written: criteria.yaml's version is unchanged, and a
+    # second preview call gives the identical answer.
+    assert int(criteria_mod.read_criteria_doc(repo)["version"]) == 1
+    assert (
+        preview_criterion_change_impact(repo, criterion_id="EXC-03", direction="loosened")
+        == preview
+    )
+
+    # Now make the real edit and confirm the preview told the truth.
+    edit_criterion(
+        repo,
+        "EXC-03",
+        direction="loosened",
+        actor="ethan",
+        rationale="Relaxing the language criterion to include translations.",
+        definition="Not in English, translations excepted.",
+    )
+    real = compute_stale_records(repo)
+    assert [r.record_id for r in real] == [r.record_id for r in preview]
+    assert [r.reason for r in real] == [r.reason for r in preview]
+
+
+def test_preview_tightened_direction_stales_inclusions(tmp_path: Path) -> None:
+    repo = _init_single(tmp_path)
+    _add_records(repo, ["rec_0000000000000001"])
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="A",
+        definition="def a",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Establishing the initial protocol criteria.",
+        criterion_id="EXC-01",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="include",
+        actor="ethan",
+    )
+    preview = preview_criterion_change_impact(repo, criterion_id="EXC-01", direction="tightened")
+    assert len(preview) == 1
+    assert preview[0].reason == "criterion-tightened"
+
+
+def test_preview_retired_origin_ignores_direction_argument(tmp_path: Path) -> None:
+    """Retiring always behaves as loosened regardless of what `direction`
+    is passed (matching `CriterionChange.effective_direction`'s own
+    origin-overrides-direction rule)."""
+    repo = _init_single(tmp_path)
+    _add_records(repo, ["rec_0000000000000001"])
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="A",
+        definition="def a",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Establishing the initial protocol criteria.",
+        criterion_id="EXC-01",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="exclude",
+        actor="ethan",
+        cited=["EXC-01"],
+    )
+    preview = preview_criterion_change_impact(
+        repo, criterion_id="EXC-01", direction="tightened", origin="retired"
+    )
+    assert len(preview) == 1
+    assert preview[0].reason == "criterion-retired"
+
+
+def test_preview_editorial_direction_has_no_impact(tmp_path: Path) -> None:
+    repo = _init_single(tmp_path)
+    _add_records(repo, ["rec_0000000000000001"])
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="A",
+        definition="def a",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Establishing the initial protocol criteria.",
+        criterion_id="EXC-01",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="exclude",
+        actor="ethan",
+        cited=["EXC-01"],
+    )
+    assert preview_criterion_change_impact(repo, criterion_id="EXC-01", direction="editorial") == []
+
+
+def test_preview_unknown_criterion_raises(tmp_path: Path) -> None:
+    repo = _init_single(tmp_path)
+    with pytest.raises(RescreenError, match="no criterion"):
+        preview_criterion_change_impact(repo, criterion_id="EXC-99", direction="loosened")

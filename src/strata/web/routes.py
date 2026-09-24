@@ -1,13 +1,17 @@
 """Route handlers for `strata serve`: docs/spec/11-web-ui.md §2-§4.
 
-Scope of this sitting (docs/m2-plan.md sub-objective 11 splits the web UI
-into two): the dashboard (`/`) and the title-abstract/full-text screening
-surface (`/screen/<stage>`), server-rendered with full-page-reload
-semantics (§5's hard "MUST function with JavaScript disabled" requirement)
-plus a small keyboard-shortcut script layered on top, not a JS-required
-SPA. `/rescreen`, `/adjudicate`, `/dedup`, `/records*`, `/criteria`, and
-everything M3-shaped (`/extract/*`, `/rob/*`, `/analysis/*`, `/prisma`) are
-explicitly deferred, tracked in that same plan entry.
+Scope built so far (docs/m2-plan.md sub-objective 11 splits the web UI into
+sittings): the dashboard (`/`), the title-abstract/full-text screening
+surface (`/screen/<stage>`), and the criteria editor with its live,
+non-mutating impact preview (`/criteria`) -- the one web-UI piece the M2
+roadmap acceptance checklist names outright ("The criteria editor's impact
+preview is correct and non-mutating," docs/spec/15-roadmap.md). All of it
+is server-rendered with full-page-reload semantics (§5's hard "MUST
+function with JavaScript disabled" requirement) plus a small keyboard-
+shortcut script layered on top, not a JS-required SPA. `/rescreen`,
+`/adjudicate`, `/dedup`, `/records*`, `/history`, and everything M3-shaped
+(`/extract/*`, `/rob/*`, `/analysis/*`, `/prisma`) remain deferred, tracked
+in that same plan entry.
 
 **Statelessness and "undo"/"skip".** §1 requires the server be stateless
 with respect to the repository, so there is no server-side session
@@ -46,12 +50,19 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from strata import gitio
 from strata.core import records as records_mod
 from strata.core import status as status_mod
+from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
+from strata.protocol import criteria as criteria_mod
+from strata.protocol import pool as pool_mod
+from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.web.app import AppState
 
 router = APIRouter()
+
+_DIRECTIONS = ("tightened", "loosened", "both", "editorial")
 
 
 def _author_display(record: dict[str, Any]) -> str:
@@ -254,3 +265,200 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
     if skip_csv:
         redirect_url += f"&skip={skip_csv}"
     return RedirectResponse(url=redirect_url, status_code=303)
+
+
+# ---------------------------------------------------------------- criteria
+
+
+def _commit_criteria_change(
+    repo: Any, *, op: str, criterion_id: str, summary: str, actor: str, rationale: str
+) -> None:
+    """Mirrors `cli.main._commit_criteria_op`'s shape (regenerate derived
+    views, one structured commit) -- the web surface always commits a
+    criteria change immediately, unlike screening decisions (see this
+    module's docstring on the deferred batched-commit policy), since a
+    criteria edit is a single, deliberate, already-confirmed action with
+    its own rationale, not one of many decisions in a session."""
+    pool_mod.regenerate_all(repo)
+    commit_obj = StructuredCommit(
+        op=op,
+        scope=criterion_id,
+        summary=summary,
+        body=rationale,
+        trailers={"Op": op, "Criterion": criterion_id, "Actor": actor},
+    )
+    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+@router.get("/criteria", response_class=HTMLResponse)
+async def criteria_list(request: Request) -> HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    criteria = sorted(criteria_mod.list_criteria(repo), key=lambda c: c["id"])
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    return _render(request, "criteria.html", {"criteria": criteria, "version": version})
+
+
+def _criteria_edit_context(
+    request: Request,
+    state: AppState,
+    repo: Any,
+    criterion: dict[str, Any],
+    *,
+    mode: str,
+    error: str | None = None,
+    definition_value: str | None = None,
+    rationale_value: str | None = None,
+    direction_override: str | None = None,
+) -> dict[str, Any]:
+    direction = (
+        direction_override
+        or request.query_params.get("direction")
+        or ("loosened" if mode == "retire" else None)
+    )
+    preview: list[rescreen_mod.StaleRecord] | None = None
+    if mode == "retire":
+        preview = rescreen_mod.preview_criterion_change_impact(
+            repo, criterion_id=criterion["id"], direction="loosened", origin="retired"
+        )
+    elif direction in _DIRECTIONS:
+        preview = rescreen_mod.preview_criterion_change_impact(
+            repo, criterion_id=criterion["id"], direction=direction
+        )
+    # The "Preview" button is a plain GET resubmit (§5's no-JS baseline),
+    # which would otherwise reset the definition/rationale textareas to
+    # their on-disk values on every preview refresh -- carry forward
+    # whatever the reviewer already had typed instead.
+    return {
+        "criterion": criterion,
+        "mode": mode,
+        "direction": direction,
+        "directions": _DIRECTIONS,
+        "preview": preview,
+        "session_token": state.session_token,
+        "error": error,
+        "definition_value": definition_value
+        if definition_value is not None
+        else request.query_params.get("definition", criterion.get("definition", "")),
+        "rationale_value": rationale_value
+        if rationale_value is not None
+        else request.query_params.get("rationale", ""),
+    }
+
+
+@router.get("/criteria/{criterion_id}/edit", response_class=HTMLResponse)
+async def criteria_edit_view(request: Request, criterion_id: str) -> HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    criterion = criteria_mod.get_criterion(repo, criterion_id)
+    if criterion is None:
+        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+    return _render(
+        request,
+        "criteria_edit.html",
+        _criteria_edit_context(request, state, repo, criterion, mode="edit"),
+    )
+
+
+@router.post("/criteria/{criterion_id}/edit", response_model=None)
+async def criteria_edit_submit(
+    request: Request, criterion_id: str
+) -> RedirectResponse | HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    criterion = criteria_mod.get_criterion(repo, criterion_id)
+    if criterion is None:
+        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+
+    form = request.state.form
+    direction = str(form.get("direction") or "")
+    definition = str(form.get("definition") or "").strip() or None
+    raw_rationale = str(form.get("rationale") or "")
+
+    try:
+        rationale = validate_rationale(raw_rationale)
+        criteria_mod.edit_criterion(
+            repo,
+            criterion_id,
+            direction=direction,  # type: ignore[arg-type]
+            actor=state.actor,
+            rationale=rationale,
+            definition=definition,
+        )
+    except (RationaleRejectedError, criteria_mod.CriteriaError) as exc:
+        context = _criteria_edit_context(
+            request,
+            state,
+            repo,
+            criterion,
+            mode="edit",
+            error=str(exc),
+            definition_value=str(form.get("definition") or criterion.get("definition", "")),
+            rationale_value=raw_rationale,
+            direction_override=direction or None,
+        )
+        return _render(request, "criteria_edit.html", context, status_code=422)
+
+    _commit_criteria_change(
+        repo,
+        op="criteria-edit",
+        criterion_id=criterion_id,
+        summary=f"edit criterion {criterion_id} ({direction})",
+        actor=state.actor,
+        rationale=rationale,
+    )
+    return RedirectResponse(url="/criteria", status_code=303)
+
+
+@router.get("/criteria/{criterion_id}/retire", response_class=HTMLResponse)
+async def criteria_retire_view(request: Request, criterion_id: str) -> HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    criterion = criteria_mod.get_criterion(repo, criterion_id)
+    if criterion is None:
+        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+    return _render(
+        request,
+        "criteria_edit.html",
+        _criteria_edit_context(request, state, repo, criterion, mode="retire"),
+    )
+
+
+@router.post("/criteria/{criterion_id}/retire", response_model=None)
+async def criteria_retire_submit(
+    request: Request, criterion_id: str
+) -> RedirectResponse | HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    criterion = criteria_mod.get_criterion(repo, criterion_id)
+    if criterion is None:
+        return HTMLResponse(f"unknown criterion {criterion_id!r}", status_code=404)
+
+    form = request.state.form
+    raw_rationale = str(form.get("rationale") or "")
+
+    try:
+        rationale = validate_rationale(raw_rationale)
+        criteria_mod.retire_criterion(repo, criterion_id, actor=state.actor, rationale=rationale)
+    except (RationaleRejectedError, criteria_mod.CriteriaError) as exc:
+        context = _criteria_edit_context(
+            request,
+            state,
+            repo,
+            criterion,
+            mode="retire",
+            error=str(exc),
+            rationale_value=raw_rationale,
+        )
+        return _render(request, "criteria_edit.html", context, status_code=422)
+
+    _commit_criteria_change(
+        repo,
+        op="criteria-retire",
+        criterion_id=criterion_id,
+        summary=f"retire criterion {criterion_id}",
+        actor=state.actor,
+        rationale=rationale,
+    )
+    return RedirectResponse(url="/criteria", status_code=303)

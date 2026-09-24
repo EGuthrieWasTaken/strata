@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ "Retire" if mode == "retire" else "Edit" }} {{ criterion.id }}{% endblock %}
+{% block content %}
+<h1>{{ "Retiring" if mode == "retire" else "Editing" }} {{ criterion.id }} &middot; {{ criterion.label }}</h1>
+<p><a href="/criteria">&larr; Back to criteria</a></p>
+
+{% if error %}
+<p class="error" role="alert">{{ error }}</p>
+{% endif %}
+
+<div class="record-card">
+  <p><strong>Definition</strong></p>
+  <p>{{ criterion.definition }}</p>
+</div>
+
+<form
+  method="post"
+  action="/criteria/{{ criterion.id }}/{{ mode }}"
+  id="criteria-form"
+  data-auto-submit-on-change="direction"
+>
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+
+  {% if mode == "edit" %}
+  <label class="note-field">
+    Definition
+    <textarea name="definition">{{ definition_value }}</textarea>
+  </label>
+
+  <fieldset class="criteria-list">
+    <legend>How does this change the set of papers the criterion {{ "excludes" if criterion.kind == "exclusion" else "includes" }}?</legend>
+    {% for d in directions %}
+    <label class="criterion">
+      <input type="radio" name="direction" value="{{ d }}" {{ "checked" if direction == d else "" }}>
+      <span>{{ d | capitalize }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% else %}
+  <input type="hidden" name="direction" value="loosened">
+  <p>Retiring always behaves as <strong>loosened</strong> (docs/spec/06 &sect;3.2).</p>
+  {% endif %}
+
+  {% if preview is not none %}
+  <div class="notice" data-testid="impact-preview">
+    <p><strong>Impact preview</strong> (nothing saved yet)</p>
+    {% if preview %}
+    <p>{{ preview | length }} decision{{ "s" if preview | length != 1 else "" }} would become stale:</p>
+    <ul>
+      {% for stale in preview %}
+      <li>{{ stale.stage }} &mdash; {{ stale.record_id }} ({{ stale.reason }}, was {{ stale.prior_decision }})</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No currently-resolved decisions would become stale.</p>
+    {% endif %}
+  </div>
+  {% elif mode == "edit" %}
+  <p class="todo-note">Choose a direction above to see its impact.</p>
+  {% endif %}
+
+  <label class="note-field">
+    Why are you making this change?
+    <textarea name="rationale" required minlength="12">{{ rationale_value }}</textarea>
+  </label>
+
+  <div class="decision-buttons">
+    {% if mode == "edit" %}
+    <button type="submit" formmethod="get" class="btn">Preview</button>
+    {% endif %}
+    <button type="submit" formmethod="post" class="btn btn-include">
+      {{ "Retire and commit" if mode == "retire" else "Save and commit" }}
+    </button>
+  </div>
+</form>
+{% endblock %}

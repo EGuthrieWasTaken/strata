@@ -40,6 +40,7 @@ supports it directly if a future session wants it.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -224,12 +225,25 @@ def mark_manual_stale(
     )
 
 
-def _compute_stale(repo: Repo, *, actor: str | None) -> list[StaleRecord]:
+def _compute_stale(
+    repo: Repo,
+    *,
+    actor: str | None,
+    extra_changes: Sequence[CriterionChange] = (),
+    version_override: int | None = None,
+) -> list[StaleRecord]:
     """Shared implementation behind `compute_stale_records` (`actor=None`,
-    the aggregate resolved-record view) and `rescreen_queue` (`actor=
-    <handle>`, that reviewer's own opinion -- see `_effective_opinion`)."""
-    current_version = int(criteria_mod.read_criteria_doc(repo)["version"])
-    changes = _criterion_changes(repo)
+    the aggregate resolved-record view), `rescreen_queue` (`actor=
+    <handle>`, that reviewer's own opinion -- see `_effective_opinion`),
+    and `preview_criterion_change_impact` (`extra_changes`/
+    `version_override`, a hypothetical change layered on top of the real
+    ones, for a non-mutating "what would this do" preview)."""
+    current_version = (
+        version_override
+        if version_override is not None
+        else int(criteria_mod.read_criteria_doc(repo)["version"])
+    )
+    changes = [*_criterion_changes(repo), *extra_changes]
     canonical_ids = sorted(
         r["id"]
         for r in records_mod.read_records(repo)
@@ -344,6 +358,51 @@ def rescreen_queue(repo: Repo, stage: str, actor: str) -> list[StaleRecord]:
         if actor in assigned:
             queue.append(record)
     return queue
+
+
+def preview_criterion_change_impact(
+    repo: Repo,
+    *,
+    criterion_id: str,
+    direction: str,
+    origin: str = "edited",
+) -> list[StaleRecord]:
+    """Non-mutating preview: what `compute_stale_records` would return if
+    `criterion_id` were changed this way right now, without writing
+    anything (docs/spec/11-web-ui.md §4: "The preview MUST be computed
+    without mutating anything, MUST update as the direction radio
+    changes"). Drives the web criteria editor's live impact panel.
+
+    Layers one hypothetical `CriterionChange`, at a version one past the
+    current one (the version this change *would* create), on top of the
+    real change history -- exactly the same evaluation
+    `compute_stale_records` runs for a change that has actually happened,
+    just with `_compute_stale`'s `extra_changes`/`version_override` hooks
+    instead of reading the change from a committed `criteria.yaml`.
+
+    `origin="retired"` previews a retirement (direction is irrelevant
+    there -- `CriterionChange.effective_direction` always treats a retired
+    origin as `loosened`, matching `retire_criterion`'s own behavior); any
+    other origin previews an edit with the given `direction`.
+    """
+    criterion = criteria_mod.get_criterion(repo, criterion_id)
+    if criterion is None:
+        raise RescreenError(f"no criterion {criterion_id!r}")
+    current_version = int(criteria_mod.read_criteria_doc(repo)["version"])
+    hypothetical_version = current_version + 1
+    hypothetical = CriterionChange(
+        criterion_id=criterion_id,
+        origin=origin,  # type: ignore[arg-type]
+        direction=direction,  # type: ignore[arg-type]
+        to_version=hypothetical_version,
+        applies_at=frozenset(criterion.get("applies_at") or []),
+    )
+    return _compute_stale(
+        repo,
+        actor=None,
+        extra_changes=[hypothetical],
+        version_override=hypothetical_version,
+    )
 
 
 def regenerate_stale_tsv(repo: Repo) -> str:

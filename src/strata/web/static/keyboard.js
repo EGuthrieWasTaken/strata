@@ -1,9 +1,15 @@
 /*
- * Single-key shortcuts for the screening surface (docs/spec/11-web-ui.md
- * §3.1 S1/S3). Progressive enhancement only: every control here also has
- * an `accesskey` in the HTML and a plain clickable/tappable target, so the
- * page is fully operable with this script disabled (§5's hard
- * requirement) -- this file only makes the common path faster.
+ * Two small progressive enhancements, both optional: every control here
+ * also has a plain clickable/tappable target (or, for the screening
+ * shortcuts, an `accesskey`), so every page is fully operable with this
+ * script disabled (docs/spec/11-web-ui.md §5's hard requirement) -- this
+ * file only makes the common path faster.
+ *
+ *  1. Single-key shortcuts for the screening surface (§3.1 S1/S3).
+ *  2. Auto-resubmit a form as GET when a radio input changes, for the
+ *     criteria editor's live impact preview (§4: "MUST update as the
+ *     direction radio changes"). Opt in per form via
+ *     `data-auto-submit-on-change="<radio name>"`.
  *
  * No external requests, no build step, no dependency: this is the entire
  * client-side script strata ships (§5's "total shipped JavaScript SHOULD
@@ -22,6 +28,25 @@
     var region = document.getElementById("announcer");
     if (region) region.textContent = text;
   }
+
+  document.querySelectorAll("form[data-auto-submit-on-change]").forEach(function (form) {
+    var radioName = form.dataset.autoSubmitOnChange;
+    var previewButton = form.querySelector('button[formmethod="get"]');
+    form.querySelectorAll('input[type="radio"][name="' + radioName + '"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        // Submit via the "Preview" button specifically, so its
+        // formmethod="get" override (not the form's own default POST) is
+        // what actually fires.
+        if (previewButton && typeof form.requestSubmit === "function") {
+          form.requestSubmit(previewButton);
+        } else if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      });
+    });
+  });
 
   document.addEventListener("keydown", function (event) {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
