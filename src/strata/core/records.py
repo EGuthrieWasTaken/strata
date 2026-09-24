@@ -115,9 +115,33 @@ def write_records(repo: Repo, records: list[dict[str, Any]]) -> None:
 
 
 def get_record(repo: Repo, record_id: str) -> dict[str, Any] | None:
-    for record in read_records(repo):
-        if record["id"] == record_id:
-            return record
+    """One record by id, without paying `read_records`'s full-file
+    JSON-parse cost for every other record in a large repository.
+
+    `docs/spec/13-nonfunctional.md` §1's "screening decision round trip
+    < 100 ms p95" target is unreachable if every `strata screen` decision
+    re-parses all 50,000 records just to confirm the one being decided
+    exists. A plain substring check per line for the id itself is ~free
+    next to `json.loads`; only the line(s) that might match ever get
+    parsed. Deliberately *not* anchored to canonical JSON's exact
+    `"id":"<value>"` spacing (no space after the colon) -- `records.ndjson`
+    is always written that way, but this function has no business assuming
+    a caller's fixture, a hand-edited file, or a future non-canonical
+    writer matches that exactly, and the id string alone is a strictly
+    weaker (so strictly safer) pre-filter. The exact `record["id"] ==
+    record_id` check still guards against any false-positive substring
+    match (e.g. one id being a prefix of another, or the literal appearing
+    in an unrelated field) -- a false positive there just costs one wasted
+    parse, never a wrong answer.
+    """
+    path = records_path(repo)
+    if not path.exists():
+        return None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if record_id in line:
+            record: dict[str, Any] = json.loads(line)
+            if record["id"] == record_id:
+                return record
     return None
 
 

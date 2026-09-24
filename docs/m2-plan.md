@@ -108,7 +108,7 @@ M2:
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | **done** |
 | 8 | `strata audit --criteria` sampling workflow | **done** |
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | **done** |
-| 10 | Screening-latency benchmark (<100ms p95 @ 50k) | not started |
+| 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
 | 11 | Web UI: `strata serve` — dashboard, screening, rescreen, adjudicate, criteria editor w/ impact preview | not started |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | not started |
 
@@ -681,25 +681,56 @@ Full suite after this sub-objective: 849 passed, 97.8% overall coverage,
 `rescreen.py`/every other new-this-milestone module still at 100%
 line+branch.
 
-### 10. Screening-latency benchmark
+### 10. Screening-latency benchmark — done
 
 Spec: `docs/spec/15-roadmap.md` M2 acceptance ("< 100 ms p95 decision
-latency at 50k records"), `docs/spec/14-testing.md` §7.
+latency at 50k records"), `docs/spec/13-nonfunctional.md` §1's "screening
+decision round trip" row (< 100 ms target, 250 ms hard limit), `docs/spec/14-testing.md` §7.
 
 `tests/benchmark/test_screening_performance.py`, advisory tier like
 `test_dedup_performance.py`/`test_import_performance.py` (excluded from
-`pyproject.toml` `testpaths`, picked up by `ci.yml`'s `benchmark` job).
-Generate 50k records, screen a sample via the same code path
-`record_screen_decision` uses (not a synthetic shortcut), measure per-call
-latency, assert p95 < 100ms. If this fails, profile before concluding
-architecture is wrong — `read_records`/`write_records` re-reading/rewriting
-the *entire* `records.ndjson` on every single-decision `screen` command
-would obviously blow this budget at 50k records, unlike dedup/import which
-batch; screening is fundamentally a per-record trickle, so the on-disk
-format for screen events (per-actor append-only, no read-modify-write of a
-shared file) already avoids that trap — the risk is more likely in
-`resolve_screening` being called naively over the whole fold on every single
-decision instead of incrementally. Budget real profiling time here.
+`pyproject.toml`'s `testpaths`, picked up by `ci.yml`'s `benchmark` job via
+the `benchmark_50k` marker). Generates a genuine 50,000-record repository,
+then calls `record_screen_decision` directly for 1,000 distinct records
+spread across the file (the same call `strata screen`'s interactive loop
+makes once per decision — the queue itself is computed once per session,
+not per decision, so it's correctly excluded as one-time setup, not
+"decision latency"), timing each call individually to get a real p95/p99
+rather than just a mean.
+
+**This is exactly the bug the earlier planning note above predicted, just
+via a different call path than guessed.** The prediction was right that
+some full-`records.ndjson` re-read/re-parse per decision would blow the
+budget at 50k records; the actual culprit wasn't `write_records` (screen
+events are indeed per-actor append-only, never touching `records.ndjson`,
+as guessed) but `core.records.get_record` — called once per decision by
+`_validate_and_build_body` just to confirm the record being decided
+exists, and implemented as `for record in read_records(repo): ...`, i.e. a
+full-file `json.loads` of all 50,000 lines on every single decision. First
+measurement: **p95 ≈ 497 ms** — 5x the soft target and 2x the hard limit.
+Fixed `get_record` itself: a plain substring pre-filter for the raw id
+string per line (deliberately *not* anchored to canonical JSON's exact
+`"id":"<value>"` spacing, since that assumption turned out to be live —
+several existing test fixtures across the suite hand-write NDJSON with
+`json.dumps`'s default `": "` spacing rather than going through
+`write_records`, and an id-only needle works regardless), `json.loads`
+only on the line(s) that might match, with the pre-existing exact
+`record["id"] == record_id` check still guarding correctness against any
+false-positive substring match. Added
+`tests/unit/test_records.py::test_get_record_skips_a_substring_false_positive`
+(a hand-written NDJSON fixture with a genuine substring collision in a
+nested field, since canonical JSON's own string-escaping makes that
+surprisingly hard to trigger through the normal write path) and
+`test_get_record_missing_file_returns_none` to keep `records.py` at 100%
+coverage through the change. Re-measured: **p95 ≈ 80-90 ms** across 1,000
+sampled decisions, comfortably inside the 100 ms target.
+
+Real-world impact beyond satisfying the benchmark: this was a genuinely
+felt defect, not just a number on a chart — a reviewer clicking through
+`strata screen` on a 50k-record corpus was seeing roughly half a second of
+lag per decision before this fix, which would have made the flagship
+feature of this milestone feel broken at the exact scale the tool is meant
+to handle.
 
 ### 11. Web UI: `strata serve`
 
