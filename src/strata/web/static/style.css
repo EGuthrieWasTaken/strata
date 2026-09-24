@@ -166,6 +166,22 @@ table.stage-table {
   margin-bottom: 1rem;
 }
 
+.pair-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pair-grid .record-card {
+  margin-bottom: 0;
+}
+
+.feature-scores {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .record-card .byline {
   color: var(--muted);
 }

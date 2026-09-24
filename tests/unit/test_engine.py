@@ -14,6 +14,7 @@ from strata.core.repo import Repo, open_repo
 from strata.dedup.engine import (
     apply_review_decision,
     judged_pairs,
+    preview_dedup,
     run_dedup,
     source_trust_order,
     thresholds,
@@ -390,6 +391,93 @@ def test_judged_pairs_ignores_events_from_other_domains(tmp_path: Path) -> None:
         body={"record": "rec_0000000000000001", "import_id": "imp_01arz3ndektsv4rrffq69g5fav"},
     )
     assert judged_pairs(repo) == set()
+
+
+def test_preview_dedup_reports_would_be_auto_merge_without_writing(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    a = _record("rec_0000000000000001", DOI="10.1000/aaa")
+    b = _record("rec_0000000000000002", DOI="10.1000/aaa")
+    write_records(repo, [a, b])
+
+    outcome = preview_dedup(repo)
+
+    assert outcome.candidate_pairs_considered == 1
+    assert len(outcome.auto_merged) == 1
+    assert outcome.review_queue == []
+
+    # Nothing was persisted: both records are still their own canonical,
+    # no dedup event exists, and no alias was recorded.
+    records = {r["id"]: r for r in read_records(repo)}
+    assert records["rec_0000000000000001"]["strata"]["canonical"] is True
+    assert records["rec_0000000000000002"]["strata"]["canonical"] is True
+    events_path = repo.path("events", "dedup", "ethan.ndjson")
+    assert not events_path.exists() or read_events(events_path) == []
+    assert read_aliases(repo) == []
+
+
+def test_preview_dedup_reports_review_queue_same_as_run_dedup(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    a = _record(
+        "rec_0000000000000001",
+        title="Spacing effects in learning: A meta-analysis",
+        author=[{"family": "Cepeda"}, {"family": "Vul"}],
+        **{"issued": {"date-parts": [[2008]]}},
+    )
+    b = _record(
+        "rec_0000000000000002",
+        title="Spacing effects in learning - A meta analysis",
+        author=[{"family": "Cepeda"}, {"family": "Vul"}],
+        **{"issued": {"date-parts": [[2008]]}},
+    )
+    write_records(repo, [a, b])
+
+    preview = preview_dedup(repo)
+    assert len(preview.review_queue) == 1
+    preview_candidate = preview.review_queue[0]
+
+    # Calling preview again is idempotent -- it never consumes the pair.
+    second_preview = preview_dedup(repo)
+    assert len(second_preview.review_queue) == 1
+
+    real = run_dedup(repo, actor="ethan")
+    assert len(real.review_queue) == 1
+    real_candidate = real.review_queue[0]
+    assert preview_candidate.record_a == real_candidate.record_a
+    assert preview_candidate.record_b == real_candidate.record_b
+    assert preview_candidate.result.score == real_candidate.result.score
+
+
+def test_preview_dedup_does_not_consume_an_auto_merge_run_dedup_still_applies(
+    tmp_path: Path,
+) -> None:
+    """Previewing must never be mistaken for judging a pair: calling
+    `preview_dedup` first must not change what a subsequent real
+    `run_dedup` does with the same pair."""
+    repo = _repo(tmp_path)
+    a = _record("rec_0000000000000001", DOI="10.1000/aaa")
+    b = _record("rec_0000000000000002", DOI="10.1000/aaa")
+    write_records(repo, [a, b])
+
+    preview_dedup(repo)
+    preview_dedup(repo)
+
+    real = run_dedup(repo, actor="ethan")
+    assert len(real.auto_merged) == 1
+    events = read_events(repo.path("events", "dedup", "ethan.ndjson"))
+    assert [e["ev"] for e in events] == ["dedup-merge"]
+
+
+def test_preview_dedup_chain_of_three_matches_run_dedup(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    records = [_record(f"rec_000000000000000{i}", DOI="10.1000/same") for i in (1, 2, 3)]
+    write_records(repo, records)
+
+    preview = preview_dedup(repo)
+    assert len(preview.auto_merged) == 2  # three records collapse to one canonical, dry-run
+
+    # Nothing written: all three still canonical.
+    records_after = {r["id"]: r for r in read_records(repo)}
+    assert all(r["strata"]["canonical"] for r in records_after.values())
 
 
 @pytest.mark.parametrize("decision", ["merge", "distinct"])

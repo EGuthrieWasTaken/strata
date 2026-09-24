@@ -15,13 +15,13 @@ with full-page-reload semantics (§5's hard "MUST function with JavaScript
 disabled" requirement) plus a small keyboard-shortcut script layered on
 top, not a JS-required SPA.
 
-`/dedup` remains deliberately deferred, not just unstarted: `dedup.engine.
-run_dedup` has no dry-run mode (the same gap `core.status.compute_status`'s
-own docstring already flags), so there is no way to render "what's pending
-review" without either running dedup as a side effect of a `GET` request
-(violating basic HTTP safety) or building a genuine preview path first --
-real additional scope, not a straightforward reuse of M1 code the way
-`/records*`/`/history` were.
+`/dedup` (the duplicate review queue) reuses `dedup.engine.preview_dedup`,
+a non-mutating dry run added alongside this route specifically because
+`run_dedup` itself always writes its auto-merges as a side effect --
+`GET /dedup` renders the classification pass's result without ever
+persisting it, and the two actual mutations (auto-merging for real,
+merging or keeping one pair after review) are explicit `POST`s a reviewer
+takes deliberately, each with its own rationale.
 
 **Statelessness and "undo"/"skip".** §1 requires the server be stateless
 with respect to the repository, so there is no server-side session
@@ -67,6 +67,7 @@ from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
+from strata.dedup import engine as engine_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
@@ -688,6 +689,215 @@ async def criteria_retire_submit(
     return RedirectResponse(url="/criteria", status_code=303)
 
 
+# ------------------------------------------------------------------ dedup
+
+
+def _dedup_rationale(repo: Any, raw: str) -> tuple[str | None, str | None]:
+    """Mirrors `cli.main._get_rationale`'s config-dependent requirement
+    (`git.require_rationale`, default `True`) -- unlike `/adjudicate` and
+    `/criteria`, the spec doesn't mandate a rationale for dedup decisions
+    unconditionally (docs/spec/04-git-integration.md §2.3), so an empty
+    field is only rejected when the repo's own config requires one.
+    Returns `(rationale, error)`; exactly one side is `None`.
+    """
+    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+    if not raw.strip() and not require:
+        return None, None
+    try:
+        return validate_rationale(raw), None
+    except RationaleRejectedError as exc:
+        return None, str(exc)
+
+
+def _commit_dedup_change(
+    repo: Any,
+    *,
+    op: str,
+    scope: str | None,
+    summary: str,
+    actor: str,
+    rationale: str | None,
+    extra_trailers: dict[str, str] | None = None,
+) -> None:
+    commit_obj = StructuredCommit(
+        op=op,
+        scope=scope,
+        summary=summary,
+        body=rationale,
+        trailers={"Op": op, "Actor": actor, **(extra_trailers or {})},
+    )
+    gitio.add(repo.root, ["records", "events", "derived"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+@router.get("/dedup", response_class=HTMLResponse)
+async def dedup_queue(request: Request) -> HTMLResponse:
+    """Duplicate review queue (docs/spec/11-web-ui.md §2), backed by
+    `dedup.engine.preview_dedup`'s non-mutating dry run -- see this
+    module's docstring for why `run_dedup` itself can't back a `GET`
+    directly. One pair at a time, same skip-list statelessness as `/
+    adjudicate`; there is no "undo" here either, since a merge or a
+    keep-both decision is a one-way resolution, not a routine re-decision
+    (a merge can still be reversed, but only via `strata dedup --undo`,
+    same as the CLI's own review flow -- not wired into this sitting's web
+    surface).
+    """
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    outcome = engine_mod.preview_dedup(repo)
+
+    skip_ids = set(_parse_id_list(request.query_params.get("skip")))
+    queue = [c for c in outcome.review_queue if f"{c.record_a}:{c.record_b}" not in skip_ids]
+    would_auto_merge = [
+        {
+            "canonical": records_mod.get_record(repo, canonical_id),
+            "absorbed": records_mod.get_record(repo, absorbed_id),
+        }
+        for canonical_id, absorbed_id in outcome.auto_merged
+    ]
+
+    base_context = {
+        "actor": state.actor,
+        "candidate_pairs_considered": outcome.candidate_pairs_considered,
+        "would_auto_merge": would_auto_merge,
+        "blocking_warnings": outcome.blocking_warnings,
+        "session_token": state.session_token,
+    }
+
+    if not queue:
+        return _render(request, "dedup.html", {**base_context, "candidate": None, "total": 0})
+
+    candidate = queue[0]
+    record_a = records_mod.get_record(repo, candidate.record_a)
+    record_b = records_mod.get_record(repo, candidate.record_b)
+    assert record_a is not None
+    assert record_b is not None
+    pair_key = f"{candidate.record_a}:{candidate.record_b}"
+    return _render(
+        request,
+        "dedup.html",
+        {
+            **base_context,
+            "candidate": candidate,
+            "record_a": record_a,
+            "record_a_authors": _author_display(record_a),
+            "record_a_year": _record_year(record_a),
+            "record_b": record_b,
+            "record_b_authors": _author_display(record_b),
+            "record_b_year": _record_year(record_b),
+            "total": len(queue),
+            "skip_csv": ",".join(sorted(skip_ids)),
+            "skip_next_csv": ",".join(sorted(skip_ids | {pair_key})),
+        },
+    )
+
+
+@router.post("/dedup/run", response_model=None)
+async def dedup_run(request: Request) -> RedirectResponse | HTMLResponse:
+    """Run the real auto-merge pass (`run_dedup`) -- the one `/dedup`
+    action not scoped to a single pair. An explicit, deliberate `POST` a
+    reviewer takes after seeing the "would auto-merge" list on `GET
+    /dedup`; never triggered automatically."""
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    form = request.state.form
+    raw_rationale = str(form.get("rationale") or "")
+
+    rationale, error = _dedup_rationale(repo, raw_rationale)
+    if error is not None:
+        return HTMLResponse(error, status_code=422)
+
+    outcome = engine_mod.run_dedup(repo, actor=state.actor)
+    if outcome.auto_merged:
+        _commit_dedup_change(
+            repo,
+            op="dedup",
+            scope=None,
+            summary=f"auto-merged {len(outcome.auto_merged)} duplicate pair(s)",
+            actor=state.actor,
+            rationale=rationale,
+        )
+    return RedirectResponse(url="/dedup", status_code=303)
+
+
+@router.post("/dedup/decide", response_model=None)
+async def dedup_decide(request: Request) -> RedirectResponse | HTMLResponse:
+    """Resolve one pair from the review queue: `merge` (docs/spec/05-
+    workflow-import.md §3.6) or `keep` (records a sticky `dedup-distinct`,
+    §3.1, so the pair is never raised again). Re-checks the submitted pair
+    against a fresh `preview_dedup` rather than trusting the form
+    round-trip -- the queue can have moved since the page was rendered,
+    the same re-validation `/rescreen`'s `keep-previous` submission does.
+    """
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    form = request.state.form
+
+    record_a_id = str(form.get("record_a") or "")
+    record_b_id = str(form.get("record_b") or "")
+    decision = str(form.get("decision") or "")
+    raw_rationale = str(form.get("rationale") or "")
+    skip_csv = str(form.get("skip") or "")
+
+    if decision not in ("merge", "keep"):
+        return HTMLResponse(f"unknown decision {decision!r}", status_code=422)
+
+    outcome = engine_mod.preview_dedup(repo)
+    candidate = next(
+        (
+            c
+            for c in outcome.review_queue
+            if c.record_a == record_a_id and c.record_b == record_b_id
+        ),
+        None,
+    )
+    if candidate is None:
+        return HTMLResponse(
+            f"{record_a_id!r}/{record_b_id!r} is no longer pending review", status_code=422
+        )
+
+    rationale, error = _dedup_rationale(repo, raw_rationale)
+    if error is not None:
+        return HTMLResponse(error, status_code=422)
+
+    engine_mod.apply_review_decision(
+        repo,
+        record_a_id=candidate.record_a,
+        record_b_id=candidate.record_b,
+        result=candidate.result,
+        decision="merge" if decision == "merge" else "distinct",
+        actor=state.actor,
+    )
+    # `choose_canonical` inside `apply_review_decision` may pick either side
+    # as canonical -- the CLI's own `--review` flow (cli.main.dedup_command)
+    # doesn't surface that choice back to the caller either, so this
+    # matches its existing trailer convention (`record_a` as scope,
+    # `record_b` as the named other party) rather than inventing a
+    # different one here.
+    if decision == "merge":
+        op, summary, trailer_key = "dedup", "merged a duplicate after review", "Absorbed"
+    else:
+        op, summary, trailer_key = (
+            "dedup-distinct",
+            "kept a pair distinct after review",
+            "Other",
+        )
+    _commit_dedup_change(
+        repo,
+        op=op,
+        scope=candidate.record_a,
+        summary=summary,
+        actor=state.actor,
+        rationale=rationale,
+        extra_trailers={trailer_key: candidate.record_b},
+    )
+
+    redirect_url = "/dedup"
+    if skip_csv:
+        redirect_url += f"?skip={skip_csv}"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
 # ----------------------------------------------------------------- records
 
 
@@ -696,8 +906,9 @@ async def records_list_view(request: Request) -> HTMLResponse:
     """Searchable/filterable record table (docs/spec/11-web-ui.md §2).
     Read-only, reusing exactly `cli.main.records_list`'s data path
     (`core.filters`'s `--filter` expression language, docs/spec/10-cli.md
-    §3) -- unlike `/dedup` (still deferred, see this module's docstring),
-    nothing here needs a mutating call to compute what to show.
+    §3) -- unlike `/dedup` (which needed a new non-mutating dry run added
+    to `dedup.engine`, see this module's docstring), nothing here needs
+    any new preview infrastructure to compute what to show.
     """
     state: AppState = request.app.state.strata
     repo = state.open_repo()

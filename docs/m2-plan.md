@@ -111,7 +111,7 @@ M2:
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
 | 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
 | 11b | Web UI, sitting 2: criteria editor w/ live, non-mutating impact preview (M2 acceptance bullet) | **done** |
-| 11c | Web UI, sitting 3: rescreen + adjudicate + records/history screens (`/dedup` still open) | **partial** |
+| 11c | Web UI, sitting 3: rescreen + adjudicate + records/history + dedup screens | **done** |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | **done** |
 
 ### 1. Criteria management — done
@@ -950,10 +950,10 @@ criterion rejections, retire-already-retired) plus `routes.py` staying at
 100% combined with 11a's existing tests. Full suite after this
 sub-objective: 935 passed, 97.5% overall coverage.
 
-### 11c. Web UI, sitting 3 — partial (`/rescreen`, `/adjudicate`, `/records*`, `/history` done; `/dedup` still open)
+### 11c. Web UI, sitting 3 — done (`/rescreen`, `/adjudicate`, `/records*`, `/history`, `/dedup`)
 
-Spec: `docs/spec/11-web-ui.md` §2's `/rescreen` and `/adjudicate` rows,
-§3.2 (re-screening mode).
+Spec: `docs/spec/11-web-ui.md` §2's `/rescreen`, `/adjudicate`, and
+`/dedup` rows, §3.2 (re-screening mode).
 
 **`/rescreen/<stage>`**: the same statelessness/skip/undo design as
 `/screen/<stage>` (11a), plus the prior decision and staleness reason
@@ -1003,6 +1003,37 @@ in-page rather than as a 500. **`/history`** reuses
 `core.logcmd.domain_log`, i.e. `strata log`'s own data path
 (`Strata-*` commit trailers), with the same `actor`/`stage` filters.
 
+**`/dedup`** (duplicate review queue) needed one piece of genuinely new
+infrastructure the other three didn't: `dedup.engine.run_dedup` always
+writes its auto-merges as a side effect, so it couldn't back a `GET`
+without violating HTTP safety. Added `dedup.engine.preview_dedup`, a
+non-mutating dry run sharing `run_dedup`'s exact classification pass — the
+loop was extracted into a private `_compute_dedup` that returns what
+*would* be written (the canonical-record map, the absorbed-record list,
+the pending merge events) instead of writing it; `run_dedup` now just
+calls `_compute_dedup` and persists the result, `preview_dedup` calls it
+and returns the outcome untouched. `GET /dedup` renders that preview: the
+review queue one pair at a time (same skip-list statelessness as
+`/adjudicate`, no undo, for the same reason — a merge or keep-both
+decision is one-way), plus an informational "N pairs would auto-merge on
+the next run" list. Two deliberate `POST`s, each its own rationale field:
+`/dedup/run` (the real auto-merge pass) and `/dedup/decide` (resolve one
+reviewed pair — `merge` or `keep`, re-validated against a fresh
+`preview_dedup` rather than trusting the form round-trip, since the queue
+can have moved since the page was rendered). Unlike `/adjudicate`'s and
+`/criteria`'s unconditional rationale requirement, dedup's rationale
+follows `git.require_rationale` (default `True`) — the spec doesn't
+mandate one unconditionally here (docs/spec/04 §2.3), matching
+`cli.main._get_rationale`'s existing config-dependent behaviour rather
+than `_get_required_rationale`'s. The dedup form intentionally does not
+reuse `id="screen-form"`/the `m`/`k` keys `keyboard.js` already hardcodes
+for `/screen`'s `maybe` and `/rescreen`'s `keep previous` — "merge" and
+"keep both" are different decisions that happen to want the same
+letters, so the dedup page relies on plain `accesskey` attributes only
+(§5's no-JS baseline already requires these to work standalone) rather
+than extending the shared script's hardcoded key map for a third,
+differently-shaped form.
+
 **Testing**: `tests/integration/test_web_rescreen.py` (12 tests: unknown
 stage, empty queue, prior decision/reason display, keep-previous,
 new-decision-with-citation, CSRF, re-keeping an already-resolved record,
@@ -1013,22 +1044,27 @@ commit, missing rationale, CSRF, skip, skip-carried-into-redirect),
 `tests/integration/test_web_records.py` (8 tests: list-all, filter
 narrows, filter with no matches, invalid filter syntax, filter evaluation
 error, links to detail pages, detail shows metadata + provenance, unknown
-id is 404), and `tests/integration/test_web_history.py` (4 tests: shows
+id is 404), `tests/integration/test_web_history.py` (4 tests: shows
 every commit, filter by actor, filter by actor with no matches, filter by
-stage). `routes.py` stays at 100% line+branch combined with 11a/11b's
-tests.
+stage), and `tests/integration/test_web_dedup.py` (17 tests: nothing
+pending, shows a review candidate, `GET` is verifiably non-mutating,
+candidate-pairs-considered summary, merge commits and resolves, keep-both
+is sticky, no-longer-pending pair rejected, unknown decision rejected,
+rationale required/not-required by config, CSRF on both `POST` routes,
+skip carried into redirect and honored on `GET`, real auto-merge run
+commits, a no-op run doesn't commit, run rejected without rationale).
+`dedup.engine`'s new `_compute_dedup`/`preview_dedup` also picked up
+direct unit coverage in `tests/unit/test_engine.py` (preview matches
+`run_dedup`'s classification, preview never writes anything, preview
+never consumes a pair a subsequent real run would still judge, chained
+auto-merges preview correctly) — both `dedup/engine.py` and `web/
+routes.py` are at 100% line+branch.
 
-**Still open** (tracked, not dropped): `/dedup` (duplicate review queue)
-— deliberately deferred rather than just unstarted, since
-`dedup.engine.run_dedup` has no dry-run mode (a gap `core.status
-.compute_status`'s own docstring already flagged), so there's no way to
-render "what's pending review" without either mutating on a `GET`
-request (violating HTTP safety) or building new preview infrastructure
-first; genuinely more scope than the read-only screens above, which
-could all reuse an existing non-mutating data path as-is. Also still
-open: htmx partial updates for S2's "asynchronous" half, and the §2.4
-batched-commit policy for web screening/rescreening sessions specifically
-(still "append immediately, commit later via the CLI," as of 11a).
+**Still open**: htmx partial updates for S2's "asynchronous" half, and
+the §2.4 batched-commit policy for web screening/rescreening sessions
+specifically (still "append immediately, commit later via the CLI," as
+of 11a) — both pre-existing, tracked gaps, not new ones from this
+sitting.
 
 ### 12. Traceability, roadmap acceptance pass, docs polish — done
 
