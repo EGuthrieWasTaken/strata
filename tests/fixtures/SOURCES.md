@@ -76,6 +76,15 @@ Tracking against the list in `docs/spec/14-testing.md` §3:
 | Brace-unbalanced / syntactically broken entry | `bibtex/malformed.bib` |
 | Non-UTF-8 whole-document / non-array JSON | `csl-json/broken-document.json` |
 
+## `tests/fixtures/dedup-benchmark/`
+
+The labelled dedup benchmark required by `docs/spec/05-workflow-import.md`
+§3.8. Same provenance rule as above (hand-authored, metadata may match real
+papers, no bytes copied from a real export) plus one more: it is a
+synthesised stand-in for the ASySD/`revtools` benchmarks §3.8 names, not a
+redistributed copy of either -- see that directory's own `README.md` for the
+full rationale and the fixture's structure.
+
 Not yet covered (carried forward -- see `docs/m1-plan.md` sub-objective 3):
 CR-only (old Mac) line endings; a lone-CR variant; LaTeX-escaped diacritics
 (`\"u`) rather than literal UTF-8 in BibTeX author names, since this

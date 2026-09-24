@@ -85,6 +85,8 @@ def test_import_file_creates_records_and_events(tmp_path: Path) -> None:
         assert record["strata"]["canonical"] is True
         assert record["strata"]["sources"][0]["import"] == outcome.import_id
         assert record["strata"]["sources"][0]["search"] == search_id
+        assert record["strata"]["sources"][0]["database"] == "medline"
+        assert record["strata"]["sources"][0]["platform"] == "ovid"
 
     events_path = repo.path("events", "import", "ethan.ndjson")
     events = read_events(events_path)
@@ -373,6 +375,7 @@ def test_import_file_accepts_via_without_search(tmp_path: Path) -> None:
     assert outcome.records_created == 2
     records = read_records(repo)
     assert all(r["strata"]["sources"][0]["via"] == "citation-searching" for r in records)
+    assert all("database" not in r["strata"]["sources"][0] for r in records)
 
 
 def test_import_file_rejects_unknown_search(tmp_path: Path) -> None:

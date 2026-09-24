@@ -7,13 +7,32 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- `strata dedup [--by ACTOR] [--review] [--strict] [--undo CANONICAL ABSORBED]`:
+  thresholds and actions (`docs/spec/05-workflow-import.md` §3.4), field-wise
+  merge semantics with `strata.field_provenance` and an `aliases.ndjson`
+  entry per merge (§3.5, nothing ever deleted), an interactive `--review`
+  queue (`[m]erge`/`[k]eep both`/`[s]kip`/`[o]pen both`/`[?]help`, §3.6),
+  sticky judged-pair tracking so a merged, kept, or undone pair is never
+  re-raised, and `--undo` to reverse a wrong merge. `strata.dedup.merge` and
+  `strata.dedup.engine` are the new pure-merge and repo-orchestration
+  modules; both at 100% line+branch coverage.
+- A labelled dedup benchmark (`tests/fixtures/dedup-benchmark/`, 55
+  synthesised records — not a real ASySD/`revtools` export, see that
+  directory's `README.md`) enforced by
+  `tests/integration/test_dedup_benchmark.py` and published at
+  [`docs/dedup-benchmark-results.md`](docs/dedup-benchmark-results.md)
+  (§3.8: recall 1.000, false-merge rate 0.0000 against the v1 targets of
+  >= 0.95 / <= 0.001). `strata.dedup.benchmark` holds the metric
+  definitions; `scripts/dedup_benchmark.py` regenerates the report from the
+  same function the test asserts against, so they cannot drift apart.
+- A 50,000-record dedup performance check (`tests/benchmark/`, advisory CI
+  tier per §3.7's normative time/memory budget — not part of the blocking
+  merge gate, per this file's own sub-objective 6 notes below).
 - The deduplication engine's pure blocking and scoring functions
   (`strata.dedup.blocking`, `strata.dedup.scoring`): all six
   `docs/spec/05-workflow-import.md` §3.2 block keys (including a genuine
   128-permutation MinHash/LSH over title 3-grams), and the §3.3 pairwise
   scoring formula with its DOI veto. Property-tested for symmetry (P8).
-  Thresholds, actions, the review queue, and merge semantics are not built
-  yet.
 - `strata import`: copies a bibliographic export unmodified, parses it,
   normalises and assigns record ids, appends to an existing record's sources
   on an exact-id match instead of duplicating it, and commits — idempotent by

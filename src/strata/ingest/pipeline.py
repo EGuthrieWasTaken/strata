@@ -214,8 +214,11 @@ def import_file(
     manifest_doc = manifest_mod.load_manifest_doc(repo.root)
     if manifest_mod.find_actor(manifest_doc, imported_by) is None:
         raise ImportPipelineError(f"imported_by {imported_by!r} is not a configured actor")
-    if search_id is not None and searches_mod.get_search(repo, search_id) is None:
-        raise ImportPipelineError(f"unknown search {search_id!r}")
+    search_record: dict[str, Any] | None = None
+    if search_id is not None:
+        search_record = searches_mod.get_search(repo, search_id)
+        if search_record is None:
+            raise ImportPipelineError(f"unknown search {search_id!r}")
 
     raw = source_path.read_bytes()
     digest = "sha256:" + hashlib.sha256(raw).hexdigest()
@@ -278,6 +281,15 @@ def import_file(
         }
         if search_id is not None:
             source_entry["search"] = search_id
+        if search_record is not None:
+            # `database`/`platform` are both required by the search schema,
+            # so always present here. `strata.dedup.merge`'s source_trust
+            # ranking matches against either field, since `[dedup]
+            # source_trust` mixes database-like names (pubmed, embase) and
+            # platform/interface names (scopus, wos, ebsco) -- the spec's
+            # own example list does the same.
+            source_entry["database"] = str(search_record["database"]).lower()
+            source_entry["platform"] = str(search_record["platform"]).lower()
         if via is not None:
             source_entry["via"] = via
 

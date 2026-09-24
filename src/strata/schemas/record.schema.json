@@ -66,6 +66,8 @@
               "import": { "type": "string", "pattern": "^imp_[0-9a-hjkmnp-tv-z]{26}$" },
               "search": { "type": ["string", "null"] },
               "via": { "type": ["string", "null"] },
+              "database": { "type": ["string", "null"] },
+              "platform": { "type": ["string", "null"] },
               "native_id": { "type": ["string", "null"] },
               "row": { "type": ["integer", "null"] },
               "retrieved": { "type": ["string", "null"] }

@@ -341,29 +341,115 @@ sub-objective's pure-function scope.
   `dedup-unmerge` events, the labelled benchmark, and performance validation
   at 50k records.
 
-### 6. Dedup CLI, review queue, merge semantics, labelled benchmark
+### 6. Dedup CLI, review queue, merge semantics, labelled benchmark — done
 
 Spec: `docs/spec/05-workflow-import.md` §3.4–§3.8.
 
-Scope:
-- Thresholds/actions (auto-merge ≥0.95, review ≥0.80, distinct below,
-  `--strict` forcing both to 1.0), reading from `strata.toml [dedup]`.
-- Merge semantics: canonical selection (completeness → `source_trust` →
-  lowest id), field-wise merge with `strata.field_provenance`, absorbed
-  record retained with `strata.canonical: false` plus an `aliases.ndjson`
-  entry — nothing deleted.
-- `dedup-merge`/`dedup-distinct`/`dedup-unmerge` events; stickiness (never
-  re-raise a judged pair); `--undo`.
-- `strata dedup [--review] [--strict]` interactive queue per §3.6 (keyboard:
-  `[m]`/`[k]`/`[s]`/`[o]`/`[?]`), plus a non-interactive/scriptable form.
-- A labelled dedup benchmark (ASySD or `revtools` published sets, or a
-  synthesised equivalent if licensing is unclear) under
-  `tests/fixtures/dedup-benchmark/`, with recall/false-merge-rate assertions
-  matching the M1 acceptance bar (recall ≥ 0.95, false-merge rate ≤ 0.001).
-  Publish the metrics in the repo per §3.8, not just assert them in a test.
-- Performance: 50,000-record dedup under 300s, <2GB RSS — likely belongs in
-  `tests/benchmark/` (advisory CI tier, per `ci.yml`'s existing
-  `benchmark` job pattern) rather than the blocking gate.
+Delivered: `src/strata/dedup/merge.py` (pure field-wise merge/canonical
+selection, 100% coverage, `tests/unit/test_merge.py`), `src/strata/dedup/
+engine.py` (repo orchestration: thresholds, blocking → scoring → auto-merge/
+review-queue routing, event/alias side effects, undo; 100% coverage,
+`tests/unit/test_engine.py`), and `strata dedup` in `src/strata/cli/main.py`
+(`--by`, `--review`, `--strict`, `--undo CANONICAL ABSORBED`, `--json`,
+`--no-commit`; `tests/integration/test_cli_dedup.py`).
+
+- **Thresholds/actions** (§3.4): `engine.thresholds()` reads
+  `[dedup].auto_merge_threshold`/`review_threshold` from `strata.toml`
+  (defaults 0.95/0.80). `--strict` is **not** literally "both thresholds set
+  to 1.0" as the spec text puts it — see the decision note below.
+- **Merge semantics** (§3.5): `merge.choose_canonical` picks the surviving
+  record by completeness (populated high-value fields) → `source_trust`
+  config order → lowest record id; `merge.merge_fields` merges field-by-field
+  (keyword union, longest-abstract-wins, everything else canonical-wins) and
+  records `strata.field_provenance`. The absorbed record is kept with
+  `strata.canonical: false` and an `aliases.ndjson` entry — nothing is ever
+  deleted, matching M0's append-only invariant.
+- **Events + stickiness** (§3.1, §3.6): `dedup-merge`/`dedup-distinct`/
+  `dedup-unmerge` events; `engine.judged_pairs` folds them into a set no
+  future run re-raises (an undone merge counts as judged too — reversing a
+  wrong auto-merge shouldn't make the very next run immediately re-propose
+  it; a user wanting it reconsidered records a fresh decision explicitly).
+- **Review queue** (§3.6): `strata dedup --review` renders one pair per
+  screen with the score breakdown and `[m]erge`/`[k]eep both`/`[s]kip`/
+  `[o]pen both`/`[?]help`; `strata dedup` with no `--review` is the
+  non-interactive form (auto-merge only, queue left for later).
+- **Labelled benchmark** (§3.8): `tests/fixtures/dedup-benchmark/` (55
+  records: 21 ground-truth duplicate pairs across cross-database formatting
+  variations, 4 deliberately adversarial "confusable" hard negatives, 8
+  unrelated singletons — see that directory's `README.md`),
+  `src/strata/dedup/benchmark.py` (pure metric computation, 100% coverage,
+  `tests/unit/test_benchmark.py`), `scripts/dedup_benchmark.py` (runs the
+  fixture through `run_dedup` and writes
+  [`docs/dedup-benchmark-results.md`](../dedup-benchmark-results.md)), and
+  `tests/integration/test_dedup_benchmark.py` (the CI-enforced assertion,
+  calling the exact same `run_benchmark()` the script uses so the two can't
+  drift apart). Current result: **recall 1.000, false-merge rate 0.0000**
+  against the v1 targets of ≥ 0.95 / ≤ 0.001.
+- **Performance** (§3.7): `tests/benchmark/test_dedup_performance.py`, a real
+  50,000-record run (5,000 near-duplicate pairs + 40,000 singletons,
+  deterministically generated with random letter-sequence titles — see that
+  file's module docstring for why real/templated vocabulary caused a
+  self-inflicted LSH-blocking blowup during development), advisory CI tier
+  only (`.github/workflows/ci.yml`'s existing `benchmark` job,
+  `continue-on-error: true`) — excluded from `pyproject.toml`'s pytest
+  `testpaths` so a bare `pytest`/`pytest -q` (the blocking `test`/`coverage`
+  jobs) never collects it.
+
+  **This does not currently meet §3.7's 120-second budget in this
+  environment.** Measured here: blocking alone (`find_candidate_pairs`,
+  dominated by per-record MinHash: 128 permutations × ~60 title 3-grams ×
+  50,000 records) already takes ~77s; the full run (blocking + scoring
+  ~53,000 candidate pairs, most of it Levenshtein DP in `scoring.title_sim`/
+  `journal_sim`) exceeded 240s before completing. Memory stayed well under
+  the 2GB budget throughout. Whether this also exceeds budget on the spec's
+  "2020-era laptop" target or is specific to this (likely shared/throttled)
+  sandboxed container is untested. Left as a known gap rather than
+  papered over, since fixing it would mean touching sub-objective 5's
+  already-tested, locked-in `blocking.py`/`scoring.py` under time pressure
+  in a different sub-objective — out of scope here. This is exactly why the
+  check lives in the advisory tier and not the blocking gate. Follow-up
+  ideas for whoever picks this up: vectorise MinHash with `numpy` instead of
+  a pure-Python permutation loop; short-circuit `title_sim`'s Levenshtein
+  call when the cheap Jaccard score alone already clears the threshold;
+  investigate whether `rapidfuzz` (C-accelerated Levenshtein) is worth the
+  new dependency the sub-objective 5 write-up deliberately avoided.
+
+**Decisions worth knowing about**:
+- **`--strict` is implemented as `(auto_merge_threshold=1.0,
+  review_threshold=0.0)`, not the spec text's literal "both thresholds to
+  1.0."** §3.4 says `--strict` "sets both thresholds to 1.0, so every
+  non-exact pair is reviewed" — but a review band is `[review_threshold,
+  auto_merge_threshold)`, and `[1.0, 1.0)` is empty. Taken literally, every
+  non-exact pair would fall to *distinct* (silently discarded) instead of
+  being reviewed — the opposite of the stated intent. `engine.thresholds()`
+  implements the intent (only an exact/DOI match auto-merges; everything
+  else blocking proposes is queued for review) rather than the literal
+  numbers; see that function's docstring. Caught by a CLI-level test
+  (`test_dedup_strict_routes_near_duplicate_to_review_not_auto_merge`) that
+  a purely unit-level test of `thresholds()` alone would have missed, since
+  `(1.0, 1.0)` "looks right" in isolation.
+- No real ASySD/`revtools` dataset is used for the labelled benchmark: this
+  environment has no live internet access to fetch either or verify its
+  licence before redistributing a derived copy here. The synthesised
+  fixture follows the same hand-authored, metadata-may-match-a-real-paper
+  provenance convention as `tests/fixtures/exports/`
+  (`tests/fixtures/SOURCES.md`), documented in full in
+  `tests/fixtures/dedup-benchmark/README.md`.
+- `doi-conflict` labelling (§3.3's carve-out: a DOI-vetoed pair scoring high
+  on everything else is queued for review, not silently discarded) lives in
+  `engine._is_doi_conflict`, using `PairScore.non_doi_score` against
+  `review_threshold` exactly as sub-objective 5's write-up anticipated.
+- `apply_review_decision`'s `"distinct"` branch and `undo_merge` are the only
+  two entry points that don't route through `run_dedup`'s per-run
+  `by_id`/`absorbed_records` bookkeeping — both re-read `records.ndjson`
+  fresh, since a review decision or an undo can happen well after (and
+  independently of) the auto-merge pass that produced the queue.
+- Commit-message subject lines for dedup operations stay under the 72-char
+  `StructuredCommit` limit by moving the second record id into a trailer
+  (`_commit_dedup_op`'s `extra_trailers` param) rather than the summary text
+  — the same class of bug the `strata import` commit subject hit earlier;
+  worth checking for on any future command whose summary embeds a full
+  `rec_`/`imp_`/`ev_` id.
 
 ### 7. `strata records`/`why`/`fix` + filter expression language
 

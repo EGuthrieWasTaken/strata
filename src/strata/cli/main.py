@@ -15,6 +15,7 @@ import shutil
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -25,12 +26,14 @@ from strata.core import doctor as doctor_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
+from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
 from strata.core.validate import SchemaValidationError
+from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import searches as searches_mod
 
@@ -588,6 +591,202 @@ def import_command(
     if ctx.obj["json"]:
         _print_json(results)
     raise typer.Exit(exit_code)
+
+
+def _author_display(record: dict[str, Any]) -> str:
+    names = []
+    for author in record.get("author") or []:
+        if isinstance(author, dict):
+            names.append(author.get("family") or author.get("literal") or "")
+        else:
+            names.append(str(author))
+    return ", ".join(n for n in names if n)
+
+
+def _source_label(record: dict[str, Any]) -> str:
+    sources = record.get("strata", {}).get("sources") or []
+    if not sources:
+        return "manual"
+    return str(sources[-1].get("database") or sources[-1].get("platform") or "manual")
+
+
+def _render_review_pair(
+    index: int,
+    total: int,
+    candidate: engine_mod.ReviewCandidate,
+    record_a: dict[str, Any],
+    record_b: dict[str, Any],
+) -> str:
+    header = f"Pair {index} of {total}"
+    lines = [f"{header:<50} score {candidate.result.score:.2f}"]
+    if candidate.doi_conflict:
+        lines.append("DOIs differ -- flagged for human judgement (doi-conflict)")
+    lines.append("")
+    for label, record in (("A", record_a), ("B", record_b)):
+        year = ((record.get("issued") or {}).get("date-parts") or [[None]])[0][0]
+        authors = _author_display(record)
+        if authors and year:
+            byline = f"{authors} ({year})"
+        else:
+            byline = authors or (str(year) if year else "")
+        lines.append(f"  {label}  {record['id']}     [{_source_label(record)}]")
+        if byline:
+            lines.append(f"     {byline}")
+        lines.append(f"     {record.get('title', '')}")
+    f = candidate.result.features
+    lines.append(
+        f"     title {f['title']:.2f} | authors {f['author']:.2f} | year {f['year']:.2f} "
+        f"| journal {f['journal']:.2f} | locator {f['locator']:.2f}"
+    )
+    lines.append("")
+    lines.append("  [m] merge   [k] keep both   [s] skip   [?] help")
+    return "\n".join(lines)
+
+
+def _commit_dedup_op(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    op: str,
+    scope: str | None,
+    summary: str,
+    by: str,
+    extra_trailers: dict[str, str] | None = None,
+) -> None:
+    if ctx.obj["no_commit"]:
+        return
+    rationale = _get_rationale(ctx, repo, f"You {summary}.")
+    trailers = {"Op": op, "Actor": by, **(extra_trailers or {})}
+    commit_obj = StructuredCommit(
+        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    )
+    gitio.add(repo.root, ["records", "events"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+_UNDO_OPTION = typer.Option(("", ""), "--undo", help="CANONICAL_ID ABSORBED_ID: reverse one merge")
+
+
+@app.command("dedup")
+def dedup_command(
+    ctx: typer.Context,
+    by: str = typer.Option(..., "--by", help="Actor handle running dedup"),
+    review: bool = typer.Option(False, "--review", help="Interactively work the review queue"),
+    strict: bool = typer.Option(False, "--strict", help="Force both thresholds to 1.0"),
+    undo: tuple[str, str] = _UNDO_OPTION,
+) -> None:
+    """Find and auto-merge obvious duplicates; `--review` walks the rest interactively."""
+    repo = _resolve_repo(ctx)
+
+    if undo != ("", ""):
+        canonical_id, absorbed_id = undo
+        engine_mod.undo_merge(repo, canonical_id=canonical_id, absorbed_id=absorbed_id, actor=by)
+        _commit_dedup_op(
+            ctx,
+            repo,
+            op="dedup-unmerge",
+            scope=canonical_id,
+            summary="undid a merge",
+            by=by,
+            extra_trailers={"Restored": absorbed_id},
+        )
+        out_console.print(f"[green]restored[/] {absorbed_id}")
+        return
+
+    outcome = engine_mod.run_dedup(repo, actor=by, strict=strict)
+
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "candidate_pairs_considered": outcome.candidate_pairs_considered,
+                "auto_merged": outcome.auto_merged,
+                "review_queue": [
+                    {
+                        "a": c.record_a,
+                        "b": c.record_b,
+                        "score": c.result.score,
+                        "doi_conflict": c.doi_conflict,
+                    }
+                    for c in outcome.review_queue
+                ],
+                "blocking_warnings": outcome.blocking_warnings,
+            }
+        )
+    else:
+        out_console.print(
+            f"{outcome.candidate_pairs_considered} candidate pair(s); "
+            f"{len(outcome.auto_merged)} auto-merged; {len(outcome.review_queue)} pending review"
+        )
+        for w in outcome.blocking_warnings:
+            out_console.print(f"[yellow]warning:[/] {w}")
+
+    if outcome.auto_merged:
+        _commit_dedup_op(
+            ctx,
+            repo,
+            op="dedup",
+            scope=None,
+            summary=f"auto-merged {len(outcome.auto_merged)} duplicate pair(s)",
+            by=by,
+        )
+
+    if not review or not outcome.review_queue:
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    total = len(outcome.review_queue)
+    for index, candidate in enumerate(outcome.review_queue, start=1):
+        record_a, record_b = records[candidate.record_a], records[candidate.record_b]
+        while True:
+            out_console.print(_render_review_pair(index, total, candidate, record_a, record_b))
+            choice = typer.prompt("Decision", default="s").strip().lower()
+            if choice in ("?", "help"):
+                out_console.print(
+                    "m = merge now; k = keep both (never asked again); "
+                    "s = skip (asked again next run)"
+                )
+                continue
+            if choice == "m":
+                engine_mod.apply_review_decision(
+                    repo,
+                    record_a_id=candidate.record_a,
+                    record_b_id=candidate.record_b,
+                    result=candidate.result,
+                    decision="merge",
+                    actor=by,
+                )
+                _commit_dedup_op(
+                    ctx,
+                    repo,
+                    op="dedup",
+                    scope=candidate.record_a,
+                    summary="merged a duplicate after review",
+                    by=by,
+                    extra_trailers={"Absorbed": candidate.record_b},
+                )
+                out_console.print("[green]merged[/]")
+            elif choice == "k":
+                engine_mod.apply_review_decision(
+                    repo,
+                    record_a_id=candidate.record_a,
+                    record_b_id=candidate.record_b,
+                    result=candidate.result,
+                    decision="distinct",
+                    actor=by,
+                )
+                _commit_dedup_op(
+                    ctx,
+                    repo,
+                    op="dedup-distinct",
+                    scope=candidate.record_a,
+                    summary="kept a pair distinct after review",
+                    by=by,
+                    extra_trailers={"Other": candidate.record_b},
+                )
+                out_console.print("[yellow]kept both[/]")
+            else:
+                out_console.print("[dim]skipped -- will be asked again next time[/]")
+            break
 
 
 @internal_app.command("hook-pre-commit")

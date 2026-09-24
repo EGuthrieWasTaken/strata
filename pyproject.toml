@@ -65,7 +65,20 @@ module = ["rispy", "rispy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Excludes tests/benchmark: docs/spec/05-workflow-import.md §3.7's 50,000-record
+# perf check is advisory-only (docs/m1-plan.md sub-objective 6) and belongs to
+# ci.yml's `benchmark` job, which targets that directory explicitly -- it must
+# never run as part of a bare `pytest`/`pytest -q` invocation (the "test" and
+# "coverage" jobs, both blocking gates).
+testpaths = [
+    "tests/unit",
+    "tests/integration",
+    "tests/property",
+    "tests/golden",
+    "tests/e2e",
+    "tests/statistical",
+]
+pythonpath = ["."]
 markers = [
     "req: mark a test as covering a specification requirement id (property invariant, E2E scenario, or error code)",
 ]
