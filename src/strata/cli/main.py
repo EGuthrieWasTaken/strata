@@ -8,11 +8,13 @@ layer the (future) web UI will call.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json as json_mod
 import re
 import shutil
 import sys
+import webbrowser
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -45,6 +47,8 @@ from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
+from strata.web import security as web_security
+from strata.web import server as web_server_mod
 
 EXIT_OK = 0
 EXIT_GENERIC = 1
@@ -1829,6 +1833,61 @@ def irr_command(
             f"{p.stage:<16} {p.actor_a} x {p.actor_b}   n={p.n}   "
             f"agreement={p.raw_agreement:.2f}   kappa={p.kappa:.2f}   pabak={p.pabak:.2f}"
         )
+
+
+@app.command("serve")
+def serve_command(
+    ctx: typer.Context,
+    port: int = typer.Option(0, "--port", help="Port to bind (0 = OS-assigned ephemeral port)"),
+    host: str = typer.Option(
+        "127.0.0.1", "--host", help="Bind address; a non-loopback host requires --token"
+    ),
+    token: str | None = typer.Option(
+        None, "--token", help="Fixed session token (required with a non-loopback --host)"
+    ),
+    actor: str | None = typer.Option(
+        None, "--actor", help="Screen as this actor; required if more than one is configured"
+    ),
+    no_browser: bool = typer.Option(
+        False, "--no-browser", help="Do not automatically open a browser"
+    ),
+    inactivity_timeout: float = typer.Option(
+        web_security.DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+        "--inactivity-timeout",
+        help="Seconds of inactivity before the server exits (docs/spec/11 §7)",
+    ),
+) -> None:
+    """Start the local web UI (docs/spec/11-web-ui.md)."""
+    repo = _resolve_repo(ctx)
+
+    try:
+        resolved_actor = web_server_mod.resolve_actor(repo, actor)
+        session_token = web_server_mod.resolve_token(host, token)
+    except web_server_mod.ServeConfigError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if not web_server_mod.is_loopback_host(host):
+        err_console.print(
+            f"[yellow]warning:[/] binding to {host!r} exposes this server beyond this machine "
+            "-- only do this on a network you trust"
+        )
+
+    resolved_port = port or web_server_mod.pick_ephemeral_port(host)
+    params = web_server_mod.ServeParams(
+        repo_root=repo.root,
+        actor=resolved_actor,
+        host=host,
+        port=resolved_port,
+        session_token=session_token,
+        inactivity_timeout=inactivity_timeout,
+    )
+    url = web_server_mod.opened_url(params)
+    out_console.print(f"[green]strata serve[/] listening on {url}  (actor: {resolved_actor})")
+    if not no_browser:
+        webbrowser.open(url)
+
+    asyncio.run(web_server_mod.serve_until_idle_or_interrupted(params))
 
 
 @internal_app.command("hook-pre-commit")

@@ -109,7 +109,8 @@ M2:
 | 8 | `strata audit --criteria` sampling workflow | **done** |
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | **done** |
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
-| 11 | Web UI: `strata serve` — dashboard, screening, rescreen, adjudicate, criteria editor w/ impact preview | not started |
+| 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
+| 11b | Web UI, sitting 2: rescreen/adjudicate/criteria-editor screens w/ impact preview | not started |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | not started |
 
 ### 1. Criteria management — done
@@ -732,24 +733,172 @@ lag per decision before this fix, which would have made the flagship
 feature of this milestone feel broken at the exact scale the tool is meant
 to handle.
 
-### 11. Web UI: `strata serve`
+### 11a. Web UI, sitting 1 — done
 
-Spec: `docs/spec/11-web-ui.md` (all of it, normative).
+Spec: `docs/spec/11-web-ui.md` (all of it, normative) — this sitting covers
+§1 (posture), §2 (the `/` and `/screen/<stage>` routes), §3 (the screening
+surface), §5 (technology), §6 (accessibility, best-effort), §7 (security,
+in full). §4 (criteria editor + impact preview) and the rest of §2's route
+table are sitting 2 (sub-objective 11b).
 
-The single largest remaining sub-objective. FastAPI + Jinja2 + htmx per §5,
-127.0.0.1-only by default, session token + CSRF + Origin/Host validation per
-§7, keyboard-first screening surface per §3, criteria editor with
-non-mutating live impact preview per §4 (compute stale-count preview by
-running sub-objective 4's `compute_stale_records` against a *hypothetical*
-direction without writing anything — the preview function must take the
-proposed change as a parameter rather than reading it from a committed
-`criteria.yaml`), WCAG 2.1 AA per §6. Routes at minimum: `/`, `/screen/<stage>`,
-`/rescreen`, `/adjudicate`, `/criteria` (editor + preview). `/dedup`,
-`/records`, `/records/<id>`, `/history` can reuse M1 data and are lower
-risk to add alongside. Given the size, consider splitting this into two
-sittings: (a) server scaffold + dashboard + screening surface + security
-baseline, (b) rescreen/adjudicate/criteria-editor screens. Update this
-table with two rows if that split happens.
+**New package**: `strata.web` — `security.py` (session/CSRF tokens,
+Origin/Host validation, the inactivity clock), `app.py` (`create_app`
+factory + the security middleware + CSP/security headers), `routes.py`
+(`/` dashboard, `GET`/`POST /screen/<stage>`), `server.py` (process-level
+wiring: actor/host/token resolution, ephemeral port selection, running
+uvicorn with a watchdog that actually exits the process on §7's inactivity
+timeout rather than just having the middleware start rejecting requests),
+`templates/*.html` (Jinja2, server-rendered, `base`/`dashboard`/`screen`),
+`static/{style.css,keyboard.js}` (vendored, no CDN, no build step — total
+JS is one hand-written ~2 KB file, nowhere near §5's 50 KB budget). New
+CLI command `strata serve [--port N] [--host H] [--token T] [--actor A]
+[--no-browser] [--inactivity-timeout S]` in `cli/main.py`.
+
+**Security (§7), taken literally, all six bullets:**
+- Session token: generated at startup (or `--token`, required whenever
+  `--host` isn't loopback), delivered via the opened URL's `?token=`,
+  then set as a `SameSite=Strict`, `HttpOnly` cookie on the first response
+  that sees it — `SecurityMiddleware` in `app.py`. Deliberately stricter
+  than §7's letter: *every* request needs a valid session (the spec only
+  requires it on mutating ones), not just POST/PUT/DELETE, since nothing
+  about "local" should mean another process or browser tab can read
+  repository content without the token either.
+- CSRF: the same session token doubles as the CSRF value, embedded as a
+  hidden field in every mutating form (`csrf_field_name`, a Jinja global)
+  — the standard double-submit-cookie pattern, and one less secret to
+  generate/track. A subtlety worth flagging for sitting 2 or anyone else
+  touching this: Starlette's `BaseHTTPMiddleware` gives the downstream
+  route handler a *different* `Request` object than the one middleware
+  sees, so a body the middleware already consumed (`await request.form()`,
+  needed to check the CSRF field) cannot be re-read by the route — it
+  comes back empty. Fixed by stashing the parsed form on `request.state`
+  (backed by `scope["state"]`, shared across both `Request` wrappers) for
+  the route to reuse rather than re-parsing.
+- `Origin`/`Host` validation (defeats DNS rebinding): `security.py`'s
+  `is_host_allowed`/`is_origin_allowed`, checked against the actual
+  `--host`/port this process bound to, not a hardcoded assumption.
+- Output escaping: Jinja2's autoescaping is on by default and untouched —
+  every template interpolation is escaped, so titles/abstracts/notes from
+  database exports (routinely containing raw HTML) render as text, not
+  markup.
+- Path traversal: not yet applicable — this sitting's two routes never
+  take a user-supplied filesystem path (PDF locations, import files land
+  in sitting 2's `/records`-adjacent screens or later milestones); noted
+  here so it isn't forgotten when one does.
+- Inactivity timeout: `security.InactivityClock` + `server.py`'s
+  `serve_until_idle_or_interrupted`, which runs uvicorn's `Server.serve()`
+  alongside a small watchdog coroutine that sets `server.should_exit =
+  True` once the clock expires — actually exits the process, not just a
+  middleware that starts returning 503. Defaults to 3600s per §7,
+  `--inactivity-timeout` for testing/overriding.
+- CSP (not itself in §7's bullet list, but directly in its spirit and
+  required by §5's "no external requests"): `default-src 'self'` with no
+  external origins, plus `X-Content-Type-Options: nosniff`, `X-Frame-
+  Options: DENY`, `Referrer-Policy: no-referrer` on every response.
+
+**Screening surface (§3)**, server-rendered HTML with `accesskey`
+attributes as the no-JS baseline (§5's hard requirement: the page is fully
+operable with `keyboard.js` disabled) and a small keydown handler layered
+on top for direct single-key shortcuts matching the spec's mockup (`i`/`e`/
+`m` decide, digits 1-9 cite/toggle a criterion and auto-submit when
+`require_exclusion_reason` is set — S3, `,` focuses the note field — S13,
+`s` skips, `u` undoes). `blind_metadata` hides author/journal/year in the
+template (S11); `blind_reviewers` (S10) is satisfied structurally the same
+way the CLI already is — nothing in `routes.py` ever reads another actor's
+opinion. No-abstract records are visually flagged, never silently skipped
+(S9). Progress bar and "N of M" position (S2's spirit — see below on what
+"under 100ms" means here).
+
+**Two spec requirements given a stateless, honest reinterpretation** (§1:
+"the server is stateless with respect to the repository" — no server-side
+session/queue-position tracking):
+- **S8** ("closing the tab and returning resumes at the same record") is
+  true for free: `/screen/<stage>` always shows the actor's current queue
+  (assigned, undecided) head, so whatever was actually decided stays
+  decided and whatever wasn't is still there next time, no memory needed.
+- **S7** (`u`ndo, repeatable) and "skip"/"navigate" (n/p) needed *some*
+  state to mean anything across two separate HTTP requests, so it lives in
+  the URL: a successful decision's redirect carries the just-decided
+  record forward as `?prev=`, which the next page turns into a `?redo=`
+  link to re-open and overwrite that one decision (one level of undo, not
+  arbitrary depth); a `?skip=<comma-ids>` list carries forward records the
+  reviewer chose not to decide yet, filtered out of the queue for that
+  browsing session. Both are genuinely stateless (survive a server
+  restart, work with multiple tabs), at the honest cost of the `skip` list
+  only lasting as long as the reviewer keeps following links that carry it
+  (closing the tab and coming back drops it, same as S8's own no-memory
+  premise) and living in a URL query string that would get unwieldy for a
+  very long skip run — acceptable for this sitting, flagged for anyone
+  who wants a stronger version later.
+- **S2** ("decision visibly acknowledged in under 100ms; persistence
+  asynchronous but append-before-advance"): this sitting is a plain
+  full-page POST-then-redirect (`record_screen_decision` appends and
+  fsyncs *before* the 303 response is sent, so "append-before-advance"
+  holds exactly), not an async/htmx partial update — htmx wiring is
+  explicitly deferred to sitting 2 or later per the technology note below,
+  so the "under 100ms, asynchronous" half of S2 is not yet attempted; the
+  synchronous round trip itself is fast (the same `record_screen_decision`
+  call sub-objective 10's benchmark already measured at p95 ~80-90ms at
+  50,000 records).
+
+**Deliberately deferred, not attempted this sitting** (tracked for 11b or
+later, not silently dropped): htmx partial-page updates (§5 recommends it;
+this sitting is full-page-reload-only, which satisfies §5's *harder*
+requirement — working with JS disabled — but not the faster progressive-
+enhancement path); vendoring a JS library at all (`keyboard.js` is the
+only script, hand-written, no htmx); term highlighting (S6); a full WCAG
+2.1 AA audit against real assistive tech (the CSS/markup follow the
+letter of §6 — focus rings, semantic HTML/ARIA, 4.5:1-designed contrast
+tokens, `prefers-reduced-motion`/`prefers-color-scheme`, a 320px
+breakpoint — but this was not tested with a screen reader); a multi-actor
+selection *screen* (`--actor` is required outright when more than one
+active actor is configured, `resolve_actor` in `server.py`, rather than
+an interactive picker); `/rescreen`, `/adjudicate`, `/dedup`, `/records*`,
+`/criteria` (+ impact preview), and everything M3-shaped (`/extract/*`,
+`/rob/*`, `/analysis/*`, `/prisma`) — all of §2's route table beyond `/`
+and `/screen/<stage>`; the §2.4 batched-commit policy for web sessions
+specifically (decisions append and fsync immediately, matching E2E-09's
+own guarantee for the same call, but nothing yet commits a web session's
+batch — a user closes it out via the CLI today, same as before this
+sitting existed).
+
+**Testing**: `tests/unit/test_web_security.py` and
+`test_web_server.py` (pure logic, 100%/76% branch respectively — the 24%
+gap in `server.py` is entirely `serve_until_idle_or_interrupted`, the
+function that actually runs uvicorn, which only the subprocess test below
+exercises and coverage.py cannot see into a child process without
+additional `COVERAGE_PROCESS_START` plumbing this sitting didn't set up);
+`tests/integration/test_web_app.py` (FastAPI `TestClient`, in-process ASGI
+transport, no real socket — dashboard, screening GET/POST, security
+rejections, blinding, skip/undo, 100% on `app.py`/`routes.py`); `tests/
+integration/test_cli_serve.py` (the one test in this new surface that
+drives a real subprocess, `python -m strata.cli.main serve`, the same
+pattern E2E-09 established for `strata screen` under SIGKILL — needed
+because `strata serve` blocks running a real server and `CliRunner` can't
+touch that: confirms a real HTTP GET against the announced URL works, the
+non-loopback-without-token and unknown/ambiguous-actor usage errors, and
+that the process actually exits on its own once idle past
+`--inactivity-timeout`, stable across repeated local runs). Full suite
+after this sitting: 913 passed, 97.5% overall coverage.
+
+New runtime dependency: `python-multipart` (form parsing, required by
+Starlette/FastAPI for any `POST` with form-encoded bodies — every mutating
+route in this surface). New dev dependency: `httpx2` (this environment's
+installed Starlette version deprecated plain `httpx` for
+`starlette.testclient.TestClient`).
+
+### 11b. Web UI, sitting 2 (not started)
+
+Remaining from `docs/spec/11-web-ui.md` §2's route table and §4: `/rescreen`
+(stale queue, prior decision + reason shown, `[k]eep previous`), `/adjudicate`
+(conflict resolution), `/criteria` (editor with the live, non-mutating
+impact preview — compute a stale-count preview by running sub-objective 4's
+`compute_stale_records` against a *hypothetical* direction without writing
+anything, so the preview function needs to take the proposed change as a
+parameter rather than reading a committed `criteria.yaml`). `/dedup`,
+`/records`, `/records/<id>`, `/history` can reuse M1 data and are lower risk
+to add alongside if time allows. Consider htmx partial updates for S2's
+"asynchronous" half once the full-page-reload baseline from 11a is trusted.
 
 ### 12. Traceability, roadmap acceptance pass, docs polish
 

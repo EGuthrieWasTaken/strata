@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>{{ report.title }}</h1>
+<dl class="summary-grid">
+  <div><dt>Records</dt><dd>{{ report.record_count }}</dd></div>
+  <div><dt>Searches</dt><dd>{{ report.search_count }}</dd></div>
+  <div><dt>Criteria version</dt><dd>v{{ report.criteria_version }}</dd></div>
+  <div><dt>Actors</dt><dd>{{ report.actor_count }}</dd></div>
+  <div><dt>Commits</dt><dd>{{ report.commit_count }}</dd></div>
+  <div><dt>Working tree</dt><dd>{{ "clean" if report.is_clean else "has uncommitted changes" }}</dd></div>
+</dl>
+
+{% if report.pending_searches %}
+<p class="notice">Pending searches awaiting an export file: {{ report.pending_searches | join(", ") }}</p>
+{% endif %}
+
+<h2>Screening stages</h2>
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Stage</th>
+      <th scope="col">Total</th>
+      <th scope="col">Resolved</th>
+      <th scope="col">Unscreened</th>
+      <th scope="col">Partial</th>
+      <th scope="col">Conflicts</th>
+      <th scope="col">Stale</th>
+      <th scope="col">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for stage in report.stages %}
+    <tr>
+      <th scope="row">{{ stage.stage }}</th>
+      <td>{{ stage.total }}</td>
+      <td>{{ stage.resolved }}</td>
+      <td>{{ stage.unscreened }}</td>
+      <td>{{ stage.partial }}</td>
+      <td>{{ stage.conflicts }}</td>
+      <td>{{ stage.stale }}</td>
+      <td>
+        {% if stage.unscreened or stage.partial %}
+        <a href="/screen/{{ stage.stage }}">Screen &rarr;</a>
+        {% elif stage.stale %}
+        <span class="todo-note">rescreen (web surface not built yet)</span>
+        {% elif stage.conflicts %}
+        <span class="todo-note">adjudicate (web surface not built yet)</span>
+        {% else %}
+        <span class="done-note">up to date</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if report.next_action %}
+<p class="next-action">Next: <code>{{ report.next_action }}</code></p>
+{% endif %}
+{% endblock %}

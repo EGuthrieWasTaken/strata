@@ -1,0 +1,290 @@
+/* docs/spec/11-web-ui.md §6: WCAG 2.1 AA -- 4.5:1 text contrast, 3:1 for UI
+   components, visible focus, never colour alone, reflow at 320px / 200%
+   zoom, honour prefers-reduced-motion and prefers-color-scheme. */
+
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --border: #cccccc;
+  --accent: #0b5fff;
+  --include: #146c2e;
+  --exclude: #a4262c;
+  --maybe: #8a5a00;
+  --focus-ring: #0b5fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --fg: #f0f0f0;
+    --muted: #b8b8b8;
+    --border: #444444;
+    --accent: #6ea8ff;
+    --include: #57d17e;
+    --exclude: #ff8a8a;
+    --maybe: #ffcf6e;
+    --focus-ring: #6ea8ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  max-width: 100%;
+}
+
+a {
+  color: var(--accent);
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--focus-ring);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.actor-badge {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+main {
+  padding: 1rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.summary-grid > div {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.summary-grid dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.summary-grid dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+table.stage-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.stage-table th,
+.stage-table td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.progress-bar {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  height: 0.75rem;
+  overflow: hidden;
+  margin: 0.5rem 0 1rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .progress-bar-fill {
+    transition: width 0.2s ease;
+  }
+}
+
+.record-card {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.record-card .byline {
+  color: var(--muted);
+}
+
+.no-abstract {
+  font-style: italic;
+  color: var(--muted);
+}
+
+.decision-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  font-size: 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: 0.35rem;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.btn kbd {
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0 0.3rem;
+  margin-right: 0.35rem;
+  font-family: inherit;
+}
+
+.btn-include {
+  border-color: var(--include);
+}
+
+.btn-exclude {
+  border-color: var(--exclude);
+}
+
+.btn-maybe {
+  border-color: var(--maybe);
+}
+
+fieldset.criteria-list {
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.criterion {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.criterion-num {
+  color: var(--muted);
+  min-width: 1.25rem;
+  text-align: right;
+}
+
+.criterion-id {
+  font-weight: 600;
+}
+
+.note-field {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.note-field textarea {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.25rem;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.error {
+  border: 2px solid var(--exclude);
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--exclude);
+}
+
+.notice {
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.done-note {
+  color: var(--include);
+}
+
+.todo-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 20rem) {
+  main {
+    padding: 0.5rem;
+  }
+  .decision-buttons {
+    flex-direction: column;
+  }
+}

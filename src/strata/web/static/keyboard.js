@@ -1,0 +1,89 @@
+/*
+ * Single-key shortcuts for the screening surface (docs/spec/11-web-ui.md
+ * §3.1 S1/S3). Progressive enhancement only: every control here also has
+ * an `accesskey` in the HTML and a plain clickable/tappable target, so the
+ * page is fully operable with this script disabled (§5's hard
+ * requirement) -- this file only makes the common path faster.
+ *
+ * No external requests, no build step, no dependency: this is the entire
+ * client-side script strata ships (§5's "total shipped JavaScript SHOULD
+ * stay under 50 KB uncompressed" budget).
+ */
+(function () {
+  "use strict";
+
+  function isTypingTarget(el) {
+    if (!el) return false;
+    var tag = el.tagName;
+    return tag === "TEXTAREA" || tag === "INPUT" || el.isContentEditable;
+  }
+
+  function announce(text) {
+    var region = document.getElementById("announcer");
+    if (region) region.textContent = text;
+  }
+
+  document.addEventListener("keydown", function (event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    var form = document.getElementById("screen-form");
+    if (!form) return;
+
+    var key = event.key;
+    var typing = isTypingTarget(document.activeElement);
+
+    if (key === "," && !typing) {
+      var note = document.getElementById("note-field");
+      if (note) {
+        note.focus();
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (typing) return; // never hijack keys once the reviewer is typing a note
+
+    if (key === "i" || key === "e" || key === "m") {
+      var button = form.querySelector('button[name="decision"][value="' +
+        (key === "i" ? "include" : key === "e" ? "exclude" : "maybe") + '"]');
+      if (button) {
+        event.preventDefault();
+        announce("recording decision…");
+        button.click();
+      }
+      return;
+    }
+
+    if (key >= "1" && key <= "9") {
+      var checkbox = form.querySelector('input[data-shortcut-digit="' + key + '"]');
+      if (!checkbox) return;
+      event.preventDefault();
+      checkbox.checked = !checkbox.checked;
+      if (form.dataset.requireExclusionReason === "true" && checkbox.checked) {
+        var excludeButton = form.querySelector('button[name="decision"][value="exclude"]');
+        if (excludeButton) {
+          announce("recording decision…");
+          excludeButton.click();
+        }
+      }
+      return;
+    }
+
+    if (key === "s") {
+      var skipLink = document.getElementById("skip-link");
+      if (skipLink) {
+        event.preventDefault();
+        skipLink.click();
+      }
+      return;
+    }
+
+    if (key === "u") {
+      var undoLink = document.getElementById("undo-link");
+      if (undoLink) {
+        event.preventDefault();
+        undoLink.click();
+      }
+    }
+  });
+})();
