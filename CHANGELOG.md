@@ -7,6 +7,16 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- A fuzz corpus for `ingest.parsers` (`tests/fuzz/`, `hypothesis`-driven
+  mutation of the real fixture corpus, wired into the nightly `fuzz` job)
+  and a requirement-traceability report (`scripts/traceability_report.py`,
+  an advisory CI job uploading it as a build artefact) per
+  `docs/spec/14-testing.md` §6/§10.5. New property tests close the M0 gap
+  for **P3** (serialisation round-trip) and **P7** (alias acyclicity);
+  P1/P2/P4/P5/P6/P9/P13 and four `strata verify` error-code tests were
+  retrofitted with the `@pytest.mark.req(...)` marker the report reads.
+  New `tests/e2e/test_e2e_07_...` and `tests/benchmark/test_import_performance.py`
+  close two previously-untested M1 acceptance-checklist items.
 - `strata records list [--filter EXPR] [--format tsv|json|csl] [--all]`,
   `strata records show <id>`, `strata why <id>`, and
   `strata fix <id> --field <f> --value <v> --by <actor>`
@@ -69,3 +79,18 @@ All notable changes to `strata` are documented here. Format follows
   `verify`, `status`, `log`.
 - `.gitattributes`, merge driver installation, and versioned git hooks
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
+
+### Fixed
+
+- `decode_bytes` crashed with an uncaught `UnicodeDecodeError` on a file that
+  has a valid UTF-8 byte-order mark but corrupted/truncated bytes after it,
+  instead of falling through to cp1252/latin-1 like the no-BOM path already
+  did — found by the new fuzz corpus within minutes of it existing.
+- `strata.core.events.append_new_event`, called once per item in a loop
+  (`strata import`'s one `record-add` event per row; `strata dedup`'s one
+  `dedup-merge` event and `aliases.append_alias` call per auto-merge), read
+  and re-parsed its entire target file on every single call, making an
+  O(n)-item operation O(n^2). A 50,000-record import that used to still be
+  running after five-plus minutes now completes in ~20s; 50,000-record dedup
+  dropped from over 240s to ~126s. New `append_new_events` batches a run's
+  worth of appends into one read plus one write per event.

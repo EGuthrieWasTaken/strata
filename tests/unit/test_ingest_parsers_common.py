@@ -32,6 +32,24 @@ def test_decode_bytes_falls_back_to_latin1_as_last_resort() -> None:
     assert text == "\x81"
 
 
+def test_decode_bytes_bom_present_but_body_not_valid_utf8_falls_back_to_cp1252() -> None:
+    # A BOM promises UTF-8 encoding, but a corrupted or truncated file can
+    # still have invalid UTF-8 after it; the chain must fall through the
+    # same cp1252/latin-1 fallbacks as the no-BOM case rather than raising
+    # (found by tests/fuzz/test_fuzz_parsers.py mutating a real BOM fixture).
+    raw = b"\xef\xbb\xbf" + "“smart quotes”".encode("cp1252")
+    text, encoding = decode_bytes(raw)
+    assert encoding == "cp1252"
+    assert text == "“smart quotes”"
+
+
+def test_decode_bytes_bom_present_but_body_needs_latin1_fallback() -> None:
+    raw = b"\xef\xbb\xbf\x81"
+    text, encoding = decode_bytes(raw)
+    assert encoding == "latin-1"
+    assert text == "\x81"
+
+
 def test_normalise_newlines_handles_crlf_and_lone_cr() -> None:
     assert normalise_newlines("a\r\nb\rc\n") == "a\nb\nc\n"
 

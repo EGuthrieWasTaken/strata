@@ -49,21 +49,25 @@ def decode_bytes(raw: bytes) -> tuple[str, str]:
     A byte-order mark is detected explicitly (rather than as a decode
     failure) so it is stripped instead of surviving into the text as a
     leading `\\ufeff`. Falls through UTF-8, then CP1252, then Latin-1, which
-    accepts any byte sequence and therefore always terminates the chain.
-    Returns `(text, encoding_used)`; the caller records `encoding_used` in the
-    import manifest.
+    accepts any byte sequence and therefore always terminates the chain --
+    including when a BOM is present but the bytes after it are not valid
+    UTF-8 (a corrupted or truncated file can do this; found by
+    `tests/fuzz/test_fuzz_parsers.py` mutating a real BOM fixture), which is
+    why the BOM case falls through the same chain rather than decoding with
+    a bare, unguarded `"utf-8"`. Returns `(text, encoding_used)`; the caller
+    records `encoding_used` in the import manifest.
     """
-    if raw.startswith(codecs.BOM_UTF8):
-        return raw[len(codecs.BOM_UTF8) :].decode("utf-8"), "utf-8-sig"
+    has_bom = raw.startswith(codecs.BOM_UTF8)
+    body = raw[len(codecs.BOM_UTF8) :] if has_bom else raw
     try:
-        return raw.decode("utf-8"), "utf-8"
+        return body.decode("utf-8"), "utf-8-sig" if has_bom else "utf-8"
     except UnicodeDecodeError:
         pass
     try:
-        return raw.decode("cp1252"), "cp1252"
+        return body.decode("cp1252"), "cp1252"
     except UnicodeDecodeError:
         pass
-    return raw.decode("latin-1"), "latin-1"
+    return body.decode("latin-1"), "latin-1"
 
 
 def normalise_newlines(text: str) -> str:

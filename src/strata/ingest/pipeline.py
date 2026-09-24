@@ -21,7 +21,7 @@ from typing import Any
 from strata.core import manifest as manifest_mod
 from strata.core import records as records_mod
 from strata.core.canon import canonical_json, dump_yaml_str, load_yaml_str
-from strata.core.events import append_new_event
+from strata.core.events import append_new_event, append_new_events
 from strata.core.ids import (
     assign_record_id,
     new_import_id,
@@ -348,16 +348,23 @@ def import_file(
     import_manifest_path(repo, import_id).write_text(dump_yaml_str(manifest_data), encoding="utf-8")
 
     events_path = repo.path("events", "import", f"{imported_by}.ndjson")
+    record_add_entries = []
     for record_id, raw_record in new_records:
         raw_row_digest = (
             "sha256:" + hashlib.sha256(canonical_json(raw_record).encode("utf-8")).hexdigest()
         )
-        append_new_event(
-            events_path,
-            ev="record-add",
-            actor=imported_by,
-            body={"record": record_id, "import_id": import_id, "raw_row_digest": raw_row_digest},
+        record_add_entries.append(
+            (
+                "record-add",
+                imported_by,
+                {"record": record_id, "import_id": import_id, "raw_row_digest": raw_row_digest},
+            )
         )
+    # `append_new_events`, not `append_new_event` per record: the latter
+    # re-reads the whole (growing) events file on every call, which turns an
+    # O(n)-record import into an O(n^2) one at scale -- see that function's
+    # docstring.
+    append_new_events(events_path, record_add_entries)
     append_new_event(
         events_path,
         ev="import",

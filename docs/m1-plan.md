@@ -395,24 +395,28 @@ review-queue routing, event/alias side effects, undo; 100% coverage,
   `testpaths` so a bare `pytest`/`pytest -q` (the blocking `test`/`coverage`
   jobs) never collects it.
 
-  **This does not currently meet §3.7's 120-second budget in this
-  environment.** Measured here: blocking alone (`find_candidate_pairs`,
-  dominated by per-record MinHash: 128 permutations × ~60 title 3-grams ×
-  50,000 records) already takes ~77s; the full run (blocking + scoring
-  ~53,000 candidate pairs, most of it Levenshtein DP in `scoring.title_sim`/
-  `journal_sim`) exceeded 240s before completing. Memory stayed well under
-  the 2GB budget throughout. Whether this also exceeds budget on the spec's
-  "2020-era laptop" target or is specific to this (likely shared/throttled)
-  sandboxed container is untested. Left as a known gap rather than
-  papered over, since fixing it would mean touching sub-objective 5's
-  already-tested, locked-in `blocking.py`/`scoring.py` under time pressure
-  in a different sub-objective — out of scope here. This is exactly why the
-  check lives in the advisory tier and not the blocking gate. Follow-up
-  ideas for whoever picks this up: vectorise MinHash with `numpy` instead of
-  a pure-Python permutation loop; short-circuit `title_sim`'s Levenshtein
-  call when the cheap Jaccard score alone already clears the threshold;
-  investigate whether `rapidfuzz` (C-accelerated Levenshtein) is worth the
-  new dependency the sub-objective 5 write-up deliberately avoided.
+  **Update (sub-objective 8): measured at 126.0s** — just over §3.7's strict
+  120s, comfortably inside the M1 acceptance bar's looser 300s
+  (docs/spec/15-roadmap.md). At the time this note was first written, the
+  measurement was ">240s, and climbing" (i.e. this same test, killed before
+  it finished) — that was overwhelmingly an O(n^2) event/alias-append bug in
+  `strata.core.events.append_new_event`/`aliases.append_alias` (both re-read
+  their whole file on every call, turning ~5,000 merges' worth of appends
+  into ~12.5 million file reads), not a blocking/scoring problem; sub-
+  objective 8 found and fixed it (see that section below). What remains,
+  dominating the 126s: blocking alone (`find_candidate_pairs`, per-record
+  MinHash: 128 permutations × ~60 title 3-grams × 50,000 records) takes
+  ~77s. Memory stayed well under the 2GB budget throughout. Left as a known
+  gap rather than fixed here, since closing the remaining ~6s over budget
+  would mean touching sub-objective 5's already-tested, locked-in
+  `blocking.py`/`scoring.py` — out of scope for a different sub-objective,
+  and exactly why the check lives in the advisory tier and not the blocking
+  gate. Follow-up ideas for whoever picks this up: vectorise MinHash with
+  `numpy` instead of a pure-Python permutation loop; short-circuit
+  `title_sim`'s Levenshtein call when the cheap Jaccard score alone already
+  clears the threshold; investigate whether `rapidfuzz` (C-accelerated
+  Levenshtein) is worth the new dependency the sub-objective 5 write-up
+  deliberately avoided.
 
 **Decisions worth knowing about**:
 - **`--strict` is implemented as `(auto_merge_threshold=1.0,
@@ -550,24 +554,104 @@ why`'s event-log walk, 100% coverage, `tests/unit/test_provenance.py`), and
   out of scope for this sub-objective, noted for whoever touches that
   command next.
 
-### 8. Fuzz corpus + requirement-traceability report + M1 acceptance polish
+### 8. Fuzz corpus + requirement-traceability report + M1 acceptance polish — done
 
 Spec: `docs/spec/14-testing.md` §1 (fuzz, nightly), §10.5 (traceability).
 
-Scope:
-- A fuzz corpus seeded from `tests/fixtures/exports/` (from #2/#3), mutating
-  bytes/encoding/structure and asserting parsers never crash uncontrolled
-  (they may reject a row, per §2.1, but must not raise past that boundary).
-  Wire into `nightly.yml` per the existing pattern for other nightly jobs.
-- The M0 traceability gap: a `conftest.py`/small script that collects every
-  `@pytest.mark.req(...)` marker across the suite and reports which
-  identified requirements (P1–P13, E2E-01–E2E-12, `E_*` codes) have no test,
-  as a CI step publishing the report as a build artefact (per §10.5). Retrofit
-  the marker onto the property tests that already exist but don't carry it
-  (P1/P2/P4/P5/P6/P9/P13 in `tests/property/`), and add real `hypothesis`
-  property tests for P3 and P7 to close the M0 gap noted above.
-- Run the full M1 acceptance checklist from `docs/spec/15-roadmap.md`
-  end-to-end (golden fixtures, dedup benchmark numbers, 50k import/dedup
-  timing, `strata why` provenance, dedup re-run raising nothing already
-  judged) and fix whatever it surfaces.
-- Update `README.md`'s Status section once the above is genuinely green.
+Delivered:
+
+- **Fuzz corpus** (§6): `tests/fuzz/test_fuzz_parsers.py`, `hypothesis`-driven
+  mutation (bit flip/insert/delete/truncate) seeded from every real fixture
+  under `tests/fixtures/exports/`, one test per format
+  (csl-json/ris/bibtex/medline/csv), asserting `parse()` always returns a
+  `ParseResult` and never raises. Not `atheris` (§6 names either): it needs a
+  native libFuzzer-linked CPython build, fragile across this project's
+  three-OS CI matrix, and `hypothesis` is already a dependency. Lives in
+  `tests/fuzz/`, excluded from `pyproject.toml`'s pytest `testpaths` (fuzzing
+  is nightly-only per §1's levels table, not a per-commit gate) but already
+  picked up by `nightly.yml`'s existing `fuzz` job, which only needed the
+  directory to exist.
+- **Requirement traceability** (§10.5): `scripts/traceability_report.py`
+  collects every `@pytest.mark.req(...)` marker via a `pytest --collect-only`
+  plugin and reports which of P1-P13/E2E-01-E2E-12/`E_*` (the exact set
+  `docs/spec/03-schemas.md` §10's table names) have no test, writing
+  `build/traceability-report.md` (a build artefact, not committed — unlike
+  the dedup benchmark's result this changes with every test added and would
+  go stale). Wired into `ci.yml` as a new advisory `traceability` job
+  (`continue-on-error: true`, matching `benchmark`'s pattern), since not
+  every requirement is coverable yet (§10.5: uncovered is a gate failure only
+  "once every current requirement is covered"). Retrofitted `@pytest.mark.req`
+  onto the property tests that already existed without it (P1/P2/P4/P5/P6/P9/
+  P13) and onto four `strata verify` tests that already demonstrated
+  `E_SCHEMA`/`E_DANGLING_REF`/`E_ALIAS_CYCLE`/`E_CHAIN` detection but weren't
+  marked. Added real `hypothesis` property tests for **P3** (serialisation
+  round-trip, `tests/property/test_canon_properties.py`, both generic JSON
+  and a record-shaped document) and **P7** (alias acyclicity,
+  `tests/property/test_alias_properties.py`, generating merge sequences
+  shaped like `dedup.engine`'s real invariants so the generator can't produce
+  a cycle by construction — matching what real merges do) to close the M0
+  gap. Also added `tests/e2e/test_e2e_07_late_import_dedup_stickiness.py`
+  (a manual "keep both" decision survives a later, unrelated import) and
+  `tests/benchmark/test_import_performance.py` (E2E-11's 50k-import
+  performance target), both fully buildable at M1 and previously untested.
+  P10/P11/P12 (staleness/count-reconciliation/effect-size, all M2+M4) and
+  most `E2E-*`/`E_*` ids needing screening, extraction, RoB, or analysis data
+  correctly remain uncovered — reported, not hidden.
+- **M1 acceptance checklist** (`docs/spec/15-roadmap.md`), run end to end,
+  found two real bugs fixed along the way (below) plus confirmed: all golden
+  parser fixtures pass; dedup benchmark recall 1.000/false-merge rate 0.0000;
+  `strata why` shows the full chain; a dedup re-run never re-raises an
+  already-judged pair (`test_e2e_07...` above, plus the existing sticky-pair
+  tests). 50,000-record import now measures **20.1s** (well inside the
+  roadmap's 60s bar) at 412MB peak RSS; 50,000-record dedup measures **126.0s**
+  (comfortably inside the roadmap's 300s bar, just over §3.7's own stricter
+  120s — see sub-objective 6's updated performance note above for why).
+
+**Bugs found and fixed by this pass** (not just documented — these were
+cheap, safe, and high-value once found):
+
+- **`decode_bytes` crashed on a BOM followed by invalid UTF-8**, found within
+  minutes by the new fuzz suite mutating a real BOM fixture (`ef bb bf` +
+  a byte that isn't a valid UTF-8 continuation byte). The docstring already
+  promised the encoding chain "always terminates" via a Latin-1 last resort,
+  but the BOM branch decoded with a bare, unguarded `.decode("utf-8")`
+  instead of falling through the same cp1252/latin-1 chain as the no-BOM
+  path — a corrupted or truncated file with an intact BOM would crash the
+  whole import instead of degrading gracefully. Fixed in
+  `strata/ingest/parsers/__init__.py`; two new unit tests
+  (`tests/unit/test_ingest_parsers_common.py`) pin the fixed behaviour so a
+  regression fails fast, not just on the next nightly fuzz run.
+- **`append_new_event` is O(n) per call, making any loop of n appends to the
+  same file O(n^2)** — it recomputes `seq`/`prev` by re-reading and
+  re-parsing the *entire* file on every single call
+  (`next_seq`/`last_digest`, both via `read_events`). This is fine for a
+  one-off append, which is most of its call sites, but two hot loops call it
+  once per item: `strata import`'s one `record-add` event per row, and
+  `dedup.engine.run_dedup`'s one `dedup-merge` event (plus one
+  `aliases.append_alias` call, which has the identical read-whole-file-
+  every-call shape) per auto-merge. A 1,500-row import was measured (via
+  `cProfile`) spending 24 of 26 seconds inside `append_new_event` alone,
+  2.25 million `json.loads` calls to append 1,500 lines — this, not parser
+  or scoring cost, was the actual reason the 50k-import perf test (added by
+  this same sub-objective) first measured over five minutes instead of the
+  60s target, and very likely the dominant reason the sub-objective 6 dedup
+  perf finding ("blocking alone ~77s, full run exceeded 240s") looked as bad
+  as it did. Fixed with a new `strata.core.events.append_new_events`
+  (plural): reads the file once, tracks `seq`/`prev` in memory across a
+  batch of `(ev, actor, body)` entries, and still writes each event with its
+  own `append_event` call (preserving the existing per-line
+  `PIPE_BUF`-atomicity property `append_event`'s docstring already
+  documents, rather than trading it for one large write). `strata.ingest.
+  pipeline.import_file` now collects all its `record-add` entries and
+  appends them in one batched call; `dedup.engine.run_dedup` does the
+  analogous thing for `dedup-merge` events *and* for the alias entries
+  (reading `aliases.ndjson` once, appending in memory, writing once via the
+  existing `write_aliases`) after its per-pair loop, rather than during it.
+  `apply_review_decision` (a single decision, never a loop) keeps calling
+  the singular `append_new_event`/`append_alias` — batching only pays off
+  where there's a batch. Confirmed by measurement: 50k import dropped from
+  "still running after 5+ minutes" to **20.1s**; 50k dedup dropped from
+  ">240s, and climbing" to **126.0s** (sub-objective 6's performance note
+  above has the detail). `tests/unit/test_events.py` gained direct tests for
+  `append_new_events`; all touched modules stayed at 100% line+branch
+  coverage throughout.

@@ -5,6 +5,7 @@ P4 canonical stability, P5 id determinism, P6 normalisation idempotence.
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
@@ -34,12 +35,14 @@ def json_values(draw: st.DrawFn, depth: int = 0) -> object:
     )
 
 
+@pytest.mark.req("P4")
 @given(json_values())
 def test_p4_canonical_stability(value: object) -> None:
     """`canon(x)` is byte-identical across repeated invocations."""
     assert canonical_json(value) == canonical_json(value)
 
 
+@pytest.mark.req("P5")
 @given(st.text(min_size=1, max_size=50))
 def test_p5_id_determinism(title: str) -> None:
     """The same input record yields the same id regardless of how many times it's computed.
@@ -56,6 +59,7 @@ def test_p5_id_determinism(title: str) -> None:
     assert record_id(key1) == record_id(key2)
 
 
+@pytest.mark.req("P6")
 @given(st.text(max_size=100))
 def test_p6_normalisation_idempotence(text: str) -> None:
     """`normalise(normalise(s)) == normalise(s)`."""

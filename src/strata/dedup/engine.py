@@ -8,12 +8,11 @@ Implements docs/spec/05-workflow-import.md §3.1 (stickiness), §3.4
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Literal
 
 from strata.core import aliases as aliases_mod
 from strata.core import records as records_mod
-from strata.core.events import append_new_event, iter_event_files, read_events
+from strata.core.events import append_new_event, append_new_events, iter_event_files, read_events
 from strata.core.repo import Repo
 from strata.dedup.blocking import find_candidate_pairs
 from strata.dedup.merge import choose_canonical, merge_fields
@@ -105,23 +104,22 @@ def _with_canonical_flag(record: dict[str, Any], canonical: bool) -> dict[str, A
     return {**record, "strata": {**record["strata"], "canonical": canonical}}
 
 
-def _apply_merge(
-    repo: Repo,
+def _merge_record(
     canonical: dict[str, Any],
     absorbed: dict[str, Any],
     *,
     source_trust: list[str],
-    result: PairScore,
-    method: str,
-    actor: str,
-    events_path: Path,
 ) -> dict[str, Any]:
-    """Merge `absorbed` into `canonical`: field-wise merge, alias entry, `dedup-merge` event.
+    """Pure: field-wise merge of `absorbed` into `canonical` (no I/O).
 
-    Returns the updated canonical record. The caller is responsible for
-    updating `absorbed`'s own `strata.canonical` flag and writing both back
-    to `records.ndjson` -- this function only builds the new canonical
-    record and performs the event/alias side effects.
+    Returns the new canonical record. The caller is responsible for the
+    `dedup-merge` event, the `aliases.ndjson` entry, updating `absorbed`'s
+    own `strata.canonical` flag, and writing both back to `records.ndjson`.
+    Split out from event/alias I/O (previously one `_apply_merge` did both)
+    so `run_dedup`'s per-pair loop can batch the I/O across every merge in
+    one run instead of one `append_new_event`/`append_alias` call per merge
+    -- each of which re-reads its whole file, making an O(n)-merge run
+    O(n^2) in the number of merges. See `append_new_events`'s docstring.
     """
     fields, provenance = merge_fields(canonical, absorbed, source_trust)
     canonical_strata = canonical.get("strata", {})
@@ -138,7 +136,7 @@ def _apply_merge(
     absorbed_flags = set(absorbed_strata.get("flags", []))
     merged_flags = sorted(canonical_flags | absorbed_flags)
 
-    merged_record: dict[str, Any] = {
+    return {
         **fields,
         "id": canonical["id"],
         "strata": {
@@ -151,26 +149,17 @@ def _apply_merge(
         },
     }
 
-    envelope = append_new_event(
-        events_path,
-        ev="dedup-merge",
-        actor=actor,
-        body={
-            "canonical": canonical["id"],
-            "absorbed": absorbed["id"],
-            "score": result.score if not result.doi_veto else 1.0,
-            "method": method,
-            "features": result.features,
-        },
-    )
-    aliases_mod.append_alias(
-        repo,
-        alias=absorbed["id"],
-        canonical=canonical["id"],
-        reason="dedup",
-        event=str(envelope["id"]),
-    )
-    return merged_record
+
+def _merge_event_body(
+    canonical_id: str, absorbed_id: str, *, result: PairScore, method: str
+) -> dict[str, Any]:
+    return {
+        "canonical": canonical_id,
+        "absorbed": absorbed_id,
+        "score": result.score if not result.doi_veto else 1.0,
+        "method": method,
+        "features": result.features,
+    }
 
 
 def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
@@ -181,6 +170,13 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
     (or are a `doi-conflict`) for the caller to run through
     `apply_review_decision`. Never emits an event for a pair that scores
     below `review_threshold` -- absence is the default (§3.4).
+
+    Every auto-merge's event and alias entry is batched and written once
+    after the loop (`append_new_events`, one `write_aliases`), not one at a
+    time per merge -- seeing an event, alias, or `records.ndjson` write mid-run
+    is never possible for another process anyway, so there's nothing this
+    trades away, and it turns an O(n)-merge run from O(n^2) into O(n) in the
+    number of merges.
     """
     auto_threshold, review_threshold = thresholds(repo, strict=strict)
     trust = source_trust_order(repo)
@@ -197,6 +193,7 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
 
     auto_merged: list[tuple[str, str]] = []
     review_queue: list[ReviewCandidate] = []
+    pending_events: list[tuple[str, str, dict[str, Any]]] = []
 
     for a_id, b_id in sorted(blocking_result.pairs):
         pair_key = _pair_key(a_id, b_id)
@@ -211,15 +208,15 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
 
         if result.score >= auto_threshold and not doi_conflict:
             canonical, absorbed = choose_canonical(record_a, record_b, trust)
-            merged = _apply_merge(
-                repo,
-                canonical,
-                absorbed,
-                source_trust=trust,
-                result=result,
-                method="auto-threshold",
-                actor=actor,
-                events_path=events_path,
+            merged = _merge_record(canonical, absorbed, source_trust=trust)
+            pending_events.append(
+                (
+                    "dedup-merge",
+                    actor,
+                    _merge_event_body(
+                        canonical["id"], absorbed["id"], result=result, method="auto-threshold"
+                    ),
+                )
             )
             del by_id[absorbed["id"]]
             by_id[canonical["id"]] = merged
@@ -233,6 +230,20 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
             review_queue.append(candidate)
 
     records_mod.write_records(repo, [*by_id.values(), *absorbed_records])
+
+    if pending_events:
+        envelopes = append_new_events(events_path, pending_events)
+        alias_entries = aliases_mod.read_aliases(repo)
+        for envelope, (canonical_id, absorbed_id) in zip(envelopes, auto_merged, strict=True):
+            alias_entries.append(
+                {
+                    "alias": absorbed_id,
+                    "canonical": canonical_id,
+                    "reason": "dedup",
+                    "event": str(envelope["id"]),
+                }
+            )
+        aliases_mod.write_aliases(repo, alias_entries)
 
     return DedupOutcome(
         candidate_pairs_considered=len(blocking_result.pairs),
@@ -277,15 +288,21 @@ def apply_review_decision(
     by_id = {r["id"]: r for r in all_records}
     record_a, record_b = by_id[record_a_id], by_id[record_b_id]
     canonical, absorbed = choose_canonical(record_a, record_b, trust)
-    merged = _apply_merge(
-        repo,
-        canonical,
-        absorbed,
-        source_trust=trust,
-        result=result,
-        method="manual-review",
+    merged = _merge_record(canonical, absorbed, source_trust=trust)
+    envelope = append_new_event(
+        events_path,
+        ev="dedup-merge",
         actor=actor,
-        events_path=events_path,
+        body=_merge_event_body(
+            canonical["id"], absorbed["id"], result=result, method="manual-review"
+        ),
+    )
+    aliases_mod.append_alias(
+        repo,
+        alias=absorbed["id"],
+        canonical=canonical["id"],
+        reason="dedup",
+        event=str(envelope["id"]),
     )
     by_id[canonical["id"]] = merged
     by_id[absorbed["id"]] = _with_canonical_flag(absorbed, canonical=False)

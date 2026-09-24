@@ -29,15 +29,19 @@ calibration loop is disabled (`rounds=1, iterations=1`) since re-running a
 50,000-record dedup pass several times to calibrate would itself blow past
 the time budget this test is trying to check.
 
-Known gap, tracked in docs/m1-plan.md sub-objective 6: this assertion does
-not currently pass in the sandboxed environment this was developed in --
-blocking alone (`find_candidate_pairs`'s per-record MinHash) takes roughly
-77s at 50,000 records, and the full run (blocking + scoring ~53,000
-candidate pairs) took over 240s. That may or may not also be true on the
-spec's "2020-era laptop" target; either way, that's exactly why this lives
-in the advisory tier rather than the blocking merge gate, and is left as a
-known follow-up rather than fixed here by touching sub-objective 5's
-already-tested `blocking.py`/`scoring.py` under time pressure.
+Known gap, tracked in docs/m1-plan.md sub-objective 8: measured at **126.0s**
+in the sandboxed environment this was developed in -- just over §3.7's strict
+120s, though comfortably inside the M1 acceptance bar's looser 300s
+(docs/spec/15-roadmap.md). This used to be far worse (>240s, and climbing):
+sub-objective 8 found and fixed an O(n^2) event/alias-append bug that was the
+dominant cost for the ~5,000 merges this fixture produces (see
+`strata.core.events.append_new_events`'s docstring). What remains is
+blocking's per-record MinHash computation alone, which takes roughly 77s at
+50,000 records -- a separate, smaller-magnitude cost left as a known
+follow-up rather than fixed here by touching sub-objective 5's already-tested
+`blocking.py` under time pressure. That may or may not also be true on the
+spec's "2020-era laptop" target; either way, that's exactly why this lives in
+the advisory tier rather than the blocking merge gate.
 """
 
 from __future__ import annotations
@@ -47,6 +51,8 @@ import resource
 import string
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from strata.core.init import init_repository
 from strata.core.records import write_records
@@ -148,6 +154,7 @@ def _generate_records(rng: random.Random) -> list[dict[str, Any]]:
     return records
 
 
+@pytest.mark.benchmark_50k
 def test_dedup_50k_records_under_time_and_memory_budget(tmp_path: Path, benchmark: Any) -> None:
     rng = random.Random(_SEED)
     records = _generate_records(rng)

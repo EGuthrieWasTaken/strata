@@ -2,6 +2,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from strata.core.events import append_new_event
 from strata.core.repo import Repo
 from strata.core.verify import verify_repository
@@ -68,6 +70,7 @@ def test_verify_reports_event_schema_errors(tmp_path: Path) -> None:
     assert any(i.code == "E_SCHEMA" for i in report.issues)
 
 
+@pytest.mark.req("E_CHAIN")
 def test_verify_reports_chain_violations_unless_fast(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     path = repo.path("events", "note", "ethan.ndjson")
@@ -82,6 +85,7 @@ def test_verify_reports_chain_violations_unless_fast(tmp_path: Path) -> None:
     assert any(i.code == "E_CHAIN" for i in full_report.issues)
 
 
+@pytest.mark.req("E_DANGLING_REF")
 def test_verify_reports_dangling_record_reference(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
@@ -155,6 +159,7 @@ def test_verify_accepts_dedup_merge_referencing_alias(tmp_path: Path) -> None:
     assert not any(i.code == "E_DANGLING_REF" for i in report.issues)
 
 
+@pytest.mark.req("E_ALIAS_CYCLE")
 def test_verify_detects_alias_cycle(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     aliases_path = repo.path("records", "aliases.ndjson")
@@ -218,6 +223,7 @@ def test_verify_accepts_valid_record(tmp_path: Path) -> None:
     assert not any(i.code == "E_SCHEMA" and "records" in (i.path or "") for i in report.issues)
 
 
+@pytest.mark.req("E_SCHEMA")
 def test_verify_reports_invalid_record_schema(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     records_path = repo.path("records", "records.ndjson")

@@ -36,24 +36,28 @@ rather have quietly rewritten.
 
 ## Status
 
-**M0 (substrate) complete; M1 ("literature in") in progress.** The
-pull-request gate, the repository format's core (event log, canonical
-serialisation, identity and normalisation, the fold), and
+**M0 (substrate) and M1 ("literature in") complete.** The pull-request gate,
+the repository format's core (event log, canonical serialisation, identity
+and normalisation, the fold), and
 `init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
 implemented and tested. Recording searches (`strata search add`/`list`) and
 importing literature (`strata import`, with CSL-JSON/RIS/BibTeX/PubMed-MEDLINE/
 CSV-TSV parsers and detection profiles for six major database platforms) both
-work end to end, including idempotent re-import and full provenance.
-Deduplication (`strata dedup`) is implemented end to end: blocking, scoring,
-thresholds, auto-merge, an interactive review queue, merge semantics, and
-`--undo`, validated against a labelled benchmark (recall 1.000, false-merge
-rate 0.0000 against the v1 targets — see
+work end to end, including idempotent re-import and full provenance, and hold
+up against a `hypothesis`-driven fuzz corpus. Deduplication (`strata dedup`)
+is implemented end to end: blocking, scoring, thresholds, auto-merge, an
+interactive review queue, merge semantics, and `--undo`, validated against a
+labelled benchmark (recall 1.000, false-merge rate 0.0000 against the v1
+targets — see
 [`docs/dedup-benchmark-results.md`](docs/dedup-benchmark-results.md)).
 `strata records list|show`, `strata why`, and `strata fix` are implemented,
 including the `--filter` expression language shared with the (future) web UI
-and analysis specs. Screening, extraction, and analysis are not built yet; see
-[the roadmap](docs/spec/15-roadmap.md) for M1's remainder and what M2 brings
-next, and [`docs/m1-plan.md`](docs/m1-plan.md) for the current
+and analysis specs. A 50,000-record import completes in ~20s and a
+50,000-record dedup pass in ~126s (single-threaded, well inside the M1
+roadmap's acceptance targets). Screening, extraction, and analysis are not
+built yet; see [the roadmap](docs/spec/15-roadmap.md) for what M2 brings
+next, and [`docs/m1-plan.md`](docs/m1-plan.md) for the sub-objective-by-
+sub-objective
 sub-objective-by-sub-objective status.
 
 ```
