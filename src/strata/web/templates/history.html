@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<h1>History</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<form method="get" action="/history" class="note-field">
+  <label>
+    Stage
+    <input type="text" name="stage" value="{{ stage or '' }}">
+  </label>
+  <label>
+    Actor
+    <input type="text" name="actor" value="{{ actor or '' }}">
+  </label>
+  <button type="submit" class="btn">Filter</button>
+</form>
+
+<p>{{ commits | length }} commit{{ "s" if commits | length != 1 else "" }}</p>
+
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Commit</th>
+      <th scope="col">Subject</th>
+      <th scope="col">Op</th>
+      <th scope="col">Actor</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in commits %}
+    <tr>
+      <th scope="row"><code>{{ c.sha[:10] }}</code></th>
+      <td>{{ c.subject }}</td>
+      <td>{{ c.trailers.get("Op", "") }}</td>
+      <td>{{ c.trailers.get("Actor", "") }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

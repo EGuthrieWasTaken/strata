@@ -15,7 +15,11 @@
 <p class="notice">Pending searches awaiting an export file: {{ report.pending_searches | join(", ") }}</p>
 {% endif %}
 
-<p><a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a></p>
+<p>
+  <a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
+  &middot; <a href="/records">Records ({{ report.record_count }}) &rarr;</a>
+  &middot; <a href="/history">History &rarr;</a>
+</p>
 
 <h2>Screening stages</h2>
 <table class="stage-table">

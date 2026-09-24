@@ -3,16 +3,25 @@
 Scope built so far (docs/m2-plan.md sub-objective 11 splits the web UI into
 sittings): the dashboard (`/`), the title-abstract/full-text screening
 surface (`/screen/<stage>`), the stale-queue re-screening surface
-(`/rescreen/<stage>`), conflict resolution (`/adjudicate/<stage>`), and the
+(`/rescreen/<stage>`), conflict resolution (`/adjudicate/<stage>`), the
 criteria editor with its live, non-mutating impact preview (`/criteria`) --
 the one web-UI piece the M2 roadmap acceptance checklist names outright
 ("The criteria editor's impact preview is correct and non-mutating,"
-docs/spec/15-roadmap.md). All of it is server-rendered with full-page-
-reload semantics (§5's hard "MUST function with JavaScript disabled"
-requirement) plus a small keyboard-shortcut script layered on top, not a
-JS-required SPA. `/dedup`, `/records*`, `/history`, and everything
-M3-shaped (`/extract/*`, `/rob/*`, `/analysis/*`, `/prisma`) remain
-deferred, tracked in that same plan entry.
+docs/spec/15-roadmap.md) -- and the read-only `/records`, `/records/<id>`,
+`/history` screens (reusing exactly the CLI's own data paths: `core.filters`
+for `--filter`, `core.provenance.build_provenance` for `strata why`,
+`core.logcmd.domain_log` for `strata log`). All of it is server-rendered
+with full-page-reload semantics (§5's hard "MUST function with JavaScript
+disabled" requirement) plus a small keyboard-shortcut script layered on
+top, not a JS-required SPA.
+
+`/dedup` remains deliberately deferred, not just unstarted: `dedup.engine.
+run_dedup` has no dry-run mode (the same gap `core.status.compute_status`'s
+own docstring already flags), so there is no way to render "what's pending
+review" without either running dedup as a side effect of a `GET` request
+(violating basic HTTP safety) or building a genuine preview path first --
+real additional scope, not a straightforward reuse of M1 code the way
+`/records*`/`/history` were.
 
 **Statelessness and "undo"/"skip".** §1 requires the server be stateless
 with respect to the repository, so there is no server-side session
@@ -52,6 +61,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from strata import gitio
+from strata.core import filters as filters_mod
+from strata.core import logcmd as logcmd_mod
+from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
@@ -674,3 +686,88 @@ async def criteria_retire_submit(
         rationale=rationale,
     )
     return RedirectResponse(url="/criteria", status_code=303)
+
+
+# ----------------------------------------------------------------- records
+
+
+@router.get("/records", response_class=HTMLResponse)
+async def records_list_view(request: Request) -> HTMLResponse:
+    """Searchable/filterable record table (docs/spec/11-web-ui.md §2).
+    Read-only, reusing exactly `cli.main.records_list`'s data path
+    (`core.filters`'s `--filter` expression language, docs/spec/10-cli.md
+    §3) -- unlike `/dedup` (still deferred, see this module's docstring),
+    nothing here needs a mutating call to compute what to show.
+    """
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    filter_expr = request.query_params.get("filter") or ""
+    records = [
+        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
+    ]
+    error: str | None = None
+    if filter_expr:
+        try:
+            ast = filters_mod.parse(filter_expr)
+            records = [
+                r
+                for r in records
+                if filters_mod.evaluate(ast, records_mod.record_field_resolver(r))
+            ]
+        except filters_mod.FilterSyntaxError as exc:
+            error = f"invalid filter: {exc}"
+        except filters_mod.FilterEvaluationError as exc:
+            error = f"filter failed: {exc}"
+    records.sort(key=lambda r: str(r["id"]))
+    rows = [
+        {
+            "id": r["id"],
+            "year": _record_year(r),
+            "authors": _author_display(r),
+            "title": r.get("title") or "",
+        }
+        for r in records
+    ]
+    return _render(
+        request,
+        "records.html",
+        {"rows": rows, "filter_expr": filter_expr, "error": error},
+    )
+
+
+@router.get("/records/{record_id}", response_class=HTMLResponse)
+async def record_detail_view(request: Request, record_id: str) -> HTMLResponse:
+    """Record detail + provenance timeline (`strata why`'s data,
+    `core.provenance.build_provenance`)."""
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    record = records_mod.get_record(repo, record_id)
+    if record is None:
+        return HTMLResponse(f"unknown record {record_id!r}", status_code=404)
+    provenance = provenance_mod.build_provenance(repo, record_id)
+    return _render(
+        request,
+        "record_detail.html",
+        {
+            "record": record,
+            "authors": _author_display(record),
+            "year": _record_year(record),
+            "provenance": provenance,
+        },
+    )
+
+
+# ----------------------------------------------------------------- history
+
+
+@router.get("/history", response_class=HTMLResponse)
+async def history_view(request: Request) -> HTMLResponse:
+    """Domain-level history read through `Strata-` commit trailers
+    (`strata log`'s data, `core.logcmd.domain_log`) -- never raw commit
+    messages, matching that module's own framing."""
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    stage = request.query_params.get("stage") or None
+    actor = request.query_params.get("actor") or None
+    commits = logcmd_mod.domain_log(repo, stage=stage, actor=actor)
+    return _render(request, "history.html", {"commits": commits, "stage": stage, "actor": actor})

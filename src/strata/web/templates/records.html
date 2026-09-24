@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Records{% endblock %}
+{% block content %}
+<h1>Records</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<form method="get" action="/records" class="note-field">
+  <label>
+    Filter (docs/spec/10-cli.md &sect;3)
+    <input type="text" name="filter" value="{{ filter_expr }}" placeholder="e.g. year&gt;2015 and decision=include">
+  </label>
+  <button type="submit" class="btn">Apply</button>
+</form>
+
+{% if error %}
+<p class="error" role="alert">{{ error }}</p>
+{% endif %}
+
+<p>{{ rows | length }} record{{ "s" if rows | length != 1 else "" }}</p>
+
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">ID</th>
+      <th scope="col">Year</th>
+      <th scope="col">Authors</th>
+      <th scope="col">Title</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <th scope="row"><a href="/records/{{ row.id }}">{{ row.id }}</a></th>
+      <td>{{ row.year or "" }}</td>
+      <td>{{ row.authors }}</td>
+      <td>{{ row.title }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

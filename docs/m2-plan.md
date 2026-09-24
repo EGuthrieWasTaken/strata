@@ -111,7 +111,7 @@ M2:
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
 | 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
 | 11b | Web UI, sitting 2: criteria editor w/ live, non-mutating impact preview (M2 acceptance bullet) | **done** |
-| 11c | Web UI, sitting 3: rescreen + adjudicate screens (`/dedup`/`/records*`/`/history` still open) | **partial** |
+| 11c | Web UI, sitting 3: rescreen + adjudicate + records/history screens (`/dedup` still open) | **partial** |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | **done** |
 
 ### 1. Criteria management — done
@@ -950,7 +950,7 @@ criterion rejections, retire-already-retired) plus `routes.py` staying at
 100% combined with 11a's existing tests. Full suite after this
 sub-objective: 935 passed, 97.5% overall coverage.
 
-### 11c. Web UI, sitting 3 — partial (`/rescreen`, `/adjudicate` done; `/dedup`/`/records*`/`/history` still open)
+### 11c. Web UI, sitting 3 — partial (`/rescreen`, `/adjudicate`, `/records*`, `/history` done; `/dedup` still open)
 
 Spec: `docs/spec/11-web-ui.md` §2's `/rescreen` and `/adjudicate` rows,
 §3.2 (re-screening mode).
@@ -991,21 +991,41 @@ Both screens reuse `keyboard.js` (added a `k`ey binding for `[k]eep
 previous`) and the existing `screen-form` id, so the same single-key
 shortcuts and CSS work without new client code.
 
+**`/records`** (searchable/filterable table) and **`/records/<id>`**
+(detail + `strata why` provenance timeline) reuse `core.filters` (the
+same expression language as `strata records --filter`, §10-cli.md §3;
+note the grammar's `==` for equality, not `=`) and
+`core.provenance.build_provenance` respectively — both read-only, no new
+write paths. A syntax error and an evaluation error (a well-formed filter
+referring to a field not resolvable, e.g. one of the fields §10-cli.md
+notes as not yet implemented) are distinct failure modes, both surfaced
+in-page rather than as a 500. **`/history`** reuses
+`core.logcmd.domain_log`, i.e. `strata log`'s own data path
+(`Strata-*` commit trailers), with the same `actor`/`stage` filters.
+
 **Testing**: `tests/integration/test_web_rescreen.py` (12 tests: unknown
 stage, empty queue, prior decision/reason display, keep-previous,
 new-decision-with-citation, CSRF, re-keeping an already-resolved record,
-skip, redo, invalid criterion, skip-carried-into-redirect) and `tests/
-integration/test_web_adjudicate.py` (10 tests: unknown stage, no
+skip, redo, invalid criterion, skip-carried-into-redirect),
+`tests/integration/test_web_adjudicate.py` (10 tests: unknown stage, no
 conflicts, both opinions shown, non-adjudicator view/rejection, resolve +
-commit, missing rationale, CSRF, skip, skip-carried-into-redirect).
-`routes.py` stays at 100% line+branch combined with 11a/11b's tests.
+commit, missing rationale, CSRF, skip, skip-carried-into-redirect),
+`tests/integration/test_web_records.py` (8 tests: list-all, filter
+narrows, filter with no matches, invalid filter syntax, filter evaluation
+error, links to detail pages, detail shows metadata + provenance, unknown
+id is 404), and `tests/integration/test_web_history.py` (4 tests: shows
+every commit, filter by actor, filter by actor with no matches, filter by
+stage). `routes.py` stays at 100% line+branch combined with 11a/11b's
+tests.
 
-**Still open** (tracked, not dropped): `/dedup` (duplicate review queue),
-`/records` (searchable/filterable table), `/records/<id>` (detail +
-`strata why` provenance timeline), `/history` (domain-level history from
-commit trailers) — all four can reuse M1 data and code paths already
-built for the CLI, and are lower risk than what's been built so far since
-none of them touch the append-only event log's write path. Also still
+**Still open** (tracked, not dropped): `/dedup` (duplicate review queue)
+— deliberately deferred rather than just unstarted, since
+`dedup.engine.run_dedup` has no dry-run mode (a gap `core.status
+.compute_status`'s own docstring already flagged), so there's no way to
+render "what's pending review" without either mutating on a `GET`
+request (violating HTTP safety) or building new preview infrastructure
+first; genuinely more scope than the read-only screens above, which
+could all reuse an existing non-mutating data path as-is. Also still
 open: htmx partial updates for S2's "asynchronous" half, and the §2.4
 batched-commit policy for web screening/rescreening sessions specifically
 (still "append immediately, commit later via the CLI," as of 11a).

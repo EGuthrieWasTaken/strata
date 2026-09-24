@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ record.id }}{% endblock %}
+{% block content %}
+<h1>{{ record.id }}</h1>
+<p><a href="/records">&larr; Back to records</a></p>
+
+<article class="record-card">
+  <h2>{{ record.title or "" }}</h2>
+  <p class="byline">
+    {% if authors %}{{ authors }}{% endif %}
+    {% if year %} ({{ year }}){% endif %}
+  </p>
+  <p>
+    {{ record.get("container-title", "") }}{% if record.volume %}, {{ record.volume }}{% endif %}{% if record.issue %}({{ record.issue }}){% endif %}{% if record.page %}, {{ record.page }}{% endif %}
+  </p>
+  {% if record.DOI %}
+  <p>DOI: {{ record.DOI }}</p>
+  {% endif %}
+  {% if record.abstract %}
+  <p class="abstract">{{ record.abstract }}</p>
+  {% endif %}
+  <p>canonical: {{ record.strata.canonical if record.strata else True }}</p>
+  {% if record.strata and record.strata.absorbed %}
+  <p>absorbed: {{ record.strata.absorbed | join(", ") }}</p>
+  {% endif %}
+</article>
+
+<h2>Provenance</h2>
+{% if not provenance %}
+<p class="todo-note">No recorded provenance for this record.</p>
+{% else %}
+{% for entry in provenance %}
+<div class="record-card">
+  <p><strong>{{ entry.kind | upper }}</strong>
+    {% if entry.ts %} {{ entry.ts }}{% endif %}
+    {% if entry.actor %} by {{ entry.actor }}{% endif %}</p>
+  <dl class="summary-grid">
+    {% for key, value in entry.detail.items() %}
+    <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
