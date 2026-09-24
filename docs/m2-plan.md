@@ -546,6 +546,94 @@ case is losing the *in-progress* decision, never a torn write; assert
 `strata verify` still passes and no decision is lost by re-running against
 a process killed after N of M decisions).
 
+#### E2E-01 — done
+
+`tests/e2e/test_e2e_01_origin_scenario.py` is in and passing: init, two
+actors, two criteria, two searches, two CSL-JSON imports (one exact-DOI
+duplicate so dedup does real work), dual screening of all 14 canonical
+records, adding EXC-07 mid-review, asserting the exact stale set (all 14 —
+see the module docstring for why this test's numbers depart from §9's "180
+of 2,918" narrative: the normative §4.2 rule has no per-record content
+test, so it can only be exact against a corpus this test itself defines,
+never against narrative color from a corpus this repo doesn't have — same
+principle as sub-objective 1's version-numbering call), then re-screening
+every stale record with both reviewers and asserting a clean, fully
+resolved pool.
+
+**A real bug this test caught, not a test-only fix.** Writing the dual-mode
+re-screen half of this scenario (both `ethan` and `sam` re-deciding all 14
+records, half kept, half newly excluded) surfaced a genuine defect in
+`protocol/rescreen.py`'s multi-reviewer staleness model from sub-objective
+4: `rescreen_queue` filtered `compute_stale_records`'s *aggregate*
+resolved-decision view down to the given actor's assignment. That aggregate
+view only exists while the record is currently resolved (`include`/
+`exclude`) — the instant `ethan` re-screened a record to `exclude` while
+`sam`'s opinion was still the old, stale `include`, `core.fold.resolve_screening`
+correctly flipped the record to `conflict`, and `compute_stale_records`
+(which only ever considers resolved records, matching §5's reason table
+having no "conflict" row) dropped it entirely. `sam`'s own opinion was
+exactly as stale as before, but it silently vanished from `sam`'s
+`rescreen_queue` — half the queue disappeared mid-workflow, and those
+records were stuck as unresolved conflicts with no path back except
+`strata adjudicate`, which defeats the entire point of a same-answer dual
+re-screen. The E2E test's own Python-level `compute_stale_records` check
+(14/14, before either reviewer acted) and the CLI's first (`ethan`)
+`rescreen` call both looked correct in isolation; only the *second*
+reviewer's call, after the first had already introduced disagreement,
+exposed the gap — which is exactly the kind of interaction-order bug a
+single-reviewer or synthetic unit fixture won't surface, and the reason
+this sub-objective's E2E tests matter beyond the unit-level coverage
+sub-objectives 1-8 already have.
+
+The fix (`protocol/rescreen.py`): staleness for `rescreen_queue` purposes is
+now evaluated against **that actor's own most recent opinion** directly
+(`_effective_opinion(state, actor=<handle>)`), per §4.2's literal
+per-decision reading, independent of the record's aggregate resolved/
+conflict status. `compute_stale_records` (and therefore `derived/stale.tsv`
+and `strata status`'s stage stats) keeps the existing aggregate,
+record-level view unchanged (`_effective_opinion(state, actor=None)`,
+same earliest-version/union-of-citations heuristic as before) — that
+reporting view is still correct and unaffected; only the actor-scoped
+rescreen queue needed the fix. Added `test_rescreen_queue_survives_a_dual_reviewer_conflict`
+(`tests/unit/test_rescreen.py`) as a focused regression test alongside the
+E2E coverage, and `test_rescreen_queue_excludes_a_stale_opinion_after_reassignment`
+for the adjacent edge case (an actor's own stale opinion should stop
+appearing in their queue once they're reassigned off the record). Removed
+the now-dead `_resolved_decision` wrapper it replaced rather than keeping
+it as a compatibility shim; `rescreen.py` is back to 100% line+branch
+coverage.
+
+**A second, unrelated bug the same test caught.** `strata actor add` and
+`strata actor deactivate` mutated `strata.toml` but never committed —
+a gap from M0/M1 that no existing test had caught because none of them
+checked repository cleanliness after an actor-management call.
+docs/spec/04-git-integration.md §2.1 is unconditional ("every mutating
+`strata` command produces exactly one commit, unless `--no-commit` is
+passed"); this test's final `assert not gitio.is_dirty(root)` — the same
+end-of-scenario cleanliness check `test_e2e_07...` already uses — caught
+the leftover `strata.toml` diff immediately once the rescreen bug above was
+fixed and the test could run to completion. Fixed both commands to build a
+`StructuredCommit` and commit `strata.toml` through the same
+rationale-eliciting path (`_get_rationale`) every other mutating command
+uses (new shared `_commit_manifest_op` helper in `cli/main.py`, mirroring
+`_commit_domain_op`'s shape but staging `strata.toml` instead of
+`records`/`events`/`derived`). This is a behavior change for every existing
+caller of `actor add`/`deactivate`: `git.require_rationale` defaults to
+`true`, so both commands now require `--why`/`--why-file` in a
+non-interactive context, matching `criteria add`/`search add`/every other
+mutating command. Updated every call site across the test suite
+(`test_cli_init.py`, `test_cli_screen.py`, `test_cli_irr.py`,
+`test_cli_adjudicate.py`, `test_e2e_02_concurrent_clones.py` — the latter
+also dropped a manual `gitio.add_all`/`gitio.commit` workaround it had been
+using to paper over the missing commit) and added direct coverage
+(`test_actor_add_requires_rationale_non_interactively`,
+`test_actor_add_no_commit_leaves_working_tree_dirty`,
+`test_actor_deactivate_unknown_handle_is_usage_error`) in `test_cli_init.py`.
+
+Remaining for this sub-objective: `test_e2e_04...loosened`,
+`test_e2e_05...retired`, `test_e2e_06...cascading`, `test_e2e_09...interrupt`
+(see the plan above each).
+
 ### 10. Screening-latency benchmark
 
 Spec: `docs/spec/15-roadmap.md` M2 acceptance ("< 100 ms p95 decision

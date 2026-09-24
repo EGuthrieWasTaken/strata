@@ -420,6 +420,22 @@ def log_command(
         out_console.print(f"{c.sha[:10]}  {c.subject}")
 
 
+def _commit_manifest_op(
+    ctx: typer.Context, repo: Repo, *, op: str, scope: str, summary: str, trailers: dict[str, str]
+) -> None:
+    """Commit a `strata.toml`-only change (docs/spec/04-git-integration.md
+    §2.1: every mutating command produces exactly one commit)."""
+    if ctx.obj["no_commit"]:
+        out_console.print(f"[green]{summary}[/] (not committed)")
+        return
+    rationale = _get_rationale(ctx, repo, f"You {summary}.")
+    commit_obj = StructuredCommit(
+        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    )
+    gitio.add(repo.root, ["strata.toml"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
 @actor_app.command("add")
 def actor_add(
     ctx: typer.Context,
@@ -434,6 +450,14 @@ def actor_add(
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    _commit_manifest_op(
+        ctx,
+        repo,
+        op="actor-add",
+        scope=handle,
+        summary=f"add actor {handle}",
+        trailers={"Op": "actor-add", "Actor": handle, "Role": role},
+    )
     out_console.print(f"[green]added[/] actor {handle}")
 
 
@@ -456,6 +480,14 @@ def actor_deactivate(ctx: typer.Context, handle: str) -> None:
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    _commit_manifest_op(
+        ctx,
+        repo,
+        op="actor-deactivate",
+        scope=handle,
+        summary=f"deactivate actor {handle}",
+        trailers={"Op": "actor-deactivate", "Actor": handle},
+    )
     out_console.print(f"[green]deactivated[/] actor {handle}")
 
 

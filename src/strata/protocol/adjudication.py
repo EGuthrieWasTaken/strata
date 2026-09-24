@@ -11,7 +11,7 @@ records `criteria_version`, the set `criteria_digest`, and the specific
 `criteria[]` cited. A decision is therefore always interpretable against
 the exact rules in force when it was made." An adjudication is exactly the
 kind of decision `docs/m2-plan.md` sub-objective 4's staleness engine needs
-a stamped version for (`protocol.rescreen._resolved_decision`'s
+a stamped version for (`protocol.rescreen._effective_opinion`'s
 adjudication branch already expects one). This module follows the
 normative §4.1 text and stamps both fields, treating the catalog table's
 omission as incomplete rather than as an exemption.

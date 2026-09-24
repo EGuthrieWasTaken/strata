@@ -42,10 +42,20 @@ def test_two_clones_disjoint_events_merge_without_conflict(tmp_path: Path) -> No
     )
     assert init_result.exit_code == 0, init_result.output
 
-    add_sam = runner.invoke(app, ["-C", str(origin), "actor", "add", "sam", "Sam"])
+    add_sam = runner.invoke(
+        app,
+        [
+            "--why",
+            "Sam is joining the review team as a second screener.",
+            "-C",
+            str(origin),
+            "actor",
+            "add",
+            "sam",
+            "Sam",
+        ],
+    )
     assert add_sam.exit_code == 0, add_sam.output
-    gitio.add_all(origin)
-    gitio.commit(origin, "chore: add sam as an actor\n\nStrata-Op: actor-add\n")
 
     bare = tmp_path / "origin.git"
     gitio.run(["init", "--bare", "--initial-branch=main", str(bare)], cwd=tmp_path)

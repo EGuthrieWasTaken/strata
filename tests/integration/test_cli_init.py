@@ -2,7 +2,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from strata.cli.main import EXIT_NOT_REPO, EXIT_OK, EXIT_USAGE, app
+from strata import gitio
+from strata.cli.main import EXIT_NOT_REPO, EXIT_OK, EXIT_RATIONALE_REFUSED, EXIT_USAGE, app
 
 runner = CliRunner()
 
@@ -100,18 +101,75 @@ def test_config_get_and_set(tmp_path: Path) -> None:
 def test_actor_add_list_deactivate(tmp_path: Path) -> None:
     root = _init(tmp_path)
     add_result = runner.invoke(
-        app, ["-C", str(root), "actor", "add", "sam", "Sam Okonkwo", "--role", "screener"]
+        app,
+        [
+            "--why",
+            "Sam is joining the review team as a second screener.",
+            "-C",
+            str(root),
+            "actor",
+            "add",
+            "sam",
+            "Sam Okonkwo",
+            "--role",
+            "screener",
+        ],
     )
     assert add_result.exit_code == EXIT_OK, add_result.output
+    assert not gitio.is_dirty(root)
 
     list_result = runner.invoke(app, ["-C", str(root), "actor", "list"])
     assert "sam" in list_result.output
 
-    dup_result = runner.invoke(app, ["-C", str(root), "actor", "add", "sam", "Sam Again"])
+    dup_result = runner.invoke(
+        app,
+        [
+            "--why",
+            "Trying to add sam a second time.",
+            "-C",
+            str(root),
+            "actor",
+            "add",
+            "sam",
+            "Sam Again",
+        ],
+    )
     assert dup_result.exit_code == EXIT_USAGE
 
-    deactivate_result = runner.invoke(app, ["-C", str(root), "actor", "deactivate", "sam"])
+    deactivate_result = runner.invoke(
+        app,
+        [
+            "--why",
+            "Sam has left the review team.",
+            "-C",
+            str(root),
+            "actor",
+            "deactivate",
+            "sam",
+        ],
+    )
     assert deactivate_result.exit_code == EXIT_OK
+    assert not gitio.is_dirty(root)
 
     list_after = runner.invoke(app, ["-C", str(root), "actor", "list"])
     assert "inactive" in list_after.output
+
+
+def test_actor_add_requires_rationale_non_interactively(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    result = runner.invoke(app, ["-C", str(root), "actor", "add", "sam", "Sam"])
+    assert result.exit_code == EXIT_RATIONALE_REFUSED, result.output
+
+
+def test_actor_add_no_commit_leaves_working_tree_dirty(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    result = runner.invoke(app, ["--no-commit", "-C", str(root), "actor", "add", "sam", "Sam"])
+    assert result.exit_code == EXIT_OK, result.output
+    assert "not committed" in result.output
+    assert gitio.is_dirty(root)
+
+
+def test_actor_deactivate_unknown_handle_is_usage_error(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    result = runner.invoke(app, ["-C", str(root), "actor", "deactivate", "nobody"])
+    assert result.exit_code == EXIT_USAGE, result.output

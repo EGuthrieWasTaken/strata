@@ -97,22 +97,63 @@ def _criterion_changes(repo: Repo) -> list[CriterionChange]:
     return changes
 
 
-def _resolved_decision(
-    state: ScreeningState,
-) -> tuple[str, int, frozenset[str]] | None:
-    """`(decision, decision_version, cited)` for a resolved record, or `None`.
+@dataclass(frozen=True)
+class _Opinion:
+    """One `(decision, version, cited)` triple to test for staleness, plus the
+    order key of whatever event produced it (for manual-mark consumption)."""
 
-    See the module docstring for the min-version/union-citation heuristic
-    this uses to collapse a multi-opinion agreement into one decision.
+    decision: str
+    version: int
+    cited: frozenset[str]
+    order_key: tuple[str, str]
+
+
+def _effective_opinion(state: ScreeningState, *, actor: str | None) -> _Opinion | None:
+    """The decision to test for staleness at one `(stage, record)`.
+
+    `actor=None` is the aggregate, resolved-record view: the module
+    docstring's min-version/union-of-citations heuristic, only defined once
+    the record is actually *resolved* (`include`/`exclude`).
+
+    `actor=<handle>` is that reviewer's own most recent opinion, evaluated
+    directly per §4.2's literal per-decision rule -- independent of the
+    record's aggregate status. This is what makes dual-mode re-screening
+    actually work: the instant one reviewer's fresh opinion disagrees with
+    the other's still-stale one, the record's aggregate status flips to
+    `conflict`, which would otherwise erase it from `compute_stale_records`
+    entirely and leave the second reviewer with nothing in their queue even
+    though *their own* opinion is still exactly as stale as it was before
+    the first reviewer acted (docs/m2-plan.md sub-objective 9's E2E-01 test
+    caught this: dual re-screening silently lost half its queue).
+
+    Either way, an adjudicated record uses the adjudication's own stamped
+    version/citations, since adjudication is the one shared, authoritative
+    decision that supersedes every individual opinion.
     """
-    if state.status not in ("include", "exclude"):
-        return None
     if state.adjudication is not None:
         body = state.adjudication["body"]
         version = body.get("criteria_version")
         if version is None:
             return None
-        return state.status, int(version), frozenset(body.get("criteria") or [])
+        return _Opinion(
+            decision=state.adjudication["body"]["decision"],
+            version=int(version),
+            cited=frozenset(body.get("criteria") or []),
+            order_key=_order_key(state.adjudication),
+        )
+    if actor is not None:
+        opinion_event = state.opinions.get(actor)
+        if opinion_event is None:
+            return None
+        body = opinion_event["body"]
+        return _Opinion(
+            decision=body["decision"],
+            version=int(body["criteria_version"]),
+            cited=frozenset(body.get("criteria") or []),
+            order_key=_order_key(opinion_event),
+        )
+    if state.status not in ("include", "exclude"):
+        return None
     opinions = list(state.opinions.values())
     if not opinions:
         return None
@@ -120,7 +161,12 @@ def _resolved_decision(
     cited: set[str] = set()
     for opinion in opinions:
         cited.update(opinion["body"].get("criteria") or [])
-    return state.status, min(versions), frozenset(cited)
+    return _Opinion(
+        decision=state.status,
+        version=min(versions),
+        cited=frozenset(cited),
+        order_key=max(_order_key(o) for o in opinions),
+    )
 
 
 def _manual_stale_events(repo: Repo) -> list[dict[str, Any]]:
@@ -178,21 +224,10 @@ def mark_manual_stale(
     )
 
 
-def _latest_decision_order_key(state: ScreeningState) -> tuple[str, str] | None:
-    keys = [_order_key(o) for o in state.opinions.values()]
-    if state.adjudication is not None:
-        keys.append(_order_key(state.adjudication))
-    return max(keys) if keys else None
-
-
-def compute_stale_records(repo: Repo) -> list[StaleRecord]:
-    """Every stale resolved decision, across all configured stages.
-
-    Cascading (docs/spec/06 §4.4): a stale `title-abstract` decision marks
-    the same record's `full-text` decision stale too (`upstream-stale`),
-    layered *after* full-text's own criterion-change staleness so a more
-    specific native reason always wins when both would apply.
-    """
+def _compute_stale(repo: Repo, *, actor: str | None) -> list[StaleRecord]:
+    """Shared implementation behind `compute_stale_records` (`actor=None`,
+    the aggregate resolved-record view) and `rescreen_queue` (`actor=
+    <handle>`, that reviewer's own opinion -- see `_effective_opinion`)."""
     current_version = int(criteria_mod.read_criteria_doc(repo)["version"])
     changes = _criterion_changes(repo)
     canonical_ids = sorted(
@@ -228,15 +263,14 @@ def compute_stale_records(repo: Repo) -> list[StaleRecord]:
                 assign_events=assign_events,
                 adjudicate_events=adjudicate_by_record.get(record_id, []),
             )
-            resolved = _resolved_decision(state)
-            if resolved is None:
+            opinion = _effective_opinion(state, actor=actor)
+            if opinion is None:
                 continue
-            decision, decision_version, cited = resolved
 
             info = evaluate_staleness(
-                decision=decision,  # type: ignore[arg-type]
-                cited=cited,
-                decision_version=decision_version,
+                decision=opinion.decision,  # type: ignore[arg-type]
+                cited=opinion.cited,
+                decision_version=opinion.version,
                 current_version=current_version,
                 stage=stage,
                 changes=changes,
@@ -250,8 +284,7 @@ def compute_stale_records(repo: Repo) -> list[StaleRecord]:
                 reason = "upstream-stale"
             if reason is None:
                 mark_key = manual_marks.get((stage, record_id))
-                decided_key = _latest_decision_order_key(state)
-                if mark_key is not None and decided_key is not None and mark_key > decided_key:
+                if mark_key is not None and mark_key > opinion.order_key:
                     reason = "manual"
             if reason is None:
                 continue
@@ -261,8 +294,8 @@ def compute_stale_records(repo: Repo) -> list[StaleRecord]:
                 StaleRecord(
                     record_id=record_id,
                     stage=stage,
-                    prior_decision=decision,
-                    prior_criteria=tuple(sorted(cited)),
+                    prior_decision=opinion.decision,
+                    prior_criteria=tuple(sorted(opinion.cited)),
                     reason=reason,
                     since_version=current_version,
                 )
@@ -271,20 +304,40 @@ def compute_stale_records(repo: Repo) -> list[StaleRecord]:
     return sorted(results, key=lambda r: (r.stage, r.record_id))
 
 
+def compute_stale_records(repo: Repo) -> list[StaleRecord]:
+    """Every stale resolved decision, across all configured stages.
+
+    Cascading (docs/spec/06 §4.4): a stale `title-abstract` decision marks
+    the same record's `full-text` decision stale too (`upstream-stale`),
+    layered *after* full-text's own criterion-change staleness so a more
+    specific native reason always wins when both would apply.
+    """
+    return _compute_stale(repo, actor=None)
+
+
 def stale_records_for_stage(repo: Repo, stage: str) -> list[StaleRecord]:
     return [r for r in compute_stale_records(repo) if r.stage == stage]
 
 
 def rescreen_queue(repo: Repo, stage: str, actor: str) -> list[StaleRecord]:
-    """Stale records at `stage` this actor is assigned to (and so owes a fresh opinion on)."""
+    """Stale records at `stage` this actor is assigned to (and so owes a fresh opinion on).
+
+    Uses this actor's *own* opinion for staleness, not the aggregate
+    resolved decision -- see `_effective_opinion`'s docstring for why: the
+    aggregate view flips to `conflict` (and drops out of consideration
+    entirely) the moment one reviewer's fresh opinion disagrees with the
+    other's still-stale one, which would otherwise make the second
+    reviewer's own, equally-stale opinion vanish from their queue.
+    """
     if stage not in screening_mod.configured_stages(repo):
         raise RescreenError(
             f"unknown stage {stage!r}; configured stages are "
             f"{screening_mod.configured_stages(repo)!r}"
         )
     assign_events = screening_mod.all_assign_events(repo)
+    stale = [r for r in _compute_stale(repo, actor=actor) if r.stage == stage]
     queue = []
-    for record in stale_records_for_stage(repo, stage):
+    for record in stale:
         assigned = screening_mod.assigned_actors(
             repo, stage, record.record_id, assign_events=assign_events
         )

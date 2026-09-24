@@ -35,7 +35,19 @@ def _init(tmp_path: Path, name: str = "review") -> Path:
 
 def _add_actor(root: Path, handle: str = "sam") -> None:
     result = runner.invoke(
-        app, ["-C", str(root), "actor", "add", handle, handle.title(), "--role", "screener"]
+        app,
+        [
+            "--why",
+            f"{handle.title()} is joining the review team.",
+            "-C",
+            str(root),
+            "actor",
+            "add",
+            handle,
+            handle.title(),
+            "--role",
+            "screener",
+        ],
     )
     assert result.exit_code == EXIT_OK, result.output
 

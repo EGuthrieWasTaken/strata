@@ -6,6 +6,7 @@ import pytest
 from strata.core import manifest as manifest_mod
 from strata.core.init import init_repository
 from strata.core.repo import open_repo
+from strata.protocol import screening as screening_mod
 from strata.protocol.criteria import add_criterion, edit_criterion, retire_criterion
 from strata.protocol.rescreen import (
     RescreenError,
@@ -47,15 +48,26 @@ def _add_records(repo, ids: list[str]) -> None:  # type: ignore[no-untyped-def]
     records_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def test_resolved_decision_defends_against_empty_opinions() -> None:
+def test_effective_opinion_defends_against_empty_opinions() -> None:
     """`resolve_screening` never actually produces `status="include"` with no
-    opinions and no adjudication, but `_resolved_decision` still defends
-    against it explicitly rather than raising on `min([])`."""
+    opinions and no adjudication, but `_effective_opinion`'s aggregate
+    (`actor=None`) path still defends against it explicitly rather than
+    raising on `min([])`."""
     from strata.core.fold import ScreeningState
-    from strata.protocol.rescreen import _resolved_decision
+    from strata.protocol.rescreen import _effective_opinion
 
     state = ScreeningState(status="include", opinions={}, first_opinions={}, adjudication=None)
-    assert _resolved_decision(state) is None
+    assert _effective_opinion(state, actor=None) is None
+
+
+def test_effective_opinion_actor_mode_returns_none_when_actor_has_no_opinion() -> None:
+    """The per-actor path (used by `rescreen_queue`): an actor who never
+    screened this record has nothing to rescreen."""
+    from strata.core.fold import ScreeningState
+    from strata.protocol.rescreen import _effective_opinion
+
+    state = ScreeningState(status="unscreened", opinions={}, first_opinions={}, adjudication=None)
+    assert _effective_opinion(state, actor="ethan") is None
 
 
 def test_compute_stale_records_empty_on_fresh_repo(tmp_path: Path) -> None:
@@ -423,6 +435,124 @@ def test_rescreen_queue_filters_by_assignment(tmp_path: Path) -> None:
     sam_queue = rescreen_queue(repo, "title-abstract", "sam")
     assert [r.record_id for r in ethan_queue] == ["rec_0000000000000001"]
     assert [r.record_id for r in sam_queue] == ["rec_0000000000000002"]
+
+
+def test_rescreen_queue_excludes_a_stale_opinion_after_reassignment(tmp_path: Path) -> None:
+    """An actor's own opinion can be stale, but if they were later reassigned
+    off the record they no longer owe a fresh one (the `actor in assigned`
+    filter in `rescreen_queue`, on top of `_compute_stale`'s per-opinion
+    view)."""
+    from strata.core.actor import add_actor
+    from strata.protocol.screening import assign_reviewers
+
+    repo = _init_single(tmp_path, stages=("title-abstract",))
+    add_actor(repo, handle="sam", name="Sam", role="screener")
+    repo = open_repo(repo.root)
+    _add_records(repo, ["rec_0000000000000001"])
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="include",
+        actor="ethan",
+    )
+    # Reassign the record to sam alone -- ethan's own prior opinion still
+    # exists on disk, but ethan is no longer on the hook for it.
+    assign_reviewers(
+        repo,
+        stage="title-abstract",
+        actors=["sam"],
+        record_ids=["rec_0000000000000001"],
+        actor="ethan",
+    )
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="Under 18",
+        definition="Mean sample age under 18.",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Pilot extraction showed several child samples.",
+        criterion_id="EXC-07",
+    )
+    assert rescreen_queue(repo, "title-abstract", "ethan") == []
+
+
+def test_rescreen_queue_survives_a_dual_reviewer_conflict(tmp_path: Path) -> None:
+    """The bug docs/m2-plan.md sub-objective 9's E2E-01 test caught: once one
+    dual reviewer re-screens and *disagrees* with the other's still-stale
+    opinion, the record's aggregate status flips to `conflict`. The second
+    reviewer's own opinion is exactly as stale as before and must still
+    show up in *their* queue -- it must not silently vanish because the
+    record is no longer in a resolved state."""
+    root = tmp_path / "review"
+    init_repository(root, title="T", actor_handle="ethan", actor_name="Ethan")
+    repo = open_repo(root)
+    from strata.core.actor import add_actor
+
+    add_actor(repo, handle="sam", name="Sam", role="screener")
+    repo = open_repo(root)
+    _add_records(repo, ["rec_0000000000000001"])
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="include",
+        actor="ethan",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="include",
+        actor="sam",
+    )
+    add_criterion(
+        repo,
+        kind="exclusion",
+        label="Under 18",
+        definition="Mean sample age under 18.",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale="Pilot extraction showed several child samples.",
+        criterion_id="EXC-07",
+    )
+    assert len(rescreen_queue(repo, "title-abstract", "ethan")) == 1
+    assert len(rescreen_queue(repo, "title-abstract", "sam")) == 1
+
+    # ethan re-screens, excluding under the new criterion -- disagreeing
+    # with sam's still-stale "include", which flips the record to conflict.
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="exclude",
+        actor="ethan",
+        cited=["EXC-07"],
+    )
+    from strata.core.fold import CONFLICT
+
+    state = screening_mod.resolve_record_state(repo, "title-abstract", "rec_0000000000000001")
+    assert state.status == CONFLICT
+    # The aggregate view has nothing to say about a conflict...
+    assert compute_stale_records(repo) == []
+    # ...but sam's own opinion is still exactly as stale as it was.
+    sam_queue = rescreen_queue(repo, "title-abstract", "sam")
+    assert len(sam_queue) == 1
+    assert sam_queue[0].reason == "criterion-added"
+
+    # sam agrees with ethan's new decision -- the conflict resolves cleanly.
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="exclude",
+        actor="sam",
+        cited=["EXC-07"],
+    )
+    assert compute_stale_records(repo) == []
+    assert rescreen_queue(repo, "title-abstract", "ethan") == []
+    assert rescreen_queue(repo, "title-abstract", "sam") == []
 
 
 def test_rescreen_queue_rejects_unknown_stage(tmp_path: Path) -> None:
