@@ -105,7 +105,7 @@ M2:
 | 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | **done** |
 | 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | **done** |
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | **done** |
-| 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | not started |
+| 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | **done** |
 | 8 | `strata audit --criteria` sampling workflow | not started |
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | not started |
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | not started |
@@ -446,27 +446,46 @@ and PABAK are closed-form 2x2 computations.
   02 P3) without inventing attribution semantics a report command doesn't
   need.
 
-### 7. `strata status` full dashboard + derived views
+### 7. `strata status` full dashboard + derived views — done
 
 Spec: `docs/spec/10-cli.md` §4.
 
-Extend `core/status.py`'s `StatusReport` with the screening/dedup/stale
-sections from the worked example (dedup pending-review count already
-computed by `dedup.engine`, just not surfaced in status yet; per-stage
-resolved/unscreened/conflicts/stale counts from sub-objectives 3-4; a
-"NEXT" line naming the single most actionable command, e.g. `strata
-rescreen` with an ETA from recent per-record timing — timing data needs
-`screen` events' timestamps, a simple mean of consecutive deltas is
-sufficient, no need for anything fancier). Wire `derived/pool.tsv` (one row
-per canonical record, `tiab`/`fulltext`/`stale` columns from the fold) and
-`derived/conflicts.tsv` regeneration to real state; both were `init.py`
-stubs (header row only) until this lands. Regenerating derived views on
-every mutating screening command (not just on `strata status`) keeps
-`git diff` on `derived/pool.tsv` meaningful per
-`docs/spec/02-repository-format.md` P3 — decide the exact trigger point
-(likely: every command in `cli/main.py` that appends a `screen`/`adjudicate`
-event also calls a shared `regenerate_derived(repo)` helper) when
-implementing.
+Delivered: `core/status.py` gained `StageStatus` (per-stage total/resolved/
+unscreened/partial/conflicts/stale) and `StatusReport.stages`/`next_action`;
+`src/strata/protocol/pool.py` (`regenerate_pool_tsv`, `regenerate_conflicts_tsv`,
+`regenerate_all`); `tests/unit/test_pool.py` / additions to
+`tests/unit/test_status.py` / `tests/integration/test_cli_more.py` (100%
+line+branch on `pool.py`).
+
+- **Dedup's pending-review count is deliberately not in `status`**:
+  `dedup.engine.run_dedup` has no dry-run mode — it performs auto-merges as
+  a side effect — so calling it from a command that MUST be read-only
+  (`strata status`) would silently mutate `records.ndjson`. Left out rather
+  than built around; a real dry-run mode for `run_dedup` is a clean,
+  self-contained follow-up for whoever next touches `dedup/engine.py`.
+- **One consolidated regeneration call**: `protocol.pool.regenerate_all`
+  now regenerates all four screening derived views (`pool.tsv`,
+  `conflicts.tsv`, `stale.tsv` via `protocol.rescreen`, `irr.json` via
+  `protocol.irr`) together. Every CLI mutation point that used to call
+  `rescreen_mod.regenerate_stale_tsv` directly (criteria add/edit/retire,
+  both `screen` paths, `rescreen`, `adjudicate`) now calls
+  `pool_mod.regenerate_all` instead, so a future new derived view only
+  needs to be added to one function rather than hunted down across six call
+  sites — the exact trace this sub-objective's original plan anticipated
+  needing decided at implementation time.
+- **`next_action`** priority order (not spec-mandated, this implementation's
+  own policy, documented in `core.status._next_action`'s only caller):
+  conflicts outrank staleness outrank unscreened work, on the reasoning
+  that a conflict blocks progress for two reviewers at once, staleness
+  blocks trusting anything downstream of it, and unscreened work is the
+  default "keep going" state. `test_compute_status_reports_conflicts_and_stale`
+  exercises a repo with both a conflict and an unrelated stale record
+  simultaneously to pin that conflicts win.
+- **`derived/pool.tsv`'s `stale` column** uses the two-letter/short codes
+  `tiab`/`ft` per §6.1's own column spec (not the reason or a boolean),
+  joined with a comma when both stages are stale for the same record —
+  `test_pool_tsv_marks_stale_columns` covers the cascaded
+  `title-abstract` + `full-text` case together.
 
 ### 8. `strata audit --criteria` sampling
 

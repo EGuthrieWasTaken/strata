@@ -40,6 +40,7 @@ from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import irr as irr_mod
+from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
@@ -382,7 +383,7 @@ def status(ctx: typer.Context) -> None:
     repo = _resolve_repo(ctx)
     s = status_mod.compute_status(repo)
     if ctx.obj["json"]:
-        _print_json(vars(s))
+        _print_json(dataclasses.asdict(s))
         return
     out_console.print(f"[bold]{s.title}[/]  criteria v{s.criteria_version}")
     clean = "clean" if s.is_clean else "dirty"
@@ -390,6 +391,18 @@ def status(ctx: typer.Context) -> None:
     out_console.print(f"{s.record_count} records · {s.search_count} searches recorded")
     for search_id in s.pending_searches:
         out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
+    for stage in s.stages:
+        out_console.print(
+            f"\n[bold]{stage.stage.upper()}[/]  {stage.total} records"
+            f"    {stage.resolved} resolved · {stage.unscreened} unscreened · "
+            f"{stage.partial} partial"
+        )
+        if stage.conflicts:
+            out_console.print(f"  {stage.conflicts} conflicts                strata adjudicate")
+        if stage.stale:
+            out_console.print(f"  {stage.stale} STALE                    strata rescreen")
+    if s.next_action:
+        out_console.print(f"\n[bold]NEXT[/]  {s.next_action}")
 
 
 @app.command("log")
@@ -1016,7 +1029,7 @@ def _commit_criteria_op(
 ) -> None:
     # Regenerated regardless of --no-commit: a criteria change can make
     # decisions stale even when the caller doesn't want a commit yet.
-    rescreen_mod.regenerate_stale_tsv(repo)
+    pool_mod.regenerate_all(repo)
     if ctx.obj["no_commit"]:
         return
     commit_obj = StructuredCommit(
@@ -1276,7 +1289,7 @@ def screen_command(
         else:
             out_console.print(f"[green]recorded[/] {len(envelopes)} decision(s) for {stage}")
         if envelopes:
-            rescreen_mod.regenerate_stale_tsv(repo)
+            pool_mod.regenerate_all(repo)
             _commit_domain_op(
                 ctx,
                 repo,
@@ -1357,7 +1370,7 @@ def screen_command(
         index += 1
 
     if decided:
-        rescreen_mod.regenerate_stale_tsv(repo)
+        pool_mod.regenerate_all(repo)
         _commit_domain_op(
             ctx,
             repo,
@@ -1461,7 +1474,7 @@ def rescreen_command(
                 rescreen_mod.mark_manual_stale(
                     repo, stage=s, record_id=record_id, actor=by, rationale=rationale
                 )
-        rescreen_mod.regenerate_stale_tsv(repo)
+        pool_mod.regenerate_all(repo)
         out_console.print(f"[yellow]marked[/] {len(mark)} record(s) stale")
         _commit_domain_op(
             ctx,
@@ -1540,7 +1553,7 @@ def rescreen_command(
         index += 1
 
     if decided:
-        rescreen_mod.regenerate_stale_tsv(repo)
+        pool_mod.regenerate_all(repo)
         _commit_domain_op(
             ctx,
             repo,
@@ -1661,7 +1674,7 @@ def adjudicate_command(
         index += 1
 
     if decided:
-        rescreen_mod.regenerate_stale_tsv(repo)
+        pool_mod.regenerate_all(repo)
         _commit_domain_op(
             ctx,
             repo,
