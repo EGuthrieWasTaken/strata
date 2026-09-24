@@ -7,7 +7,13 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
-- Bibliographic export parsers for CSL-JSON, RIS, and BibTeX
+- `strata import`: copies a bibliographic export unmodified, parses it,
+  normalises and assigns record ids, appends to an existing record's sources
+  on an exact-id match instead of duplicating it, and commits — idempotent by
+  file digest, one commit per file. Adds `records/records.ndjson` read/write
+  (`core.records`), the `record` and `import-manifest` JSON schemas, and a
+  `strata verify` check for every record's schema.
+- Bibliographic export parsers for CSL-JSON, RIS, BibTeX, and PubMed/MEDLINE
   (`strata.ingest.parsers`), tolerant of the malformations
   `docs/spec/05-workflow-import.md` §2.1 requires (BOM, CRLF/CR, non-UTF-8
   encodings, missing RIS `ER` lines, HTML entities), with a golden fixture

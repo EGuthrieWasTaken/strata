@@ -19,6 +19,7 @@ import pytest
 from strata.ingest.parsers import ParseResult, decode_bytes, normalise_newlines
 from strata.ingest.parsers import bibtex as bibtex_parser
 from strata.ingest.parsers import csl_json as csl_json_parser
+from strata.ingest.parsers import medline as medline_parser
 from strata.ingest.parsers import ris as ris_parser
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "exports"
@@ -27,6 +28,7 @@ PARSERS = {
     "csl-json": csl_json_parser.parse,
     "ris": ris_parser.parse,
     "bibtex": bibtex_parser.parse,
+    "medline": medline_parser.parse,
 }
 
 
@@ -48,6 +50,7 @@ def _load_expected(format_dir: str, filename: str) -> Any:
         ("csl-json", "clean.json"),
         ("ris", "clean.ris"),
         ("bibtex", "clean.bib"),
+        ("medline", "clean.nbib"),
     ],
 )
 def test_clean_fixture_matches_expected_records(format_dir: str, clean_file: str) -> None:
@@ -65,6 +68,7 @@ def test_clean_fixture_matches_expected_records(format_dir: str, clean_file: str
         ("ris", "malformed-bom.ris"),
         ("ris", "malformed-cp1252.ris"),
         ("bibtex", "malformed.bib"),
+        ("medline", "malformed.nbib"),
     ],
 )
 def test_malformed_fixture_matches_expected(format_dir: str, malformed_file: str) -> None:
@@ -102,6 +106,17 @@ def test_bibtex_malformed_fixture_isolates_bad_entries() -> None:
         "A valid record after the bad ones",
     ]
     assert len(result.rejected) == 2
+
+
+def test_medline_malformed_fixture_isolates_bad_records() -> None:
+    result, _ = _parse_fixture("medline", "malformed.nbib")
+    titles = [r["title"] for r in result.records]
+    assert titles == [
+        "A valid record before the bad one",
+        "Diacritics in author names & an inconsistently indented abstract",
+        "A valid record after the bad ones",
+    ]
+    assert len(result.rejected) == 1
 
 
 def test_csl_json_whole_document_failure_has_no_recovery() -> None:

@@ -30,6 +30,11 @@ export.
   respectively, to produce byte-for-byte realistic encoding malformations
   rather than approximations of them.
 - `bibtex/clean.bib`, `bibtex/malformed.bib` -- BibTeX, hand-written.
+- `medline/clean.nbib`, `medline/malformed.nbib` -- PubMed/MEDLINE, hand-written
+  tag-per-line text (see `docs/spec/05-workflow-import.md` §2.1's `PMID- `/
+  `TI  - ` convention). `malformed.nbib`'s line endings were converted to CRLF
+  with a small script (not checked in) after being written, for the same
+  reason as the RIS encoding fixtures above.
 
 Each `clean.*` fixture has a committed `*.expected.json`: the exact list of
 CSL-JSON-shaped records the corresponding parser must produce. Each
@@ -45,18 +50,18 @@ Tracking against the list in `docs/spec/14-testing.md` §3:
 | Malformation | Covered by |
 |---|---|
 | BOM at start of file | `ris/malformed-bom.ris` |
-| CRLF line endings | `ris/malformed.ris` |
+| CRLF line endings | `ris/malformed.ris`, `medline/malformed.nbib` |
 | Missing `ER  -` | `ris/malformed.ris` |
 | `TY - ` (single-space) tag spacing | `ris/malformed.ris` |
 | CP1252 smart quotes | `ris/malformed-cp1252.ris` |
-| HTML entities in titles | `ris/malformed.ris` (`&amp;`) |
-| Multi-line abstract, inconsistent indentation | `ris/malformed.ris` |
-| Diacritics in author names | `ris/clean.ris`, `bibtex/clean.bib` (Müller) |
-| Corporate authors | `ris/clean.ris`, `bibtex/clean.bib` (World Health Organization) |
+| HTML entities in titles | `ris/malformed.ris`, `medline/malformed.nbib` (`&amp;`) |
+| Multi-line abstract, inconsistent indentation | `ris/malformed.ris`, `medline/malformed.nbib` |
+| Diacritics in author names | `ris/clean.ris`, `bibtex/clean.bib`, `medline/malformed.nbib` (Müller) |
+| Corporate authors | `ris/clean.ris`, `bibtex/clean.bib`, `medline/clean.nbib` (World Health Organization) |
 | Missing years | `ris/malformed.ris` |
 | DOIs with trailing punctuation | `ris/malformed.ris` |
 | Empty title | one record in each of `ris/malformed.ris`,
-  `bibtex/malformed.bib`, `csl-json/malformed.json` |
+  `bibtex/malformed.bib`, `csl-json/malformed.json`, `medline/malformed.nbib` |
 | Brace-unbalanced / syntactically broken entry | `bibtex/malformed.bib` |
 | Non-UTF-8 whole-document / non-array JSON | `csl-json/broken-document.json` |
 
@@ -64,8 +69,7 @@ Not yet covered (carried forward -- see `docs/m1-plan.md` sub-objective 3):
 CR-only (old Mac) line endings; a lone-CR variant; LaTeX-escaped diacritics
 (`\"u`) rather than literal UTF-8 in BibTeX author names, since this
 implementation does not run `bibtexparser`'s LaTeX-decoding middleware; and
-the platform-specific fixtures the table in §3 asks for by name (PubMed
-`.nbib`, Ovid, EBSCOhost, Scopus, Web of Science, ProQuest, Cochrane CENTRAL,
-ClinicalTrials.gov, EndNote, Google Scholar), which belong to the
-PubMed/MEDLINE, EndNote XML, and CSV/TSV/Excel parsers of sub-objective 3, not
-yet implemented.
+the remaining platform-specific fixtures the table in §3 asks for by name
+(Ovid, EBSCOhost, Scopus, Web of Science, ProQuest, Cochrane CENTRAL,
+ClinicalTrials.gov, EndNote, Google Scholar), which belong to the EndNote XML
+and CSV/TSV/Excel parsers of sub-objective 3, not yet implemented.

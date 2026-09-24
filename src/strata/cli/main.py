@@ -8,6 +8,7 @@ layer the (future) web UI will call.
 
 from __future__ import annotations
 
+import dataclasses
 import json as json_mod
 import re
 import shutil
@@ -30,6 +31,7 @@ from strata.core.commit import RationaleRejectedError, StructuredCommit, validat
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
 from strata.core.validate import SchemaValidationError
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import searches as searches_mod
 
 EXIT_OK = 0
@@ -42,9 +44,10 @@ EXIT_SCHEMA_TOO_NEW = 6
 EXIT_RATIONALE_REFUSED = 7
 EXIT_GUARDRAIL = 8
 
-# A repeatable list-typed typer.Option default must live at module scope,
-# not inline in a signature, or ruff's flake8-bugbear B008 flags it.
+# A repeatable list-typed typer.Option/Argument default must live at module
+# scope, not inline in a signature, or ruff's flake8-bugbear B008 flags it.
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
+_IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
 
 app = typer.Typer(
     name="strata",
@@ -475,6 +478,93 @@ def search_list(ctx: typer.Context) -> None:
         hits = s.get("hits")
         hits_str = f"{hits} hits" if hits is not None else "hits unknown"
         out_console.print(f"{s['id']:<20} {s['database']:<14} {s['executed']}  {hits_str}{pending}")
+
+
+@app.command("import")
+def import_command(
+    ctx: typer.Context,
+    files: list[str] = _IMPORT_FILES_ARGUMENT,
+    by: str = typer.Option(..., "--by", help="Actor handle who ran the import"),
+    search_id: str | None = typer.Option(
+        None, "--search", help="Id of the search that produced this export"
+    ),
+    via: str | None = typer.Option(
+        None, "--via", help="citation-searching | website | organisation | registry | contact"
+    ),
+    fmt: str | None = typer.Option(None, "--format", help="Override automatic format detection"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Parse and report without writing anything"
+    ),
+) -> None:
+    """Import one or more bibliographic exports: copy raw, parse, assign ids, commit.
+
+    Each file is its own import (docs/spec/02-repository-format.md §2:
+    `imports/<id>/`) and, unless `--dry-run`/`--no-commit`, its own commit —
+    a failure partway through a multi-file import leaves every earlier file's
+    import already committed rather than the tree half-written and dirty.
+    """
+    repo = _resolve_repo(ctx)
+    exit_code = EXIT_OK
+    results = []
+
+    for file in files:
+        try:
+            outcome = pipeline_mod.import_file(
+                repo,
+                file,
+                imported_by=by,
+                search_id=search_id,
+                via=via,
+                fmt=fmt,
+                dry_run=dry_run,
+            )
+        except pipeline_mod.ImportPipelineError as exc:
+            exit_code = EXIT_USAGE
+            if ctx.obj["json"]:
+                results.append({"file": file, "error": str(exc)})
+            else:
+                err_console.print(f"[red]error:[/] {file}: {exc}")
+            continue
+
+        if ctx.obj["json"]:
+            results.append({"file": file, **dataclasses.asdict(outcome)})
+
+        if outcome.already_imported:
+            if not ctx.obj["json"]:
+                out_console.print(
+                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
+                )
+            continue
+
+        if not ctx.obj["json"]:
+            verb = "would import" if dry_run else "imported"
+            out_console.print(
+                f"[green]{verb}[/] {file} as {outcome.import_id}: "
+                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
+                f"existing, {outcome.rows_rejected} rejected"
+            )
+            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
+                out_console.print(
+                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
+                )
+
+        if dry_run or ctx.obj["no_commit"]:
+            continue
+
+        rationale = _get_rationale(ctx, repo, f"You imported {file} as {outcome.import_id}.")
+        commit_obj = StructuredCommit(
+            op="import",
+            scope=outcome.import_id,
+            summary=f"import {Path(file).name}",
+            body=rationale,
+            trailers={"Op": "import", "Import": outcome.import_id, "Actor": by},
+        )
+        gitio.add(repo.root, ["imports", "records", "events"])
+        gitio.commit(repo.root, commit_obj.message())
+
+    if ctx.obj["json"]:
+        _print_json(results)
+    raise typer.Exit(exit_code)
 
 
 @internal_app.command("hook-pre-commit")

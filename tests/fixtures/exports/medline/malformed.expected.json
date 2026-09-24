@@ -1,0 +1,55 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "A valid record before the bad one",
+      "issued": {
+        "date-parts": [
+          [
+            2010
+          ]
+        ]
+      },
+      "PMID": "1"
+    },
+    {
+      "type": "article-journal",
+      "title": "Diacritics in author names & an inconsistently indented abstract",
+      "author": [
+        {
+          "family": "Müller",
+          "given": "Anna"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2015
+          ]
+        ]
+      },
+      "PMID": "3",
+      "abstract": "This wraps across a continuation line indented more deeply than the six-space convention."
+    },
+    {
+      "type": "article-journal",
+      "title": "A valid record after the bad ones",
+      "issued": {
+        "date-parts": [
+          [
+            2011
+          ]
+        ]
+      },
+      "PMID": "4"
+    }
+  ],
+  "rejected": [
+    {
+      "line": 5,
+      "raw": "PMID- 2\nTI  -\nDP  - 2020",
+      "error": "missing or empty title"
+    }
+  ]
+}

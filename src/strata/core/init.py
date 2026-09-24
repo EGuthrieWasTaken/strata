@@ -53,6 +53,7 @@ DIRECTORIES = [
     "protocol/searches",
     "imports",
     "records",
+    "events/import",
     "events/screen",
     "events/dedup",
     "events/retrieval",

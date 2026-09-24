@@ -88,8 +88,8 @@ session (no tool for it) — check via the GitHub UI/API if that matters.
 |---|---|---|
 | 1 | Search recording (`strata search add`/`list`) | **done** |
 | 2 | Parsers: CSL-JSON, RIS, BibTeX | **done** |
-| 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | not started |
-| 4 | `strata import` pipeline | not started |
+| 3 | Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles; golden fixture corpus | **partial** (MEDLINE done; EndNote XML/CSV/TSV/Excel/PRISMA-text remain) |
+| 4 | `strata import` pipeline | **done** |
 | 5 | Dedup engine: blocking + scoring + P8 | not started |
 | 6 | Dedup CLI, review queue, merge semantics, labelled benchmark | not started |
 | 7 | `strata records`/`why`/`fix` + filter expression language | not started |
@@ -158,47 +158,105 @@ Notable implementation decisions future sub-objectives should know about:
   corpus (sub-objective 8) is the intended real exercise for these paths;
   revisit the pragmas if fuzzing ever hits them.
 
-### 3. Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles
+### 3. Parsers: PubMed/MEDLINE, EndNote XML, CSV/TSV, Excel, PRISMA-text; CSV mapping profiles — partial
 
 Spec: `docs/spec/05-workflow-import.md` §2.1 (tolerances: BOM, CRLF/CR,
 non-UTF-8 encodings tried in the specified order, HTML entities, missing
 `ER  -`), §2.2 (CSV column mapping and detection profiles).
 
-Scope:
-- Hand-rolled `.nbib`/MEDLINE and EndNote XML parsers (no good library
-  exists for either); `openpyxl` or similar for `.xlsx` (check
-  `pyproject.toml` — may need adding as a dependency); CSV/TSV via the
-  stdlib `csv` module plus the encoding-detection fallback chain (UTF-8 →
-  UTF-8-with-BOM → CP1252 → Latin-1, recording which was used).
-- Detection profiles for EBSCOhost, Scopus, Web of Science, ProQuest,
-  Dimensions, Google Scholar (Publish or Perish) under
-  `src/strata/ingest/profiles/`, matched by header signature, plus the
-  interactive-mapping/`--map` fallback for an unrecognised header row.
-- PRISMA-style plain-text citation lists: best-effort parse, always routed to
-  manual review per spec — this one can be a thin stub that flags every
-  record for review rather than a real citation parser.
-- Extend the golden fixture corpus from #2 to cover every platform/format
-  combination in `docs/spec/14-testing.md` §3, including all the named
-  malformations (BOM, CRLF, missing `ER  -`, CP1252 smart quotes, HTML
-  entities in titles, multi-line abstracts with inconsistent indentation,
-  diacritics in author names, corporate authors, missing years, DOIs with
-  trailing punctuation, empty title).
+**Delivered**: the hand-rolled PubMed/MEDLINE (`.nbib`) parser,
+`src/strata/ingest/parsers/medline.py` — `PMID- `/`TI  - `-style four-char
+tags, six-space continuation lines, `FAU` preferred over `AU` for author
+names with a distinct `CN` tag for corporate/collective authors, DOI pulled
+out of `LID`/`AID`'s `[doi]`-suffixed values, MeSH headings (`MH`) folded
+into `keyword`. 100% line+branch coverage
+(`tests/unit/test_parsers_medline.py`, golden fixtures in
+`tests/fixtures/exports/medline/`). `.txt` files are dispatched to this
+parser or to RIS by sniffing the first non-blank line's tag
+(`strata.ingest.pipeline.detect_format`), since the format table maps `.txt`
+to RIS, MEDLINE, *and* PRISMA-text ambiguously.
 
-### 4. `strata import` pipeline
+**Not yet started**: EndNote XML, CSV/TSV, Excel (`.xlsx`), PRISMA-style
+plain-text citation lists, and the CSV column-mapping/detection-profile
+machinery (`src/strata/ingest/profiles/` is still an empty stub). CSV/TSV is
+almost certainly the highest-value of these to build next — it's the format
+table's most common real-world source (Scopus, Web of Science, EBSCOhost,
+Google Scholar all export CSV) and the one `strata import`'s `--format`/
+`--map` surface was deliberately left ready for (see #4 below): a
+`.csv`/`.tsv`/`.xlsx` file currently hits `detect_format`'s "unsupported file
+extension" branch, not a wrong-parser bug. Extend
+`tests/fixtures/SOURCES.md`'s malformation-coverage table as each format
+lands.
+
+### 4. `strata import` pipeline — done
 
 Spec: `docs/spec/05-workflow-import.md` §2.3 (what import does, idempotency
 by file digest), §2.4 (`--via` tagging); `docs/spec/02-repository-format.md`
 event types `import`/`record-add`.
 
-Scope:
-- `src/strata/ingest/__init__.py` (or a new `pipeline.py`): copy the file
-  unmodified to `imports/<id>/raw/`, sha256 it, dispatch to the right parser
-  from #2/#3 (by extension/`--format`), normalise via `strata.core.ids`,
-  assign record ids, emit `import` + `record-add` events, write
-  `imports/<id>/manifest.yaml`, write/merge into `records/records.ndjson`
-  (sorted by id per `docs/spec/02-repository-format.md` §5.2).
-- Idempotency: re-importing the same file (by digest) must create no new
-  records/events and say so rather than silently succeeding.
+Delivered: `src/strata/ingest/pipeline.py` (`import_file`, `detect_format`,
+`list_import_manifests`/`find_import_by_digest`), `src/strata/core/records.py`
+(read/write/index `records/records.ndjson`, validated + sorted-by-id per
+§5.2), two new schemas (`record.schema.json`, `import-manifest.schema.json`),
+`strata verify`'s new `_verify_records` check, and the `strata import
+<file>... --by <actor> (--search <id> | --via <tag>) [--format <fmt>]
+[--dry-run]` CLI command. `tests/unit/test_pipeline.py` (24 cases, 100%
+line+branch) and `tests/integration/test_cli_import.py` (11 cases) cover it,
+including a full round trip re-verified with `strata verify`.
+
+What it does, per file: copies the raw bytes unmodified to
+`imports/<id>/raw/`; decodes/newline-normalises and dispatches to the right
+parser from #2/#3 by extension, or by content-sniffing for `.txt`; normalises
+`DOI`/`PMID`/`PMCID`/`ISBN` for storage via the `strata.core.ids` functions
+(a value that fails to normalise is left as parsed, never dropped); assigns
+each record's id via `assign_record_id`; on an id already present in
+`records/records.ndjson` (whether from an earlier import *or* a second row
+in the same file), appends a `sources` entry instead of duplicating the
+record; emits one `record-add` event per genuinely new record plus one
+`import` event, all under `events/import/<actor>.ndjson` (added to `strata
+init`'s directory scaffold alongside the other event domains); writes
+`imports/<id>/manifest.yaml` and, if any rows failed to parse,
+`imports/<id>/rejected.txt`. Idempotent by file digest: a second import of
+byte-identical content changes nothing and reports `already_imported` rather
+than silently repeating. Each file in a multi-file invocation is its own
+`imports/<id>/` and its own commit, so a failure partway through a batch
+leaves every earlier file's import already committed instead of the tree
+half-written and dirty.
+
+**Decisions/simplifications worth knowing about**:
+- `record-add`'s `raw_row_digest` is `sha256` of the canonical JSON of the
+  record *as the parser returned it* (before identifier normalisation/id
+  assignment), not a digest of the original file bytes for that row — no
+  parser currently threads per-record source-text spans back out, and this
+  is a legitimate, cheap, deterministic stand-in for "did this row's content
+  change between imports" that `strata why` (sub-objective 7) can build on.
+- No event is emitted for the "append to an existing record's `sources`"
+  case (only for genuinely new records) — the spec's `record-add` body shape
+  (`record`, `import_id`, `raw_row_digest`) reads as one-event-per-created-
+  record, and the append is itself visible in `records.ndjson`'s committed
+  diff. Revisit if provenance review in sub-objective 7 turns out to need a
+  dedicated event for it.
+- A search's `protocol/searches/<id>.yaml` `export_files` list is **not**
+  auto-updated by import (that would need a new "update a search" function
+  in `strata.protocol.searches`, which didn't exist and felt like scope
+  creep for this sitting). A reviewer wanting that link records it via
+  `strata search add --export-file` at search-recording time, or a future
+  session could wire it up.
+- `derived/pool.tsv` regeneration is **deliberately not touched here** — the
+  original scope note for this sub-objective flagged it as a "check whether
+  this needs to land here or can wait for #6" question; since `tiab`/
+  `fulltext` columns need screening state (M2) and "one row per canonical
+  record" needs dedup (#5/#6) to mean anything, generating it now would mean
+  reworking it twice. `E_DERIVED_DRIFT` in `strata verify` is therefore still
+  unimplemented, same as at the end of sub-objective 1.
+- `strata.core.ids` gained `normalise_pmid`/`normalise_pmcid`/`normalise_isbn`
+  as standalone functions (previously inlined in `canonical_key`), reused by
+  both the pipeline's storage-normalisation step and `canonical_key` itself.
+  `ids.py` is one of the five 100%-branch-coverage modules; the refactor
+  stayed at 100% (`tests/unit/test_ids.py`).
+- `--map`/CSV column mapping is intentionally **not** on the CLI yet — it has
+  no consumer until CSV/TSV parsing exists (sub-objective 3 continuation)
+  and stubbing it in now would just be an unused flag.
 - An exact-id match on a fresh import appends to `strata.sources` rather
   than duplicating (§2.3 point 4).
 - `strata import <file>... --search <id> [--via ...] [--map ...] [--dry-run]`

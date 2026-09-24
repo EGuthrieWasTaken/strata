@@ -104,6 +104,21 @@ def _verify_searches(repo: Repo, report: VerifyReport) -> None:
                 report.add("E_SCHEMA", error, path=rel)
 
 
+def _verify_records(repo: Repo, report: VerifyReport) -> None:
+    path = repo.path("records", "records.ndjson")
+    if not path.exists():
+        return
+    rel = path.relative_to(repo.root).as_posix()
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+        if not line.strip():
+            continue
+        try:
+            validate("record", json.loads(line))
+        except SchemaValidationError as exc:
+            for error in exc.errors:
+                report.add("E_SCHEMA", f"line {i + 1}: {error}", path=rel)
+
+
 def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
     aliases_path = repo.path("records", "aliases.ndjson")
     if not aliases_path.exists():
@@ -143,6 +158,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     _verify_manifest(repo, report)
     referenced_records = _verify_events(repo, report, fast=fast)
     _verify_searches(repo, report)
+    _verify_records(repo, report)
     if not fast:
         _verify_aliases(repo, report)
         _verify_dangling_refs(repo, report, referenced_records)

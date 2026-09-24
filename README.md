@@ -36,16 +36,24 @@ rather have quietly rewritten.
 
 ## Status
 
-**M0 (substrate) in progress.** The pull-request gate is live, and the
-repository format's core — the event log, canonical serialisation, identity
-and normalisation, the fold, and the `init`/`clone`/`doctor`/`config`/`actor`/
-`verify`/`status`/`log` commands — is implemented and tested. Screening,
-import, dedup, extraction, and analysis are not built yet; see
-[the roadmap](docs/spec/15-roadmap.md) for what M1 and M2 bring next.
+**M0 (substrate) complete; M1 ("literature in") in progress.** The
+pull-request gate, the repository format's core (event log, canonical
+serialisation, identity and normalisation, the fold), and
+`init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
+implemented and tested. Recording searches (`strata search add`/`list`) and
+importing literature (`strata import`, with CSL-JSON/RIS/BibTeX/PubMed-MEDLINE
+parsers) both work end to end, including idempotent re-import and full
+provenance. Deduplication, screening, extraction, and analysis are not built
+yet; see [the roadmap](docs/spec/15-roadmap.md) for M1's remainder and what M2
+brings next, and [`docs/m1-plan.md`](docs/m1-plan.md) for the current
+sub-objective-by-sub-objective status.
 
 ```
 uv sync
 uv run strata init my-review --title "My systematic review" --actor you --actor-name "Your Name"
+uv run strata --why "recording the search before import" -C my-review search add \
+    --database MEDLINE --platform Ovid --by you --query "1 exp Learning/"
+uv run strata --why "first import" -C my-review import my-export.ris --by you --search S-01-medline
 uv run strata -C my-review status
 ```
 
