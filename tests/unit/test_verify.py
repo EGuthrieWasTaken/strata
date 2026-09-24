@@ -252,6 +252,107 @@ def test_verify_missing_records_file_is_not_an_error(tmp_path: Path) -> None:
     assert report.ok
 
 
+def test_verify_reports_invalid_criteria_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    criteria_path = repo.path("protocol", "criteria.yaml")
+    criteria_path.parent.mkdir(parents=True, exist_ok=True)
+    # `id` does not match the INC-nn/EXC-nn pattern.
+    criteria_path.write_text(
+        "version: 1\n"
+        'digest: "sha256:' + "0" * 64 + '"\n'
+        "criteria:\n"
+        "  - id: NOT-VALID\n"
+        "    kind: exclusion\n"
+        "    label: x\n"
+        "    definition: x\n"
+        "    applies_at: [title-abstract]\n"
+        "    since_version: 1\n"
+        "    status: active\n",
+        encoding="utf-8",
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_SCHEMA" and i.path == "protocol/criteria.yaml" for i in report.issues)
+
+
+def test_verify_ignores_blank_criteria_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    criteria_path = repo.path("protocol", "criteria.yaml")
+    criteria_path.parent.mkdir(parents=True, exist_ok=True)
+    criteria_path.write_text("", encoding="utf-8")
+    report = verify_repository(repo)
+    assert not any("criteria" in (i.path or "") for i in report.issues)
+
+
+@pytest.mark.req("E_CRITERION_REUSE")
+def test_verify_detects_criterion_id_reuse(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "criteria", "ethan.ndjson")
+    common_delta = {
+        "id": "EXC-01",
+        "origin": "added",
+        "direction": "tightened",
+        "kind": "exclusion",
+        "label": "x",
+        "definition": "x",
+        "applies_at": ["title-abstract"],
+        "since_version": 1,
+        "status": "active",
+    }
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 0, "to_version": 1, "deltas": [common_delta], "rationale": "r1"},
+    )
+    reused_delta = {**common_delta, "since_version": 3}
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 2, "to_version": 3, "deltas": [reused_delta], "rationale": "r2"},
+    )
+    report = verify_repository(repo)
+    assert any(i.code == "E_CRITERION_REUSE" and "EXC-01" in i.message for i in report.issues)
+
+
+def test_verify_does_not_flag_edit_or_retire_as_reuse(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    path = repo.path("events", "criteria", "ethan.ndjson")
+    added = {
+        "id": "EXC-01",
+        "origin": "added",
+        "direction": "tightened",
+        "kind": "exclusion",
+        "label": "x",
+        "definition": "x",
+        "applies_at": ["title-abstract"],
+        "since_version": 1,
+        "status": "active",
+    }
+    edited = {**added, "origin": "edited", "direction": "loosened", "definition": "x, relaxed"}
+    retired = {**edited, "origin": "retired", "status": "retired"}
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 0, "to_version": 1, "deltas": [added], "rationale": "r1"},
+    )
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 1, "to_version": 2, "deltas": [edited], "rationale": "r2"},
+    )
+    append_new_event(
+        path,
+        ev="criteria-change",
+        actor="ethan",
+        body={"from_version": 2, "to_version": 3, "deltas": [retired], "rationale": "r3"},
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_CRITERION_REUSE" for i in report.issues)
+
+
 def test_verify_fast_mode_skips_alias_and_dangling_checks(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     aliases_path = repo.path("records", "aliases.ndjson")

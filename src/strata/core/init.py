@@ -84,9 +84,13 @@ def _write_protocol_stubs(root: Path, title: str) -> None:
         f"# Research question\n\n_{title}_\n\nTODO: PICO(TS) and rationale.\n",
         encoding="utf-8",
     )
+    # Version 0 means "no criteria defined yet" -- protocol.criteria.add_criterion
+    # bumps to version 1 on the first criterion, so `since_version: 1` means
+    # exactly what it says for whichever criteria are added before the
+    # protocol's first amendment, however many that turns out to be.
     empty_digest = hashlib.sha256(b"").hexdigest()
     (root / "protocol" / "criteria.yaml").write_text(
-        f'version: 1\ndigest: "sha256:{empty_digest}"\ncriteria: []\n',
+        f'version: 0\ndigest: "sha256:{empty_digest}"\ncriteria: []\n',
         encoding="utf-8",
     )
     (root / "protocol" / "moderators.yaml").write_text("moderators: []\n", encoding="utf-8")

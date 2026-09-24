@@ -37,6 +37,7 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.protocol import criteria as criteria_mod
 from strata.protocol import searches as searches_mod
 
 EXIT_OK = 0
@@ -67,10 +68,14 @@ search_app = typer.Typer(
 records_app = typer.Typer(
     name="records", help="List and inspect bibliographic records.", no_args_is_help=True
 )
+criteria_app = typer.Typer(
+    name="criteria", help="Manage inclusion/exclusion criteria.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
+app.add_typer(criteria_app, name="criteria")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -135,15 +140,9 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
 
 
-def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
-    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
-
-    Returns `None` when `git.require_rationale` is false and no rationale was
-    supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
-    unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
-    `validate_rationale` (empty, stop-listed, or too short).
-    """
-    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> str:
+    """Elicit and validate a rationale, unconditionally (shared by `_get_rationale`
+    and `_get_required_rationale` — see those for when each applies)."""
     why_file = ctx.obj.get("why_file")
     why = ctx.obj.get("why")
 
@@ -152,14 +151,12 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
         text = Path(why_file).read_text(encoding="utf-8")
     elif why:
         text = why
-    elif not require:
-        return None
     elif sys.stdin.isatty():
         out_console.print(context_lines)
         text = typer.prompt("Why? (this goes in the permanent record)")
     else:
         err_console.print(
-            "[red]error:[/] a rationale is required (git.require_rationale is true); "
+            "[red]error:[/] a rationale is required; "
             "pass --why or --why-file in a non-interactive context"
         )
         raise typer.Exit(EXIT_RATIONALE_REFUSED)
@@ -169,6 +166,32 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
     except RationaleRejectedError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
+
+
+def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
+    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
+
+    Returns `None` when `git.require_rationale` is false and no rationale was
+    supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
+    unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
+    `validate_rationale` (empty, stop-listed, or too short).
+    """
+    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+    if not require and not ctx.obj.get("why_file") and not ctx.obj.get("why"):
+        return None
+    return _prompt_and_validate_rationale(ctx, context_lines)
+
+
+def _get_required_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str:
+    """Like `_get_rationale`, but the rationale is required unconditionally,
+    regardless of `git.require_rationale` — for operations the specification
+    itself requires a rationale for with no config escape hatch: criteria
+    changes (docs/spec/06-workflow-screening.md §3.2's "Why did you make this
+    change?" prompt) and adjudications (§8: "A rationale is REQUIRED for
+    adjudications").
+    """
+    del repo  # kept for signature symmetry with `_get_rationale`; not consulted
+    return _prompt_and_validate_rationale(ctx, context_lines)
 
 
 def _derive_clone_dest_name(url: str) -> str:
@@ -961,6 +984,198 @@ def fix_command(
         out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
 
     _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
+
+
+def _split_stages(raw: str) -> list[str]:
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+def _commit_criteria_op(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    op: str,
+    criterion_id: str,
+    summary: str,
+    by: str,
+    rationale: str,
+) -> None:
+    if ctx.obj["no_commit"]:
+        return
+    commit_obj = StructuredCommit(
+        op=op,
+        scope=criterion_id,
+        summary=summary,
+        body=rationale,
+        trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
+    )
+    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+@criteria_app.command("add")
+def criteria_add(
+    ctx: typer.Context,
+    kind: str = typer.Option(..., "--kind", help="inclusion | exclusion"),
+    label: str = typer.Option(..., "--label"),
+    definition: str = typer.Option(..., "--definition"),
+    applies_at: str = typer.Option(..., "--applies-at", help="Comma-separated stages"),
+    by: str = typer.Option(..., "--by", help="Actor handle making the change"),
+    criterion_id: str | None = typer.Option(None, "--id"),
+) -> None:
+    """Add a criterion. A criterion added behaves as `tightened` (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(
+        ctx, repo, f"You are adding a new {kind} criterion: {label!r}."
+    )
+    try:
+        criterion = criteria_mod.add_criterion(
+            repo,
+            kind=kind,  # type: ignore[arg-type]
+            label=label,
+            definition=definition,
+            applies_at=_split_stages(applies_at),
+            actor=by,
+            rationale=rationale,
+            criterion_id=criterion_id,
+        )
+    except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json(criterion)
+    else:
+        out_console.print(f"[green]added[/] {criterion['id']} (criteria v{version})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-add",
+        criterion_id=criterion["id"],
+        summary=f"add criterion {criterion['id']}",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("edit")
+def criteria_edit(
+    ctx: typer.Context,
+    criterion_id: str,
+    direction: str = typer.Option(
+        ..., "--direction", help="tightened | loosened | both | editorial"
+    ),
+    by: str = typer.Option(..., "--by", help="Actor handle making the change"),
+    definition: str | None = typer.Option(None, "--definition"),
+    label: str | None = typer.Option(None, "--label"),
+    applies_at: str | None = typer.Option(None, "--applies-at", help="Comma-separated stages"),
+) -> None:
+    """Edit a criterion; MUST classify the change's direction (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(ctx, repo, f"You are editing {criterion_id} ({direction}).")
+    try:
+        updated = criteria_mod.edit_criterion(
+            repo,
+            criterion_id,
+            direction=direction,  # type: ignore[arg-type]
+            actor=by,
+            rationale=rationale,
+            label=label,
+            definition=definition,
+            applies_at=_split_stages(applies_at) if applies_at is not None else None,
+        )
+    except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json(updated)
+    else:
+        out_console.print(f"[green]edited[/] {criterion_id} (criteria v{version}, {direction})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-edit",
+        criterion_id=criterion_id,
+        summary=f"edit criterion {criterion_id} ({direction})",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("retire")
+def criteria_retire(
+    ctx: typer.Context, criterion_id: str, by: str = typer.Option(..., "--by")
+) -> None:
+    """Retire a criterion; behaves as `loosened` (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(ctx, repo, f"You are retiring {criterion_id}.")
+    try:
+        criteria_mod.retire_criterion(repo, criterion_id, actor=by, rationale=rationale)
+    except criteria_mod.CriteriaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json({"id": criterion_id, "status": "retired"})
+    else:
+        out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{version})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-retire",
+        criterion_id=criterion_id,
+        summary=f"retire criterion {criterion_id}",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("list")
+def criteria_list_cmd(
+    ctx: typer.Context,
+    at: str | None = typer.Option(None, "--at", help="Filter to criteria applying at this stage"),
+    version: int | None = typer.Option(
+        None, "--version", help="Reconstruct the set as of version N"
+    ),
+) -> None:
+    repo = _resolve_repo(ctx)
+    criteria = criteria_mod.list_criteria(repo, at=at, version=version)
+    if ctx.obj["json"]:
+        _print_json(criteria)
+        return
+    if not criteria:
+        out_console.print("no criteria recorded yet -- `strata criteria add`")
+        return
+    for c in criteria:
+        status = "" if c["status"] == "active" else " [dim](retired)[/]"
+        out_console.print(f"{c['id']:<8} {c['kind']:<10} {c['label']}{status}")
+
+
+@criteria_app.command("diff")
+def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
+    """Show what changed between two criteria versions."""
+    repo = _resolve_repo(ctx)
+    try:
+        deltas = criteria_mod.diff_versions(repo, v1, v2)
+    except criteria_mod.CriteriaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if ctx.obj["json"]:
+        _print_json(deltas)
+        return
+    if not deltas:
+        out_console.print(f"no criteria changes between v{v1} and v{v2}")
+        return
+    for d in deltas:
+        out_console.print(f"{d['id']:<8} {d['origin']:<8} {d['direction']:<10} {d['label']}")
 
 
 @internal_app.command("hook-pre-commit")

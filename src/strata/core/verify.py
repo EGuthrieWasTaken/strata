@@ -119,6 +119,51 @@ def _verify_records(repo: Repo, report: VerifyReport) -> None:
                 report.add("E_SCHEMA", f"line {i + 1}: {error}", path=rel)
 
 
+def _verify_criteria_reuse(repo: Repo, report: VerifyReport) -> None:
+    """`E_CRITERION_REUSE`: a criterion id must never be used by two `added` deltas.
+
+    Our own `protocol.criteria.add_criterion` already refuses to reuse an id
+    still present in `criteria.yaml` (retired entries are never deleted), so
+    this only fires against a hand-edited or corrupted repository where a
+    criterion entry was removed and then its id reissued.
+    """
+    criteria_dir = repo.path("events", "criteria")
+    if not criteria_dir.exists():
+        return
+    seen: set[str] = set()
+    for path in sorted(criteria_dir.glob("*.ndjson")):
+        for envelope in events_mod.read_events(path):
+            if envelope.get("ev") != "criteria-change":
+                continue
+            for delta in envelope.get("body", {}).get("deltas", []):
+                if delta.get("origin") != "added":
+                    continue
+                criterion_id = delta["id"]
+                if criterion_id in seen:
+                    report.add(
+                        "E_CRITERION_REUSE",
+                        f"criterion id {criterion_id!r} was added more than once",
+                    )
+                else:
+                    seen.add(criterion_id)
+
+
+def _verify_criteria(repo: Repo, report: VerifyReport) -> None:
+    path = repo.path("protocol", "criteria.yaml")
+    if path.exists():
+        data = load_yaml_str(path.read_text(encoding="utf-8"))
+        if data:
+            try:
+                validate("criteria", dict(data))
+            except SchemaValidationError as exc:
+                for error in exc.errors:
+                    report.add("E_SCHEMA", error, path="protocol/criteria.yaml")
+    # Driven by the event log, not the file, so it must run even when
+    # criteria.yaml is missing or blank (a corrupted repository is exactly
+    # the case this check exists to catch).
+    _verify_criteria_reuse(repo, report)
+
+
 def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
     aliases_path = repo.path("records", "aliases.ndjson")
     if not aliases_path.exists():
@@ -159,6 +204,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     referenced_records = _verify_events(repo, report, fast=fast)
     _verify_searches(repo, report)
     _verify_records(repo, report)
+    _verify_criteria(repo, report)
     if not fast:
         _verify_aliases(repo, report)
         _verify_dangling_refs(repo, report, referenced_records)

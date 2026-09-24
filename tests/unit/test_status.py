@@ -33,5 +33,5 @@ def test_compute_status_on_freshly_initialised_repo(tmp_path: Path) -> None:
     assert status.title == "T"
     assert status.actor_count == 1
     assert status.record_count == 0
-    assert status.criteria_version == 1
+    assert status.criteria_version == 0
     assert status.is_clean is True

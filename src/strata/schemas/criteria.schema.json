@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://strata-review.org/schemas/criteria.schema.json",
+  "title": "Criteria",
+  "description": "docs/spec/03-schemas.md §3 — protocol/criteria.yaml",
+  "type": "object",
+  "required": ["version", "digest", "criteria"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "integer", "minimum": 0 },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "definition",
+          "applies_at",
+          "since_version",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^(INC|EXC)-\\d{2,}$" },
+          "kind": { "type": "string", "enum": ["inclusion", "exclusion"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "definition": { "type": "string", "minLength": 1 },
+          "applies_at": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "since_version": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["active", "retired"] },
+          "examples": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "include": { "type": "array", "items": { "type": "string" } },
+              "exclude": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
