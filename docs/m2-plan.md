@@ -111,7 +111,7 @@ M2:
 | 10 | Screening-latency benchmark (<100ms p95 @ 50k) | **done** |
 | 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
 | 11b | Web UI, sitting 2: criteria editor w/ live, non-mutating impact preview (M2 acceptance bullet) | **done** |
-| 11c | Web UI, sitting 3: rescreen/adjudicate/dedup/records/history screens | not started |
+| 11c | Web UI, sitting 3: rescreen + adjudicate screens (`/dedup`/`/records*`/`/history` still open) | **partial** |
 | 12 | Traceability updates, roadmap acceptance pass, docs polish | **done** |
 
 ### 1. Criteria management — done
@@ -950,17 +950,65 @@ criterion rejections, retire-already-retired) plus `routes.py` staying at
 100% combined with 11a's existing tests. Full suite after this
 sub-objective: 935 passed, 97.5% overall coverage.
 
-### 11c. Web UI, sitting 3 (not started)
+### 11c. Web UI, sitting 3 — partial (`/rescreen`, `/adjudicate` done; `/dedup`/`/records*`/`/history` still open)
 
-Remaining from `docs/spec/11-web-ui.md` §2's route table: `/rescreen`
-(stale queue, prior decision + reason shown, `[k]eep previous`),
-`/adjudicate` (conflict resolution), `/dedup`, `/records`, `/records/<id>`,
-`/history` — the last four can reuse M1 data and are lower risk to add
-alongside if time allows. Consider htmx partial updates for S2's
-"asynchronous" half once the full-page-reload baseline from 11a/11b is
-trusted, and the §2.4 batched-commit policy for web screening sessions
-specifically (still just "append immediately, commit later via the CLI"
-as of 11a).
+Spec: `docs/spec/11-web-ui.md` §2's `/rescreen` and `/adjudicate` rows,
+§3.2 (re-screening mode).
+
+**`/rescreen/<stage>`**: the same statelessness/skip/undo design as
+`/screen/<stage>` (11a), plus the prior decision and staleness reason
+shown prominently and a fourth `[k]eep previous` action (§3.2) that
+re-submits the record's own `prior_decision`/`prior_criteria` from
+`rescreen_queue`'s current snapshot rather than asking the reviewer to
+re-enter them. One genuine design difference from `/screen`, not an
+oversight: `/screen`'s "N of M" has a stable M (everything *assigned*)
+with N climbing; `/rescreen` has no separate "assigned" set to anchor M
+to — `rescreen_queue`'s own size *is* M, and it shrinks as the reviewer
+works through it (1 of 14, then 1 of 13, ...). Both are accurate at every
+page load; they're just shaped differently, a direct consequence of
+`/rescreen` having no state independent of what's currently stale.
+Decisions batch the same way `/screen`'s do (appended immediately,
+committed later — see 11a's commit-policy note) since a rescreen session
+is still fundamentally a session of many small decisions, not one
+deliberate action like a criteria edit.
+
+**`/adjudicate/<stage>`**: shows every contributing opinion (actor,
+decision, cited criteria, note) side by side, `[i]nclude`/`[e]xclude` with
+citation checkboxes, and an unconditionally required rationale (`docs/spec/06`
+§8: no `git.require_rationale` escape hatch, matching
+`record_adjudication`'s own enforcement). A non-adjudicator sees the
+conflict read-only with an explanation rather than a form that would just
+be rejected server-side on submit — `is_adjudicator` is checked for
+display, but the actual authorization boundary stays entirely in
+`record_adjudication` itself, not duplicated client-side. Unlike
+`/screen`/`/rescreen`, an adjudication commits immediately per resolution
+(matching `/criteria`'s policy, 11b): it is one deliberate, already-
+justified action, not one of many decisions accumulating in a session,
+and there's no "undo" here either — resolving a disagreement is a one-way
+action, not a routine re-decision.
+
+Both screens reuse `keyboard.js` (added a `k`ey binding for `[k]eep
+previous`) and the existing `screen-form` id, so the same single-key
+shortcuts and CSS work without new client code.
+
+**Testing**: `tests/integration/test_web_rescreen.py` (12 tests: unknown
+stage, empty queue, prior decision/reason display, keep-previous,
+new-decision-with-citation, CSRF, re-keeping an already-resolved record,
+skip, redo, invalid criterion, skip-carried-into-redirect) and `tests/
+integration/test_web_adjudicate.py` (10 tests: unknown stage, no
+conflicts, both opinions shown, non-adjudicator view/rejection, resolve +
+commit, missing rationale, CSRF, skip, skip-carried-into-redirect).
+`routes.py` stays at 100% line+branch combined with 11a/11b's tests.
+
+**Still open** (tracked, not dropped): `/dedup` (duplicate review queue),
+`/records` (searchable/filterable table), `/records/<id>` (detail +
+`strata why` provenance timeline), `/history` (domain-level history from
+commit trailers) — all four can reuse M1 data and code paths already
+built for the CLI, and are lower risk than what's been built so far since
+none of them touch the append-only event log's write path. Also still
+open: htmx partial updates for S2's "asynchronous" half, and the §2.4
+batched-commit policy for web screening/rescreening sessions specifically
+(still "append immediately, commit later via the CLI," as of 11a).
 
 ### 12. Traceability, roadmap acceptance pass, docs polish — done
 
@@ -996,17 +1044,21 @@ the web screening/criteria-editor surfaces are all real enough at this
 point that running that usability session is now genuinely actionable,
 which wasn't true before this milestone.
 
-**Full suite at the close of M2**: 935 passed, 97.5% overall coverage,
-`ruff format`/`ruff check`/`mypy src` all clean. Every module this
-milestone touched is at 100% line+branch coverage except `web/server.py`
-(76% — the uncovered lines are `serve_until_idle_or_interrupted`, the
-function that actually runs uvicorn, exercised for real by
-`tests/integration/test_cli_serve.py`'s subprocess test but invisible to
-`coverage.py` inside a child process without additional
-`COVERAGE_PROCESS_START` plumbing this milestone didn't set up) and
-`cli/main.py` (90% — a pre-existing characteristic of that module across
-M0/M1 too: a thin CLI-argument-adapter layer with many small error
-branches, not something this milestone changed the shape of).
+**Full suite at the point every acceptance bullet above was confirmed**:
+935 passed, 97.5% overall coverage, `ruff format`/`ruff check`/`mypy src`
+all clean (work continued afterward into sub-objective 11c's `/rescreen`/
+`/adjudicate` screens, bringing the count to 957 passed by the time this
+file was last updated — none of that later work changes any acceptance
+result above, since all six bullets were already decided before it
+started). Every module this milestone touched is at 100% line+branch
+coverage except `web/server.py` (76% — the uncovered lines are
+`serve_until_idle_or_interrupted`, the function that actually runs
+uvicorn, exercised for real by `tests/integration/test_cli_serve.py`'s
+subprocess test but invisible to `coverage.py` inside a child process
+without additional `COVERAGE_PROCESS_START` plumbing this milestone didn't
+set up) and `cli/main.py` (90% — a pre-existing characteristic of that
+module across M0/M1 too: a thin CLI-argument-adapter layer with many small
+error branches, not something this milestone changed the shape of).
 
 **Retrospective: real bugs this milestone's own tests found**, beyond
 what was asked for — each is detailed in its own sub-objective's write-up

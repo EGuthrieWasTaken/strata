@@ -42,13 +42,16 @@
       <td>{{ stage.conflicts }}</td>
       <td>{{ stage.stale }}</td>
       <td>
+        {% if stage.conflicts %}
+        <a href="/adjudicate/{{ stage.stage }}">Adjudicate &rarr;</a>
+        {% endif %}
+        {% if stage.stale %}
+        <a href="/rescreen/{{ stage.stage }}">Rescreen &rarr;</a>
+        {% endif %}
         {% if stage.unscreened or stage.partial %}
         <a href="/screen/{{ stage.stage }}">Screen &rarr;</a>
-        {% elif stage.stale %}
-        <span class="todo-note">rescreen (web surface not built yet)</span>
-        {% elif stage.conflicts %}
-        <span class="todo-note">adjudicate (web surface not built yet)</span>
-        {% else %}
+        {% endif %}
+        {% if not (stage.conflicts or stage.stale or stage.unscreened or stage.partial) %}
         <span class="done-note">up to date</span>
         {% endif %}
       </td>

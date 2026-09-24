@@ -68,9 +68,10 @@
 
     if (typing) return; // never hijack keys once the reviewer is typing a note
 
-    if (key === "i" || key === "e" || key === "m") {
-      var button = form.querySelector('button[name="decision"][value="' +
-        (key === "i" ? "include" : key === "e" ? "exclude" : "maybe") + '"]');
+    if (key === "i" || key === "e" || key === "m" || key === "k") {
+      var decisionValue = key === "i" ? "include" : key === "e" ? "exclude" :
+        key === "m" ? "maybe" : "keep"; // "k"eep previous, /rescreen only
+      var button = form.querySelector('button[name="decision"][value="' + decisionValue + '"]');
       if (button) {
         event.preventDefault();
         announce("recording decision…");

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ stage }} adjudicate{% endblock %}
+{% block content %}
+{% if record is none %}
+<h1>{{ stage }} adjudicate</h1>
+<p class="done-note">No conflicts at this stage.</p>
+<p><a href="/">&larr; Back to dashboard</a></p>
+{% else %}
+<h1>{{ stage }} adjudicate &mdash; {{ total }} conflict{{ "s" if total != 1 else "" }}</h1>
+
+<article class="record-card">
+  <h2>{{ record_title }}</h2>
+  {% if record.abstract %}
+  <p class="abstract">{{ record.abstract }}</p>
+  {% endif %}
+</article>
+
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Reviewer</th>
+      <th scope="col">Decision</th>
+      <th scope="col">Criteria</th>
+      <th scope="col">Note</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for actor, event in opinions %}
+    <tr>
+      <th scope="row">{{ actor }}</th>
+      <td>{{ event.body.decision | upper }}</td>
+      <td>{{ event.body.criteria | join(", ") }}</td>
+      <td>{{ event.body.note or "" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not is_adjudicator %}
+<p class="error" role="alert">{{ actor }} is not an adjudicator for this review (screening.adjudicators or role adjudicator/lead) &mdash; only viewing this conflict, not resolving it.</p>
+{% else %}
+<form method="post" action="/adjudicate/{{ stage }}" id="screen-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="record_id" value="{{ record.id }}">
+  <input type="hidden" name="skip" value="{{ skip_csv }}">
+
+  <div class="decision-buttons" role="group" aria-label="Decision">
+    <button type="submit" name="decision" value="include" accesskey="i" class="btn btn-include">
+      <kbd>i</kbd> Include
+    </button>
+    <button type="submit" name="decision" value="exclude" accesskey="e" class="btn btn-exclude">
+      <kbd>e</kbd> Exclude
+    </button>
+  </div>
+
+  {% if active_criteria %}
+  <fieldset class="criteria-list">
+    <legend>Exclusion criteria</legend>
+    {% for c in active_criteria %}
+    <label class="criterion" title="{{ c.definition }}">
+      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}">
+      <span class="criterion-num">{{ loop.index }}</span>
+      <span class="criterion-id">{{ c.id }}</span>
+      <span class="criterion-label">{{ c.label }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  <label class="note-field">
+    Why does this decision stand? (required)
+    <textarea name="rationale" id="note-field" required minlength="12"></textarea>
+  </label>
+
+  <div class="nav-links">
+    <a href="/adjudicate/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+      <kbd>s</kbd> Skip
+    </a>
+  </div>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

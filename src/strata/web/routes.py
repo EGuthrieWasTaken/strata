@@ -2,16 +2,17 @@
 
 Scope built so far (docs/m2-plan.md sub-objective 11 splits the web UI into
 sittings): the dashboard (`/`), the title-abstract/full-text screening
-surface (`/screen/<stage>`), and the criteria editor with its live,
-non-mutating impact preview (`/criteria`) -- the one web-UI piece the M2
-roadmap acceptance checklist names outright ("The criteria editor's impact
-preview is correct and non-mutating," docs/spec/15-roadmap.md). All of it
-is server-rendered with full-page-reload semantics (§5's hard "MUST
-function with JavaScript disabled" requirement) plus a small keyboard-
-shortcut script layered on top, not a JS-required SPA. `/rescreen`,
-`/adjudicate`, `/dedup`, `/records*`, `/history`, and everything M3-shaped
-(`/extract/*`, `/rob/*`, `/analysis/*`, `/prisma`) remain deferred, tracked
-in that same plan entry.
+surface (`/screen/<stage>`), the stale-queue re-screening surface
+(`/rescreen/<stage>`), conflict resolution (`/adjudicate/<stage>`), and the
+criteria editor with its live, non-mutating impact preview (`/criteria`) --
+the one web-UI piece the M2 roadmap acceptance checklist names outright
+("The criteria editor's impact preview is correct and non-mutating,"
+docs/spec/15-roadmap.md). All of it is server-rendered with full-page-
+reload semantics (§5's hard "MUST function with JavaScript disabled"
+requirement) plus a small keyboard-shortcut script layered on top, not a
+JS-required SPA. `/dedup`, `/records*`, `/history`, and everything
+M3-shaped (`/extract/*`, `/rob/*`, `/analysis/*`, `/prisma`) remain
+deferred, tracked in that same plan entry.
 
 **Statelessness and "undo"/"skip".** §1 requires the server be stateless
 with respect to the repository, so there is no server-side session
@@ -54,6 +55,7 @@ from strata import gitio
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
+from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
@@ -264,6 +266,216 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
     redirect_url = f"/screen/{stage}?prev={record_id}"
     if skip_csv:
         redirect_url += f"&skip={skip_csv}"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
+# --------------------------------------------------------------- rescreen
+
+
+@router.get("/rescreen/{stage}", response_class=HTMLResponse)
+async def rescreen_stage(request: Request, stage: str) -> HTMLResponse:
+    """The stale queue (docs/spec/06 §6, docs/spec/11 §3.2): identical to
+    `/screen/<stage>` (same statelessness, skip/undo design -- see this
+    module's docstring), plus the prior decision/reason shown and a fourth
+    `[k]eep previous` action. One difference forced by statelessness: `/
+    screen`'s "N of M" position has a stable M (everything *assigned*) and
+    an increasing N; here there is no "assigned but not yet stale" set to
+    anchor M to, so M is `rescreen_queue`'s own current size and *shrinks*
+    as the reviewer works through it (1 of 14, then 1 of 13, ...) rather
+    than N climbing towards a fixed M -- still an accurate, honest count
+    at every page load, just shaped differently.
+    """
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+
+    try:
+        full_queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
+    except rescreen_mod.RescreenError:
+        return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+
+    skip_ids = set(_parse_id_list(request.query_params.get("skip")))
+    redo_id = request.query_params.get("redo")
+    prev_id = request.query_params.get("prev")
+
+    queue = [s for s in full_queue if s.record_id not in skip_ids]
+    stale: rescreen_mod.StaleRecord | None = None
+    if redo_id is not None:
+        stale = next((s for s in full_queue if s.record_id == redo_id), None)
+    if stale is None:
+        stale = queue[0] if queue else None
+
+    if stale is None:
+        return _render(
+            request,
+            "rescreen.html",
+            {"stage": stage, "actor": state.actor, "stale": None, "total": 0},
+        )
+
+    record = records_mod.get_record(repo, stale.record_id)
+    assert record is not None
+    active_criteria = sorted(
+        screening_mod.active_criteria_for_stage(repo, stage).values(), key=lambda c: c["id"]
+    )
+    return _render(
+        request,
+        "rescreen.html",
+        {
+            "stage": stage,
+            "actor": state.actor,
+            "stale": stale,
+            "record": record,
+            "record_title": record.get("title") or "(no title)",
+            "active_criteria": active_criteria,
+            "total": len(queue),
+            "prev_id": prev_id,
+            "skip_csv": ",".join(sorted(skip_ids)),
+            "skip_next_csv": ",".join(sorted(skip_ids | {stale.record_id})),
+            "session_token": state.session_token,
+        },
+    )
+
+
+@router.post("/rescreen/{stage}", response_model=None)
+async def rescreen_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    form = request.state.form
+
+    record_id = str(form.get("record_id") or "")
+    decision = str(form.get("decision") or "")
+    cited = [str(v) for v in form.getlist("criteria")]
+    skip_csv = str(form.get("skip") or "")
+
+    if decision == "keep":
+        try:
+            queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
+        except rescreen_mod.RescreenError:
+            return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+        stale = next((s for s in queue if s.record_id == record_id), None)
+        if stale is None:
+            return HTMLResponse(
+                f"{record_id!r} is no longer in the stale queue for {stage!r}", status_code=422
+            )
+        decision = stale.prior_decision
+        cited = list(stale.prior_criteria)
+
+    try:
+        screening_mod.record_screen_decision(
+            repo,
+            stage=stage,
+            record_id=record_id,
+            decision=decision,  # type: ignore[arg-type]
+            actor=state.actor,
+            cited=cited,
+        )
+    except screening_mod.ScreeningError as exc:
+        return HTMLResponse(str(exc), status_code=422)
+
+    redirect_url = f"/rescreen/{stage}?prev={record_id}"
+    if skip_csv:
+        redirect_url += f"&skip={skip_csv}"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
+# ------------------------------------------------------------- adjudicate
+
+
+@router.get("/adjudicate/{stage}", response_class=HTMLResponse)
+async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse:
+    """Conflict resolution (docs/spec/06 §8). Same skip-list statelessness
+    as `/screen`/`/rescreen`; there is no "undo" here since an adjudication
+    is a one-way resolution of a disagreement, not a routine decision."""
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+
+    try:
+        full_queue = adjudication_mod.conflict_queue(repo, stage)
+    except adjudication_mod.AdjudicationError:
+        return HTMLResponse(f"unknown stage {stage!r}", status_code=404)
+
+    skip_ids = set(_parse_id_list(request.query_params.get("skip")))
+    queue = [rid for rid in full_queue if rid not in skip_ids]
+
+    if not queue:
+        return _render(
+            request,
+            "adjudicate.html",
+            {"stage": stage, "actor": state.actor, "record": None, "total": 0},
+        )
+
+    record_id = queue[0]
+    record = records_mod.get_record(repo, record_id)
+    assert record is not None
+    conflict_state = screening_mod.resolve_record_state(repo, stage, record_id)
+    opinions = sorted(conflict_state.opinions.items(), key=lambda kv: kv[0])
+    active_criteria = sorted(
+        screening_mod.active_criteria_for_stage(repo, stage).values(), key=lambda c: c["id"]
+    )
+    return _render(
+        request,
+        "adjudicate.html",
+        {
+            "stage": stage,
+            "actor": state.actor,
+            "record": record,
+            "record_title": record.get("title") or "(no title)",
+            "opinions": opinions,
+            "active_criteria": active_criteria,
+            "is_adjudicator": adjudication_mod.is_adjudicator(repo, state.actor),
+            "total": len(queue),
+            "skip_csv": ",".join(sorted(skip_ids)),
+            "skip_next_csv": ",".join(sorted(skip_ids | {record_id})),
+            "session_token": state.session_token,
+        },
+    )
+
+
+@router.post("/adjudicate/{stage}", response_model=None)
+async def adjudicate_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
+    state: AppState = request.app.state.strata
+    repo = state.open_repo()
+    form = request.state.form
+
+    record_id = str(form.get("record_id") or "")
+    decision = str(form.get("decision") or "")
+    cited = [str(v) for v in form.getlist("criteria")]
+    raw_rationale = str(form.get("rationale") or "")
+    skip_csv = str(form.get("skip") or "")
+
+    try:
+        rationale = validate_rationale(raw_rationale)
+        adjudication_mod.record_adjudication(
+            repo,
+            stage=stage,
+            record_id=record_id,
+            decision=decision,  # type: ignore[arg-type]
+            actor=state.actor,
+            rationale=rationale,
+            cited=cited,
+        )
+    except (RationaleRejectedError, adjudication_mod.AdjudicationError) as exc:
+        return HTMLResponse(str(exc), status_code=422)
+
+    pool_mod.regenerate_all(repo)
+    # Short subject: a record id is a ~20-char ULID, and
+    # StructuredCommit.subject() enforces a 72-character line (docs/spec/04
+    # §2.2) -- unlike the CLI's own `adjudicate`, which batches a whole
+    # session into one commit (`strata adjudicate N conflict(s)`, no id),
+    # the web surface commits one adjudication at a time, so the id has to
+    # fit in the summary itself.
+    commit_obj = StructuredCommit(
+        op="adjudicate",
+        scope=stage,
+        summary=f"adjudicate {record_id}",
+        body=rationale,
+        trailers={"Op": "adjudicate", "Stage": stage, "Record": record_id, "Actor": state.actor},
+    )
+    gitio.add(repo.root, ["records", "events", "derived"])
+    gitio.commit(repo.root, commit_obj.message())
+
+    redirect_url = f"/adjudicate/{stage}"
+    if skip_csv:
+        redirect_url += f"?skip={skip_csv}"
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
