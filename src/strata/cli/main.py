@@ -23,9 +23,11 @@ from rich.console import Console
 from strata import __version__, gitio
 from strata.core import actor as actor_mod
 from strata.core import doctor as doctor_mod
+from strata.core import filters as filters_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
+from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core import verify as verify_mod
@@ -62,9 +64,13 @@ actor_app = typer.Typer(name="actor", help="Manage contributors.", no_args_is_he
 search_app = typer.Typer(
     name="search", help="Record and list executed searches.", no_args_is_help=True
 )
+records_app = typer.Typer(
+    name="records", help="List and inspect bibliographic records.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
+app.add_typer(records_app, name="records")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -643,7 +649,7 @@ def _render_review_pair(
     return "\n".join(lines)
 
 
-def _commit_dedup_op(
+def _commit_domain_op(
     ctx: typer.Context,
     repo: Repo,
     *,
@@ -681,7 +687,7 @@ def dedup_command(
     if undo != ("", ""):
         canonical_id, absorbed_id = undo
         engine_mod.undo_merge(repo, canonical_id=canonical_id, absorbed_id=absorbed_id, actor=by)
-        _commit_dedup_op(
+        _commit_domain_op(
             ctx,
             repo,
             op="dedup-unmerge",
@@ -721,7 +727,7 @@ def dedup_command(
             out_console.print(f"[yellow]warning:[/] {w}")
 
     if outcome.auto_merged:
-        _commit_dedup_op(
+        _commit_domain_op(
             ctx,
             repo,
             op="dedup",
@@ -755,7 +761,7 @@ def dedup_command(
                     decision="merge",
                     actor=by,
                 )
-                _commit_dedup_op(
+                _commit_domain_op(
                     ctx,
                     repo,
                     op="dedup",
@@ -774,7 +780,7 @@ def dedup_command(
                     decision="distinct",
                     actor=by,
                 )
-                _commit_dedup_op(
+                _commit_domain_op(
                     ctx,
                     repo,
                     op="dedup-distinct",
@@ -787,6 +793,174 @@ def dedup_command(
             else:
                 out_console.print("[dim]skipped -- will be asked again next time[/]")
             break
+
+
+def _resolve_record_id(repo: Repo, record_id: str) -> str:
+    """`<id>` may be any unambiguous prefix (docs/spec/10-cli.md §1); exits
+    with a clear error, not a traceback, for zero or multiple matches."""
+    try:
+        return records_mod.resolve_id_prefix(repo, record_id)
+    except (records_mod.RecordNotFoundError, records_mod.AmbiguousRecordIdError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+
+def _record_year(record: dict[str, Any]) -> int | None:
+    parts = ((record.get("issued") or {}).get("date-parts")) or [[None]]
+    return parts[0][0] if parts else None
+
+
+def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
+    """The record without strata's internal `strata` bookkeeping block --
+    what a citation tool wants from `--format csl`."""
+    return {k: v for k, v in record.items() if k != "strata"}
+
+
+@records_app.command("list")
+def records_list(
+    ctx: typer.Context,
+    filter_expr: str | None = typer.Option(
+        None, "--filter", help="Filter expression, docs/spec/10-cli.md §3"
+    ),
+    fmt: str = typer.Option("tsv", "--format", help="tsv | json | csl"),
+    all_records: bool = typer.Option(
+        False, "--all", help="Include absorbed duplicates (excluded by default)"
+    ),
+) -> None:
+    """List records; `--filter` narrows them, `--format` controls the output shape."""
+    if fmt not in ("tsv", "json", "csl"):
+        err_console.print(f"[red]error:[/] --format must be tsv, json, or csl, got {fmt!r}")
+        raise typer.Exit(EXIT_USAGE)
+
+    repo = _resolve_repo(ctx)
+    records = records_mod.read_records(repo)
+    if not all_records:
+        records = [r for r in records if r.get("strata", {}).get("canonical", True)]
+
+    if filter_expr:
+        try:
+            ast = filters_mod.parse(filter_expr)
+        except filters_mod.FilterSyntaxError as exc:
+            err_console.print(f"[red]error:[/] invalid --filter: {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        matched = []
+        for record in records:
+            try:
+                if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
+                    matched.append(record)
+            except filters_mod.FilterEvaluationError as exc:
+                err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
+                raise typer.Exit(EXIT_USAGE) from None
+        records = matched
+
+    if fmt == "json":
+        _print_json(records)
+    elif fmt == "csl":
+        _print_json([_csl_view(r) for r in records])
+    else:
+        # Rich's Console expands literal tabs to aligned spaces even with
+        # soft_wrap=True (verified: it's tab-stop rendering, not wrapping) --
+        # exactly wrong for a format whose entire point is real tab bytes a
+        # script can split on. Bypass it and write directly to stdout.
+        print("id\tyear\tauthors\ttitle")
+        for record in records:
+            year = _record_year(record)
+            title = record.get("title", "")
+            print(f"{record['id']}\t{year or ''}\t{_author_display(record)}\t{title}")
+
+
+@records_app.command("show")
+def records_show(ctx: typer.Context, record_id: str) -> None:
+    """Full record: metadata, sources, and dedup/provenance flags."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+    record = records_mod.get_record(repo, resolved_id)
+    assert record is not None  # resolve_id_prefix only returns ids that exist
+
+    if ctx.obj["json"]:
+        _print_json(record)
+        return
+
+    strata_block = record.get("strata", {})
+    year = _record_year(record)
+    byline = _author_display(record)
+    out_console.print(f"[bold]{resolved_id}[/]  [{_source_label(record)}]")
+    if byline or year:
+        out_console.print(f"{byline} ({year})" if byline and year else byline or str(year))
+    out_console.print(record.get("title") or "")
+    locator = record.get("container-title") or ""
+    if record.get("volume"):
+        locator += f", {record['volume']}"
+    if record.get("issue"):
+        locator += f"({record['issue']})"
+    if record.get("page"):
+        locator += f", {record['page']}"
+    if locator:
+        out_console.print(locator)
+    if record.get("DOI"):
+        out_console.print(f"DOI: {record['DOI']}")
+    if record.get("abstract"):
+        out_console.print(f"\n{record['abstract']}")
+    out_console.print(f"\ncanonical: {strata_block.get('canonical', True)}")
+    if strata_block.get("absorbed"):
+        out_console.print(f"absorbed: {', '.join(strata_block['absorbed'])}")
+    out_console.print("sources:")
+    for source in strata_block.get("sources", []):
+        out_console.print(f"  {source}")
+
+
+@app.command("why")
+def why_command(ctx: typer.Context, record_id: str) -> None:
+    """Full provenance for a record: search, import, amendments, and dedup history."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+    entries = provenance_mod.build_provenance(repo, resolved_id)
+
+    if ctx.obj["json"]:
+        _print_json(
+            [{"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail} for e in entries]
+        )
+        return
+
+    if not entries:
+        out_console.print(f"[yellow]no recorded provenance for {resolved_id}[/]")
+        return
+
+    out_console.print(f"[bold]{resolved_id}[/]")
+    for entry in entries:
+        ts = f" {entry.ts}" if entry.ts else ""
+        actor = f" by {entry.actor}" if entry.actor else ""
+        out_console.print(f"\n[bold]{entry.kind.upper()}[/]{ts}{actor}")
+        for key, value in entry.detail.items():
+            out_console.print(f"  {key}: {value}")
+
+
+@app.command("fix")
+def fix_command(
+    ctx: typer.Context,
+    record_id: str,
+    field: str = typer.Option(..., "--field", help="One of records_mod.EDITABLE_STRING_FIELDS"),
+    value: str = typer.Option(..., "--value", help="The corrected value"),
+    by: str = typer.Option(..., "--by", help="Actor handle making the correction"),
+) -> None:
+    """Correct a metadata field, recording the change as a `record-amend` event."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+
+    try:
+        old, new = records_mod.amend_field(
+            repo, record_id=resolved_id, field=field, value=value, actor=by
+        )
+    except records_mod.FixFieldError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if ctx.obj["json"]:
+        _print_json({"record": resolved_id, "field": field, "old": old, "new": new})
+    else:
+        out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
+
+    _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
 
 
 @internal_app.command("hook-pre-commit")

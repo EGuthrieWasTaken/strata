@@ -49,7 +49,9 @@ thresholds, auto-merge, an interactive review queue, merge semantics, and
 `--undo`, validated against a labelled benchmark (recall 1.000, false-merge
 rate 0.0000 against the v1 targets — see
 [`docs/dedup-benchmark-results.md`](docs/dedup-benchmark-results.md)).
-Screening, extraction, and analysis are not built yet; see
+`strata records list|show`, `strata why`, and `strata fix` are implemented,
+including the `--filter` expression language shared with the (future) web UI
+and analysis specs. Screening, extraction, and analysis are not built yet; see
 [the roadmap](docs/spec/15-roadmap.md) for M1's remainder and what M2 brings
 next, and [`docs/m1-plan.md`](docs/m1-plan.md) for the current
 sub-objective-by-sub-objective status.

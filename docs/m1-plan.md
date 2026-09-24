@@ -451,21 +451,104 @@ review-queue routing, event/alias side effects, undo; 100% coverage,
   worth checking for on any future command whose summary embeds a full
   `rec_`/`imp_`/`ev_` id.
 
-### 7. `strata records`/`why`/`fix` + filter expression language
+### 7. `strata records`/`why`/`fix` + filter expression language — done
 
 Spec: `docs/spec/10-cli.md` §2 (Literature commands), §3 (filter expression
 grammar — shared by CLI, web UI, and analysis specs; must not use
 `eval`/`exec`).
 
-Scope:
-- A small hand-written recursive-descent parser + AST interpreter for the
-  grammar in §3, with a regex timeout/linear-time guard for `matches`.
-- `strata records list [--filter EXPR] [--format tsv|json|csl]`, `strata
-  records show <id>` (full record + sources + provenance).
-- `strata why <id>` — walk the event log for a record's full provenance
-  chain (search → import → dedup); this is also part of the M1 acceptance
-  bar ("`strata why` shows the full import and dedup provenance chain").
-- `strata fix <id> --field <f> --value <v>` — emits `record-amend`.
+Delivered: `src/strata/core/filters.py` (the grammar: hand-written
+recursive-descent parser + AST + interpreter, 100% coverage,
+`tests/unit/test_filters.py`), `src/strata/core/records.py`'s new
+`record_field_resolver`/`resolve_id_prefix`/`amend_field`/
+`EDITABLE_STRING_FIELDS` (100% coverage, additions to
+`tests/unit/test_records.py`), `src/strata/core/provenance.py` (`strata
+why`'s event-log walk, 100% coverage, `tests/unit/test_provenance.py`), and
+`strata records list|show`, `strata why`, `strata fix` in
+`src/strata/cli/main.py` (`tests/integration/test_cli_records.py`).
+
+- **Grammar** (§3): every rule in the spec's grammar block — `or_expr`/
+  `and_expr`/`not_expr`/`primary`/`comparison`, all nine operators including
+  the two-word `not in`, string/number/boolean/null/list literals with
+  string-escape handling. No `eval`/`exec` anywhere; `filters.py` is
+  domain-agnostic (it knows nothing about what fields exist) so the same
+  module can serve the web UI and analysis specs later without a rewrite.
+- **`--filter` fields** (§3's table): only the M1 subset with real data --
+  `id`, `doi`, `pmid`, `title`, `abstract`, `journal`, `year`, `authors`,
+  `via`, `search` (`record_field_resolver`). Every other field the table
+  lists (`tiab`, `fulltext`, `stale`, `criteria`, `actor_decision.<handle>`,
+  `rob_overall`, `rob.<domain>`, extraction/moderator fields,
+  `derived_from_pvalue`, `assumed_correlation`) needs screening (M2),
+  extraction (M3), or analysis (M4) data that doesn't exist yet; referencing
+  one raises a clear "not available yet" error naming the milestone gap,
+  rather than either crashing unhelpfully or silently matching nothing.
+- **`strata records list`**: `--filter EXPR`, `--format tsv|json|csl`
+  (default `tsv`), `--all` to include absorbed duplicates (excluded by
+  default). `strata records show <id>` and `strata why`/`strata fix <id>`
+  all accept an unambiguous id *prefix*, per §1's "as in git"
+  (`records.resolve_id_prefix`), not just a full id.
+- **`strata why <id>`**: walks every event file for `record-add`, `import`,
+  `record-amend`, and `dedup-merge`/`dedup-distinct`/`dedup-unmerge` events
+  touching the given record, resolves the `import` event's `search_id`
+  against `protocol/searches/`, and renders the chain search → import →
+  record-add → amendments/dedup (the latter two chronological, since a
+  record can be corrected or merged/undone more than once). Satisfies the M1
+  acceptance bar ("`strata why` shows the full import and dedup provenance
+  chain") — verified in `test_why_includes_dedup_provenance`.
+- **`strata fix <id> --field <f> --value <v> --by <actor>`**: emits
+  `record-amend` (`record`, `field`, `old`, `new`, `source`) exactly per the
+  event catalog (docs/spec/02-repository-format.md §4.4), `source` always
+  `"manual"` to distinguish a human correction from `strata sync`'s
+  automatic three-way-merge resolution (§4.3 of `04-git-integration.md`),
+  which the spec says emits the same event type. Commits like every other
+  mutating command (`_commit_domain_op`, generalised from dedup's
+  `_commit_dedup_op` since the logic was never dedup-specific).
+
+**Decisions worth knowing about**:
+- **`matches`'s safety guard is a static nested-quantifier check, not a
+  runtime timeout, and this was not the original plan.** §3 allows either "a
+  linear-time regex engine or enforce a timeout." A background-thread-plus-
+  `join(timeout)` approach was tried first and **empirically failed**: fed a
+  genuinely catastrophic pattern (`(a+)+b` against a long run of `a`s), the
+  main thread's `join(1.0)` never returned within a live test run (it was
+  killed after minutes, still spinning). The reason is structural, not a bug
+  in that attempt: CPython's `re` engine holds the GIL for the entire
+  duration of one `search()` call, with no bytecode-level safe point for
+  another thread to run at — so the "timing out" thread can't even reacquire
+  the GIL to notice the timeout until the match finishes on its own, which
+  for a catastrophic pattern is effectively never. `multiprocessing` is the
+  only mechanism that can actually kill a runaway match, and spawning a
+  process per `matches` evaluation is far too slow across e.g. `strata
+  records list --filter` on a real repository. The shipped mitigation
+  instead parses the pattern with `re._parser` (private but stable since
+  3.11) and statically rejects an unbounded repeat nested inside another —
+  `(a+)+`, `(a*)+`, `(a+)*`, and the alternation form `(a+|b)+` — the
+  textbook ReDoS shape, before any regex ever runs. This is not exhaustive
+  (some catastrophic patterns use a different shape, e.g. overlapping
+  alternation without a literal nested repeat node) but needs no OS-specific
+  mechanism and has no runtime cost. See `strata.core.filters._is_catastrophic`'s
+  docstring for the full reasoning.
+- `via`/`search` are typed `string` in §3's field table, but a merged
+  record's `strata.sources` can hold several entries (one per absorbed
+  duplicate) with different values. `record_field_resolver` resolves both to
+  the record's *first* source (the one that originally established it) --
+  "how was this first found" is the most natural single-value reading, but a
+  query needing *any* source's via/search isn't expressible this way. A
+  known, documented limitation rather than inventing multi-valued comparison
+  semantics the spec doesn't describe.
+- `strata fix` only edits `EDITABLE_STRING_FIELDS` — every record-schema
+  field except `id`/`type` (identity, not metadata) and `author`/`issued`/
+  `strata` (structured, not a flat string). Correcting an author's name or a
+  publication year isn't expressible via `strata fix` yet; the CLI reference
+  in §2 doesn't specify field-level constraints, so this is this
+  implementation's own boundary, chosen because a single string value can't
+  represent a structured field without inventing an ad hoc sub-syntax the
+  spec doesn't define.
+- `resolve_id_prefix`'s "as in git" abbreviation support (§1) was added for
+  the three new record-id-consuming commands (`records show`, `why`, `fix`)
+  but not retrofitted onto `dedup --undo`, which still requires full ids —
+  out of scope for this sub-objective, noted for whoever touches that
+  command next.
 
 ### 8. Fuzz corpus + requirement-traceability report + M1 acceptance polish
 

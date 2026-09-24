@@ -7,6 +7,17 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- `strata records list [--filter EXPR] [--format tsv|json|csl] [--all]`,
+  `strata records show <id>`, `strata why <id>`, and
+  `strata fix <id> --field <f> --value <v> --by <actor>`
+  (`docs/spec/10-cli.md` §2), plus the filter expression language §3
+  requires (`strata.core.filters`: a hand-written recursive-descent parser
+  and AST interpreter, no `eval`/`exec`, with a static nested-quantifier
+  guard against catastrophic regex backtracking in `matches`). `strata why`
+  walks the event log for a record's full search → import → dedup
+  provenance chain, satisfying that part of the M1 acceptance bar. Record
+  ids may be abbreviated to any unambiguous prefix, as in git, for these
+  three commands. All new modules at 100% line+branch coverage.
 - `strata dedup [--by ACTOR] [--review] [--strict] [--undo CANONICAL ABSORBED]`:
   thresholds and actions (`docs/spec/05-workflow-import.md` §3.4), field-wise
   merge semantics with `strata.field_provenance` and an `aliases.ndjson`
