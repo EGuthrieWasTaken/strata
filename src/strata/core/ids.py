@@ -153,6 +153,34 @@ def normalise_journal(raw: str | None) -> str:
     return " ".join(tokens)
 
 
+def normalise_pmid(raw: Any) -> str | None:
+    """docs/spec/01-domain-model.md §3.1 — PubMed id: digits only."""
+    if raw is None:
+        return None
+    digits = re.sub(r"\D", "", str(raw))
+    return digits or None
+
+
+def normalise_pmcid(raw: Any) -> str | None:
+    """docs/spec/01-domain-model.md §3.1 — PMC id: `PMC` + digits."""
+    if raw is None:
+        return None
+    digits = re.sub(r"\D", "", str(raw))
+    return f"PMC{digits}" if digits else None
+
+
+def normalise_isbn(raw: Any) -> str | None:
+    """docs/spec/01-domain-model.md §3.1 — ISBN: digits only.
+
+    No check-digit normalisation yet (tracked in docs/m1-plan.md); this
+    matches what `canonical_key`'s isbn branch has always done.
+    """
+    if raw is None:
+        return None
+    digits = re.sub(r"\D", "", str(raw))
+    return digits or None
+
+
 def _first_author_family(record: dict[str, Any]) -> str:
     authors = record.get("author") or []
     if not authors:
@@ -173,17 +201,13 @@ def canonical_key(record: dict[str, Any]) -> tuple[str, bool]:
     if doi:
         return f"doi:{doi}", True
 
-    pmid = record.get("PMID")
-    if pmid is not None:
-        digits = re.sub(r"\D", "", str(pmid))
-        if digits:
-            return f"pmid:{digits}", True
+    pmid = normalise_pmid(record.get("PMID"))
+    if pmid:
+        return f"pmid:{pmid}", True
 
-    pmcid = record.get("PMCID")
+    pmcid = normalise_pmcid(record.get("PMCID"))
     if pmcid:
-        digits = re.sub(r"\D", "", str(pmcid))
-        if digits:
-            return f"pmcid:PMC{digits}", True
+        return f"pmcid:{pmcid}", True
 
     arxiv = record.get("arXiv") or record.get("arxiv")
     if arxiv:
@@ -192,11 +216,9 @@ def canonical_key(record: dict[str, Any]) -> tuple[str, bool]:
         if norm:
             return f"arxiv:{norm}", True
 
-    isbn = record.get("ISBN")
+    isbn = normalise_isbn(record.get("ISBN"))
     if isbn:
-        digits = re.sub(r"\D", "", str(isbn))
-        if digits:
-            return f"isbn:{digits}", True
+        return f"isbn:{isbn}", True
 
     title = normalise_title(record.get("title"))
     if title:

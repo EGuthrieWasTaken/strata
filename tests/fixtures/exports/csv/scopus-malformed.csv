@@ -1,0 +1,5 @@
+﻿Authors,Title,Year,Source title,Volume,Issue,DOI,EID
+"Doe, Jane",A valid record before the bad one,2010,A Journal,1,1,10.1000/good1,2-s2.0-10
+"Roe, Richard",,2020,A Journal,2,2,10.1000/bad,2-s2.0-11
+"Müller, Anna",Diacritics &amp; HTML entities in this title,2015,A Journal,3,3,10.1000/good2,2-s2.0-12
+"Doe, Jane",A valid record after the bad one,2011,A Journal,4,4,10.1000/good3,2-s2.0-13

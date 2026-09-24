@@ -1,0 +1,19 @@
+PMID- 1
+TI  - A valid record before the bad one
+DP  - 2010
+
+PMID- 2
+TI  -
+DP  - 2020
+
+PMID- 3
+TI  - Diacritics in author names &amp; an inconsistently indented
+    abstract
+AB  - This wraps across a continuation line indented
+        more deeply than the six-space convention.
+FAU - Müller, Anna
+DP  - 2015
+
+PMID- 4
+TI  - A valid record after the bad ones
+DP  - 2011

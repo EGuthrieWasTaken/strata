@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://strata-review.org/schemas/record.schema.json",
+  "title": "Record",
+  "description": "docs/spec/03-schemas.md §2 — one line of records/records.ndjson",
+  "type": "object",
+  "required": ["id", "type", "title", "strata"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "pattern": "^rec_[0-9a-hjkmnp-tv-z]{16}$" },
+    "type": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "author": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "family": { "type": "string" },
+          "given": { "type": "string" },
+          "literal": { "type": "string" }
+        }
+      }
+    },
+    "issued": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "date-parts": {
+          "type": "array",
+          "items": { "type": "array", "items": { "type": "integer" } }
+        }
+      }
+    },
+    "container-title": { "type": "string" },
+    "volume": { "type": "string" },
+    "issue": { "type": "string" },
+    "page": { "type": "string" },
+    "DOI": { "type": "string" },
+    "PMID": { "type": "string" },
+    "PMCID": { "type": "string" },
+    "URL": { "type": "string" },
+    "ISBN": { "type": "string" },
+    "abstract": { "type": "string" },
+    "keyword": { "type": "string" },
+    "language": { "type": "string" },
+    "strata": {
+      "type": "object",
+      "required": ["canonical_key", "canonical", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "canonical_key": { "type": "string", "minLength": 1 },
+        "canonical": { "type": "boolean" },
+        "absorbed": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^rec_[0-9a-hjkmnp-tv-z]{16}$" }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["import"],
+            "additionalProperties": true,
+            "properties": {
+              "import": { "type": "string", "pattern": "^imp_[0-9a-hjkmnp-tv-z]{26}$" },
+              "search": { "type": ["string", "null"] },
+              "via": { "type": ["string", "null"] },
+              "database": { "type": ["string", "null"] },
+              "platform": { "type": ["string", "null"] },
+              "native_id": { "type": ["string", "null"] },
+              "row": { "type": ["integer", "null"] },
+              "retrieved": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "field_provenance": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "no-abstract",
+              "no-doi",
+              "retracted",
+              "preprint",
+              "non-english",
+              "id-unstable"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "encoding": "utf-8-sig",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "A record preceded by a UTF-8 byte order mark",
+      "author": [
+        {
+          "family": "Byteorder",
+          "given": "Mark"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2017
+          ]
+        ]
+      },
+      "container-title": "Journal of Encodings"
+    }
+  ],
+  "rejected": []
+}

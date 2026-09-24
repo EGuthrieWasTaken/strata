@@ -1,0 +1,30 @@
+[
+  {
+    "type": "article-journal",
+    "title": "Spacing effects in learning",
+    "author": [
+      {
+        "family": "Cepeda",
+        "given": "NJ"
+      },
+      {
+        "family": "Vul",
+        "given": "E"
+      }
+    ],
+    "issued": {
+      "date-parts": [
+        [
+          2008
+        ]
+      ]
+    },
+    "container-title": "Psychological Science",
+    "volume": "19",
+    "issue": "11",
+    "DOI": "10.1111/j.1467-9280.2008.02209.x",
+    "page": "1095-1102",
+    "abstract": "We tested spacing effects.",
+    "keyword": "spacing; learning"
+  }
+]

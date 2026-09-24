@@ -2,6 +2,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from strata.core.events import append_new_event
 from strata.core.repo import Repo
 from strata.core.verify import verify_repository
@@ -29,6 +31,21 @@ def _make_repo(tmp_path: Path, manifest_text: str = _VALID_MANIFEST) -> Repo:
     return Repo(root=tmp_path, config=config)
 
 
+def _valid_record(record_id: str, **overrides: object) -> dict:
+    record = {
+        "id": record_id,
+        "type": "article-journal",
+        "title": "x",
+        "strata": {
+            "canonical_key": f"sig:{record_id}",
+            "canonical": True,
+            "sources": [{"import": "imp_01arz3ndektsv4rrffq69g5fav"}],
+        },
+    }
+    record.update(overrides)
+    return record
+
+
 def test_verify_passes_on_minimal_valid_repo(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     report = verify_repository(repo)
@@ -53,6 +70,7 @@ def test_verify_reports_event_schema_errors(tmp_path: Path) -> None:
     assert any(i.code == "E_SCHEMA" for i in report.issues)
 
 
+@pytest.mark.req("E_CHAIN")
 def test_verify_reports_chain_violations_unless_fast(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     path = repo.path("events", "note", "ethan.ndjson")
@@ -67,6 +85,7 @@ def test_verify_reports_chain_violations_unless_fast(tmp_path: Path) -> None:
     assert any(i.code == "E_CHAIN" for i in full_report.issues)
 
 
+@pytest.mark.req("E_DANGLING_REF")
 def test_verify_reports_dangling_record_reference(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
@@ -93,7 +112,7 @@ def test_verify_accepts_reference_to_known_record(tmp_path: Path) -> None:
     records_path = repo.path("records", "records.ndjson")
     records_path.parent.mkdir(parents=True, exist_ok=True)
     records_path.write_text(
-        json.dumps({"id": "rec_known0000000000", "title": "x"}) + "\n", encoding="utf-8"
+        json.dumps(_valid_record("rec_0000000000000001")) + "\n", encoding="utf-8"
     )
     path = repo.path("events", "screen", "title-abstract.ethan.ndjson")
     append_new_event(
@@ -102,7 +121,7 @@ def test_verify_accepts_reference_to_known_record(tmp_path: Path) -> None:
         actor="ethan",
         body={
             "stage": "title-abstract",
-            "record": "rec_known0000000000",
+            "record": "rec_0000000000000001",
             "decision": "include",
             "criteria": [],
             "criteria_version": 1,
@@ -118,10 +137,10 @@ def test_verify_accepts_dedup_merge_referencing_alias(tmp_path: Path) -> None:
     aliases_path = repo.path("records", "aliases.ndjson")
     records_path.parent.mkdir(parents=True, exist_ok=True)
     records_path.write_text(
-        json.dumps({"id": "rec_canonical000000", "title": "x"}) + "\n", encoding="utf-8"
+        json.dumps(_valid_record("rec_0000000000000002")) + "\n", encoding="utf-8"
     )
     aliases_path.write_text(
-        json.dumps({"alias": "rec_absorbed0000000", "canonical": "rec_canonical000000"}) + "\n",
+        json.dumps({"alias": "rec_0000000000000003", "canonical": "rec_0000000000000002"}) + "\n",
         encoding="utf-8",
     )
     path = repo.path("events", "dedup", "ethan.ndjson")
@@ -130,8 +149,8 @@ def test_verify_accepts_dedup_merge_referencing_alias(tmp_path: Path) -> None:
         ev="dedup-merge",
         actor="ethan",
         body={
-            "canonical": "rec_canonical000000",
-            "absorbed": ["rec_absorbed0000000"],
+            "canonical": "rec_0000000000000002",
+            "absorbed": ["rec_0000000000000003"],
             "score": 1.0,
             "method": "exact-doi",
         },
@@ -140,6 +159,7 @@ def test_verify_accepts_dedup_merge_referencing_alias(tmp_path: Path) -> None:
     assert not any(i.code == "E_DANGLING_REF" for i in report.issues)
 
 
+@pytest.mark.req("E_ALIAS_CYCLE")
 def test_verify_detects_alias_cycle(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path)
     aliases_path = repo.path("records", "aliases.ndjson")
@@ -190,6 +210,46 @@ def test_verify_ignores_blank_search_file(tmp_path: Path) -> None:
     searches_path.write_text("", encoding="utf-8")
     report = verify_repository(repo)
     assert not any("searches" in (i.path or "") for i in report.issues)
+
+
+def test_verify_accepts_valid_record(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    records_path = repo.path("records", "records.ndjson")
+    records_path.parent.mkdir(parents=True, exist_ok=True)
+    records_path.write_text(
+        json.dumps(_valid_record("rec_0000000000000001")) + "\n", encoding="utf-8"
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_SCHEMA" and "records" in (i.path or "") for i in report.issues)
+
+
+@pytest.mark.req("E_SCHEMA")
+def test_verify_reports_invalid_record_schema(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    records_path = repo.path("records", "records.ndjson")
+    records_path.parent.mkdir(parents=True, exist_ok=True)
+    invalid = _valid_record("rec_0000000000000001")
+    del invalid["strata"]
+    records_path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+    report = verify_repository(repo)
+    assert any(i.code == "E_SCHEMA" and i.path == "records/records.ndjson" for i in report.issues)
+
+
+def test_verify_ignores_blank_lines_in_records_ndjson(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    records_path = repo.path("records", "records.ndjson")
+    records_path.parent.mkdir(parents=True, exist_ok=True)
+    records_path.write_text(
+        json.dumps(_valid_record("rec_0000000000000001")) + "\n\n", encoding="utf-8"
+    )
+    report = verify_repository(repo)
+    assert not any(i.code == "E_SCHEMA" and "records" in (i.path or "") for i in report.issues)
+
+
+def test_verify_missing_records_file_is_not_an_error(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    report = verify_repository(repo)
+    assert report.ok
 
 
 def test_verify_fast_mode_skips_alias_and_dangling_checks(tmp_path: Path) -> None:

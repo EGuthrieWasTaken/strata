@@ -9,6 +9,7 @@ from __future__ import annotations
 import random
 import string
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -48,6 +49,7 @@ def event_lists(draw: st.DrawFn) -> list[dict]:
     return events
 
 
+@pytest.mark.req("P1")
 @given(event_lists())
 def test_p1_fold_determinism(events: list[dict]) -> None:
     """Folding a shuffled event log yields the same state as folding it in any other order."""
@@ -58,6 +60,7 @@ def test_p1_fold_determinism(events: list[dict]) -> None:
     assert a == b
 
 
+@pytest.mark.req("P2")
 @given(event_lists(), st.integers(min_value=0, max_value=5))
 def test_p2_fold_idempotence(events: list[dict], duplicate_times: int) -> None:
     """Duplicating any subset of events does not change the folded state."""
@@ -67,6 +70,7 @@ def test_p2_fold_idempotence(events: list[dict], duplicate_times: int) -> None:
     assert baseline == result
 
 
+@pytest.mark.req("P9")
 @given(event_lists())
 def test_p9_merge_convergence(events: list[dict]) -> None:
     """Applying two disjoint event sets in either order yields the same state."""
@@ -79,6 +83,7 @@ def test_p9_merge_convergence(events: list[dict]) -> None:
     assert a == b
 
 
+@pytest.mark.req("P13")
 @given(event_lists())
 def test_p13_undo_inverts(events: list[dict]) -> None:
     """A decision followed by its undo folds to the pre-decision state."""

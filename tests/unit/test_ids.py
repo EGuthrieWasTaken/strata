@@ -7,8 +7,11 @@ from strata.core.ids import (
     new_import_id,
     normalise_author_family,
     normalise_doi,
+    normalise_isbn,
     normalise_journal,
     normalise_pages,
+    normalise_pmcid,
+    normalise_pmid,
     normalise_title,
     normalise_year,
     record_id,
@@ -167,6 +170,12 @@ def test_canonical_key_arxiv_branch() -> None:
     assert deterministic is True
 
 
+def test_canonical_key_arxiv_empty_after_prefix_strip_falls_through() -> None:
+    key, deterministic = canonical_key({"arxiv": "arXiv:", "title": "T"})
+    assert key.startswith("sig:")
+    assert deterministic is True
+
+
 def test_canonical_key_isbn_branch() -> None:
     key, deterministic = canonical_key({"ISBN": "978-0-13-468599-1"})
     assert key == "isbn:9780134685991"
@@ -184,3 +193,27 @@ def test_new_import_id_has_expected_prefix_and_length() -> None:
     import_id = new_import_id()
     assert import_id.startswith("imp_")
     assert len(import_id) == len("imp_") + 26
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("19076480", "19076480"), ("PMID: 19076480", "19076480"), (None, None), ("no digits", None)],
+)
+def test_normalise_pmid(raw: str | None, expected: str | None) -> None:
+    assert normalise_pmid(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("PMC123456", "PMC123456"), ("123456", "PMC123456"), (None, None), ("none here", None)],
+)
+def test_normalise_pmcid(raw: str | None, expected: str | None) -> None:
+    assert normalise_pmcid(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("978-0-13-468599-1", "9780134685991"), (None, None), ("none here", None)],
+)
+def test_normalise_isbn(raw: str | None, expected: str | None) -> None:
+    assert normalise_isbn(raw) == expected

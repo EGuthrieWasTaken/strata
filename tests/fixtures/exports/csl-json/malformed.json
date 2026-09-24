@@ -1,0 +1,20 @@
+[
+  {
+    "id": "good-1",
+    "type": "article-journal",
+    "title": "A valid record before the bad ones",
+    "issued": { "date-parts": [[2010]] }
+  },
+  {
+    "id": "empty-title",
+    "type": "article-journal",
+    "title": ""
+  },
+  "this entry is a bare string, not an object",
+  {
+    "id": "good-2",
+    "type": "article-journal",
+    "title": "A valid record after the bad ones",
+    "issued": { "date-parts": [[2011]] }
+  }
+]

@@ -201,6 +201,29 @@ jobs:
           path: benchmark.json
           if-no-files-found: ignore
 
+  traceability:
+    name: traceability
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Requirement traceability report (docs/spec 14 §10.5), warn only
+        run: uv run python scripts/traceability_report.py || true
+      - name: Upload traceability report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: traceability-report
+          path: build/traceability-report.md
+          if-no-files-found: ignore
+
   # ---- The required check: depends on every tier-1/2 job, tolerates skips -
 
   gate:

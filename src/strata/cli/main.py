@@ -8,12 +8,14 @@ layer the (future) web UI will call.
 
 from __future__ import annotations
 
+import dataclasses
 import json as json_mod
 import re
 import shutil
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -21,15 +23,20 @@ from rich.console import Console
 from strata import __version__, gitio
 from strata.core import actor as actor_mod
 from strata.core import doctor as doctor_mod
+from strata.core import filters as filters_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
+from strata.core import provenance as provenance_mod
+from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
 from strata.core.validate import SchemaValidationError
+from strata.dedup import engine as engine_mod
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import searches as searches_mod
 
 EXIT_OK = 0
@@ -42,9 +49,10 @@ EXIT_SCHEMA_TOO_NEW = 6
 EXIT_RATIONALE_REFUSED = 7
 EXIT_GUARDRAIL = 8
 
-# A repeatable list-typed typer.Option default must live at module scope,
-# not inline in a signature, or ruff's flake8-bugbear B008 flags it.
+# A repeatable list-typed typer.Option/Argument default must live at module
+# scope, not inline in a signature, or ruff's flake8-bugbear B008 flags it.
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
+_IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
 
 app = typer.Typer(
     name="strata",
@@ -56,9 +64,13 @@ actor_app = typer.Typer(name="actor", help="Manage contributors.", no_args_is_he
 search_app = typer.Typer(
     name="search", help="Record and list executed searches.", no_args_is_help=True
 )
+records_app = typer.Typer(
+    name="records", help="List and inspect bibliographic records.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
+app.add_typer(records_app, name="records")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -185,6 +197,22 @@ def _parse_config_value(raw: str) -> bool | int | float | str:
     except ValueError:
         pass
     return raw
+
+
+def _parse_map_option(raw: str) -> dict[str, str]:
+    """`--map title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
+
+    docs/spec/05-workflow-import.md §2.2's own example uses exactly this
+    comma-separated `field=Column Name` syntax; a column name containing a
+    literal comma isn't expressible this way, a known limitation.
+    """
+    mapping: dict[str, str] = {}
+    for pair in raw.split(","):
+        if "=" not in pair:
+            raise typer.BadParameter(f"--map entry {pair!r} is not of the form field=Column")
+        field_name, column = pair.split("=", 1)
+        mapping[field_name.strip()] = column.strip()
+    return mapping
 
 
 @app.command()
@@ -475,6 +503,464 @@ def search_list(ctx: typer.Context) -> None:
         hits = s.get("hits")
         hits_str = f"{hits} hits" if hits is not None else "hits unknown"
         out_console.print(f"{s['id']:<20} {s['database']:<14} {s['executed']}  {hits_str}{pending}")
+
+
+@app.command("import")
+def import_command(
+    ctx: typer.Context,
+    files: list[str] = _IMPORT_FILES_ARGUMENT,
+    by: str = typer.Option(..., "--by", help="Actor handle who ran the import"),
+    search_id: str | None = typer.Option(
+        None, "--search", help="Id of the search that produced this export"
+    ),
+    via: str | None = typer.Option(
+        None, "--via", help="citation-searching | website | organisation | registry | contact"
+    ),
+    fmt: str | None = typer.Option(None, "--format", help="Override automatic format detection"),
+    map_option: str | None = typer.Option(
+        None,
+        "--map",
+        help="CSV/TSV column mapping, e.g. title=Article Title,author=Authors,doi=DOI",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Parse and report without writing anything"
+    ),
+) -> None:
+    """Import one or more bibliographic exports: copy raw, parse, assign ids, commit.
+
+    Each file is its own import (docs/spec/02-repository-format.md §2:
+    `imports/<id>/`) and, unless `--dry-run`/`--no-commit`, its own commit —
+    a failure partway through a multi-file import leaves every earlier file's
+    import already committed rather than the tree half-written and dirty.
+    """
+    repo = _resolve_repo(ctx)
+    exit_code = EXIT_OK
+    results = []
+    mapping = _parse_map_option(map_option) if map_option else None
+
+    for file in files:
+        try:
+            outcome = pipeline_mod.import_file(
+                repo,
+                file,
+                imported_by=by,
+                search_id=search_id,
+                via=via,
+                fmt=fmt,
+                mapping=mapping,
+                dry_run=dry_run,
+            )
+        except pipeline_mod.ImportPipelineError as exc:
+            exit_code = EXIT_USAGE
+            if ctx.obj["json"]:
+                results.append({"file": file, "error": str(exc)})
+            else:
+                err_console.print(f"[red]error:[/] {file}: {exc}")
+            continue
+
+        if ctx.obj["json"]:
+            results.append({"file": file, **dataclasses.asdict(outcome)})
+
+        if outcome.already_imported:
+            if not ctx.obj["json"]:
+                out_console.print(
+                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
+                )
+            continue
+
+        if not ctx.obj["json"]:
+            verb = "would import" if dry_run else "imported"
+            out_console.print(
+                f"[green]{verb}[/] {file} as {outcome.import_id}: "
+                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
+                f"existing, {outcome.rows_rejected} rejected"
+            )
+            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
+                out_console.print(
+                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
+                )
+
+        if dry_run or ctx.obj["no_commit"]:
+            continue
+
+        rationale = _get_rationale(ctx, repo, f"You imported {file} as {outcome.import_id}.")
+        commit_obj = StructuredCommit(
+            op="import",
+            scope=outcome.import_id,
+            summary=f"import {Path(file).name}",
+            body=rationale,
+            trailers={"Op": "import", "Import": outcome.import_id, "Actor": by},
+        )
+        gitio.add(repo.root, ["imports", "records", "events"])
+        gitio.commit(repo.root, commit_obj.message())
+
+    if ctx.obj["json"]:
+        _print_json(results)
+    raise typer.Exit(exit_code)
+
+
+def _author_display(record: dict[str, Any]) -> str:
+    names = []
+    for author in record.get("author") or []:
+        if isinstance(author, dict):
+            names.append(author.get("family") or author.get("literal") or "")
+        else:
+            names.append(str(author))
+    return ", ".join(n for n in names if n)
+
+
+def _source_label(record: dict[str, Any]) -> str:
+    sources = record.get("strata", {}).get("sources") or []
+    if not sources:
+        return "manual"
+    return str(sources[-1].get("database") or sources[-1].get("platform") or "manual")
+
+
+def _render_review_pair(
+    index: int,
+    total: int,
+    candidate: engine_mod.ReviewCandidate,
+    record_a: dict[str, Any],
+    record_b: dict[str, Any],
+) -> str:
+    header = f"Pair {index} of {total}"
+    lines = [f"{header:<50} score {candidate.result.score:.2f}"]
+    if candidate.doi_conflict:
+        lines.append("DOIs differ -- flagged for human judgement (doi-conflict)")
+    lines.append("")
+    for label, record in (("A", record_a), ("B", record_b)):
+        year = ((record.get("issued") or {}).get("date-parts") or [[None]])[0][0]
+        authors = _author_display(record)
+        if authors and year:
+            byline = f"{authors} ({year})"
+        else:
+            byline = authors or (str(year) if year else "")
+        lines.append(f"  {label}  {record['id']}     [{_source_label(record)}]")
+        if byline:
+            lines.append(f"     {byline}")
+        lines.append(f"     {record.get('title', '')}")
+    f = candidate.result.features
+    lines.append(
+        f"     title {f['title']:.2f} | authors {f['author']:.2f} | year {f['year']:.2f} "
+        f"| journal {f['journal']:.2f} | locator {f['locator']:.2f}"
+    )
+    lines.append("")
+    lines.append("  [m] merge   [k] keep both   [s] skip   [?] help")
+    return "\n".join(lines)
+
+
+def _commit_domain_op(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    op: str,
+    scope: str | None,
+    summary: str,
+    by: str,
+    extra_trailers: dict[str, str] | None = None,
+) -> None:
+    if ctx.obj["no_commit"]:
+        return
+    rationale = _get_rationale(ctx, repo, f"You {summary}.")
+    trailers = {"Op": op, "Actor": by, **(extra_trailers or {})}
+    commit_obj = StructuredCommit(
+        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    )
+    gitio.add(repo.root, ["records", "events"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+_UNDO_OPTION = typer.Option(("", ""), "--undo", help="CANONICAL_ID ABSORBED_ID: reverse one merge")
+
+
+@app.command("dedup")
+def dedup_command(
+    ctx: typer.Context,
+    by: str = typer.Option(..., "--by", help="Actor handle running dedup"),
+    review: bool = typer.Option(False, "--review", help="Interactively work the review queue"),
+    strict: bool = typer.Option(False, "--strict", help="Force both thresholds to 1.0"),
+    undo: tuple[str, str] = _UNDO_OPTION,
+) -> None:
+    """Find and auto-merge obvious duplicates; `--review` walks the rest interactively."""
+    repo = _resolve_repo(ctx)
+
+    if undo != ("", ""):
+        canonical_id, absorbed_id = undo
+        engine_mod.undo_merge(repo, canonical_id=canonical_id, absorbed_id=absorbed_id, actor=by)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="dedup-unmerge",
+            scope=canonical_id,
+            summary="undid a merge",
+            by=by,
+            extra_trailers={"Restored": absorbed_id},
+        )
+        out_console.print(f"[green]restored[/] {absorbed_id}")
+        return
+
+    outcome = engine_mod.run_dedup(repo, actor=by, strict=strict)
+
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "candidate_pairs_considered": outcome.candidate_pairs_considered,
+                "auto_merged": outcome.auto_merged,
+                "review_queue": [
+                    {
+                        "a": c.record_a,
+                        "b": c.record_b,
+                        "score": c.result.score,
+                        "doi_conflict": c.doi_conflict,
+                    }
+                    for c in outcome.review_queue
+                ],
+                "blocking_warnings": outcome.blocking_warnings,
+            }
+        )
+    else:
+        out_console.print(
+            f"{outcome.candidate_pairs_considered} candidate pair(s); "
+            f"{len(outcome.auto_merged)} auto-merged; {len(outcome.review_queue)} pending review"
+        )
+        for w in outcome.blocking_warnings:
+            out_console.print(f"[yellow]warning:[/] {w}")
+
+    if outcome.auto_merged:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="dedup",
+            scope=None,
+            summary=f"auto-merged {len(outcome.auto_merged)} duplicate pair(s)",
+            by=by,
+        )
+
+    if not review or not outcome.review_queue:
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    total = len(outcome.review_queue)
+    for index, candidate in enumerate(outcome.review_queue, start=1):
+        record_a, record_b = records[candidate.record_a], records[candidate.record_b]
+        while True:
+            out_console.print(_render_review_pair(index, total, candidate, record_a, record_b))
+            choice = typer.prompt("Decision", default="s").strip().lower()
+            if choice in ("?", "help"):
+                out_console.print(
+                    "m = merge now; k = keep both (never asked again); "
+                    "s = skip (asked again next run)"
+                )
+                continue
+            if choice == "m":
+                engine_mod.apply_review_decision(
+                    repo,
+                    record_a_id=candidate.record_a,
+                    record_b_id=candidate.record_b,
+                    result=candidate.result,
+                    decision="merge",
+                    actor=by,
+                )
+                _commit_domain_op(
+                    ctx,
+                    repo,
+                    op="dedup",
+                    scope=candidate.record_a,
+                    summary="merged a duplicate after review",
+                    by=by,
+                    extra_trailers={"Absorbed": candidate.record_b},
+                )
+                out_console.print("[green]merged[/]")
+            elif choice == "k":
+                engine_mod.apply_review_decision(
+                    repo,
+                    record_a_id=candidate.record_a,
+                    record_b_id=candidate.record_b,
+                    result=candidate.result,
+                    decision="distinct",
+                    actor=by,
+                )
+                _commit_domain_op(
+                    ctx,
+                    repo,
+                    op="dedup-distinct",
+                    scope=candidate.record_a,
+                    summary="kept a pair distinct after review",
+                    by=by,
+                    extra_trailers={"Other": candidate.record_b},
+                )
+                out_console.print("[yellow]kept both[/]")
+            else:
+                out_console.print("[dim]skipped -- will be asked again next time[/]")
+            break
+
+
+def _resolve_record_id(repo: Repo, record_id: str) -> str:
+    """`<id>` may be any unambiguous prefix (docs/spec/10-cli.md §1); exits
+    with a clear error, not a traceback, for zero or multiple matches."""
+    try:
+        return records_mod.resolve_id_prefix(repo, record_id)
+    except (records_mod.RecordNotFoundError, records_mod.AmbiguousRecordIdError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+
+def _record_year(record: dict[str, Any]) -> int | None:
+    parts = ((record.get("issued") or {}).get("date-parts")) or [[None]]
+    return parts[0][0] if parts else None
+
+
+def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
+    """The record without strata's internal `strata` bookkeeping block --
+    what a citation tool wants from `--format csl`."""
+    return {k: v for k, v in record.items() if k != "strata"}
+
+
+@records_app.command("list")
+def records_list(
+    ctx: typer.Context,
+    filter_expr: str | None = typer.Option(
+        None, "--filter", help="Filter expression, docs/spec/10-cli.md §3"
+    ),
+    fmt: str = typer.Option("tsv", "--format", help="tsv | json | csl"),
+    all_records: bool = typer.Option(
+        False, "--all", help="Include absorbed duplicates (excluded by default)"
+    ),
+) -> None:
+    """List records; `--filter` narrows them, `--format` controls the output shape."""
+    if fmt not in ("tsv", "json", "csl"):
+        err_console.print(f"[red]error:[/] --format must be tsv, json, or csl, got {fmt!r}")
+        raise typer.Exit(EXIT_USAGE)
+
+    repo = _resolve_repo(ctx)
+    records = records_mod.read_records(repo)
+    if not all_records:
+        records = [r for r in records if r.get("strata", {}).get("canonical", True)]
+
+    if filter_expr:
+        try:
+            ast = filters_mod.parse(filter_expr)
+        except filters_mod.FilterSyntaxError as exc:
+            err_console.print(f"[red]error:[/] invalid --filter: {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        matched = []
+        for record in records:
+            try:
+                if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
+                    matched.append(record)
+            except filters_mod.FilterEvaluationError as exc:
+                err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
+                raise typer.Exit(EXIT_USAGE) from None
+        records = matched
+
+    if fmt == "json":
+        _print_json(records)
+    elif fmt == "csl":
+        _print_json([_csl_view(r) for r in records])
+    else:
+        # Rich's Console expands literal tabs to aligned spaces even with
+        # soft_wrap=True (verified: it's tab-stop rendering, not wrapping) --
+        # exactly wrong for a format whose entire point is real tab bytes a
+        # script can split on. Bypass it and write directly to stdout.
+        print("id\tyear\tauthors\ttitle")
+        for record in records:
+            year = _record_year(record)
+            title = record.get("title", "")
+            print(f"{record['id']}\t{year or ''}\t{_author_display(record)}\t{title}")
+
+
+@records_app.command("show")
+def records_show(ctx: typer.Context, record_id: str) -> None:
+    """Full record: metadata, sources, and dedup/provenance flags."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+    record = records_mod.get_record(repo, resolved_id)
+    assert record is not None  # resolve_id_prefix only returns ids that exist
+
+    if ctx.obj["json"]:
+        _print_json(record)
+        return
+
+    strata_block = record.get("strata", {})
+    year = _record_year(record)
+    byline = _author_display(record)
+    out_console.print(f"[bold]{resolved_id}[/]  [{_source_label(record)}]")
+    if byline or year:
+        out_console.print(f"{byline} ({year})" if byline and year else byline or str(year))
+    out_console.print(record.get("title") or "")
+    locator = record.get("container-title") or ""
+    if record.get("volume"):
+        locator += f", {record['volume']}"
+    if record.get("issue"):
+        locator += f"({record['issue']})"
+    if record.get("page"):
+        locator += f", {record['page']}"
+    if locator:
+        out_console.print(locator)
+    if record.get("DOI"):
+        out_console.print(f"DOI: {record['DOI']}")
+    if record.get("abstract"):
+        out_console.print(f"\n{record['abstract']}")
+    out_console.print(f"\ncanonical: {strata_block.get('canonical', True)}")
+    if strata_block.get("absorbed"):
+        out_console.print(f"absorbed: {', '.join(strata_block['absorbed'])}")
+    out_console.print("sources:")
+    for source in strata_block.get("sources", []):
+        out_console.print(f"  {source}")
+
+
+@app.command("why")
+def why_command(ctx: typer.Context, record_id: str) -> None:
+    """Full provenance for a record: search, import, amendments, and dedup history."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+    entries = provenance_mod.build_provenance(repo, resolved_id)
+
+    if ctx.obj["json"]:
+        _print_json(
+            [{"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail} for e in entries]
+        )
+        return
+
+    if not entries:
+        out_console.print(f"[yellow]no recorded provenance for {resolved_id}[/]")
+        return
+
+    out_console.print(f"[bold]{resolved_id}[/]")
+    for entry in entries:
+        ts = f" {entry.ts}" if entry.ts else ""
+        actor = f" by {entry.actor}" if entry.actor else ""
+        out_console.print(f"\n[bold]{entry.kind.upper()}[/]{ts}{actor}")
+        for key, value in entry.detail.items():
+            out_console.print(f"  {key}: {value}")
+
+
+@app.command("fix")
+def fix_command(
+    ctx: typer.Context,
+    record_id: str,
+    field: str = typer.Option(..., "--field", help="One of records_mod.EDITABLE_STRING_FIELDS"),
+    value: str = typer.Option(..., "--value", help="The corrected value"),
+    by: str = typer.Option(..., "--by", help="Actor handle making the correction"),
+) -> None:
+    """Correct a metadata field, recording the change as a `record-amend` event."""
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
+
+    try:
+        old, new = records_mod.amend_field(
+            repo, record_id=resolved_id, field=field, value=value, actor=by
+        )
+    except records_mod.FixFieldError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if ctx.obj["json"]:
+        _print_json({"record": resolved_id, "field": field, "old": old, "new": new})
+    else:
+        out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
+
+    _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
 
 
 @internal_app.command("hook-pre-commit")

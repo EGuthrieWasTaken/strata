@@ -59,10 +59,29 @@ strict = true
 mypy_path = "src"
 explicit_package_bases = true
 
+[[tool.mypy.overrides]]
+# No type stubs published for this library.
+module = ["rispy", "rispy.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Excludes tests/benchmark: docs/spec/05-workflow-import.md §3.7's 50,000-record
+# perf check is advisory-only (docs/m1-plan.md sub-objective 6) and belongs to
+# ci.yml's `benchmark` job, which targets that directory explicitly -- it must
+# never run as part of a bare `pytest`/`pytest -q` invocation (the "test" and
+# "coverage" jobs, both blocking gates).
+testpaths = [
+    "tests/unit",
+    "tests/integration",
+    "tests/property",
+    "tests/golden",
+    "tests/e2e",
+    "tests/statistical",
+]
+pythonpath = ["."]
 markers = [
     "req: mark a test as covering a specification requirement id (property invariant, E2E scenario, or error code)",
+    "benchmark_50k: the 50,000-record performance targets nightly.yml's benchmark-50k job runs blocking (docs/spec/14-testing.md §7)",
 ]
 
 [tool.coverage.run]

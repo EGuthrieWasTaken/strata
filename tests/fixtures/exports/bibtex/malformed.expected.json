@@ -1,0 +1,51 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "A valid record before the bad one",
+      "author": [
+        {
+          "family": "Alpha",
+          "given": "Anne"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2010
+          ]
+        ]
+      }
+    },
+    {
+      "type": "article-journal",
+      "title": "A valid record after the bad ones",
+      "author": [
+        {
+          "family": "Beta",
+          "given": "Bob"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2011
+          ]
+        ]
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "line": 7,
+      "raw": "@article{broken2020\n  title =",
+      "error": "Expected comma after entry key, but found ="
+    },
+    {
+      "line": 12,
+      "raw": "@misc{notitle2021, ...}",
+      "error": "missing or empty title"
+    }
+  ]
+}
