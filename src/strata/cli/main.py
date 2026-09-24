@@ -37,6 +37,7 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
@@ -1551,6 +1552,127 @@ def rescreen_command(
         _print_json({"decided": decided})
     else:
         out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
+
+
+def _render_conflict(
+    index: int, total: int, stage: str, record: dict[str, Any], opinions: dict[str, Any]
+) -> str:
+    lines = [f"Conflict {index + 1} of {total}                {stage}", ""]
+    lines.append(record.get("title") or "(no title)")
+    lines.append("")
+    for actor, event in sorted(opinions.items()):
+        body = event["body"]
+        date = event.get("ts", "")[:10]
+        detail = body["decision"].upper()
+        lines.append(f"{actor:<10} {detail:<10} {date}")
+        if body.get("criteria"):
+            lines.append(f"           citing {', '.join(body['criteria'])}")
+        if body.get("note"):
+            lines.append(f'           "{body["note"]}"')
+    lines.append("")
+    lines.append("[i] include   [e] exclude   [d] discuss   [s] skip   [q] quit")
+    return "\n".join(lines)
+
+
+@app.command("adjudicate")
+def adjudicate_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+    by: str = typer.Option(..., "--by", help="Actor handle adjudicating"),
+) -> None:
+    """Resolve screening conflicts: docs/spec/06-workflow-screening.md §8."""
+    repo = _resolve_repo(ctx)
+    if not adjudication_mod.is_adjudicator(repo, by):
+        err_console.print(
+            f"[red]error:[/] {by!r} is not an adjudicator for this review "
+            "(screening.adjudicators or role 'adjudicator'/'lead')"
+        )
+        raise typer.Exit(EXIT_GUARDRAIL)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    queue: list[tuple[str, str]] = []
+    for s in stages:
+        try:
+            queue.extend((s, record_id) for record_id in adjudication_mod.conflict_queue(repo, s))
+        except adjudication_mod.AdjudicationError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+
+    if not queue:
+        out_console.print("[green]no conflicts[/] to adjudicate")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    decided = 0
+    index = 0
+    while index < len(queue):
+        s, record_id = queue[index]
+        record = records.get(record_id)
+        if record is None:
+            index += 1
+            continue
+        state = screening_mod.resolve_record_state(repo, s, record_id)
+        active_criteria = [
+            c for c in criteria_mod.list_criteria(repo, at=s) if c["status"] == "active"
+        ]
+        out_console.print(_render_conflict(index, len(queue), s, record, state.opinions))
+        choice = typer.prompt("Decision", default="s").strip().lower()
+
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+        if choice == "d":
+            text = typer.prompt("Note")
+            adjudication_mod.record_discussion(
+                repo, stage=s, record_id=record_id, actor=by, text=text
+            )
+            index += 1
+            continue
+        if choice not in ("i", "e"):
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        decision = "include" if choice == "i" else "exclude"
+        cited: list[str] = []
+        if choice == "e" and active_criteria:
+            raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+            cited = _parse_criteria_numbers(raw, active_criteria)
+        rationale = _get_required_rationale(
+            ctx, repo, f"You are adjudicating {record_id} at {s} as {decision}."
+        )
+        try:
+            adjudication_mod.record_adjudication(
+                repo,
+                stage=s,
+                record_id=record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                rationale=rationale,
+                cited=cited,
+            )
+        except adjudication_mod.AdjudicationError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        index += 1
+
+    if decided:
+        rescreen_mod.regenerate_stale_tsv(repo)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="adjudicate",
+            scope=stage,
+            summary=f"adjudicated {decided} conflict(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} conflict(s) resolved")
 
 
 @internal_app.command("hook-pre-commit")

@@ -181,7 +181,7 @@ def stage_queue(
     return queue
 
 
-def _active_criteria_for_stage(repo: Repo, stage: str) -> dict[str, dict[str, Any]]:
+def active_criteria_for_stage(repo: Repo, stage: str) -> dict[str, dict[str, Any]]:
     return {
         c["id"]: c
         for c in criteria_mod.list_criteria(repo)
@@ -210,7 +210,7 @@ def _validate_and_build_body(
         raise ScreeningError(f"no record {record_id!r}")
 
     cited_ids = sorted(set(cited or []))
-    applicable = _active_criteria_for_stage(repo, stage)
+    applicable = active_criteria_for_stage(repo, stage)
     for cid in cited_ids:
         if cid not in applicable:
             raise ScreeningError(

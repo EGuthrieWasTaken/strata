@@ -103,7 +103,7 @@ M2:
 | 2 | Staleness engine: `protocol/staleness.py`, P10 + brute-force reference | **done** |
 | 3 | Screening core + CLI: `protocol/screening.py`, `screen`/`assign` events, `strata screen`/`strata assign` | **done** |
 | 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | **done** |
-| 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | not started |
+| 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | **done** |
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | not started |
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | not started |
 | 8 | `strata audit --criteria` sampling workflow | not started |
@@ -355,28 +355,52 @@ staleness consumers again.
   and `screen`/`rescreen` (only when a decision was actually recorded).
   `derived/pool.tsv`/`conflicts.tsv` stay stubs until sub-objective 7.
 
-### 5. Adjudication
+### 5. Adjudication — done
 
 Spec: `docs/spec/06-workflow-screening.md` §8.
 
-`src/strata/protocol/adjudication.py`: `record_adjudication(repo, *, stage,
-record, decision, criteria, rationale, actor)` — rationale is REQUIRED
-(unconditionally, unlike the general `--why` flow, since §8 says "A
-rationale is REQUIRED for adjudications" with no config escape hatch);
-raises if `actor` is not in `screening.adjudicators` and does not have role
-`adjudicator`/`lead`. Appends `adjudicate` event
-(`stage`,`record`,`decision`,`criteria[]`,`rationale`,`supersedes[]` — the
-opinion event ids it resolves, from `ScreeningState.opinions`). `strata
-adjudicate [--stage S]`: iterates records in `conflict` state (from
-`resolve_screening`), renders both opinions with actor/date/note (§8's
-worked UI), `[i]/[e]` decide, `[d]` discuss (a `note` event, conflict stays
-open — verify `note`'s event body/schema needs `subject`/`text` per
-`docs/spec/02-repository-format.md` §4.4, already in the enum), `[s]` skip.
-Note (and surface in `strata report`'s eventual output, out of scope here
-beyond recording it) when the adjudicator is one of the two original
-screeners for that record (§8: "MUST be noted in the event, and `strata
-report` MUST count it") — add an `own_conflict: bool` field to the
-`adjudicate` event body.
+Delivered: `src/strata/protocol/adjudication.py` (`is_adjudicator`,
+`conflict_queue`, `record_adjudication`, `record_discussion`), `strata
+adjudicate [--stage S] --by <actor>` in `cli/main.py`,
+`tests/unit/test_adjudication.py` / `tests/integration/test_cli_adjudicate.py`
+(100% line+branch on `adjudication.py`). No verify.py changes needed:
+adjudicate events already flow through `_verify_events`'s generic
+dangling-record-reference tracking (it reads `body.get("record")`, which
+`adjudicate` bodies already have), and `_verify_screen_events`'s citation
+checks are screen-event-specific by design (adjudication's own citation
+validity is enforced at write time in `record_adjudication`, matching how
+`record_screen_decision` works).
+
+- **`criteria_version`/`criteria_digest` on `adjudicate` events**: §4.4's
+  event catalog table omits these two fields for `adjudicate`, but §4.1
+  (normative) says every `screen` *and adjudicate* event records them. This
+  module follows §4.1 and stamps both — see the long comment at the top of
+  `adjudication.py` for the reasoning, and note this is exactly what makes
+  `protocol.rescreen._resolved_decision`'s adjudication branch (built one
+  sub-objective ahead of this one, in sub-objective 4) work without
+  modification.
+- **Authorization** (§8: "Only actors with the `adjudicator` role or listed
+  in `screening.adjudicators` may resolve a conflict") is checked both at
+  the CLI layer (fails fast with `EXIT_GUARDRAIL` — the first real use of
+  that exit code in this codebase — before any interactive prompt) and
+  again inside `record_adjudication` itself (defence in depth, and the only
+  check that matters for any future non-CLI caller, e.g. the web UI).
+- **Rationale is unconditionally required**, reusing `cli.main.
+  _get_required_rationale` (introduced in sub-objective 1 for exactly this
+  kind of no-escape-hatch requirement) rather than the general
+  `--why`/`git.require_rationale` flow.
+- **`own_conflict`**: `record_adjudication` computes this itself from
+  whether `actor` appears in `ScreeningState.opinions` for the conflict
+  being resolved, rather than trusting a caller-supplied flag — it can't be
+  spoofed by a careless CLI/web caller, and it doesn't erase or alter the
+  original opinions (§8: "IRR still reflects the original disagreement,
+  which is the honest number" — `state.opinions` is untouched by an
+  adjudication, only `state.adjudication` is added, verified directly in
+  `test_record_adjudication_success_supersedes_opinions_and_stamps_version`).
+- **`[d]iscuss`** is a `note` event (`subject: "adjudication-discuss"`),
+  the same "free-form, attaches to any entity" reuse sub-objective 4's
+  `manual`-staleness marker already established as this codebase's pattern
+  for a lightweight annotation that doesn't warrant a new event type.
 
 ### 6. IRR
 
