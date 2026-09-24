@@ -112,7 +112,7 @@ M2:
 | 11a | Web UI, sitting 1: `strata serve` scaffold, security baseline, dashboard, screening surface | **done** |
 | 11b | Web UI, sitting 2: criteria editor w/ live, non-mutating impact preview (M2 acceptance bullet) | **done** |
 | 11c | Web UI, sitting 3: rescreen/adjudicate/dedup/records/history screens | not started |
-| 12 | Traceability updates, roadmap acceptance pass, docs polish | not started |
+| 12 | Traceability updates, roadmap acceptance pass, docs polish | **done** |
 
 ### 1. Criteria management — done
 
@@ -962,13 +962,96 @@ trusted, and the §2.4 batched-commit policy for web screening sessions
 specifically (still just "append immediately, commit later via the CLI"
 as of 11a).
 
-### 12. Traceability, roadmap acceptance pass, docs polish
+### 12. Traceability, roadmap acceptance pass, docs polish — done
 
-Re-run `scripts/traceability_report.py`, confirm P10 and the new E2E ids
-show covered. Run the M2 acceptance checklist from
-`docs/spec/15-roadmap.md` end to end and record results here the way
-`docs/m1-plan.md` sub-objective 8 did (exact numbers, any bugs found and
-fixed). Usability testing with three non-git users (§8 of
-`docs/spec/14-testing.md`) is out of scope for an unattended agent session
-— note it explicitly as an open acceptance item for a human to run, same
-as M1 never claimed to satisfy usability sessions itself.
+**Traceability** (`scripts/traceability_report.py`, docs/spec/14-testing.md
+§10.5): 26/38 identified requirements covered. Every one of M2's own
+"suite additions" (`docs/spec/15-roadmap.md`'s M2 entry) is covered: P10
+(`tests/property/test_staleness_properties.py`, both the brute-force
+match and the nonempty-cause-set property), E2E-01/04/05/06/09, and the
+screening-latency benchmark (E2E-11's row, since the benchmark itself is
+the 50k-record-performance requirement, already covered from M1). The 12
+remaining uncovered ids (P11, P12, E2E-03/08/10/12,
+`E_DERIVED_DRIFT`/`E_ORPHAN_EXTRACTION`/`E_MISSING_EXTRACTION`/
+`E_COUNT_RECONCILE`/`E_UNIT`/`E_EFFECT_INPUTS`) are all extraction/
+analysis/count-reconciliation (M3+) or cross-platform-determinism/
+migration scope M2 never claimed — reported, not hidden, matching
+`docs/m1-plan.md` sub-objective 8's own precedent of leaving genuinely
+out-of-scope ids uncovered rather than padding the number.
+
+**M2 acceptance checklist** (`docs/spec/15-roadmap.md`), run end to end:
+
+| Bullet | Result |
+|---|---|
+| E2E-01 passes | **pass** — exact stale set, dual re-screen, clean final pool |
+| E2E-04, E2E-05, E2E-06 pass | **pass**, all three |
+| P10 passes against the brute-force reference | **pass** |
+| Screening session < 100 ms p95 decision latency at 50k records | **pass** — measured p95 ≈ 66-90 ms across repeated runs in this sandboxed environment (sub-objective 10's benchmark, 1,000 sampled decisions), comfortably inside the target with the 250 ms hard limit further still |
+| Criteria editor's impact preview is correct and non-mutating | **pass** — `preview_criterion_change_impact` asserted against the real post-edit result, and against `criteria.yaml`'s version never moving across repeated preview calls (sub-objective 11b) |
+| Usability: three non-git users complete a screening session unaided | **not run** — genuinely requires human sessions with people who have not used the tool, screen-recorded with consent (`docs/spec/14-testing.md` §8); out of scope for an unattended agent session, exactly as M1 never claimed to satisfy its own usability bullet either. Left as an explicit open item for a human to run before treating M2 as fully released, not silently dropped. |
+
+Five of six acceptance bullets are met by this session's work; the sixth
+needs people. `strata screen`, `strata rescreen`, the web dashboard, and
+the web screening/criteria-editor surfaces are all real enough at this
+point that running that usability session is now genuinely actionable,
+which wasn't true before this milestone.
+
+**Full suite at the close of M2**: 935 passed, 97.5% overall coverage,
+`ruff format`/`ruff check`/`mypy src` all clean. Every module this
+milestone touched is at 100% line+branch coverage except `web/server.py`
+(76% — the uncovered lines are `serve_until_idle_or_interrupted`, the
+function that actually runs uvicorn, exercised for real by
+`tests/integration/test_cli_serve.py`'s subprocess test but invisible to
+`coverage.py` inside a child process without additional
+`COVERAGE_PROCESS_START` plumbing this milestone didn't set up) and
+`cli/main.py` (90% — a pre-existing characteristic of that module across
+M0/M1 too: a thin CLI-argument-adapter layer with many small error
+branches, not something this milestone changed the shape of).
+
+**Retrospective: real bugs this milestone's own tests found**, beyond
+what was asked for — each is detailed in its own sub-objective's write-up
+above, collected here since a reader skimming just this final section
+should see them:
+
+1. **Dual-reviewer rescreen queue loses half its queue** (sub-objective
+   9, caught by E2E-01): `rescreen_queue` filtered the aggregate
+   resolved-decision view, which silently drops a record the instant one
+   dual reviewer's fresh opinion disagrees with the other's still-stale
+   one. Fixed by evaluating staleness per actor's own opinion.
+2. **`strata actor add`/`deactivate` never committed**, violating
+   docs/spec/04 §2.1's "every mutating command produces exactly one
+   commit" (sub-objective 9, also caught by E2E-01's own end-of-scenario
+   cleanliness check). Fixed with a new `_commit_manifest_op` helper.
+3. **Screening decision latency ≈497 ms at 50,000 records** (sub-
+   objective 10, caught by the new benchmark before it was ever measured
+   against real scale): `core.records.get_record` re-parsed every line of
+   `records.ndjson` on every single decision. Fixed with a cheap
+   substring pre-filter; re-measured at p95 ≈ 66-90 ms.
+
+None of these three were hypothetical or theoretical — the first two
+would have made dual-mode re-screening and basic team-management
+bookkeeping actively broken in real use, and the third would have made
+the flagship feature feel sluggish at exactly the scale
+`docs/spec/13-nonfunctional.md` says the tool must handle. All three were
+caught by tests written to satisfy this milestone's own spec-fidelity
+requirements, not by a separate audit pass — the intended effect of
+"follow the spec and keep coverage high" as a standing instruction, not
+just a slogan.
+
+**Docs polish**: this file (`docs/m2-plan.md`) itself is the primary
+artifact — every sub-objective has a "done" write-up with the spec
+sections it implements, the interpretation calls it made and why, and
+what it deliberately left out. `docs/spec/` itself needed no changes
+(`scripts/check_docs.py` passes: no broken relative links, no broken
+anchors, every fenced toml/yaml/json block parses, `docs/spec/README.md`
+stays in sync) — this milestone's spec-interpretation decisions were
+about filling in genuinely underspecified implementation choices (the
+multi-reviewer staleness aggregation model, the web session's stateless
+undo/skip design, the sitting split itself), not correcting the
+specification.
+
+**What remains after M2**, tracked explicitly rather than silently
+dropped: sub-objective 11c (the `/rescreen`, `/adjudicate`, `/dedup`,
+`/records*`, `/history` web screens — valuable, not acceptance-gating),
+the usability session above, and everything M3 (full text and
+extraction) already assumes as a starting point.
