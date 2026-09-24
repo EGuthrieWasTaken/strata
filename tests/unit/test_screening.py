@@ -348,6 +348,90 @@ def test_all_screen_events_missing_directory_returns_empty(tmp_path: Path) -> No
     assert all_screen_events(repo, "title-abstract") == []
 
 
+def test_all_adjudicate_events_missing_directory_returns_empty(tmp_path: Path) -> None:
+    import shutil
+
+    from strata.protocol.screening import all_adjudicate_events
+
+    repo = _init(tmp_path)
+    shutil.rmtree(repo.path("events", "adjudication"))
+    assert all_adjudicate_events(repo) == []
+
+
+def test_all_adjudicate_events_and_stage_filter(tmp_path: Path) -> None:
+    from strata.core.events import append_new_event
+    from strata.protocol.screening import all_adjudicate_events
+
+    repo = _init(tmp_path)
+    assert all_adjudicate_events(repo) == []
+    assert all_adjudicate_events(repo, "title-abstract") == []
+
+    path = repo.path("events", "adjudication", "ethan.ndjson")
+    append_new_event(
+        path,
+        ev="adjudicate",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "include",
+            "criteria": [],
+            "rationale": "Looks like an eligible RCT on balance.",
+        },
+    )
+    append_new_event(
+        path,
+        ev="adjudicate",
+        actor="ethan",
+        body={
+            "stage": "full-text",
+            "record": "rec_0000000000000002",
+            "decision": "exclude",
+            "criteria": [],
+            "rationale": "Wrong population on full-text review.",
+        },
+    )
+    assert len(all_adjudicate_events(repo)) == 2
+    assert len(all_adjudicate_events(repo, "title-abstract")) == 1
+    assert len(all_adjudicate_events(repo, "full-text")) == 1
+
+
+def test_resolve_record_state_uses_adjudication_over_conflicting_opinions(tmp_path: Path) -> None:
+    repo = _init(tmp_path)
+    _add_records(repo, ["rec_0000000000000001"])
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="include",
+        actor="ethan",
+    )
+    record_screen_decision(
+        repo,
+        stage="title-abstract",
+        record_id="rec_0000000000000001",
+        decision="maybe",
+        actor="sam",
+    )
+    from strata.core.events import append_new_event
+
+    append_new_event(
+        repo.path("events", "adjudication", "ethan.ndjson"),
+        ev="adjudicate",
+        actor="ethan",
+        body={
+            "stage": "title-abstract",
+            "record": "rec_0000000000000001",
+            "decision": "include",
+            "criteria": [],
+            "rationale": "Adjudicated in favour of inclusion.",
+        },
+    )
+    state = resolve_record_state(repo, "title-abstract", "rec_0000000000000001")
+    assert state.status == "include"
+    assert state.adjudication is not None
+
+
 def test_resolve_record_state_tracks_fold_transitions(tmp_path: Path) -> None:
     repo = _init(tmp_path)
     _add_records(repo, ["rec_0000000000000001"])

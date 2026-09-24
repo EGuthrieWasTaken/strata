@@ -102,7 +102,7 @@ M2:
 | 1 | Criteria management: schema, CRUD, versioning, direction classification, digests | **done** |
 | 2 | Staleness engine: `protocol/staleness.py`, P10 + brute-force reference | **done** |
 | 3 | Screening core + CLI: `protocol/screening.py`, `screen`/`assign` events, `strata screen`/`strata assign` | **done** |
-| 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | not started |
+| 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | **done** |
 | 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | not started |
 | 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | not started |
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | not started |
@@ -291,41 +291,69 @@ test_verify.py` (100% line+branch on `screening.py`).
   reminder that a new verify check needs to be graded into the fast/full
   split deliberately, not just appended to the end of the function.
 
-### 4. Rescreen + cascading staleness
+### 4. Rescreen + cascading staleness — done
 
 Spec: `docs/spec/06-workflow-screening.md` §4.4, §6.
 
-Wire sub-objective 2's pure rules to real repository state:
-`protocol/staleness.compute_stale_records(repo, stage)` — for each resolved
-(`include`/`exclude`) or `maybe` decision at `stage`, gather the criteria
-changes between its `criteria_version` and the current version restricted to
-`stage`, call the pure staleness predicate. Then cascade (§4.4): any record
-whose `title-abstract` decision is stale gets its `full-text` decision (if
-any) marked stale too, reason `upstream-stale`, *without* recomputing
-full-text's own criteria-change staleness first (upstream-stale is
-additional to, not a replacement for, a full-text-native staleness cause —
-if both apply, prefer the more specific native reason and only fall back to
-`upstream-stale`). Regenerate `derived/stale.tsv` (columns per
-`docs/spec/02-repository-format.md` §6.4) as a pure function over the fold
-result, written by the CLI command, matching `derived/pool.tsv`'s stub
-pattern from `core/init.py`. `strata rescreen [--stage S]`: opens the stale
-queue (deterministic order), shows the prior decision and the specific
-reason (§6's worked UI), `[i]/[e]/[m]` re-decide (a fresh `screen` event at
-the new criteria version, which by construction has `criteria_version ==
-current` and so folds to not-stale), `[k]eep previous` appends an identical-
-decision `screen` event at the new version (also clears staleness — same
-mechanism, no special case needed). Implement the `--i-have-reviewed-these`
-guard: `strata rescreen` MUST NOT offer a bulk "keep all" without this flag
-plus a rationale (§6) — since there's no bulk keep-all command being built
-here at all (each `[k]` press is one record), this constraint is satisfied
-by construction; add a test that documents *why* there's no bulk-keep
-command rather than a runtime guard, so a future session doesn't add one
-without re-reading this constraint. `manual` staleness reason: `strata
-rescreen --mark <records>` lets a user force a record stale outside the
-criteria-change mechanism (e.g. "actually, re-check this one") — implement
-as appending a special `screen`-adjacent marker; simplest correct approach
-is a `note`-style flag consumed by `compute_stale_records` — decide the
-concrete mechanism when writing this (a small addition, not a redesign).
+Delivered: `src/strata/protocol/rescreen.py` (`compute_stale_records`,
+`stale_records_for_stage`, `rescreen_queue`, `mark_manual_stale`,
+`regenerate_stale_tsv`), `strata rescreen [--stage S] --by <actor>
+[--mark ID...]` in `cli/main.py`, `tests/unit/test_rescreen.py` /
+`tests/integration/test_cli_rescreen.py` (100% line+branch on
+`rescreen.py`). Extended `protocol/screening.py`'s `resolve_record_state`
+to accept `adjudicate_events` and added `all_adjudicate_events`, so
+sub-objective 5 (`strata adjudicate`) slots in without touching this file's
+staleness consumers again.
+
+- **Resolved-decision model, not per-opinion**: `derived/stale.tsv` reports
+  one row per `(stage, record)`, so this module treats a resolved
+  `include`/`exclude` decision — the *agreement* of however many opinions
+  were required — as the unit of staleness, not each reviewer's individual
+  `screen` event. A multi-opinion agreement's `decision_version` is the
+  **earliest** version among the contributing opinions and its `cited` set
+  is the **union** of every opinion's citations; a property test
+  (`test_multi_opinion_uses_earliest_version_and_union_of_citations`)
+  specifically proves earliest-not-latest matters: a criterion loosened
+  *between* two reviewers' opinions must still stale the pair's agreement,
+  which the latest-version choice would miss. `maybe` never appears as a
+  resolved decision (`core.fold.resolve_screening` folds any `maybe`
+  opinion straight to `conflict`), so this module's staleness surface is
+  `include`/`exclude` only — `protocol.staleness.evaluate_staleness`'s
+  `maybe` branch remains fully implemented and unit/property-tested
+  (sub-objective 2) for whenever per-opinion staleness on open conflicts is
+  wanted. All of this is spelled out at length in `rescreen.py`'s own module
+  docstring — read that before changing any of it.
+- **Cascading** (§4.4): computed per stage in `_STAGE_ORDER` order
+  (title-abstract before full-text) so a title-abstract record's own
+  staleness is already known by the time full-text is evaluated; a
+  full-text decision's own native staleness reason (if any) always takes
+  priority over `upstream-stale`, checked in that order.
+- **`manual` staleness** (§6): implemented as a `note` event (§4.4's
+  catalog: "free-form, attaches to any entity") carrying a canonical-JSON
+  `{stage, record}` payload under `subject: "manual-stale"`, rather than a
+  new event type. A mark is "consumed" — stops counting — the moment a
+  fresh `screen` decision for that `(stage, record)` is recorded after it;
+  there is no separate un-marking event, matching the append-only,
+  no-delete log. **Comparing by `ts` alone is not precise enough**: a mark
+  and its consuming decision can land in the same wall-clock second (`ts`
+  is second-precision), which a first draft got wrong and a test caught
+  immediately (`mark_ts > decided_ts` was false when both were "equal").
+  Fixed by comparing `(ts, id)` tuples instead — `id` is a ULID with
+  millisecond-plus-randomness ordering, the same tie-break
+  `core.fold.sort_events` already uses everywhere else in this codebase.
+- **The `--i-have-reviewed-these` guard** (§6: `strata rescreen` MUST NOT
+  offer a bulk "keep all" without it) needs no code: there is no bulk
+  keep-all command at all, only a per-record `[k]` press inside the
+  interactive loop, so the constraint holds by construction. Documented
+  here rather than as a runtime check so a future session doesn't add a
+  bulk command without re-reading this.
+- **Derived-file regeneration**: `derived/stale.tsv` is regenerated (and
+  staged, `_commit_domain_op`/`_commit_criteria_op` now `git add derived`
+  too) from every command that can change staleness -- `criteria
+  add/edit/retire` (unconditionally, even under `--no-commit`, since a
+  criteria change can make decisions stale before the caller ever commits)
+  and `screen`/`rescreen` (only when a decision was actually recorded).
+  `derived/pool.tsv`/`conflicts.tsv` stay stubs until sub-objective 7.
 
 ### 5. Adjudication
 

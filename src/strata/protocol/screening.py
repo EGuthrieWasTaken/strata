@@ -72,6 +72,25 @@ def all_assign_events(repo: Repo) -> list[dict[str, Any]]:
     return events
 
 
+def all_adjudicate_events(repo: Repo, stage: str | None = None) -> list[dict[str, Any]]:
+    """Every `adjudicate` event, optionally restricted to one stage.
+
+    Empty until `strata adjudicate` exists (docs/m2-plan.md sub-objective
+    5); `resolve_record_state`/staleness computation are already wired to
+    consume these so that sub-objective lands without touching this file
+    again.
+    """
+    adjudication_dir = repo.path("events", "adjudication")
+    if not adjudication_dir.exists():
+        return []
+    events: list[dict[str, Any]] = []
+    for path in sorted(adjudication_dir.glob("*.ndjson")):
+        events.extend(e for e in read_events(path) if e.get("ev") == "adjudicate")
+    if stage is not None:
+        events = [e for e in events if e["body"]["stage"] == stage]
+    return events
+
+
 def _default_assignment(repo: Repo, stage: str) -> frozenset[str]:
     configured = repo.config.get("screening", {}).get("assignment", {}).get(stage)
     if configured:
@@ -107,12 +126,19 @@ def resolve_record_state(
     *,
     screen_events: list[dict[str, Any]] | None = None,
     assign_events: list[dict[str, Any]] | None = None,
+    adjudicate_events: list[dict[str, Any]] | None = None,
 ) -> ScreeningState:
     """A single record's resolved screening state at `stage` (docs/spec 02 §4.3)."""
     events = screen_events if screen_events is not None else all_screen_events(repo, stage)
     record_events = [e for e in events if e["body"]["record"] == record_id]
     assigned = assigned_actors(repo, stage, record_id, assign_events=assign_events)
-    return resolve_screening(assigned=assigned, screen_events=record_events)
+    adjudications = (
+        adjudicate_events if adjudicate_events is not None else all_adjudicate_events(repo, stage)
+    )
+    record_adjudications = [e for e in adjudications if e["body"]["record"] == record_id]
+    return resolve_screening(
+        assigned=assigned, screen_events=record_events, adjudicate_events=record_adjudications
+    )
 
 
 def stage_queue(

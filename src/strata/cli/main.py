@@ -38,6 +38,7 @@ from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 
@@ -55,6 +56,9 @@ EXIT_GUARDRAIL = 8
 # scope, not inline in a signature, or ruff's flake8-bugbear B008 flags it.
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
 _IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
+_MARK_OPTION = typer.Option(
+    None, "--mark", help="Force record(s) stale (manual reason) instead of re-screening"
+)
 
 app = typer.Typer(
     name="strata",
@@ -690,7 +694,7 @@ def _commit_domain_op(
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    gitio.add(repo.root, ["records", "events"])
+    gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
 
@@ -1008,6 +1012,9 @@ def _commit_criteria_op(
     by: str,
     rationale: str,
 ) -> None:
+    # Regenerated regardless of --no-commit: a criteria change can make
+    # decisions stale even when the caller doesn't want a commit yet.
+    rescreen_mod.regenerate_stale_tsv(repo)
     if ctx.obj["no_commit"]:
         return
     commit_obj = StructuredCommit(
@@ -1017,7 +1024,7 @@ def _commit_criteria_op(
         body=rationale,
         trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
     )
-    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria"])
+    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
 
@@ -1267,6 +1274,7 @@ def screen_command(
         else:
             out_console.print(f"[green]recorded[/] {len(envelopes)} decision(s) for {stage}")
         if envelopes:
+            rescreen_mod.regenerate_stale_tsv(repo)
             _commit_domain_op(
                 ctx,
                 repo,
@@ -1347,6 +1355,7 @@ def screen_command(
         index += 1
 
     if decided:
+        rescreen_mod.regenerate_stale_tsv(repo)
         _commit_domain_op(
             ctx,
             repo,
@@ -1406,6 +1415,142 @@ def assign_command(
         by=by,
         extra_trailers={"Actors": ",".join(actor_list)},
     )
+
+
+def _render_rescreen_record(
+    index: int,
+    total: int,
+    stage: str,
+    record: dict[str, Any],
+    stale: rescreen_mod.StaleRecord,
+    active_criteria: list[dict[str, Any]],
+) -> str:
+    lines = [f"{stage}  STALE {index + 1} of {total}  ({stale.reason})", ""]
+    lines.append(record.get("title") or "(no title)")
+    lines.append("")
+    prior_criteria = ", ".join(stale.prior_criteria) or "(none cited)"
+    lines.append(f"Your previous decision: {stale.prior_decision.upper()}  citing {prior_criteria}")
+    lines.append(f"Now stale because: {stale.reason}")
+    if active_criteria:
+        lines.append("")
+        lines.append("Criteria:")
+        for i, c in enumerate(active_criteria, start=1):
+            lines.append(f"  {i}  {c['id']}  {c['label']}")
+    return "\n".join(lines)
+
+
+@app.command("rescreen")
+def rescreen_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+    by: str = typer.Option(..., "--by", help="Actor handle doing the re-screening"),
+    mark: list[str] | None = _MARK_OPTION,
+) -> None:
+    """Open the stale queue: docs/spec/06-workflow-screening.md §6."""
+    repo = _resolve_repo(ctx)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    if mark:
+        rationale = _get_required_rationale(
+            ctx, repo, f"You are manually marking {len(mark)} record(s) stale."
+        )
+        for record_id in mark:
+            for s in stages:
+                rescreen_mod.mark_manual_stale(
+                    repo, stage=s, record_id=record_id, actor=by, rationale=rationale
+                )
+        rescreen_mod.regenerate_stale_tsv(repo)
+        out_console.print(f"[yellow]marked[/] {len(mark)} record(s) stale")
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="rescreen-mark",
+            scope=stage,
+            summary=f"manually marked {len(mark)} record(s) stale",
+            by=by,
+        )
+        return
+
+    queue: list[tuple[str, rescreen_mod.StaleRecord]] = []
+    for s in stages:
+        try:
+            queue.extend((s, item) for item in rescreen_mod.rescreen_queue(repo, s, by))
+        except rescreen_mod.RescreenError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+
+    if not queue:
+        out_console.print(f"[green]nothing to rescreen[/] for {by}")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    decided = 0
+    index = 0
+    while index < len(queue):
+        s, stale = queue[index]
+        record = records.get(stale.record_id)
+        if record is None:
+            index += 1
+            continue
+        active_criteria = [
+            c for c in criteria_mod.list_criteria(repo, at=s) if c["status"] == "active"
+        ]
+        out_console.print(
+            _render_rescreen_record(index, len(queue), s, record, stale, active_criteria)
+        )
+        choice = typer.prompt(
+            "[i]nclude [e]xclude [m]aybe [k]eep previous [s]kip [q]uit", default="s"
+        )
+        choice = choice.strip().lower()
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+
+        if choice == "k":
+            decision: str = stale.prior_decision
+            cited = list(stale.prior_criteria)
+        elif choice in _DECISION_KEYS:
+            decision = _DECISION_KEYS[choice]
+            cited = []
+            if choice == "e" and active_criteria:
+                raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+                cited = _parse_criteria_numbers(raw, active_criteria)
+        else:
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        try:
+            screening_mod.record_screen_decision(
+                repo,
+                stage=s,
+                record_id=stale.record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                cited=cited,
+            )
+        except screening_mod.ScreeningError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        index += 1
+
+    if decided:
+        rescreen_mod.regenerate_stale_tsv(repo)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="rescreen",
+            scope=stage,
+            summary=f"re-screened {decided} stale record(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
 
 
 @internal_app.command("hook-pre-commit")
