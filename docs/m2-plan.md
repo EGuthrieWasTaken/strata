@@ -104,7 +104,7 @@ M2:
 | 3 | Screening core + CLI: `protocol/screening.py`, `screen`/`assign` events, `strata screen`/`strata assign` | **done** |
 | 4 | Rescreen + cascading staleness: `strata rescreen`, `derived/stale.tsv`, upstream-stale cascade | **done** |
 | 5 | Adjudication: `strata adjudicate`, `adjudicate` event, role/rationale enforcement | **done** |
-| 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | not started |
+| 6 | IRR: `derived/irr.json`, Cohen's kappa/PABAK, `strata irr` | **done** |
 | 7 | `strata status` full dashboard + `derived/pool.tsv`/`conflicts.tsv` regeneration | not started |
 | 8 | `strata audit --criteria` sampling workflow | not started |
 | 9 | E2E scenarios: E2E-01 (origin), E2E-04, E2E-05, E2E-06, E2E-09 | not started |
@@ -402,22 +402,49 @@ validity is enforced at write time in `record_adjudication`, matching how
   `manual`-staleness marker already established as this codebase's pattern
   for a lightweight annotation that doesn't warrant a new event type.
 
-### 6. IRR
+### 6. IRR — done
 
 Spec: `docs/spec/02-repository-format.md` §6.5, `docs/spec/10-cli.md`
 §"Screening" (`strata irr`).
 
-`src/strata/protocol/irr.py`: per stage, per reviewer pair, compute raw
-percent agreement, Cohen's kappa, PABAK (prevalence-and-bias-adjusted
-kappa), and the 2x2 table — over **first opinions only**
-(`core.fold.fold_first_write`, already built for exactly this). Only
-records both reviewers in the pair have screened count. Regenerate
-`derived/irr.json` (GENERATED, per §6.1's sibling views). `strata irr
-[--stage S]` prints the table; `--json` emits the same structure written to
-disk. This is a small, pure-math module (no `scipy`/`numpy` needed — kappa
-is a closed-form 2x2 computation) — unit test with hand-computed expected
-values from a textbook example (e.g. Landis & Koch's worked kappa example)
-so the numbers are independently checkable, not just internally consistent.
+Delivered: `src/strata/protocol/irr.py` (`compute_pair_irr`,
+`compute_stage_irr`, `regenerate_irr_json`), `strata irr [--stage S]` in
+`cli/main.py`, `tests/unit/test_irr.py` / `tests/integration/test_cli_irr.py`
+(100% line+branch on `irr.py`). No `scipy`/`numpy` needed — Cohen's kappa
+and PABAK are closed-form 2x2 computations.
+
+- **First opinions only** via `core.fold.fold_first_write` (built in M0
+  anticipating this): `test_compute_pair_irr_uses_first_opinion_only`
+  proves a reviewer changing their mind after the fact doesn't change the
+  IRR numbers, only their *original* independent opinion does.
+- **Binary only, `maybe` excluded and counted separately**: the 2x2 table
+  and PABAK have no natural three-category form, so a pair comparison only
+  counts records where both reviewers' first opinion was a completed
+  `include`/`exclude` decision; excluded-for-maybe pairs are reported in
+  their own `excluded_maybe` count rather than silently shrinking `n` with
+  no explanation.
+- **Verified against hand computation, not just internal consistency**:
+  `test_compute_pair_irr_matches_hand_computed_2x2_example` uses a 10-record
+  2x2 table (5/1/0/4) with `po=0.9, pe=0.5, kappa=0.8, pabak=0.8` computed
+  by hand in the test's own docstring and confirmed independently via a
+  throwaway interpreter check before writing the test — an actual textbook
+  dataset (Landis & Koch) wasn't available without network access, so a
+  hand-verified small example serves the same "independently checkable"
+  purpose the sub-objective's original plan called for.
+- **`kappa` at `pe == 1.0`** (both reviewers always pick the same single
+  category, so agreement is total but chance-corrected kappa's denominator
+  `1 - pe` is zero): defined as `1.0` rather than raising a division error
+  — perfect trivial agreement is still perfect agreement.
+  `test_compute_pair_irr_perfect_agreement_pe_equals_one` pins this.
+- **`strata irr` is read-only with respect to the event log**: it recomputes
+  and rewrites `derived/irr.json` to disk but does not commit, unlike every
+  other mutating command in this codebase — it's a report (like `strata
+  status`/`strata verify`), not a decision, so there is no natural actor
+  attribution or rationale to attach. The written file is picked up by
+  whatever commits next (a future screen/rescreen/adjudicate, or a manual
+  commit), consistent with "derived files are committed anyway" (docs/spec
+  02 P3) without inventing attribution semantics a report command doesn't
+  need.
 
 ### 7. `strata status` full dashboard + derived views
 

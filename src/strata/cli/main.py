@@ -39,6 +39,7 @@ from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import irr as irr_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
@@ -1673,6 +1674,59 @@ def adjudicate_command(
         _print_json({"decided": decided})
     else:
         out_console.print(f"[green]done[/] -- {decided} conflict(s) resolved")
+
+
+@app.command("irr")
+def irr_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+) -> None:
+    """Inter-rater reliability, over independent first opinions (docs/spec/02 §6.5).
+
+    Read-only with respect to the event log: recomputes and rewrites
+    `derived/irr.json` on disk, but does not commit -- the next mutating
+    screening command's commit (or a manual commit) picks the file up, same
+    as any other derived view.
+    """
+    repo = _resolve_repo(ctx)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    all_pairs: list[irr_mod.PairIrr] = []
+    for s in stages:
+        try:
+            all_pairs.extend(irr_mod.compute_stage_irr(repo, s))
+        except irr_mod.IrrError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+    irr_mod.regenerate_irr_json(repo)
+
+    if ctx.obj["json"]:
+        _print_json(
+            [
+                {
+                    "stage": p.stage,
+                    "actor_a": p.actor_a,
+                    "actor_b": p.actor_b,
+                    "n": p.n,
+                    "excluded_maybe": p.excluded_maybe,
+                    "table": p.table,
+                    "raw_agreement": p.raw_agreement,
+                    "kappa": p.kappa,
+                    "pabak": p.pabak,
+                }
+                for p in all_pairs
+            ]
+        )
+        return
+
+    if not all_pairs:
+        out_console.print("no reviewer pairs with overlapping first opinions yet")
+        return
+    for p in all_pairs:
+        out_console.print(
+            f"{p.stage:<16} {p.actor_a} x {p.actor_b}   n={p.n}   "
+            f"agreement={p.raw_agreement:.2f}   kappa={p.kappa:.2f}   pabak={p.pabak:.2f}"
+        )
 
 
 @internal_app.command("hook-pre-commit")
