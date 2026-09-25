@@ -95,7 +95,7 @@ of real reviews.
 
 ---
 
-## M2.1 — Project wiki *(ongoing, starts now, runs in parallel with M3+)*
+## M2.1 — Project wiki and local MCP server *(ongoing, starts now, runs in parallel with M3+)*
 
 Unlike every other milestone here, M2.1 is not a sequential block with a start
 and an end — it starts the moment M2 ships and then runs continuously
@@ -105,6 +105,8 @@ written months after a feature ships is written from memory, by which point the
 person who best understood the feature has usually moved on to the next one.
 Documentation written in the same pull request as the feature is written by the
 person who just built it, while the reasoning is still fresh.
+
+### Wiki
 
 **Scope**: stand up a GitHub Wiki for the project (its own versioned git
 repository, `strata.wiki.git`, needing no additional hosting or infrastructure)
@@ -126,14 +128,37 @@ docs quality doesn't reduce to a boolean a script can check, so this stays a
 review-time judgment call the way rationale quality already does
 ([04 §2.3](04-git-integration.md)).
 
+### Local MCP server
+
+A fourth thin presentation layer alongside the CLI (`cli/main.py`) and the web
+UI (`web/routes.py`), calling directly into existing `core`/`protocol`
+functions rather than adding any new domain logic — the same relationship
+`web/routes.py` already has to the logic behind `strata screen`. Runs over
+stdio, spawned locally by an MCP-aware client (Claude Code, Claude Desktop, or
+any other) against a local clone, exactly like the CLI does today; no new
+infrastructure, and no dependency on whether the hosted deployment in
+[M5.1](#m51--hosted-team-deployment-68-weeks) ever exists.
+
+**Scope**: read/analysis/preview tools only —
+`status`, `why`, `log`, `records` (the `--filter` language), `criteria diff`,
+and the criteria editor's own non-mutating impact preview
+(`preview_criterion_change_impact`, the function backing `/criteria`'s web
+screen). None of these commit anything, so none of them carry accountability
+risk.
+
+Tools that record a screening or criteria decision are deliberately **not**
+exposed as autonomous MCP actions in this milestone: `strata`'s entire premise
+is that a screening decision is an accountable human judgement call, and a
+tool letting an agent record one unsupervised undermines the provenance chain
+the rest of the tool exists to keep honest. A later write-capable tool, if one
+is ever added, produces a proposal (a drafted decision, a drafted rationale)
+for a human to review and execute themselves — never a direct commit.
+
 **Acceptance**
-- The wiki exists and has at least one page for every M0–M2 CLI command and
-  every implemented web UI screen.
-- The pull request template's Wiki checklist item is in place and in use.
-- Every milestone from M3 onward closes with its own user-facing additions
-  already reflected in the wiki, not queued as an M6 backlog item — checked as
-  part of that milestone's own acceptance pass, alongside its other
-  acceptance criteria.
+- An MCP-aware client can query status, staleness, provenance, and history
+  against a real repository, with the MCP server itself containing no domain
+  logic beyond argument marshalling into existing `core`/`protocol` calls.
+- No MCP tool commits a screening or criteria decision on its own.
 
 ---
 
@@ -198,6 +223,55 @@ contains no full texts.
 
 **`1.0.0` ships here.** A complete review, from protocol to manuscript, in one
 FOSS tool.
+
+---
+
+## M5.1 — Hosted, team deployment *(6–8 weeks)*
+
+`strata serve` ([11](11-web-ui.md)) is already a real HTTP server — the gap
+isn't the web UI, it's everything a shared, always-on instance needs that a
+reviewer's own laptop doesn't: syncing with a git remote on its own, and
+knowing who's actually making each request. Sequenced after M5 rather than
+competing with M3/M4's domain work, since it's a horizontal capability that
+cuts across whatever the tool can do at the time and is cheaper to build once
+against a complete domain model than twice against a partial one. It does not
+block M3–M5, and a team can start it earlier if the need arises sooner.
+
+**Scope**
+- **A git sync loop**: pull before serving a page that reads repository state
+  (or on a short poll), push after each commit with retry and exponential
+  backoff, and a merge conflict surfaced to the user as a clear in-app message
+  rather than resolved silently or lost. The event log already merges cleanly
+  by construction ([02](02-repository-format.md)); this is about running that
+  machinery automatically instead of leaving `git pull`/`push` to the human
+  between sessions, which is today's explicit, documented interim answer to
+  batching commits ([04 §2.4](04-git-integration.md)).
+- **Per-user authentication**, replacing the single shared session token
+  `strata serve` uses today: GitHub-identity-backed login (OAuth device flow
+  or a personal access token), mapped to a `strata` actor handle so commits
+  and screening decisions are still attributed to a real reviewer, not to
+  "the hosted instance."
+- **Multi-tenancy**: one running instance serving more than one review
+  repository, so a team doesn't need to operate infrastructure per review.
+- **The M2.1 MCP server, exposed remotely**: the same tool set over MCP's
+  HTTP transport, behind the same per-user auth this milestone adds — a small
+  increment once sync and auth exist, not a separate infrastructure project.
+
+**Suite additions**: a sync-loop E2E scenario (two team members editing
+concurrently through the hosted UI, verifying merge-or-surfaced-conflict and
+never silent data loss), auth integration tests mapping a GitHub identity to
+an actor handle, and a multi-tenancy isolation test (one team's repository
+data is never reachable through another team's session).
+
+**Acceptance**
+- A team points a hosted `strata serve` instance at a shared GitHub
+  repository and screens, adjudicates, and edits criteria collaboratively
+  without any team member running a local `git` command.
+- Concurrent edits from two team members either merge cleanly or surface a
+  conflict explicitly; neither one's work is ever silently dropped.
+- Each commit and decision is attributed to the real reviewer who made it.
+- One team's data is never reachable through another team's session.
+- The MCP server from M2.1 is reachable remotely under the same auth model.
 
 ---
 
