@@ -38,7 +38,14 @@ jobs:
   test-fast:
     name: test-fast
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # M2.1 grew tests/unit past what 5 minutes reliably covers on a
+    # contended runner (observed ~5-7.5 min for a suite that took 2m17s
+    # before; the growth is real -- 743 tests now vs. the suite this
+    # budget was set for -- not a one-off fluke, since two consecutive
+    # runs on the same PR both timed out at the same point). Same
+    # "raise the budget, don't shrink the suite" precedent as the `test`
+    # and `coverage` jobs below.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -147,8 +154,13 @@ jobs:
     # Full suite with coverage instrumentation runs ~8-9 minutes now that
     # M2 is complete (990+ tests); the old 5-minute budget fit M1's
     # smaller suite but was cancelling this job mid-run regardless of
-    # test content (see PR #9's gate failure).
-    timeout-minutes: 15
+    # test content (see PR #9's gate failure). M2.1's `test-fast` finding
+    # (unit+property alone measured ~2-3x slower on a contended runner,
+    # 743 tests) applies to this job too -- it runs that same subset plus
+    # more -- so the 15-minute budget no longer has reliable headroom;
+    # raised alongside the `test-fast` fix rather than waiting for this
+    # job to time out on its own next.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
