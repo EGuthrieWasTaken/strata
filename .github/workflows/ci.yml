@@ -71,8 +71,14 @@ jobs:
     # M2 grew the suite past what 15 minutes covers on the slower
     # Windows runners specifically (ubuntu/macos finish in ~7-10 min;
     # windows was hitting this timeout mid-run, not failing on content --
-    # see PR #9's gate failure).
-    timeout-minutes: 30
+    # see PR #9's gate failure). M2.1: on a contended runner the whole
+    # suite measured ~2.5-3x slower across every OS (ubuntu 7-10min ->
+    # 15-21min, macos ~7-10min -> 21-24min, all still content-passing,
+    # not failing on assertions); Windows's own ~24-25min baseline at
+    # that same factor needs real headroom above 30, not another
+    # incremental bump -- raised generously rather than repeating the
+    # same too-tight-by-a-few-minutes mistake `coverage` just hit.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -154,13 +160,15 @@ jobs:
     # Full suite with coverage instrumentation runs ~8-9 minutes now that
     # M2 is complete (990+ tests); the old 5-minute budget fit M1's
     # smaller suite but was cancelling this job mid-run regardless of
-    # test content (see PR #9's gate failure). M2.1's `test-fast` finding
-    # (unit+property alone measured ~2-3x slower on a contended runner,
-    # 743 tests) applies to this job too -- it runs that same subset plus
-    # more -- so the 15-minute budget no longer has reliable headroom;
-    # raised alongside the `test-fast` fix rather than waiting for this
-    # job to time out on its own next.
-    timeout-minutes: 25
+    # test content (see PR #9's gate failure). M2.1: a first bump to 25
+    # minutes still wasn't enough -- the actual run finished all 1017
+    # tests and 97.59% coverage in 25m07s, then got cancelled because the
+    # *job's* 25-minute budget left no room for checkout/setup on top of
+    # that (confirmed via the job log: "1017 passed... in 1507.84s
+    # (0:25:07)" followed immediately by the cancellation, not a test
+    # failure). Raised with real headroom this time instead of the same
+    # too-tight-by-a-few-minutes mistake.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
