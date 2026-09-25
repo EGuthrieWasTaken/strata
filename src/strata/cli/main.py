@@ -39,6 +39,7 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.mcpserver import server as mcp_server_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import audit as audit_mod
 from strata.protocol import criteria as criteria_mod
@@ -1888,6 +1889,18 @@ def serve_command(
         webbrowser.open(url)
 
     asyncio.run(web_server_mod.serve_until_idle_or_interrupted(params))
+
+
+@app.command("mcp")
+def mcp_command(ctx: typer.Context) -> None:
+    """Run the local, read-only MCP server over stdio (docs/spec/15-roadmap.md, M2.1).
+
+    Exposes status/why/log/records/criteria-diff/impact-preview as MCP tools --
+    nothing that writes. Spawned by an MCP-aware client (Claude Code, Claude
+    Desktop, or any other) against this repository, the same way the client
+    would spawn any other local stdio server, e.g. `strata -C <path> mcp`."""
+    repo = _resolve_repo(ctx)
+    mcp_server_mod.create_mcp_server(repo_root=repo.root).run(transport="stdio")
 
 
 @internal_app.command("hook-pre-commit")
