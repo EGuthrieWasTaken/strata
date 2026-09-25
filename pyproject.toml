@@ -22,6 +22,7 @@ dependencies = [
     "python-ulid>=2.2",
     "tomlkit>=0.13",
     "python-multipart>=0.0.32",
+    "mcp>=1.12",
 ]
 
 [project.scripts]
