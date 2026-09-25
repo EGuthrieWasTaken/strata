@@ -61,7 +61,11 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # M2 grew the suite past what 15 minutes covers on the slower
+    # Windows runners specifically (ubuntu/macos finish in ~7-10 min;
+    # windows was hitting this timeout mid-run, not failing on content --
+    # see PR #9's gate failure).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -140,7 +144,11 @@ jobs:
     name: coverage
     needs: [lint, test-fast]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Full suite with coverage instrumentation runs ~8-9 minutes now that
+    # M2 is complete (990+ tests); the old 5-minute budget fit M1's
+    # smaller suite but was cancelling this job mid-run regardless of
+    # test content (see PR #9's gate failure).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

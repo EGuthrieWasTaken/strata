@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Dedup{% endblock %}
+{% block content %}
+<h1>Duplicate review{% if candidate %} &mdash; {{ total }} pending{% endif %}</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<p class="notice">{{ candidate_pairs_considered }} candidate pair{{ "s" if candidate_pairs_considered != 1 else "" }} considered.</p>
+
+{% for w in blocking_warnings %}
+<p class="error" role="alert">{{ w }}</p>
+{% endfor %}
+
+{% if would_auto_merge %}
+<div class="notice" data-testid="would-auto-merge">
+  <p><strong>{{ would_auto_merge | length }} pair{{ "s" if would_auto_merge | length != 1 else "" }} would auto-merge</strong> on the next dedup run (nothing saved yet):</p>
+  <ul>
+    {% for pair in would_auto_merge %}
+    <li>{{ pair.canonical.title or pair.canonical.id }} &larr; {{ pair.absorbed.title or pair.absorbed.id }}</li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/dedup/run">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <label class="note-field">
+      Why run the auto-merge pass now?
+      <textarea name="rationale"></textarea>
+    </label>
+    <button type="submit" class="btn btn-include">Run auto-merge now</button>
+  </form>
+</div>
+{% endif %}
+
+{% if candidate is none %}
+<p class="done-note">Nothing pending review.</p>
+{% else %}
+<p>Pair score: {{ "%.2f" | format(candidate.result.score) }}{% if candidate.doi_conflict %} &mdash; <strong>DOIs differ</strong> (flagged for human judgement, doi-conflict){% endif %}</p>
+
+<div class="pair-grid">
+  <article class="record-card">
+    <p class="byline">A &middot; {{ record_a.id }}</p>
+    <h2>{{ record_a.title or "(no title)" }}</h2>
+    <p class="byline">{{ record_a_authors }}{% if record_a_year %} ({{ record_a_year }}){% endif %}</p>
+    {% if record_a.DOI %}<p>DOI: {{ record_a.DOI }}</p>{% endif %}
+  </article>
+  <article class="record-card">
+    <p class="byline">B &middot; {{ record_b.id }}</p>
+    <h2>{{ record_b.title or "(no title)" }}</h2>
+    <p class="byline">{{ record_b_authors }}{% if record_b_year %} ({{ record_b_year }}){% endif %}</p>
+    {% if record_b.DOI %}<p>DOI: {{ record_b.DOI }}</p>{% endif %}
+  </article>
+</div>
+
+<p class="feature-scores">
+  title {{ "%.2f" | format(candidate.result.features.title) }} &middot;
+  author {{ "%.2f" | format(candidate.result.features.author) }} &middot;
+  year {{ "%.2f" | format(candidate.result.features.year) }} &middot;
+  journal {{ "%.2f" | format(candidate.result.features.journal) }} &middot;
+  locator {{ "%.2f" | format(candidate.result.features.locator) }}
+</p>
+
+<form method="post" action="/dedup/decide" id="dedup-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="record_a" value="{{ candidate.record_a }}">
+  <input type="hidden" name="record_b" value="{{ candidate.record_b }}">
+  <input type="hidden" name="skip" value="{{ skip_csv }}">
+
+  <label class="note-field">
+    Why does this decision stand?
+    <textarea name="rationale"></textarea>
+  </label>
+
+  <div class="decision-buttons" role="group" aria-label="Decision">
+    <button type="submit" name="decision" value="merge" accesskey="m" class="btn btn-include">
+      <kbd>m</kbd> Merge
+    </button>
+    <button type="submit" name="decision" value="keep" accesskey="k" class="btn">
+      <kbd>k</kbd> Keep both
+    </button>
+  </div>
+
+  <div class="nav-links">
+    <a href="/dedup?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+      <kbd>s</kbd> Skip
+    </a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

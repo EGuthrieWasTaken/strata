@@ -105,6 +105,41 @@ def test_get_record_found_and_missing(tmp_path: Path) -> None:
     assert get_record(repo, "rec_nonexistent0000") is None
 
 
+def test_get_record_missing_file_returns_none(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    assert get_record(repo, "rec_0000000000000001") is None
+
+
+def test_get_record_skips_a_substring_false_positive(tmp_path: Path) -> None:
+    """`get_record`'s line-prefilter is a plain substring search on
+    `"id":"<value>"` (cheap next to parsing every line as JSON at scale --
+    see its docstring). That means a line whose *raw text* happens to
+    contain another record's id/needle verbatim, without actually being
+    that record, must still be skipped rather than mis-returned -- the
+    final `record["id"] == record_id` check is what guards that, and this
+    directly exercises it via a hand-written NDJSON file (canonical JSON's
+    own string-escaping makes this awkward to trigger through
+    `write_records`, so this writes the file directly)."""
+    repo = _repo(tmp_path)
+    path = records_path(repo)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # A JSON string can't contain a literal unescaped quote, so the only way
+    # the raw substring `"id":"rec_target0000001"` can appear verbatim in
+    # otherwise-valid JSON without *being* that record is as a nested
+    # object's own "id" key -- exactly what this decoy line does.
+    decoy_line = (
+        '{"id":"rec_decoy00000000001","nested":{"id":"rec_target0000001"},'
+        '"strata":{"canonical":true},"title":"Decoy"}'
+    )
+    target_line = '{"id":"rec_target0000001","strata":{"canonical":true},"title":"Target"}'
+    path.write_text(decoy_line + "\n" + target_line + "\n", encoding="utf-8")
+
+    found = get_record(repo, "rec_target0000001")
+    assert found is not None
+    assert found["id"] == "rec_target0000001"
+    assert found["title"] == "Target"
+
+
 def test_read_records_skips_blank_lines(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     write_records(repo, [_record("rec_0000000000000001")])

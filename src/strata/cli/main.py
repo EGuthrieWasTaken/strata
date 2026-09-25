@@ -8,11 +8,13 @@ layer the (future) web UI will call.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import json as json_mod
 import re
 import shutil
 import sys
+import webbrowser
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -37,7 +39,16 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.protocol import adjudication as adjudication_mod
+from strata.protocol import audit as audit_mod
+from strata.protocol import criteria as criteria_mod
+from strata.protocol import irr as irr_mod
+from strata.protocol import pool as pool_mod
+from strata.protocol import rescreen as rescreen_mod
+from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
+from strata.web import security as web_security
+from strata.web import server as web_server_mod
 
 EXIT_OK = 0
 EXIT_GENERIC = 1
@@ -53,6 +64,9 @@ EXIT_GUARDRAIL = 8
 # scope, not inline in a signature, or ruff's flake8-bugbear B008 flags it.
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
 _IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
+_MARK_OPTION = typer.Option(
+    None, "--mark", help="Force record(s) stale (manual reason) instead of re-screening"
+)
 
 app = typer.Typer(
     name="strata",
@@ -67,10 +81,14 @@ search_app = typer.Typer(
 records_app = typer.Typer(
     name="records", help="List and inspect bibliographic records.", no_args_is_help=True
 )
+criteria_app = typer.Typer(
+    name="criteria", help="Manage inclusion/exclusion criteria.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
+app.add_typer(criteria_app, name="criteria")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -135,15 +153,9 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
 
 
-def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
-    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
-
-    Returns `None` when `git.require_rationale` is false and no rationale was
-    supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
-    unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
-    `validate_rationale` (empty, stop-listed, or too short).
-    """
-    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> str:
+    """Elicit and validate a rationale, unconditionally (shared by `_get_rationale`
+    and `_get_required_rationale` — see those for when each applies)."""
     why_file = ctx.obj.get("why_file")
     why = ctx.obj.get("why")
 
@@ -152,14 +164,12 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
         text = Path(why_file).read_text(encoding="utf-8")
     elif why:
         text = why
-    elif not require:
-        return None
     elif sys.stdin.isatty():
         out_console.print(context_lines)
         text = typer.prompt("Why? (this goes in the permanent record)")
     else:
         err_console.print(
-            "[red]error:[/] a rationale is required (git.require_rationale is true); "
+            "[red]error:[/] a rationale is required; "
             "pass --why or --why-file in a non-interactive context"
         )
         raise typer.Exit(EXIT_RATIONALE_REFUSED)
@@ -169,6 +179,32 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
     except RationaleRejectedError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
+
+
+def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
+    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
+
+    Returns `None` when `git.require_rationale` is false and no rationale was
+    supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
+    unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
+    `validate_rationale` (empty, stop-listed, or too short).
+    """
+    require = bool(repo.config.get("git", {}).get("require_rationale", True))
+    if not require and not ctx.obj.get("why_file") and not ctx.obj.get("why"):
+        return None
+    return _prompt_and_validate_rationale(ctx, context_lines)
+
+
+def _get_required_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str:
+    """Like `_get_rationale`, but the rationale is required unconditionally,
+    regardless of `git.require_rationale` — for operations the specification
+    itself requires a rationale for with no config escape hatch: criteria
+    changes (docs/spec/06-workflow-screening.md §3.2's "Why did you make this
+    change?" prompt) and adjudications (§8: "A rationale is REQUIRED for
+    adjudications").
+    """
+    del repo  # kept for signature symmetry with `_get_rationale`; not consulted
+    return _prompt_and_validate_rationale(ctx, context_lines)
 
 
 def _derive_clone_dest_name(url: str) -> str:
@@ -352,7 +388,7 @@ def status(ctx: typer.Context) -> None:
     repo = _resolve_repo(ctx)
     s = status_mod.compute_status(repo)
     if ctx.obj["json"]:
-        _print_json(vars(s))
+        _print_json(dataclasses.asdict(s))
         return
     out_console.print(f"[bold]{s.title}[/]  criteria v{s.criteria_version}")
     clean = "clean" if s.is_clean else "dirty"
@@ -360,6 +396,18 @@ def status(ctx: typer.Context) -> None:
     out_console.print(f"{s.record_count} records · {s.search_count} searches recorded")
     for search_id in s.pending_searches:
         out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
+    for stage in s.stages:
+        out_console.print(
+            f"\n[bold]{stage.stage.upper()}[/]  {stage.total} records"
+            f"    {stage.resolved} resolved · {stage.unscreened} unscreened · "
+            f"{stage.partial} partial"
+        )
+        if stage.conflicts:
+            out_console.print(f"  {stage.conflicts} conflicts                strata adjudicate")
+        if stage.stale:
+            out_console.print(f"  {stage.stale} STALE                    strata rescreen")
+    if s.next_action:
+        out_console.print(f"\n[bold]NEXT[/]  {s.next_action}")
 
 
 @app.command("log")
@@ -376,6 +424,22 @@ def log_command(
         out_console.print(f"{c.sha[:10]}  {c.subject}")
 
 
+def _commit_manifest_op(
+    ctx: typer.Context, repo: Repo, *, op: str, scope: str, summary: str, trailers: dict[str, str]
+) -> None:
+    """Commit a `strata.toml`-only change (docs/spec/04-git-integration.md
+    §2.1: every mutating command produces exactly one commit)."""
+    if ctx.obj["no_commit"]:
+        out_console.print(f"[green]{summary}[/] (not committed)")
+        return
+    rationale = _get_rationale(ctx, repo, f"You {summary}.")
+    commit_obj = StructuredCommit(
+        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    )
+    gitio.add(repo.root, ["strata.toml"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
 @actor_app.command("add")
 def actor_add(
     ctx: typer.Context,
@@ -390,6 +454,14 @@ def actor_add(
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    _commit_manifest_op(
+        ctx,
+        repo,
+        op="actor-add",
+        scope=handle,
+        summary=f"add actor {handle}",
+        trailers={"Op": "actor-add", "Actor": handle, "Role": role},
+    )
     out_console.print(f"[green]added[/] actor {handle}")
 
 
@@ -412,6 +484,14 @@ def actor_deactivate(ctx: typer.Context, handle: str) -> None:
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    _commit_manifest_op(
+        ctx,
+        repo,
+        op="actor-deactivate",
+        scope=handle,
+        summary=f"deactivate actor {handle}",
+        trailers={"Op": "actor-deactivate", "Actor": handle},
+    )
     out_console.print(f"[green]deactivated[/] actor {handle}")
 
 
@@ -666,7 +746,7 @@ def _commit_domain_op(
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    gitio.add(repo.root, ["records", "events"])
+    gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
 
@@ -816,6 +896,26 @@ def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in record.items() if k != "strata"}
 
 
+def _apply_record_filter(records: list[dict[str, Any]], filter_expr: str) -> list[dict[str, Any]]:
+    """Shared `--filter` evaluation (docs/spec/10-cli.md §3), used by `records list`,
+    `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
+    that can't be evaluated, rather than raising past the CLI boundary."""
+    try:
+        ast = filters_mod.parse(filter_expr)
+    except filters_mod.FilterSyntaxError as exc:
+        err_console.print(f"[red]error:[/] invalid --filter: {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    matched = []
+    for record in records:
+        try:
+            if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
+                matched.append(record)
+        except filters_mod.FilterEvaluationError as exc:
+            err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+    return matched
+
+
 @records_app.command("list")
 def records_list(
     ctx: typer.Context,
@@ -838,20 +938,7 @@ def records_list(
         records = [r for r in records if r.get("strata", {}).get("canonical", True)]
 
     if filter_expr:
-        try:
-            ast = filters_mod.parse(filter_expr)
-        except filters_mod.FilterSyntaxError as exc:
-            err_console.print(f"[red]error:[/] invalid --filter: {exc}")
-            raise typer.Exit(EXIT_USAGE) from None
-        matched = []
-        for record in records:
-            try:
-                if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
-                    matched.append(record)
-            except filters_mod.FilterEvaluationError as exc:
-                err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
-                raise typer.Exit(EXIT_USAGE) from None
-        records = matched
+        records = _apply_record_filter(records, filter_expr)
 
     if fmt == "json":
         _print_json(records)
@@ -961,6 +1048,846 @@ def fix_command(
         out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
 
     _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
+
+
+def _split_stages(raw: str) -> list[str]:
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
+def _commit_criteria_op(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    op: str,
+    criterion_id: str,
+    summary: str,
+    by: str,
+    rationale: str,
+) -> None:
+    # Regenerated regardless of --no-commit: a criteria change can make
+    # decisions stale even when the caller doesn't want a commit yet.
+    pool_mod.regenerate_all(repo)
+    if ctx.obj["no_commit"]:
+        return
+    commit_obj = StructuredCommit(
+        op=op,
+        scope=criterion_id,
+        summary=summary,
+        body=rationale,
+        trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
+    )
+    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
+    gitio.commit(repo.root, commit_obj.message())
+
+
+@criteria_app.command("add")
+def criteria_add(
+    ctx: typer.Context,
+    kind: str = typer.Option(..., "--kind", help="inclusion | exclusion"),
+    label: str = typer.Option(..., "--label"),
+    definition: str = typer.Option(..., "--definition"),
+    applies_at: str = typer.Option(..., "--applies-at", help="Comma-separated stages"),
+    by: str = typer.Option(..., "--by", help="Actor handle making the change"),
+    criterion_id: str | None = typer.Option(None, "--id"),
+) -> None:
+    """Add a criterion. A criterion added behaves as `tightened` (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(
+        ctx, repo, f"You are adding a new {kind} criterion: {label!r}."
+    )
+    try:
+        criterion = criteria_mod.add_criterion(
+            repo,
+            kind=kind,  # type: ignore[arg-type]
+            label=label,
+            definition=definition,
+            applies_at=_split_stages(applies_at),
+            actor=by,
+            rationale=rationale,
+            criterion_id=criterion_id,
+        )
+    except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json(criterion)
+    else:
+        out_console.print(f"[green]added[/] {criterion['id']} (criteria v{version})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-add",
+        criterion_id=criterion["id"],
+        summary=f"add criterion {criterion['id']}",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("edit")
+def criteria_edit(
+    ctx: typer.Context,
+    criterion_id: str,
+    direction: str = typer.Option(
+        ..., "--direction", help="tightened | loosened | both | editorial"
+    ),
+    by: str = typer.Option(..., "--by", help="Actor handle making the change"),
+    definition: str | None = typer.Option(None, "--definition"),
+    label: str | None = typer.Option(None, "--label"),
+    applies_at: str | None = typer.Option(None, "--applies-at", help="Comma-separated stages"),
+) -> None:
+    """Edit a criterion; MUST classify the change's direction (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(ctx, repo, f"You are editing {criterion_id} ({direction}).")
+    try:
+        updated = criteria_mod.edit_criterion(
+            repo,
+            criterion_id,
+            direction=direction,  # type: ignore[arg-type]
+            actor=by,
+            rationale=rationale,
+            label=label,
+            definition=definition,
+            applies_at=_split_stages(applies_at) if applies_at is not None else None,
+        )
+    except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json(updated)
+    else:
+        out_console.print(f"[green]edited[/] {criterion_id} (criteria v{version}, {direction})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-edit",
+        criterion_id=criterion_id,
+        summary=f"edit criterion {criterion_id} ({direction})",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("retire")
+def criteria_retire(
+    ctx: typer.Context, criterion_id: str, by: str = typer.Option(..., "--by")
+) -> None:
+    """Retire a criterion; behaves as `loosened` (docs/spec/06 §3.2)."""
+    repo = _resolve_repo(ctx)
+    rationale = _get_required_rationale(ctx, repo, f"You are retiring {criterion_id}.")
+    try:
+        criteria_mod.retire_criterion(repo, criterion_id, actor=by, rationale=rationale)
+    except criteria_mod.CriteriaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    version = criteria_mod.read_criteria_doc(repo)["version"]
+    if ctx.obj["json"]:
+        _print_json({"id": criterion_id, "status": "retired"})
+    else:
+        out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{version})")
+
+    _commit_criteria_op(
+        ctx,
+        repo,
+        op="criteria-retire",
+        criterion_id=criterion_id,
+        summary=f"retire criterion {criterion_id}",
+        by=by,
+        rationale=rationale,
+    )
+
+
+@criteria_app.command("list")
+def criteria_list_cmd(
+    ctx: typer.Context,
+    at: str | None = typer.Option(None, "--at", help="Filter to criteria applying at this stage"),
+    version: int | None = typer.Option(
+        None, "--version", help="Reconstruct the set as of version N"
+    ),
+) -> None:
+    repo = _resolve_repo(ctx)
+    criteria = criteria_mod.list_criteria(repo, at=at, version=version)
+    if ctx.obj["json"]:
+        _print_json(criteria)
+        return
+    if not criteria:
+        out_console.print("no criteria recorded yet -- `strata criteria add`")
+        return
+    for c in criteria:
+        status = "" if c["status"] == "active" else " [dim](retired)[/]"
+        out_console.print(f"{c['id']:<8} {c['kind']:<10} {c['label']}{status}")
+
+
+@criteria_app.command("diff")
+def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
+    """Show what changed between two criteria versions."""
+    repo = _resolve_repo(ctx)
+    try:
+        deltas = criteria_mod.diff_versions(repo, v1, v2)
+    except criteria_mod.CriteriaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if ctx.obj["json"]:
+        _print_json(deltas)
+        return
+    if not deltas:
+        out_console.print(f"no criteria changes between v{v1} and v{v2}")
+        return
+    for d in deltas:
+        out_console.print(f"{d['id']:<8} {d['origin']:<8} {d['direction']:<10} {d['label']}")
+
+
+def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
+    """Canonical record ids matching `--filter`, per docs/spec/10-cli.md §3."""
+    records = [
+        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
+    ]
+    return {r["id"] for r in _apply_record_filter(records, filter_expr)}
+
+
+_DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
+
+
+def _parse_criteria_numbers(raw: str, active_criteria: list[dict[str, Any]]) -> list[str]:
+    """`1,3` -> the ids of the 1st and 3rd listed criteria (docs/spec/06 §7's
+    "digits 1-9 cite criteria"). Out-of-range numbers are reported and skipped
+    rather than aborting the whole citation."""
+    ids: list[str] = []
+    for token in raw.replace(",", " ").split():
+        try:
+            n = int(token)
+        except ValueError:
+            out_console.print(f"[yellow]warning:[/] ignoring non-numeric criterion {token!r}")
+            continue
+        if not (1 <= n <= len(active_criteria)):
+            out_console.print(f"[yellow]warning:[/] no criterion numbered {n}")
+            continue
+        ids.append(active_criteria[n - 1]["id"])
+    return ids
+
+
+def _render_screen_record(
+    index: int,
+    total: int,
+    stage: str,
+    record: dict[str, Any],
+    active_criteria: list[dict[str, Any]],
+) -> str:
+    year = _record_year(record)
+    authors = _author_display(record)
+    lines = [f"{stage}  record {index + 1} of {total}", ""]
+    lines.append(record.get("title") or "(no title)")
+    byline = " · ".join(
+        p for p in (authors, record.get("container-title"), str(year) if year else "") if p
+    )
+    if byline:
+        lines.append(byline)
+    lines.append("")
+    lines.append(record.get("abstract") or "[yellow](no abstract)[/]")
+    if active_criteria:
+        lines.append("")
+        lines.append("Criteria:")
+        for i, c in enumerate(active_criteria, start=1):
+            lines.append(f"  {i}  {c['id']}  {c['label']}")
+    return "\n".join(lines)
+
+
+@app.command("screen")
+def screen_command(
+    ctx: typer.Context,
+    stage: str,
+    by: str = typer.Option(..., "--by", help="Actor handle doing the screening"),
+    filter_expr: str | None = typer.Option(None, "--filter", help="Narrow the queue"),
+    limit: int | None = typer.Option(None, "--limit", help="Screen at most N records"),
+    decisions_file: str | None = typer.Option(
+        None, "--decisions", help="TSV of record_id/decision/criteria/note (docs/spec/10 §5)"
+    ),
+) -> None:
+    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`."""
+    repo = _resolve_repo(ctx)
+
+    if decisions_file:
+        text = Path(decisions_file).read_text(encoding="utf-8")
+        try:
+            envelopes = screening_mod.import_decisions_tsv(repo, stage=stage, text=text, actor=by)
+        except screening_mod.ScreeningError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        if ctx.obj["json"]:
+            _print_json({"stage": stage, "recorded": len(envelopes)})
+        else:
+            out_console.print(f"[green]recorded[/] {len(envelopes)} decision(s) for {stage}")
+        if envelopes:
+            pool_mod.regenerate_all(repo)
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="screen-import",
+                scope=stage,
+                summary=f"imported {len(envelopes)} {stage} decisions",
+                by=by,
+            )
+        return
+
+    only_ids = _resolve_filter_ids(repo, filter_expr) if filter_expr else None
+    try:
+        queue = screening_mod.stage_queue(repo, stage, by, only_ids=only_ids)
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if limit is not None:
+        queue = queue[:limit]
+
+    if not queue:
+        out_console.print(f"[green]nothing to screen[/] at {stage} for {by}")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    active_criteria = [
+        c for c in criteria_mod.list_criteria(repo, at=stage) if c["status"] == "active"
+    ]
+
+    decided = 0
+    last_decided_index: int | None = None
+    index = 0
+    while index < len(queue):
+        record_id = queue[index]
+        out_console.print(
+            _render_screen_record(index, len(queue), stage, records[record_id], active_criteria)
+        )
+        choice = typer.prompt("[i]nclude [e]xclude [m]aybe [s]kip [u]ndo [q]uit", default="s")
+        choice = choice.strip().lower()
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+        if choice == "u":
+            if last_decided_index is None:
+                out_console.print("[yellow]nothing to undo yet[/]")
+                continue
+            index = last_decided_index
+            last_decided_index = None
+            continue
+        if choice not in _DECISION_KEYS:
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        decision = _DECISION_KEYS[choice]
+        cited: list[str] = []
+        if choice == "e" and active_criteria:
+            raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+            cited = _parse_criteria_numbers(raw, active_criteria)
+        note = typer.prompt("Note (optional)", default="") or None
+
+        try:
+            screening_mod.record_screen_decision(
+                repo,
+                stage=stage,
+                record_id=record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                cited=cited,
+                note=note,
+            )
+        except screening_mod.ScreeningError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        last_decided_index = index
+        index += 1
+
+    if decided:
+        pool_mod.regenerate_all(repo)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="screen",
+            scope=stage,
+            summary=f"screened {decided} {stage} record(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"stage": stage, "decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
+
+
+@app.command("assign")
+def assign_command(
+    ctx: typer.Context,
+    stage: str,
+    actors: str = typer.Option(..., "--actors", help="Comma-separated actor handles"),
+    by: str = typer.Option(..., "--by", help="Actor handle recording the assignment"),
+    filter_expr: str | None = typer.Option(None, "--filter", help="Assign only matching records"),
+) -> None:
+    """Assign reviewers to records at `stage` (all canonical records by default)."""
+    repo = _resolve_repo(ctx)
+    actor_list = [a.strip() for a in actors.split(",") if a.strip()]
+    if filter_expr:
+        record_ids = _resolve_filter_ids(repo, filter_expr)
+    else:
+        record_ids = {
+            r["id"]
+            for r in records_mod.read_records(repo)
+            if r.get("strata", {}).get("canonical", True)
+        }
+
+    try:
+        screening_mod.assign_reviewers(
+            repo,
+            stage=stage,
+            actors=actor_list,
+            record_ids=sorted(record_ids),
+            actor=by,
+            filter_expr=filter_expr,
+        )
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    out_console.print(
+        f"[green]assigned[/] {len(record_ids)} record(s) at {stage} to {', '.join(actor_list)}"
+    )
+    _commit_domain_op(
+        ctx,
+        repo,
+        op="assign",
+        scope=stage,
+        summary=f"assigned {len(record_ids)} {stage} record(s)",
+        by=by,
+        extra_trailers={"Actors": ",".join(actor_list)},
+    )
+
+
+def _render_rescreen_record(
+    index: int,
+    total: int,
+    stage: str,
+    record: dict[str, Any],
+    stale: rescreen_mod.StaleRecord,
+    active_criteria: list[dict[str, Any]],
+) -> str:
+    lines = [f"{stage}  STALE {index + 1} of {total}  ({stale.reason})", ""]
+    lines.append(record.get("title") or "(no title)")
+    lines.append("")
+    prior_criteria = ", ".join(stale.prior_criteria) or "(none cited)"
+    lines.append(f"Your previous decision: {stale.prior_decision.upper()}  citing {prior_criteria}")
+    lines.append(f"Now stale because: {stale.reason}")
+    if active_criteria:
+        lines.append("")
+        lines.append("Criteria:")
+        for i, c in enumerate(active_criteria, start=1):
+            lines.append(f"  {i}  {c['id']}  {c['label']}")
+    return "\n".join(lines)
+
+
+@app.command("rescreen")
+def rescreen_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+    by: str = typer.Option(..., "--by", help="Actor handle doing the re-screening"),
+    mark: list[str] | None = _MARK_OPTION,
+) -> None:
+    """Open the stale queue: docs/spec/06-workflow-screening.md §6."""
+    repo = _resolve_repo(ctx)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    if mark:
+        rationale = _get_required_rationale(
+            ctx, repo, f"You are manually marking {len(mark)} record(s) stale."
+        )
+        for record_id in mark:
+            for s in stages:
+                rescreen_mod.mark_manual_stale(
+                    repo, stage=s, record_id=record_id, actor=by, rationale=rationale
+                )
+        pool_mod.regenerate_all(repo)
+        out_console.print(f"[yellow]marked[/] {len(mark)} record(s) stale")
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="rescreen-mark",
+            scope=stage,
+            summary=f"manually marked {len(mark)} record(s) stale",
+            by=by,
+        )
+        return
+
+    queue: list[tuple[str, rescreen_mod.StaleRecord]] = []
+    for s in stages:
+        try:
+            queue.extend((s, item) for item in rescreen_mod.rescreen_queue(repo, s, by))
+        except rescreen_mod.RescreenError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+
+    if not queue:
+        out_console.print(f"[green]nothing to rescreen[/] for {by}")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    decided = 0
+    index = 0
+    while index < len(queue):
+        s, stale = queue[index]
+        record = records.get(stale.record_id)
+        if record is None:
+            index += 1
+            continue
+        active_criteria = [
+            c for c in criteria_mod.list_criteria(repo, at=s) if c["status"] == "active"
+        ]
+        out_console.print(
+            _render_rescreen_record(index, len(queue), s, record, stale, active_criteria)
+        )
+        choice = typer.prompt(
+            "[i]nclude [e]xclude [m]aybe [k]eep previous [s]kip [q]uit", default="s"
+        )
+        choice = choice.strip().lower()
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+
+        if choice == "k":
+            decision: str = stale.prior_decision
+            cited = list(stale.prior_criteria)
+        elif choice in _DECISION_KEYS:
+            decision = _DECISION_KEYS[choice]
+            cited = []
+            if choice == "e" and active_criteria:
+                raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+                cited = _parse_criteria_numbers(raw, active_criteria)
+        else:
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        try:
+            screening_mod.record_screen_decision(
+                repo,
+                stage=s,
+                record_id=stale.record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                cited=cited,
+            )
+        except screening_mod.ScreeningError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        index += 1
+
+    if decided:
+        pool_mod.regenerate_all(repo)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="rescreen",
+            scope=stage,
+            summary=f"re-screened {decided} stale record(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
+
+
+def _render_conflict(
+    index: int, total: int, stage: str, record: dict[str, Any], opinions: dict[str, Any]
+) -> str:
+    lines = [f"Conflict {index + 1} of {total}                {stage}", ""]
+    lines.append(record.get("title") or "(no title)")
+    lines.append("")
+    for actor, event in sorted(opinions.items()):
+        body = event["body"]
+        date = event.get("ts", "")[:10]
+        detail = body["decision"].upper()
+        lines.append(f"{actor:<10} {detail:<10} {date}")
+        if body.get("criteria"):
+            lines.append(f"           citing {', '.join(body['criteria'])}")
+        if body.get("note"):
+            lines.append(f'           "{body["note"]}"')
+    lines.append("")
+    lines.append("[i] include   [e] exclude   [d] discuss   [s] skip   [q] quit")
+    return "\n".join(lines)
+
+
+@app.command("adjudicate")
+def adjudicate_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+    by: str = typer.Option(..., "--by", help="Actor handle adjudicating"),
+) -> None:
+    """Resolve screening conflicts: docs/spec/06-workflow-screening.md §8."""
+    repo = _resolve_repo(ctx)
+    if not adjudication_mod.is_adjudicator(repo, by):
+        err_console.print(
+            f"[red]error:[/] {by!r} is not an adjudicator for this review "
+            "(screening.adjudicators or role 'adjudicator'/'lead')"
+        )
+        raise typer.Exit(EXIT_GUARDRAIL)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    queue: list[tuple[str, str]] = []
+    for s in stages:
+        try:
+            queue.extend((s, record_id) for record_id in adjudication_mod.conflict_queue(repo, s))
+        except adjudication_mod.AdjudicationError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+
+    if not queue:
+        out_console.print("[green]no conflicts[/] to adjudicate")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    decided = 0
+    index = 0
+    while index < len(queue):
+        s, record_id = queue[index]
+        record = records.get(record_id)
+        if record is None:
+            index += 1
+            continue
+        state = screening_mod.resolve_record_state(repo, s, record_id)
+        active_criteria = [
+            c for c in criteria_mod.list_criteria(repo, at=s) if c["status"] == "active"
+        ]
+        out_console.print(_render_conflict(index, len(queue), s, record, state.opinions))
+        choice = typer.prompt("Decision", default="s").strip().lower()
+
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+        if choice == "d":
+            text = typer.prompt("Note")
+            adjudication_mod.record_discussion(
+                repo, stage=s, record_id=record_id, actor=by, text=text
+            )
+            index += 1
+            continue
+        if choice not in ("i", "e"):
+            out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+            continue
+
+        decision = "include" if choice == "i" else "exclude"
+        cited: list[str] = []
+        if choice == "e" and active_criteria:
+            raw = typer.prompt("Cite criteria (comma-separated numbers)", default="")
+            cited = _parse_criteria_numbers(raw, active_criteria)
+        rationale = _get_required_rationale(
+            ctx, repo, f"You are adjudicating {record_id} at {s} as {decision}."
+        )
+        try:
+            adjudication_mod.record_adjudication(
+                repo,
+                stage=s,
+                record_id=record_id,
+                decision=decision,  # type: ignore[arg-type]
+                actor=by,
+                rationale=rationale,
+                cited=cited,
+            )
+        except adjudication_mod.AdjudicationError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+
+        decided += 1
+        index += 1
+
+    if decided:
+        pool_mod.regenerate_all(repo)
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="adjudicate",
+            scope=stage,
+            summary=f"adjudicated {decided} conflict(s)",
+            by=by,
+        )
+    if ctx.obj["json"]:
+        _print_json({"decided": decided})
+    else:
+        out_console.print(f"[green]done[/] -- {decided} conflict(s) resolved")
+
+
+@app.command("audit")
+def audit_command(
+    ctx: typer.Context,
+    criteria: bool = typer.Option(
+        False, "--criteria", help="Sample past exclusions for criterion-citation review"
+    ),
+    sample: int = typer.Option(20, "--sample", help="Sample size"),
+    seed: int | None = typer.Option(None, "--seed", help="Reproduce a specific sample"),
+) -> None:
+    """Re-present a random sample of past exclusions for verification (docs/spec/06 §4.3)."""
+    if not criteria:
+        err_console.print("[red]error:[/] strata audit currently only supports --criteria")
+        raise typer.Exit(EXIT_USAGE)
+
+    repo = _resolve_repo(ctx)
+    sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "seed": used_seed,
+                "items": [
+                    {
+                        "record": item.record_id,
+                        "stage": item.stage,
+                        "actor": item.actor,
+                        "criteria": list(item.criteria),
+                        "note": item.note,
+                    }
+                    for item in sampled
+                ],
+            }
+        )
+        return
+
+    if not sampled:
+        out_console.print("no exclusion decisions recorded yet to audit")
+        return
+
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    out_console.print(
+        f"Sampling {len(sampled)} exclusion(s) (seed {used_seed}; "
+        f"rerun with --seed {used_seed} to reproduce)"
+    )
+    for item in sampled:
+        record = records.get(item.record_id)
+        title = record.get("title") if record else "(unknown record)"
+        criteria_list = ", ".join(item.criteria) or "(none)"
+        out_console.print(
+            f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
+        )
+        out_console.print(f"  {title}")
+        if item.note:
+            out_console.print(f'  note: "{item.note}"')
+
+
+@app.command("irr")
+def irr_command(
+    ctx: typer.Context,
+    stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
+) -> None:
+    """Inter-rater reliability, over independent first opinions (docs/spec/02 §6.5).
+
+    Read-only with respect to the event log: recomputes and rewrites
+    `derived/irr.json` on disk, but does not commit -- the next mutating
+    screening command's commit (or a manual commit) picks the file up, same
+    as any other derived view.
+    """
+    repo = _resolve_repo(ctx)
+    stages = [stage] if stage else screening_mod.configured_stages(repo)
+
+    all_pairs: list[irr_mod.PairIrr] = []
+    for s in stages:
+        try:
+            all_pairs.extend(irr_mod.compute_stage_irr(repo, s))
+        except irr_mod.IrrError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+    irr_mod.regenerate_irr_json(repo)
+
+    if ctx.obj["json"]:
+        _print_json(
+            [
+                {
+                    "stage": p.stage,
+                    "actor_a": p.actor_a,
+                    "actor_b": p.actor_b,
+                    "n": p.n,
+                    "excluded_maybe": p.excluded_maybe,
+                    "table": p.table,
+                    "raw_agreement": p.raw_agreement,
+                    "kappa": p.kappa,
+                    "pabak": p.pabak,
+                }
+                for p in all_pairs
+            ]
+        )
+        return
+
+    if not all_pairs:
+        out_console.print("no reviewer pairs with overlapping first opinions yet")
+        return
+    for p in all_pairs:
+        out_console.print(
+            f"{p.stage:<16} {p.actor_a} x {p.actor_b}   n={p.n}   "
+            f"agreement={p.raw_agreement:.2f}   kappa={p.kappa:.2f}   pabak={p.pabak:.2f}"
+        )
+
+
+@app.command("serve")
+def serve_command(
+    ctx: typer.Context,
+    port: int = typer.Option(0, "--port", help="Port to bind (0 = OS-assigned ephemeral port)"),
+    host: str = typer.Option(
+        "127.0.0.1", "--host", help="Bind address; a non-loopback host requires --token"
+    ),
+    token: str | None = typer.Option(
+        None, "--token", help="Fixed session token (required with a non-loopback --host)"
+    ),
+    actor: str | None = typer.Option(
+        None, "--actor", help="Screen as this actor; required if more than one is configured"
+    ),
+    no_browser: bool = typer.Option(
+        False, "--no-browser", help="Do not automatically open a browser"
+    ),
+    inactivity_timeout: float = typer.Option(
+        web_security.DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+        "--inactivity-timeout",
+        help="Seconds of inactivity before the server exits (docs/spec/11 §7)",
+    ),
+) -> None:
+    """Start the local web UI (docs/spec/11-web-ui.md)."""
+    repo = _resolve_repo(ctx)
+
+    try:
+        resolved_actor = web_server_mod.resolve_actor(repo, actor)
+        session_token = web_server_mod.resolve_token(host, token)
+    except web_server_mod.ServeConfigError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if not web_server_mod.is_loopback_host(host):
+        err_console.print(
+            f"[yellow]warning:[/] binding to {host!r} exposes this server beyond this machine "
+            "-- only do this on a network you trust"
+        )
+
+    resolved_port = port or web_server_mod.pick_ephemeral_port(host)
+    params = web_server_mod.ServeParams(
+        repo_root=repo.root,
+        actor=resolved_actor,
+        host=host,
+        port=resolved_port,
+        session_token=session_token,
+        inactivity_timeout=inactivity_timeout,
+    )
+    url = web_server_mod.opened_url(params)
+    out_console.print(f"[green]strata serve[/] listening on {url}  (actor: {resolved_actor})")
+    if not no_browser:
+        webbrowser.open(url)
+
+    asyncio.run(web_server_mod.serve_until_idle_or_interrupted(params))
 
 
 @internal_app.command("hook-pre-commit")

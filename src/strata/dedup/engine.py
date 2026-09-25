@@ -162,21 +162,26 @@ def _merge_event_body(
     }
 
 
-def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
-    """The automatic pass: auto-merge obvious duplicates, queue the rest for `--review`.
+def _compute_dedup(
+    repo: Repo, *, strict: bool
+) -> tuple[
+    DedupOutcome,
+    dict[str, dict[str, Any]],
+    list[dict[str, Any]],
+    list[tuple[str, dict[str, Any]]],
+]:
+    """The pure classification pass shared by `run_dedup` (which persists the
+    result) and `preview_dedup` (which doesn't): blocks candidate pairs,
+    scores each one, and sorts it into auto-merge/review/silently-distinct
+    (§3.4). Chained duplicates are handled correctly within one pass by
+    folding each auto-merge into `by_id` immediately, so a later pair
+    sharing a just-merged id sees the merged record, not a stale one.
 
-    Writes `records/records.ndjson`, appends `dedup-merge`/alias entries for
-    every auto-merge, and returns the pairs that clear `review_threshold`
-    (or are a `doi-conflict`) for the caller to run through
-    `apply_review_decision`. Never emits an event for a pair that scores
-    below `review_threshold` -- absence is the default (§3.4).
-
-    Every auto-merge's event and alias entry is batched and written once
-    after the loop (`append_new_events`, one `write_aliases`), not one at a
-    time per merge -- seeing an event, alias, or `records.ndjson` write mid-run
-    is never possible for another process anyway, so there's nothing this
-    trades away, and it turns an O(n)-merge run from O(n^2) into O(n) in the
-    number of merges.
+    Returns `(outcome, by_id, absorbed_records, pending_events)` -- the
+    canonical-record map, the absorbed-record list, and the `(ev, body)`
+    pairs an auto-merge would emit, all reflecting what *would* be written.
+    Neither `records.ndjson`, `events/dedup/*.ndjson`, nor `aliases.ndjson`
+    are touched here; the caller decides whether to persist any of it.
     """
     auto_threshold, review_threshold = thresholds(repo, strict=strict)
     trust = source_trust_order(repo)
@@ -189,11 +194,10 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
 
     blocking_result = find_candidate_pairs(by_id)
     judged = judged_pairs(repo)
-    events_path = repo.path("events", "dedup", f"{actor}.ndjson")
 
     auto_merged: list[tuple[str, str]] = []
     review_queue: list[ReviewCandidate] = []
-    pending_events: list[tuple[str, str, dict[str, Any]]] = []
+    pending_events: list[tuple[str, dict[str, Any]]] = []
 
     for a_id, b_id in sorted(blocking_result.pairs):
         pair_key = _pair_key(a_id, b_id)
@@ -201,7 +205,7 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
             continue
         record_a, record_b = by_id.get(a_id), by_id.get(b_id)
         if record_a is None or record_b is None:
-            continue  # one side was already absorbed earlier in this same run
+            continue  # one side was already absorbed earlier in this same pass
 
         result = score_pair(record_a, record_b)
         doi_conflict = _is_doi_conflict(result, review_threshold)
@@ -212,7 +216,6 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
             pending_events.append(
                 (
                     "dedup-merge",
-                    actor,
                     _merge_event_body(
                         canonical["id"], absorbed["id"], result=result, method="auto-threshold"
                     ),
@@ -229,12 +232,44 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
             )
             review_queue.append(candidate)
 
+    outcome = DedupOutcome(
+        candidate_pairs_considered=len(blocking_result.pairs),
+        auto_merged=auto_merged,
+        review_queue=review_queue,
+        blocking_warnings=blocking_result.warnings,
+    )
+    return outcome, by_id, absorbed_records, pending_events
+
+
+def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
+    """The automatic pass: auto-merge obvious duplicates, queue the rest for `--review`.
+
+    Writes `records/records.ndjson`, appends `dedup-merge`/alias entries for
+    every auto-merge, and returns the pairs that clear `review_threshold`
+    (or are a `doi-conflict`) for the caller to run through
+    `apply_review_decision`. Never emits an event for a pair that scores
+    below `review_threshold` -- absence is the default (§3.4).
+
+    Every auto-merge's event and alias entry is batched and written once
+    after the loop (`append_new_events`, one `write_aliases`), not one at a
+    time per merge -- seeing an event, alias, or `records.ndjson` write mid-run
+    is never possible for another process anyway, so there's nothing this
+    trades away, and it turns an O(n)-merge run from O(n^2) into O(n) in the
+    number of merges.
+    """
+    outcome, by_id, absorbed_records, pending_events = _compute_dedup(repo, strict=strict)
+    events_path = repo.path("events", "dedup", f"{actor}.ndjson")
+
     records_mod.write_records(repo, [*by_id.values(), *absorbed_records])
 
     if pending_events:
-        envelopes = append_new_events(events_path, pending_events)
+        envelopes = append_new_events(
+            events_path, [(ev, actor, body) for ev, body in pending_events]
+        )
         alias_entries = aliases_mod.read_aliases(repo)
-        for envelope, (canonical_id, absorbed_id) in zip(envelopes, auto_merged, strict=True):
+        for envelope, (canonical_id, absorbed_id) in zip(
+            envelopes, outcome.auto_merged, strict=True
+        ):
             alias_entries.append(
                 {
                     "alias": absorbed_id,
@@ -245,12 +280,23 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
             )
         aliases_mod.write_aliases(repo, alias_entries)
 
-    return DedupOutcome(
-        candidate_pairs_considered=len(blocking_result.pairs),
-        auto_merged=auto_merged,
-        review_queue=review_queue,
-        blocking_warnings=blocking_result.warnings,
-    )
+    return outcome
+
+
+def preview_dedup(repo: Repo, *, strict: bool = False) -> DedupOutcome:
+    """Non-mutating dry run of `run_dedup`'s classification pass.
+
+    Same candidate blocking, scoring, and auto-merge/review-queue split as
+    `run_dedup`, but never writes `records.ndjson`, never appends a
+    `dedup-merge`/`dedup-distinct` event, and never touches
+    `aliases.ndjson`. Exists so `GET /dedup` (docs/spec/11-web-ui.md §2)
+    can render "what's pending review" and "what would auto-merge" without
+    violating HTTP safety -- `run_dedup` itself always commits its
+    auto-merges to disk as a side effect, so it can't be reused directly
+    for a read-only preview.
+    """
+    outcome, _by_id, _absorbed_records, _pending_events = _compute_dedup(repo, strict=strict)
+    return outcome
 
 
 def apply_review_decision(

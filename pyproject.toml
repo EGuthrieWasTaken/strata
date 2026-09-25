@@ -21,6 +21,7 @@ dependencies = [
     "rich>=13.7",
     "python-ulid>=2.2",
     "tomlkit>=0.13",
+    "python-multipart>=0.0.32",
 ]
 
 [project.scripts]
@@ -43,6 +44,7 @@ dev = [
     "mypy>=1.10",
     "diff-cover>=9.1",
     "types-jsonschema>=4.21",
+    "httpx2>=2.13.1",
 ]
 
 [tool.ruff]

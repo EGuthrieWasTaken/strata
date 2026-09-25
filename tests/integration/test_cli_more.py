@@ -199,6 +199,58 @@ def test_status_json_output(tmp_path: Path) -> None:
     assert result.exit_code == EXIT_OK
     payload = json.loads(result.output)
     assert payload["title"] == "Test Review"
+    assert {s["stage"] for s in payload["stages"]} == {"title-abstract", "full-text"}
+    assert payload["next_action"] is None
+
+
+def test_status_shows_next_action_and_regenerates_derived_files(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+    export = tmp_path / "one.json"
+    export.write_text(
+        '[{"id": "1", "type": "article-journal", "title": "A test record", "DOI": "10.1234/test"}]',
+        encoding="utf-8",
+    )
+    import_result = runner.invoke(
+        app,
+        [
+            "--why",
+            "importing one.json for a status test",
+            "-C",
+            str(root),
+            "import",
+            str(export),
+            "--by",
+            "ethan",
+            "--via",
+            "registry",
+        ],
+    )
+    assert import_result.exit_code == EXIT_OK, import_result.output
+
+    status_result = runner.invoke(app, ["-C", str(root), "status"])
+    assert status_result.exit_code == EXIT_OK, status_result.output
+    assert "TITLE-ABSTRACT" in status_result.output
+    assert "NEXT" in status_result.output
+    assert "strata screen title-abstract" in status_result.output
+
+    screen_result = runner.invoke(
+        app,
+        [
+            "--why",
+            "Screening the pilot batch for the review.",
+            "-C",
+            str(root),
+            "screen",
+            "title-abstract",
+            "--by",
+            "ethan",
+        ],
+        input="i\n\n",
+    )
+    assert screen_result.exit_code == EXIT_OK, screen_result.output
+
+    pool_tsv = (root / "derived" / "pool.tsv").read_text(encoding="utf-8")
+    assert "include" in pool_tsv
 
 
 def test_log_command_lists_and_filters_commits(tmp_path: Path) -> None:

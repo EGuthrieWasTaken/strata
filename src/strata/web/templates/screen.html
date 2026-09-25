@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ stage }} screening{% endblock %}
+{% block content %}
+{% if record is none %}
+<h1>{{ stage }} screening</h1>
+<p class="done-note">Nothing left to screen for {{ actor }} at this stage.</p>
+<p><a href="/">&larr; Back to dashboard</a></p>
+{% else %}
+<div class="screen-header" data-testid="screen-header">
+  <h1>{{ stage }} screening &mdash; {{ position }} of {{ total }}</h1>
+  {% if total %}
+  <div class="progress-bar" role="progressbar" aria-valuenow="{{ position }}" aria-valuemin="0" aria-valuemax="{{ total }}">
+    <div class="progress-bar-fill" style="width: {{ (position / total * 100) | round(1) }}%"></div>
+  </div>
+  {% endif %}
+</div>
+
+{% if error %}
+<p class="error" role="alert">{{ error }}</p>
+{% endif %}
+
+<article class="record-card">
+  <h2>{{ record_title }}</h2>
+  {% if not blind_metadata %}
+  <p class="byline">
+    {% if record_authors %}{{ record_authors }}{% endif %}
+    {% if record_journal %} &middot; {{ record_journal }}{% endif %}
+    {% if record_year %} &middot; {{ record_year }}{% endif %}
+  </p>
+  {% endif %}
+  {% if record_abstract %}
+  <p class="abstract">{{ record_abstract }}</p>
+  {% else %}
+  <p class="abstract no-abstract" role="note">(no abstract on file)</p>
+  {% endif %}
+</article>
+
+<form method="post" action="/screen/{{ stage }}" id="screen-form" data-require-exclusion-reason="{{ 'true' if require_exclusion_reason else 'false' }}">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="record_id" value="{{ record.id }}">
+  <input type="hidden" name="skip" value="{{ skip_csv }}">
+
+  <div class="decision-buttons" role="group" aria-label="Decision">
+    <button type="submit" name="decision" value="include" accesskey="i" class="btn btn-include">
+      <kbd>i</kbd> Include
+    </button>
+    <button type="submit" name="decision" value="exclude" accesskey="e" class="btn btn-exclude">
+      <kbd>e</kbd> Exclude
+    </button>
+    <button type="submit" name="decision" value="maybe" accesskey="m" class="btn btn-maybe">
+      <kbd>m</kbd> Maybe
+    </button>
+  </div>
+
+  {% if active_criteria %}
+  <fieldset class="criteria-list">
+    <legend>Exclusion criteria{% if require_exclusion_reason %} (required when excluding){% endif %}</legend>
+    {% for c in active_criteria %}
+    <label class="criterion" title="{{ c.definition }}">
+      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}">
+      <span class="criterion-num">{{ loop.index }}</span>
+      <span class="criterion-id">{{ c.id }}</span>
+      <span class="criterion-label">{{ c.label }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  <label class="note-field">
+    Note (optional)
+    <textarea name="note" id="note-field" accesskey=","></textarea>
+  </label>
+
+  <div class="nav-links">
+    <a href="/screen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+      <kbd>s</kbd> Skip
+    </a>
+    {% if prev_id %}
+    <a href="/screen/{{ stage }}?redo={{ prev_id }}" accesskey="u" id="undo-link">
+      <kbd>u</kbd> Undo previous decision
+    </a>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}
