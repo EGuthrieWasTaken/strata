@@ -55,7 +55,7 @@ alongside sitting (b).
 from __future__ import annotations
 
 from typing import Any, cast
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
@@ -139,10 +139,20 @@ def _redirect(path: str, **query: str) -> RedirectResponse:
     parsing on the next request, so this changes nothing a caller can
     observe. Callers percent-encode any *path* segment themselves (e.g.
     `stage`) with the same `urllib.parse.quote` before it reaches here.
+
+    Every caller only ever passes a same-origin relative path, so also
+    parse the finished URL and refuse to redirect anywhere a scheme or
+    host appears (CodeQL py/url-redirection's exact concern: a value that
+    could send the browser off this app entirely) -- structurally
+    impossible given the percent-encoding above, but checked explicitly
+    rather than left implicit.
     """
     pairs = [(key, value) for key, value in query.items() if value]
     if pairs:
         path += "?" + "&".join(f"{key}={quote(value, safe='')}" for key, value in pairs)
+    parsed = urlparse(path)
+    if parsed.scheme or parsed.netloc:
+        raise ValueError(f"refusing to redirect to a non-relative target: {path!r}")
     return RedirectResponse(url=path, status_code=303)
 
 
