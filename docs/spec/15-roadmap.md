@@ -95,6 +95,48 @@ of real reviews.
 
 ---
 
+## M2.1 — Project wiki *(ongoing, starts now, runs in parallel with M3+)*
+
+Unlike every other milestone here, M2.1 is not a sequential block with a start
+and an end — it starts the moment M2 ships and then runs continuously
+alongside M3, M4, M5, and M6, rather than being deferred to the documentation
+push in [M6](#m6--hardening-and-adoption-ongoing). The reasoning: documentation
+written months after a feature ships is written from memory, by which point the
+person who best understood the feature has usually moved on to the next one.
+Documentation written in the same pull request as the feature is written by the
+person who just built it, while the reasoning is still fresh.
+
+**Scope**: stand up a GitHub Wiki for the project (its own versioned git
+repository, `strata.wiki.git`, needing no additional hosting or infrastructure)
+covering the audience-oriented documentation set from
+[13 §8](13-nonfunctional.md): a quickstart, a "first time using git" guide, a
+per-command CLI reference, a web UI walkthrough, and a concepts section
+(staleness, criteria versioning and direction classification, dedup, blinding)
+written for reviewers, not implementers — a different register from
+`docs/spec/`, which targets an implementer building the tool, not a
+methodologist using it. Backfill it initially with pages for everything M0–M2
+already shipped; from then on, treat it as a live document.
+
+**Process, not a one-time task**: add a "Wiki" checklist item to the pull
+request template (alongside the existing "Tests" and "Spec" sections) asking
+whether the change adds or alters a user-facing command, web screen, or
+concept, and if so, whether the corresponding wiki page was updated in this
+PR or a fast-follow. This is deliberately a checklist prompt, not a CI gate —
+docs quality doesn't reduce to a boolean a script can check, so this stays a
+review-time judgment call the way rationale quality already does
+([04 §2.3](04-git-integration.md)).
+
+**Acceptance**
+- The wiki exists and has at least one page for every M0–M2 CLI command and
+  every implemented web UI screen.
+- The pull request template's Wiki checklist item is in place and in use.
+- Every milestone from M3 onward closes with its own user-facing additions
+  already reflected in the wiki, not queued as an M6 backlog item — checked as
+  part of that milestone's own acceptance pass, alongside its other
+  acceptance criteria.
+
+---
+
 ## M3 — Full text and extraction *(6–8 weeks)*
 
 **Scope**: retrieval queue and full-text manifest; study grouping; extraction

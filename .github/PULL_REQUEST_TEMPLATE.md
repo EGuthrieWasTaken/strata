@@ -9,3 +9,7 @@
 ## Spec
 - [ ] docs/spec updated, or this changes no specified behaviour
 - [ ] Schema version bumped, or this is not a breaking format change
+
+## Wiki
+- [ ] Wiki updated for any new/changed user-facing command, web screen, or
+      concept (docs/spec/15-roadmap.md, M2.1), or this PR has none
