@@ -7,6 +7,20 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- The specification moved to [OpenSpec](openspec/README.md). The normative
+  requirements from `docs/spec/` are now 29 capability specs under
+  `openspec/specs/` (M0–M2.1), each requirement with WHEN/THEN scenarios and
+  a `_Source:_` line citing the `docs/spec/` section it came from; roadmap
+  milestones M3–M6 are change proposals under `openspec/changes/`, with
+  proposals, tasks, designs, and delta specs. `docs/spec/` remains the
+  design rationale, and OpenSpec wins where they disagree. The `docs` CI job
+  now also runs `openspec validate --all --strict` (OpenSpec 1.13.2,
+  telemetry disabled), the PR template's Spec checklist points at OpenSpec,
+  and the OpenSpec Claude Code skills and `/opsx:*` commands are installed
+  under `.claude/`. `openspec/README.md` lists the specified-but-unbuilt
+  behaviours in shipped capabilities (`strata sync`, `migrate`, `diff`, and
+  others).
+
 - A fuzz corpus for `ingest.parsers` (`tests/fuzz/`, `hypothesis`-driven
   mutation of the real fixture corpus, wired into the nightly `fuzz` job)
   and a requirement-traceability report (`scripts/traceability_report.py`,

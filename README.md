@@ -139,8 +139,18 @@ against a random sample. Every command's `--help` includes a worked example,
 and `strata log` / `strata why <id>` reconstruct the full reasoning behind
 any decision after the fact.
 
-The complete design lives in [`docs/spec/`](docs/spec/README.md). It is written
-to be executable by an implementer (human or agent) without further design work.
+## Specification
+
+What `strata` must do is specified with [OpenSpec](openspec/README.md):
+[`openspec/specs/`](openspec/specs/) holds one spec per capability — the
+requirements, each with WHEN/THEN scenarios, for everything that has shipped —
+and [`openspec/changes/`](openspec/changes/) holds the remaining roadmap
+milestones (M3 onwards) as change proposals. Behaviour changes are proposed
+there first; `openspec validate --all --strict` runs on every pull request.
+
+The long-form design rationale lives in [`docs/spec/`](docs/spec/README.md):
+the reasoning, worked examples, and formulae behind each requirement. Where it
+and OpenSpec disagree, OpenSpec wins.
 
 Start with:
 

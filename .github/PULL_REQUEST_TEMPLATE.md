@@ -7,7 +7,8 @@
       -> property cases added, schema version reviewed
 
 ## Spec
-- [ ] docs/spec updated, or this changes no specified behaviour
+- [ ] OpenSpec change proposed/archived under openspec/ (validated with
+      `openspec validate --all --strict`), or this changes no specified behaviour
 - [ ] Schema version bumped, or this is not a breaking format change
 
 ## Wiki

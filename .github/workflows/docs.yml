@@ -29,3 +29,12 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv sync
       - run: uv run python scripts/check_docs.py
+      # OpenSpec specs and change proposals (openspec/README.md). Uses the
+      # runner's preinstalled Node (OpenSpec needs >= 20.19); the package
+      # version is pinned so a new OpenSpec release cannot change the gate.
+      - name: openspec validate
+        env:
+          OPENSPEC_TELEMETRY: "0"
+        run: |
+          node --version
+          npx --yes @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive
