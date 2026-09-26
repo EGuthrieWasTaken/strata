@@ -2,17 +2,17 @@
  * Two small progressive enhancements, both optional: every control here
  * also has a plain clickable/tappable target (or, for the screening
  * shortcuts, an `accesskey`), so every page is fully operable with this
- * script disabled (docs/spec/11-web-ui.md §5's hard requirement) -- this
+ * script disabled (openspec:web-ui#technology's hard requirement) -- this
  * file only makes the common path faster.
  *
- *  1. Single-key shortcuts for the screening surface (§3.1 S1/S3).
+ *  1. Single-key shortcuts for the screening surface (openspec:web-ui#screening-surface-requirements S1/S3).
  *  2. Auto-resubmit a form as GET when a radio input changes, for the
- *     criteria editor's live impact preview (§4: "MUST update as the
+ *     criteria editor's live impact preview (openspec:web-ui#criteria-editor-impact-preview: "MUST update as the
  *     direction radio changes"). Opt in per form via
  *     `data-auto-submit-on-change="<radio name>"`.
  *
  * No external requests, no build step, no dependency: this is the entire
- * client-side script strata ships (§5's "total shipped JavaScript SHOULD
+ * client-side script strata ships (openspec:web-ui#technology's "total shipped JavaScript SHOULD
  * stay under 50 KB uncompressed" budget).
  */
 (function () {

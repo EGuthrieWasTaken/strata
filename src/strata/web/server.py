@@ -1,6 +1,7 @@
 """`strata serve`'s process-level wiring: actor/host/token resolution,
 ephemeral port selection, and running uvicorn with an inactivity watchdog
-(docs/spec/11-web-ui.md §1, §7). Kept separate from `strata.cli.main` so
+(openspec:web-ui#strictly-local, openspec:web-ui#localhost-security). Kept separate from
+`strata.cli.main` so
 the resolution logic is unit-testable without going through Typer/uvicorn,
 and separate from `strata.web.app` so the ASGI app itself has no knowledge
 of process concerns (port binding, `webbrowser.open`, event-loop
@@ -29,7 +30,7 @@ def is_loopback_host(host: str) -> bool:
 
 
 def resolve_actor(repo: Repo, requested: str | None) -> str:
-    """The actor `strata serve` runs as (docs/spec/11-web-ui.md §1:
+    """The actor `strata serve` runs as (openspec:web-ui#strictly-local:
     "selectable at startup when more than one actor is configured").
 
     `requested=None` auto-selects only when exactly one *active* (not
@@ -54,7 +55,8 @@ def resolve_actor(repo: Repo, requested: str | None) -> str:
 
 
 def resolve_token(host: str, requested: str | None) -> str:
-    """The session token to run with, enforcing §1's "binding to any other
+    """The session token to run with, enforcing openspec:web-ui#strictly-local's "binding to any
+    other
     interface requires --host **and** --token" (the `--host` half is
     enforced by the caller passing a non-loopback `host` here at all)."""
     if not is_loopback_host(host) and not requested:
@@ -93,7 +95,8 @@ def opened_url(params: ServeParams) -> str:
 
 async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
     """Runs the ASGI app until either the process is interrupted (Ctrl-C,
-    a normal `strata serve` shutdown) or §7's inactivity timeout elapses,
+    a normal `strata serve` shutdown) or openspec:web-ui#localhost-security's inactivity timeout
+    elapses,
     whichever comes first -- unlike the plain blocking `uvicorn.run()`,
     this actually exits the process afterward rather than just having the
     security middleware start rejecting requests on a still-open port.

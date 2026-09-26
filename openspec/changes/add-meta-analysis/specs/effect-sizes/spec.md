@@ -28,8 +28,6 @@ record `variance_convention: "LS"`. `J` MUST use the exact gamma form
 approximation otherwise, and MUST report which was used. Increasing `m1` with
 all else fixed MUST increase `d`, and increasing `n` MUST decrease `v`.
 
-_Source: `docs/spec/08-analysis.md` §3.1; property P12 in `docs/spec/14-testing.md` §2_
-
 #### Scenario: Small sample
 
 - **WHEN** an SMD is computed with `n1 = n2 = 4` (`df = 6`)
@@ -38,8 +36,6 @@ _Source: `docs/spec/08-analysis.md` §3.1; property P12 in `docs/spec/14-testing
 ### Requirement: Raw mean difference
 
 `MD` MUST be computed as `yi = m1 - m2`, `vi = sd1^2/n1 + sd2^2/n2`.
-
-_Source: `docs/spec/08-analysis.md` §3.2_
 
 #### Scenario: Raw difference
 
@@ -60,8 +56,6 @@ If any cell is zero, 0.5 MUST be added to all four cells for OR and RR and
 `continuity_correction: 0.5` recorded on the effect. A study with zero events in
 both arms MUST be excluded from ratio analyses, and the number excluded MUST be
 reported.
-
-_Source: `docs/spec/08-analysis.md` §3.3_
 
 #### Scenario: One zero cell
 
@@ -86,8 +80,6 @@ _Source: `docs/spec/08-analysis.md` §3.3_
 `r = 1` and `n <= 3` for `ZCOR` MUST produce a specific error, never `NaN` or
 `inf`.
 
-_Source: `docs/spec/08-analysis.md` §3.4–§3.6; `docs/spec/14-testing.md` §4.3_
-
 #### Scenario: Perfect correlation
 
 - **WHEN** a correlation effect with `r = 1` is computed
@@ -105,8 +97,6 @@ _Source: `docs/spec/08-analysis.md` §3.4–§3.6; `docs/spec/14-testing.md` §4
 the effect as `assumed_correlation` when assumed, and whenever any effect uses
 an assumed value a sensitivity analysis over r in {0.3, 0.5, 0.7} MUST be run
 automatically.
-
-_Source: `docs/spec/08-analysis.md` §3.7_
 
 #### Scenario: Missing correlation
 
@@ -126,8 +116,6 @@ a two-tailed `p, n1, n2, direction` (`t = quantile_t(1 - p/2, n1+n2-2)`, signed)
 Every converted effect MUST record `derived_from`, and p-value conversions MUST
 additionally set `derived_from_pvalue: true`. Conversion between `d` and log OR
 (`d = logOR * sqrt(3)/pi`) MUST be opt-in per effect and flagged.
-
-_Source: `docs/spec/08-analysis.md` §3.8_
 
 #### Scenario: Effect from a t statistic
 

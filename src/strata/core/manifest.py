@@ -1,7 +1,8 @@
 """`strata.toml` construction and editing.
 
-Implements docs/spec/03-schemas.md §1. The manifest is hand-editable
-(docs/spec/02-repository-format.md §3), so edits go through `tomlkit` rather
+Implements openspec:data-schemas#project-manifest. The manifest is hand-editable
+(openspec:repository-format#authoritative-versus-derived-files), so edits go through `tomlkit`
+rather
 than the stdlib `tomllib`, to preserve comments and formatting the user wrote.
 """
 

@@ -7,7 +7,7 @@ screening, adjudication, and criteria editing: its screens, the screening
 surface requirements, the criteria editor's non-mutating impact preview, its
 technology constraints, accessibility, and localhost security model.
 
-Rationale and wireframes: `docs/spec/11-web-ui.md`.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -21,8 +21,6 @@ configured actor, selectable at startup when several are configured. Data MUST
 NOT leave the machine: no CDN, analytics, third-party fonts, or error reporting.
 The server MUST be stateless with respect to the repository, reading and
 appending to the same event log the CLI uses.
-
-_Source: `docs/spec/11-web-ui.md` §1_
 
 #### Scenario: Default bind
 
@@ -56,8 +54,6 @@ The web UI MUST provide at least these screens:
 | `/criteria` | Criteria editor, with live impact preview |
 | `/history` | Domain-level history from commit trailers |
 
-_Source: `docs/spec/11-web-ui.md` §2_
-
 #### Scenario: Record detail
 
 - **WHEN** a user opens `/records/<id>`
@@ -84,8 +80,6 @@ The web screening surface MUST meet:
 | S13 | A note can be attached to any record without leaving the keyboard |
 | S14 | The queue order is deterministic and recorded |
 
-_Source: `docs/spec/11-web-ui.md` §3.1_
-
 #### Scenario: Repeated undo
 
 - **WHEN** a reviewer presses `u` three times after three decisions
@@ -102,8 +96,6 @@ The re-screening screen MUST be identical to the screening surface, with the
 prior decision and the staleness reason displayed prominently and a fourth
 action, keep previous.
 
-_Source: `docs/spec/11-web-ui.md` §3.2_
-
 #### Scenario: Keep previous in the browser
 
 - **WHEN** a reviewer presses `k` on a stale record in `/rescreen/<stage>`
@@ -117,8 +109,6 @@ re-screening time) together with the direction choice and a rationale field.
 The preview MUST be computed without mutating anything, MUST update as the
 direction changes, and MUST be recomputed on save in case the repository
 changed underneath.
-
-_Source: `docs/spec/11-web-ui.md` §4_
 
 #### Scenario: Changing the direction radio
 
@@ -142,8 +132,6 @@ external origins MUST be sent. The UI MUST function with JavaScript disabled, at
 reduced convenience. Total shipped JavaScript SHOULD stay under 50 KB
 uncompressed.
 
-_Source: `docs/spec/11-web-ui.md` §5_
-
 #### Scenario: JavaScript disabled
 
 - **WHEN** a reviewer screens with JavaScript disabled
@@ -163,8 +151,6 @@ never conveyed by colour alone (an icon and text label accompany colour); a
 live region announcing each recorded decision; honouring
 `prefers-reduced-motion` and `prefers-color-scheme`; and reflow to 320 px width
 without horizontal scrolling, usable at 200% zoom.
-
-_Source: `docs/spec/11-web-ui.md` §6_
 
 #### Scenario: Screen reader user records a decision
 
@@ -191,8 +177,6 @@ server MUST:
   never render raw HTML from record data.
 - Resolve user-supplied file paths and check they are within permitted roots.
 - Exit after 60 minutes of inactivity by default.
-
-_Source: `docs/spec/11-web-ui.md` §7; `docs/spec/13-nonfunctional.md` §5_
 
 #### Scenario: Cross-site request
 

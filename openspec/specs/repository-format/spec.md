@@ -8,7 +8,7 @@ format is versioned and migrated. The repository format is the contract; the
 CLI, the web UI, and any future reimplementation are interchangeable as long as
 they honour it.
 
-Rationale: `docs/spec/02-repository-format.md` §1–§3, §7.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -17,8 +17,6 @@ Rationale: `docs/spec/02-repository-format.md` §1–§3, §7.
 Every authoritative file MUST be UTF-8 text with LF line endings and a trailing
 newline. The repository MUST NOT use binary formats, databases, or proprietary
 containers for authoritative data.
-
-_Source: `docs/spec/02-repository-format.md` §1 (P1)_
 
 #### Scenario: Inspecting a repository without strata
 
@@ -32,8 +30,6 @@ Anything that can change MUST be stored as an append-only event. Nothing is
 edited in place except human-authored prose (protocol, notes) and declarative
 configuration (criteria, schemas, analyses).
 
-_Source: `docs/spec/02-repository-format.md` §1 (P2)_
-
 #### Scenario: A reviewer changes their mind
 
 - **GIVEN** `ethan` included a record
@@ -45,8 +41,6 @@ _Source: `docs/spec/02-repository-format.md` §1 (P2)_
 Computed views MUST be regenerated deterministically and committed, so a
 `git diff` shows what a change did to the review. They MUST never be read back
 as input.
-
-_Source: `docs/spec/02-repository-format.md` §1 (P3)_
 
 #### Scenario: Derived file deleted
 
@@ -60,8 +54,6 @@ _Source: `docs/spec/02-repository-format.md` §1 (P3)_
 File layout and merge drivers MUST be chosen so that the normal collaborative
 operation — two people screening the same records — produces zero git
 conflicts.
-
-_Source: `docs/spec/02-repository-format.md` §1 (P4)_
 
 #### Scenario: Two reviewers screen the same records
 
@@ -108,8 +100,6 @@ my-review/
 `strata verify` MUST regenerate GENERATED files into a temporary directory and
 fail if the result differs from what is committed.
 
-_Source: `docs/spec/02-repository-format.md` §2_
-
 #### Scenario: Freshly initialised repository
 
 - **WHEN** `strata init` creates a repository
@@ -148,8 +138,6 @@ Files MUST follow this authority, commit, and edit policy:
 Hand-editing an append-only event file is a data-integrity error, and
 `strata verify` MUST detect it via per-event digests and refuse to proceed.
 
-_Source: `docs/spec/02-repository-format.md` §3_
-
 #### Scenario: Event file opened and saved in a spreadsheet
 
 - **GIVEN** a collaborator opens `events/screen/title-abstract.sam.ndjson` in Excel and saves it
@@ -170,8 +158,6 @@ record the `strata` version that created the repository.
 - Adding an optional field to an event body is not a schema bump. Changing the
   meaning of an existing field, the normalisation rules, the fold, or the
   canonical serialisation is.
-
-_Source: `docs/spec/02-repository-format.md` §7_
 
 #### Scenario: Repository from a newer strata
 

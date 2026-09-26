@@ -1,4 +1,4 @@
-"""Security baseline for `strata serve`: docs/spec/11-web-ui.md §7 (normative).
+"""Security baseline for `strata serve`: openspec:web-ui#localhost-security (normative).
 
 A local server is still attack surface -- any page open in the user's
 browser can issue requests to `127.0.0.1`. Every control this module
@@ -31,7 +31,7 @@ import time
 SESSION_COOKIE_NAME = "strata_session"
 CSRF_FIELD_NAME = "csrf_token"
 MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE", "PATCH"})
-DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 60 * 60  # docs/spec/11-web-ui.md §7
+DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 60 * 60  # openspec:web-ui#localhost-security
 
 
 def generate_token() -> str:
@@ -71,7 +71,7 @@ def is_origin_allowed(origin_header: str | None, host: str, port: int) -> bool:
 
 class InactivityClock:
     """Tracks the server's last-activity timestamp for the auto-shutdown
-    timer (docs/spec/11-web-ui.md §7's "exits after 60 minutes of
+    timer (openspec:web-ui#localhost-security's "exits after 60 minutes of
     inactivity"). A tiny wrapper, not a bare module-level global, purely
     so a test can inject a fake clock rather than sleeping for real."""
 

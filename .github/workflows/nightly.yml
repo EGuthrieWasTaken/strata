@@ -1,6 +1,6 @@
 name: Nightly
 
-# Scheduled deep checks: docs/spec/14-testing.md §9.5. These are heavier than
+# Scheduled deep checks: openspec:ci-gate#nightly-checks. These are heavier than
 # the pull-request gate can afford per-push and catch a different class of
 # regression (upstream drift, dependency CVEs, fuzz-found parser crashes,
 # packaging breakage).
@@ -64,7 +64,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - name: Full-scale performance targets (docs/spec 13 §1), blocking
+      - name: Full-scale performance targets (openspec:performance#scale-targets), blocking
         run: |
           if [ -d tests/benchmark ]; then
             uv run pytest tests/benchmark -q -m benchmark_50k

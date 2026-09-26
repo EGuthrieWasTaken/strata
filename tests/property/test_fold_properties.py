@@ -1,4 +1,4 @@
-"""Property tests for the fold, per docs/spec/14-testing.md §2.
+"""Property tests for the fold, per openspec:test-suite#property-invariants.
 
 P1 fold determinism, P2 fold idempotence, P9 merge convergence, P13 undo
 inverts.

@@ -1,14 +1,14 @@
-"""Full provenance chain for one record: `strata why <id>` (docs/spec/10-cli.md §2).
+"""Full provenance chain for one record: `strata why <id>` (openspec:cli).
 
 Read-only: walks every event file for events that reference a record id
 (`record-add`, `import`, `dedup-merge`/`dedup-distinct`/`dedup-unmerge`,
 `record-amend`), resolves the `search` a record's import points at, and
-assembles the result into the chain docs/spec/15-roadmap.md's M1 acceptance
+assembles the result into the chain docs/roadmap.md's M1 acceptance
 bar names explicitly: "`strata why` shows the full import and dedup
 provenance chain."
 
 `strata why` also covers reports, studies, and effects per
-docs/spec/10-cli.md §2, but those don't exist until later milestones --
+openspec:cli, but those don't exist until later milestones --
 this module only builds a record's chain.
 """
 

@@ -1,12 +1,12 @@
 """RIS parser.
 
-Implements the RIS row of docs/spec/05-workflow-import.md §2.1: tag-per-line,
+Implements the RIS row of openspec:literature-import: tag-per-line,
 tolerant of both `TY  - ` and `TY - ` spacing, and of a record missing its
 closing `ER  - ` line. `rispy` does the tag-to-field mapping, but it is
 strict about the two-space tag form and -- worse -- silently drops a record
 with no `ER` tag instead of raising, which would violate the "a row that
 cannot be parsed MUST NOT abort the import, and losing records silently is
-worse than losing them loudly" rule in §2.1. This module therefore isolates
+worse than losing them loudly" rule in openspec:literature-import. This module therefore isolates
 each `TY ... ER` block itself, synthesises a missing `ER` line, and hands
 `rispy` one block at a time so a single bad record cannot swallow its
 neighbours.
@@ -27,9 +27,10 @@ _TAG_LINE_RE = re.compile(r"^([A-Za-z][A-Za-z0-9])\s*-\s?(.*)$")
 _START_TAG_RE = re.compile(r"^TY\s*-")
 _END_TAG_RE = re.compile(r"^ER\s*-")
 
-# Not exhaustive and not normative -- docs/spec/03-schemas.md §2 only requires
+# Not exhaustive and not normative --
+# openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension only requires
 # a CSL `type`, defaulting to `article-journal`; this maps the RIS reference
-# types that actually appear in the databases docs/spec/14-testing.md §3 lists.
+# types that actually appear in the databases openspec:test-suite#golden-parser-fixtures lists.
 _TYPE_MAP = {
     "JOUR": "article-journal",
     "JFULL": "article-journal",
@@ -142,7 +143,7 @@ def parse(text: str) -> ParseResult:
             # `_split_records` never hands `rispy` anything we've observed it
             # raise on; this is a defensive last resort against a `rispy`
             # internal bug on input this module hasn't been fuzzed against
-            # yet (docs/spec/14-testing.md §6, tracked in docs/m1-plan.md
+            # yet (openspec:test-suite#fuzzing, tracked in docs/m1-plan.md
             # sub-objective 8), not a path exercised in the unit/golden suite.
             result.rejected.append(  # pragma: no cover
                 RejectedRow(line=start_line, raw=block, error=str(exc))

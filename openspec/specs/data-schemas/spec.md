@@ -7,7 +7,7 @@ milestones — the project manifest, bibliographic records, the criteria file,
 planned moderators, and recorded searches — field by field, together with the
 rule that every one of them has a shipped machine-readable JSON Schema.
 
-Rationale and full examples: `docs/spec/03-schemas.md` §1–§5.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -17,8 +17,6 @@ Every persisted object MUST have a JSON Schema (Draft 2020-12) shipped in the
 source tree under `strata/schemas/`, and MUST be validated on write and on
 load. The shipped schema is the contract; where human-readable documentation
 disagrees with it, the shipped schema is a bug to be fixed.
-
-_Source: `docs/spec/03-schemas.md` preamble_
 
 #### Scenario: Invalid manifest on load
 
@@ -41,8 +39,6 @@ an `[[actors]]` array (`handle`, `name`, `email`, optional `orcid`, `role` of
   configuration error (`E_CONFIG`).
 - `enrichment.enabled = true` with an empty `contact_email` is a configuration
   error.
-
-_Source: `docs/spec/03-schemas.md` §1_
 
 #### Scenario: Invalid actor handle
 
@@ -84,8 +80,6 @@ Unknown CSL fields MUST be preserved on round-trip; `strata` MUST NOT silently
 drop metadata. If enrichment is enabled, `strata` SHOULD check Crossref for
 `update-to` relations and set the `retracted` flag.
 
-_Source: `docs/spec/03-schemas.md` §2_
-
 #### Scenario: Unknown CSL field
 
 - **GIVEN** an imported CSL-JSON record with a `collection-title` field
@@ -111,8 +105,6 @@ of `{id, kind, definition, applies_at}`; `label` and `examples` are excluded so
 relabelling can never make work stale. The **set digest** MUST be `sha256` over
 the concatenation of per-criterion digests of active criteria, sorted by id.
 
-_Source: `docs/spec/03-schemas.md` §3_
-
 #### Scenario: Relabelling a criterion
 
 - **WHEN** only a criterion's `label` changes
@@ -132,8 +124,6 @@ specific fields (`unit`, `range`, `levels`, `reference`), `planned`, and
 `since_version`. Moderators with `planned: false` MUST be reported as post hoc
 in all generated output.
 
-_Source: `docs/spec/03-schemas.md` §4_
-
 #### Scenario: Post hoc moderator
 
 - **GIVEN** a moderator declared with `planned: false`
@@ -148,8 +138,6 @@ A search file `protocol/searches/<id>.yaml` MUST record `id`, `database`,
 `query` MUST be a literal block scalar and MUST round-trip byte-for-byte.
 Re-running a search on a later date MUST create a new search file with
 `supersedes` set, never an edit of the earlier one.
-
-_Source: `docs/spec/03-schemas.md` §5_
 
 #### Scenario: Update search
 

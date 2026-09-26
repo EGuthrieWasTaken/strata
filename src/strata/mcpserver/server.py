@@ -1,4 +1,4 @@
-"""The local, stdio MCP server (docs/spec/15-roadmap.md, M2.1).
+"""The local, stdio MCP server (openspec:mcp-server).
 
 A fourth thin presentation layer alongside the CLI (`strata.cli.main`) and
 the web UI (`strata.web.routes`), calling directly into existing
@@ -106,7 +106,7 @@ class RepoTools:
         all_records: bool = False,
     ) -> list[dict[str, Any]]:
         """List bibliographic records, optionally narrowed by the `--filter`
-        expression language (docs/spec/10-cli.md §3) -- the data behind
+        expression language (openspec:filter-language) -- the data behind
         `strata records list`. Duplicates absorbed by deduplication are
         excluded unless `all_records` is set."""
         repo = self._open()
@@ -145,7 +145,7 @@ class RepoTools:
         """Non-mutating preview of what changing one criterion this way
         would stale, without writing anything -- the same computation
         behind the web criteria editor's live impact panel
-        (docs/spec/11-web-ui.md §4). `direction` is one of `tightened`,
+        (openspec:web-ui#criteria-editor-impact-preview). `direction` is one of `tightened`,
         `loosened`, `both`, or `editorial`; pass `origin="retired"` to
         preview a retirement instead of an edit (direction is then
         ignored, matching `strata criteria retire`'s own behaviour)."""

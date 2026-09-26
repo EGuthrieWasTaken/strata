@@ -1,7 +1,8 @@
 """`records/records.ndjson`: canonical bibliographic records.
 
-Implements docs/spec/03-schemas.md §2 (the record shape) and
-docs/spec/02-repository-format.md §5.2 (ordering: sorted by `id`, ascending,
+Implements openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension (the record
+shape) and
+openspec:canonical-serialisation#records-ndjson-ordering (ordering: sorted by `id`, ascending,
 byte-wise; new records land in hash order rather than at the end).
 """
 
@@ -21,7 +22,7 @@ from strata.core.validate import validate
 RECORDS_PATH = ("records", "records.ndjson")
 
 # The record schema's plain string fields a human can safely correct with
-# `strata fix --field <f> --value <v>` (docs/spec/10-cli.md §2). `id`/`type`
+# `strata fix --field <f> --value <v>` (openspec:cli). `id`/`type`
 # are identity, not metadata; `author`/`issued`/`strata` are structured, not
 # a flat string -- `strata fix` doesn't support editing those yet.
 EDITABLE_STRING_FIELDS = frozenset(
@@ -42,7 +43,7 @@ EDITABLE_STRING_FIELDS = frozenset(
     }
 )
 
-# docs/spec/10-cli.md §3's "Available fields" table lists many fields that
+# openspec:filter-language's "Available fields" table lists many fields that
 # belong to screening (M2), extraction (M3), risk-of-bias and analysis (M4)
 # data this milestone has no way to produce yet. Named here, rather than
 # silently treated as unknown, so `record_field_resolver`'s error message can
@@ -63,7 +64,7 @@ _NOT_YET_AVAILABLE_PREFIXES = ("actor_decision.", "rob.")
 
 
 class RecordNotFoundError(LookupError):
-    """No record's id starts with the given prefix (docs/spec/10-cli.md §1:
+    """No record's id starts with the given prefix (openspec:cli:
     "Record ids may be abbreviated to any unambiguous prefix, as in git")."""
 
 
@@ -97,7 +98,8 @@ def index_by_id(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def write_records(repo: Repo, records: list[dict[str, Any]]) -> None:
-    """Validate and write the full record set, sorted by id (§5.2).
+    """Validate and write the full record set, sorted by id
+    (openspec:canonical-serialisation#records-ndjson-ordering).
 
     Callers pass the *complete* record set on every write -- this module has
     no partial-update API, matching the way `write_records` is actually used
@@ -118,7 +120,7 @@ def get_record(repo: Repo, record_id: str) -> dict[str, Any] | None:
     """One record by id, without paying `read_records`'s full-file
     JSON-parse cost for every other record in a large repository.
 
-    `docs/spec/13-nonfunctional.md` §1's "screening decision round trip
+    openspec:performance#scale-targets's "screening decision round trip
     < 100 ms p95" target is unreachable if every `strata screen` decision
     re-parses all 50,000 records just to confirm the one being decided
     exists. A plain substring check per line for the id itself is ~free
@@ -146,7 +148,7 @@ def get_record(repo: Repo, record_id: str) -> dict[str, Any] | None:
 
 
 def resolve_id_prefix(repo: Repo, prefix: str) -> str:
-    """The one record id starting with `prefix`, per docs/spec/10-cli.md §1:
+    """The one record id starting with `prefix`, per openspec:cli:
     "Record ids may be abbreviated to any unambiguous prefix, as in git."
 
     An exact full id is also accepted (and returned as-is if it matches no
@@ -166,7 +168,7 @@ def resolve_id_prefix(repo: Repo, prefix: str) -> str:
 
 def record_field_resolver(record: dict[str, Any]) -> FieldResolver:
     """A `strata.core.filters.FieldResolver` over the M1 subset of
-    docs/spec/10-cli.md §3's "Available fields" table -- the fields a bare
+    openspec:filter-language's "Available fields" table -- the fields a bare
     bibliographic record actually has data for at this milestone.
 
     `via`/`search` resolve to the record's *first* source's value: the
@@ -219,14 +221,14 @@ class FixFieldError(ValueError):
 def amend_field(
     repo: Repo, *, record_id: str, field: str, value: str, actor: str
 ) -> tuple[Any, Any]:
-    """Correct one plain-string field on a record: `strata fix` (docs/spec/10-cli.md §2).
+    """Correct one plain-string field on a record: `strata fix` (openspec:cli).
 
     Returns `(old_value, new_value)`. Writes the updated record set and
     appends a `record-amend` event (`record`, `field`, `old`, `new`,
-    `source`), per the event catalog in docs/spec/02-repository-format.md
-    §4.4. `source` is always `"manual"` here, distinguishing a human
+    `source`), per the event catalog in
+    openspec:event-log#event-types. `source` is always `"manual"` here, distinguishing a human
     correction from `strata sync`'s automatic three-way-merge resolution
-    (docs/spec/04-git-integration.md §3), which emits the same event type
+    (openspec:git-integration#gitattributes), which emits the same event type
     with a different `source` value.
 
     Raises `FixFieldError` for a field that isn't one of

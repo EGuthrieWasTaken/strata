@@ -1,5 +1,5 @@
 """Integration tests for the read-only `/records`, `/records/<id>`
-screens: docs/spec/11-web-ui.md §2, reusing exactly the CLI's own data
+screens: openspec:web-ui#screens, reusing exactly the CLI's own data
 paths (`core.filters`, `core.provenance.build_provenance`)."""
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def test_records_list_invalid_filter_syntax_shows_an_error(tmp_path: Path) -> No
 
 def test_records_list_filter_evaluation_error_shows_an_error(tmp_path: Path) -> None:
     """Syntactically valid but referring to a field that can't be resolved
-    (docs/spec/10-cli.md §3's fields not implemented in M2, e.g. `tiab`/
+    (openspec:filter-language's fields not implemented in M2, e.g. `tiab`/
     `stale`/`rob_overall`) -- a distinct failure mode from a parse error,
     both surfaced the same way."""
     repo = _repo_with_records(tmp_path)

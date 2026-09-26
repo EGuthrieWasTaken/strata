@@ -8,7 +8,7 @@ with machine-readable trailers, mandatory rationales, batched screening
 commits, `.gitattributes` and merge drivers, versioned hooks, and repository
 hygiene rules.
 
-Rationale: `docs/spec/04-git-integration.md` §1–§4, §7.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -18,8 +18,6 @@ A user who runs only `strata` commands MUST never see a merge conflict marker, a
 detached HEAD, a rebase prompt, or the word "upstream". A user who knows git
 MUST find an ordinary, well-formed repository they can branch, diff, blame, and
 review with standard tools.
-
-_Source: `docs/spec/04-git-integration.md` §1_
 
 #### Scenario: Non-git user syncs after a collaborator screened
 
@@ -31,8 +29,6 @@ _Source: `docs/spec/04-git-integration.md` §1_
 Every mutating `strata` command MUST produce exactly one commit, unless
 `--no-commit` is passed (which stages nothing and leaves the working tree dirty).
 Batched screening is the only exception.
-
-_Source: `docs/spec/04-git-integration.md` §2.1_
 
 #### Scenario: Adding a criterion
 
@@ -61,8 +57,6 @@ Commit messages MUST have:
 `sync`, `analyze`, `report`. A commit-msg hook MUST validate the trailer block
 and reject a malformed one when `commit_style = "structured"`.
 
-_Source: `docs/spec/04-git-integration.md` §2.2_
-
 #### Scenario: Screening commit
 
 - **WHEN** a screening batch of 180 re-screened records is committed
@@ -88,8 +82,6 @@ changed so the answer is about why. The rationale:
 In a non-interactive context with neither flag, the command MUST fail (exit
 code 7) rather than invent a rationale.
 
-_Source: `docs/spec/04-git-integration.md` §2.3_
-
 #### Scenario: Stop-listed rationale
 
 - **WHEN** a user answers the rationale prompt with `wip`
@@ -113,8 +105,6 @@ decisions accumulate, or after 15 minutes of inactivity, whichever comes first.
 A routine batch skips the rationale prompt and gets a generated summary
 message. A batch containing any decision that contradicts a previously resolved
 decision MUST prompt for a rationale.
-
-_Source: `docs/spec/04-git-integration.md` §2.4_
 
 #### Scenario: 200 decisions
 
@@ -144,8 +134,6 @@ imports/*/raw/**       -merge -diff
 *.svg                  -diff
 ```
 
-_Source: `docs/spec/04-git-integration.md` §3_
-
 #### Scenario: Fresh repository
 
 - **WHEN** `strata init` completes
@@ -170,8 +158,6 @@ resolves `derived/` conflicts by regeneration.
   lexicographically smaller value otherwise, and a `record-amend` event records
   the automatic resolution. Automatic resolution MUST always be reported in
   `strata sync` output, never silent.
-
-_Source: `docs/spec/04-git-integration.md` §3.1_
 
 #### Scenario: Clone without drivers
 
@@ -200,8 +186,6 @@ and every collaborator gets them on clone:
 All hooks MUST be skippable via `STRATA_SKIP_HOOKS=1` and MUST print that the
 variable exists when they block an operation.
 
-_Source: `docs/spec/04-git-integration.md` §4_
-
 #### Scenario: Hook blocks a commit
 
 - **WHEN** the pre-commit hook blocks a commit because verification failed
@@ -223,8 +207,6 @@ _Source: `docs/spec/04-git-integration.md` §4_
 - `strata` MUST work on whatever branch is checked out and MUST NOT require a
   pull-request workflow, though it SHOULD document that pattern for protocol
   changes.
-
-_Source: `docs/spec/04-git-integration.md` §7_
 
 #### Scenario: Oversized repository
 

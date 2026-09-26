@@ -10,9 +10,9 @@ into something a co-author can review before it lands: the pull request says,
 in the diff and in a comment, that a criteria edit invalidates 180 decisions and
 removes 42 papers from the pool.
 
-Roadmap milestone: M6 (`docs/spec/15-roadmap.md`); it depends only on
+Roadmap milestone: M6 ([docs/roadmap.md](../../../docs/roadmap.md)); it depends only on
 `strata verify` and `strata status --json` and may land any time after M0.
-Design detail: `docs/spec/14-testing.md` §11.
+Design detail: [design.md](design.md).
 
 ## What Changes
 

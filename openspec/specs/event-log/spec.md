@@ -7,7 +7,7 @@ state change in a review, its tamper-evident hash chain, the deterministic fold
 that reduces it to current state, and the catalogue of event types. The event
 log provides provenance, conflict-free merging, and recomputable staleness.
 
-Rationale: `docs/spec/02-repository-format.md` §4.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -27,8 +27,6 @@ keys in this order:
 | `tool` | string | yes | Producing tool and version |
 | `prev` | string | no | `digest` of the previous line in this file, absent on line 1 |
 | `digest` | string | yes | `sha256` over the canonical serialisation of all preceding fields |
-
-_Source: `docs/spec/02-repository-format.md` §4.2_
 
 #### Scenario: First event in a new file
 
@@ -52,8 +50,6 @@ append, implementations MUST validate the chain per contiguous run and treat a
 chain restart as valid if and only if the restarting line's `prev` matches the
 digest of some earlier line in the same file.
 
-_Source: `docs/spec/02-repository-format.md` §4.2_
-
 #### Scenario: Edited line
 
 - **GIVEN** a line in the middle of an event file whose body was hand-edited
@@ -71,8 +67,6 @@ _Source: `docs/spec/02-repository-format.md` §4.2_
 `strata sync` MUST rewrite a merged event file into canonical `(ts, id)` order,
 drop exact duplicate ids, re-link the `prev`/`digest` chain, and record an
 `ev:"relink"` event so the rewrite itself is auditable.
-
-_Source: `docs/spec/02-repository-format.md` §4.2; `docs/spec/04-git-integration.md` §5 step 5_
 
 #### Scenario: Sync after a same-actor divergence
 
@@ -94,8 +88,6 @@ Current state MUST be computed by folding all events, and the fold MUST be:
   hard error (`E_DANGLING_REF`), not a silent skip.
 
 Applying two disjoint event sets in either order MUST yield the same state.
-
-_Source: `docs/spec/02-repository-format.md` §4.3; properties P1, P2, P9 in `docs/spec/14-testing.md` §2_
 
 #### Scenario: Shuffled event log
 
@@ -131,8 +123,6 @@ else                             -> conflict
 A `maybe` opinion counts as a decision for the `partial` test but never
 resolves: any `maybe` among the opinions yields `conflict`.
 
-_Source: `docs/spec/02-repository-format.md` §4.3_
-
 #### Scenario: Both reviewers answer maybe
 
 - **GIVEN** a record assigned to `ethan` and `sam`
@@ -151,8 +141,6 @@ The fold MUST retain the first event per `(stage, record, actor)` as well as the
 last, so inter-rater reliability can be computed over independent first
 opinions only.
 
-_Source: `docs/spec/02-repository-format.md` §6.5_
-
 #### Scenario: Reviewer changes their mind after seeing a conflict
 
 - **GIVEN** `sam` first excluded a record, then later included it
@@ -163,8 +151,6 @@ _Source: `docs/spec/02-repository-format.md` §6.5_
 
 Undoing a decision MUST append a correcting event, and a decision followed by
 its undo MUST fold to the pre-decision state.
-
-_Source: `docs/spec/06-workflow-screening.md` §7; property P13 in `docs/spec/14-testing.md` §2_
 
 #### Scenario: Decide then undo
 
@@ -198,8 +184,6 @@ source tree validated on write and on load:
 | `relink` | `strata sync` | `file`, `lines_reordered`, `reason` |
 | `note` | `strata note` | `subject`, `text` |
 
-_Source: `docs/spec/02-repository-format.md` §4.4_
-
 #### Scenario: Event body fails its schema
 
 - **WHEN** a `screen` event without a `decision` field is written or loaded
@@ -212,8 +196,6 @@ Event files MUST be sharded as `events/<domain>/<stage>.<actor>.ndjson`, or
 never append to the same file. A file SHOULD be split when it exceeds 100,000
 lines by appending `.2`, `.3` to the stem, and the fold MUST read all matching
 shards.
-
-_Source: `docs/spec/02-repository-format.md` §4.5_
 
 #### Scenario: Two reviewers screening
 

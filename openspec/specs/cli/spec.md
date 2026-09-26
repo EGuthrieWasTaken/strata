@@ -7,7 +7,7 @@ the command reference for setup, protocol, literature, screening, and
 repository operations, the `strata status` dashboard, non-interactive use, and
 the error-message contract.
 
-Rationale and example output: `docs/spec/10-cli.md` §1, §2, §4–§6.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -27,8 +27,6 @@ accept these global options:
 | `--yes` | Assume yes for confirmations; never bypasses a rationale prompt |
 | `--no-color` | Also honoured via `NO_COLOR` |
 | `--version`, `--help` | Standard |
-
-_Source: `docs/spec/10-cli.md` §1_
 
 #### Scenario: Yes does not bypass the rationale
 
@@ -50,8 +48,6 @@ _Source: `docs/spec/10-cli.md` §1_
 - `--json` output MUST be a stable, versioned contract; breaking it is a
   minor-version bump.
 - Record ids MUST be accepted as any unambiguous prefix, as in git.
-
-_Source: `docs/spec/10-cli.md` §1_
 
 #### Scenario: Abbreviated record id
 
@@ -81,8 +77,6 @@ Commands MUST use these exit codes:
 | 7 | Refused: the operation would require a rationale and none was available |
 | 8 | Refused: a guardrail blocked the operation (use `--force`) |
 
-_Source: `docs/spec/10-cli.md` §1_
-
 #### Scenario: Outside a repository
 
 - **WHEN** `strata status` runs in a directory that is not a strata repository
@@ -106,8 +100,6 @@ _Source: `docs/spec/10-cli.md` §1_
 | `strata config <key> [value]` | Read or set `strata.toml` values |
 | `strata actor add\|list\|deactivate` | Manage contributors |
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Initialising and verifying
 
 - **WHEN** `strata init my-review --title "..."` completes
@@ -123,8 +115,6 @@ _Source: `docs/spec/10-cli.md` §2_
 `strata` MUST provide `criteria list|add|edit|retire|diff`,
 `search add [--id ID]`, `search list` (all searches with dates and hit counts),
 and `moderators add|list|edit`.
-
-_Source: `docs/spec/10-cli.md` §2_
 
 #### Scenario: Listing searches
 
@@ -144,8 +134,6 @@ _Source: `docs/spec/10-cli.md` §2_
 | `strata records show <id>` | Full record with sources and provenance |
 | `strata fix <id> --field <f> --value <v>` | Correct a metadata field, recording a `record-amend` event |
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Correcting a field
 
 - **WHEN** `strata fix rec_3kq8 --field DOI --value 10.1111/x --why "..."` runs
@@ -163,8 +151,6 @@ _Source: `docs/spec/10-cli.md` §2_
 `assign <stage> --actors a,b [--filter EXPR]`, `irr [--stage S]`, and
 `audit --criteria [--sample N]`.
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Limited screening session
 
 - **WHEN** `strata screen title-abstract --limit 50` runs
@@ -176,8 +162,6 @@ _Source: `docs/spec/10-cli.md` §2_
 `log [--criteria] [--stage S] [--actor A]`, `why <id>`,
 `diff <ref>..<ref>`, `serve [--port N]` (the local web UI), and `mcp` (the
 local, read-only MCP server over stdio).
-
-_Source: `docs/spec/10-cli.md` §2; `docs/spec/15-roadmap.md` M2.1_
 
 #### Scenario: Starting the web UI
 
@@ -191,8 +175,6 @@ version, commit/actor/sync summary, and sections for searches, deduplication,
 each screening stage, and (as they exist) extraction and analysis, followed by
 a NEXT line. Every line that reports a problem MUST name the command that
 addresses it; the tool MUST never report a state the user cannot act on.
-
-_Source: `docs/spec/10-cli.md` §4_
 
 #### Scenario: Pending dedup pairs
 
@@ -214,8 +196,6 @@ driven from CI or reproduced from a script (for example
 `strata screen title-abstract --decisions decisions.tsv --why "..."`,
 `strata verify --json`).
 
-_Source: `docs/spec/10-cli.md` §5_
-
 #### Scenario: Verify from CI
 
 - **WHEN** `strata verify --json` runs in CI
@@ -226,8 +206,6 @@ _Source: `docs/spec/10-cli.md` §5_
 Every error MUST state what happened, why, and what to do next. Errors MUST NOT
 include stack traces unless `-vv` is set. A crash MUST write a full report to
 `.strata/crash-<timestamp>.log` and print the path plus the issue tracker URL.
-
-_Source: `docs/spec/10-cli.md` §6_
 
 #### Scenario: Ordinary error
 
@@ -242,8 +220,6 @@ _Source: `docs/spec/10-cli.md` §6_
 ### Requirement: Worked examples in help
 
 Every CLI command's `--help` MUST include at least one worked example.
-
-_Source: `docs/spec/13-nonfunctional.md` §8_
 
 #### Scenario: Help for dedup
 

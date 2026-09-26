@@ -16,8 +16,6 @@
 | `strata rob [<study>]` | Risk-of-bias assessment |
 | `strata export effects --format F` | Export one row per effect for outside analysis |
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Queue of missing data
 
 - **WHEN** `strata extract --missing` runs

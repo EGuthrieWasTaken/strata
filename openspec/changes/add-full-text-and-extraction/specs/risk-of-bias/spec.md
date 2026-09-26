@@ -17,8 +17,6 @@ questions with options), and an `overall` algorithm (`worst-domain` or
 `custom`). `strata` MUST ship RoB 2, ROBINS-I, and the Newcastle-Ottawa Scale as
 built-in definitions and MUST allow a custom instrument in the same shape.
 
-_Source: `docs/spec/03-schemas.md` §8_
-
 #### Scenario: Custom instrument
 
 - **WHEN** a project defines a custom instrument in the documented shape
@@ -29,8 +27,6 @@ _Source: `docs/spec/03-schemas.md` §8_
 A per-study RoB assessment MUST record, per domain, a judgement, free-text
 support, and a source locator, with per-reviewer assessments reconciled into a
 consensus exactly as extraction is; each judgement is a `rob` event.
-
-_Source: `docs/spec/03-schemas.md` §8; `docs/spec/07-workflow-extraction.md` §4_
 
 #### Scenario: Domain judgement
 
@@ -44,8 +40,6 @@ the algorithmic suggestion from the signalling answers and MUST allow the
 reviewer to override it with a recorded justification. RoB 2 suggestions MUST
 match the published decision rules.
 
-_Source: `docs/spec/07-workflow-extraction.md` §4; `docs/spec/15-roadmap.md` M3_
-
 #### Scenario: Override
 
 - **GIVEN** the algorithm suggests LOW for a domain
@@ -57,8 +51,6 @@ _Source: `docs/spec/07-workflow-extraction.md` §4; `docs/spec/15-roadmap.md` M3
 `strata report rob` MUST emit a robvis-compatible traffic-light plot and summary
 bar plot. RoB judgements MUST be available as moderators (`rob_overall`,
 `rob.<domain>`) in analysis and filters.
-
-_Source: `docs/spec/07-workflow-extraction.md` §4_
 
 #### Scenario: Low-risk sensitivity analysis
 

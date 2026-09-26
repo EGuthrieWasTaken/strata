@@ -6,7 +6,7 @@
 enrichment, polite use of free scholarly APIs, no stored credentials) and its
 threat model with mitigations for a local, single-user tool.
 
-Rationale: `docs/spec/13-nonfunctional.md` §4–§5.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -14,8 +14,6 @@ Rationale: `docs/spec/13-nonfunctional.md` §4–§5.
 
 `strata` MUST NOT send telemetry of any kind: no anonymous usage statistics, no
 crash reporting, no version check.
-
-_Source: `docs/spec/13-nonfunctional.md` §4_
 
 #### Scenario: Any command
 
@@ -28,8 +26,6 @@ With `enrichment.enabled = false` (the default), `strata` MUST make no network
 request except those the user explicitly initiates (`strata sync`, which talks
 only to the configured git remote).
 
-_Source: `docs/spec/13-nonfunctional.md` §4_
-
 #### Scenario: Import without enrichment
 
 - **WHEN** an export is imported with enrichment disabled
@@ -40,8 +36,6 @@ _Source: `docs/spec/13-nonfunctional.md` §4_
 Enrichment MUST be enabled explicitly and per provider. When enabled, every
 outbound request MUST be recorded in `.strata/network.log` with timestamp,
 endpoint, and purpose.
-
-_Source: `docs/spec/13-nonfunctional.md` §4_
 
 #### Scenario: Crossref enrichment
 
@@ -55,8 +49,6 @@ When calling Crossref, OpenAlex, PubMed, or Unpaywall, `strata` MUST send a
 descriptive `User-Agent` including the configured `contact_email`, MUST respect
 `Retry-After` and rate limits, MUST back off exponentially on 429/503, and MUST
 cache responses locally keyed by DOI so a re-run does not re-query.
-
-_Source: `docs/spec/13-nonfunctional.md` §4_
 
 #### Scenario: Rate limited
 
@@ -72,8 +64,6 @@ _Source: `docs/spec/13-nonfunctional.md` §4_
 
 `strata` MUST NOT store credentials; git remote authentication is delegated
 entirely to the user's git credential helper or SSH agent.
-
-_Source: `docs/spec/13-nonfunctional.md` §4_
 
 #### Scenario: Sync to a private remote
 
@@ -95,8 +85,6 @@ _Source: `docs/spec/13-nonfunctional.md` §4_
 | Supply chain | Pinned, hash-locked dependencies; reproducible builds; signed release artefacts; a published SBOM |
 
 Security issues MUST be reportable privately and fixed before disclosure.
-
-_Source: `docs/spec/13-nonfunctional.md` §5_
 
 #### Scenario: XML external entity
 

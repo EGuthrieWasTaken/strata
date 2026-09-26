@@ -7,7 +7,7 @@ enforced by data layout, reviewer assignment, the screening-surface contract
 shared by the CLI and web UI, inter-rater reliability, and scriptable import of
 screening work done elsewhere.
 
-Rationale: `docs/spec/06-workflow-screening.md` §1, §2, §7; `docs/spec/10-cli.md` §5.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -17,8 +17,6 @@ Rationale: `docs/spec/06-workflow-screening.md` §1, §2, §7; `docs/spec/10-cli
 queue for a stage. At the title-abstract stage the surface MUST be optimised
 for speed. At the full-text stage exclusions MUST cite at least one criterion,
 and the surface MUST offer opening the local PDF.
-
-_Source: `docs/spec/06-workflow-screening.md` §1, §7_
 
 #### Scenario: Full-text exclusion without a criterion
 
@@ -33,8 +31,6 @@ NOT reveal another reviewer's decision before the current reviewer commits their
 own. Independence MUST also be enforced by data layout: each reviewer's events
 live in their own file. When `blind_metadata` is true, author, journal, and year
 MUST be hidden during screening.
-
-_Source: `docs/spec/06-workflow-screening.md` §2; `docs/spec/11-web-ui.md` §3.1 (S10, S11)_
 
 #### Scenario: Colleague already decided
 
@@ -54,8 +50,6 @@ _Source: `docs/spec/06-workflow-screening.md` §2; `docs/spec/11-web-ui.md` §3.
 generated Methods text MUST state plainly that screening was performed by a
 single reviewer.
 
-_Source: `docs/spec/06-workflow-screening.md` §2_
-
 #### Scenario: Methods under single mode
 
 - **GIVEN** `mode = "single"`
@@ -67,8 +61,6 @@ _Source: `docs/spec/06-workflow-screening.md` §2_
 `strata assign <stage> --actors a,b [--filter EXPR]` MUST record an `assign`
 event assigning reviewers to records at a stage; assignment otherwise defaults
 to `[screening.assignment]` in `strata.toml`.
-
-_Source: `docs/spec/10-cli.md` §2; `docs/spec/02-repository-format.md` §4.3_
 
 #### Scenario: Assigning a subset
 
@@ -91,8 +83,6 @@ Whether CLI or web, the screening surface MUST provide:
 | Resumability | Closing and reopening resumes at the same record |
 | No dead ends | Records with no abstract are flagged, not silently skipped |
 
-_Source: `docs/spec/06-workflow-screening.md` §7_
-
 #### Scenario: Excluding with a criterion by keyboard
 
 - **WHEN** a reviewer presses `e` then `2`
@@ -114,8 +104,6 @@ _Source: `docs/spec/06-workflow-screening.md` §7_
 Screening decisions MUST be appended and fsynced before the reviewer advances,
 so a session killed mid-way (including SIGKILL) resumes with no lost decisions.
 
-_Source: `docs/spec/06-workflow-screening.md` §7; `docs/spec/10-cli.md` §1; E2E-09 in `docs/spec/14-testing.md` §5_
-
 #### Scenario: SIGKILL mid-session
 
 - **GIVEN** a reviewer has recorded 37 decisions in a session
@@ -126,8 +114,6 @@ _Source: `docs/spec/06-workflow-screening.md` §7; `docs/spec/10-cli.md` §1; E2
 
 A screening session MUST sustain decision round-trip latency under 100 ms at
 p95 (hard limit 250 ms) at 50,000 records.
-
-_Source: `docs/spec/13-nonfunctional.md` §1; `docs/spec/15-roadmap.md` M2_
 
 #### Scenario: Large review
 
@@ -141,8 +127,6 @@ agreement, Cohen's kappa, PABAK, and the 2x2 table over independent first
 opinions only. Adjudication MUST NOT alter IRR, which reflects the original
 disagreement.
 
-_Source: `docs/spec/06-workflow-screening.md` §2, §8; `docs/spec/10-cli.md` §2_
-
 #### Scenario: IRR after adjudication
 
 - **GIVEN** 14 conflicts that were all adjudicated
@@ -155,8 +139,6 @@ _Source: `docs/spec/06-workflow-screening.md` §2, §8; `docs/spec/10-cli.md` §
 `record_id  decision  criteria  note` as the supported path for importing
 screening work done in another tool. Imported decisions MUST be attributed to
 the declared actor and marked `imported: true` in the event body.
-
-_Source: `docs/spec/10-cli.md` §5_
 
 #### Scenario: Pilot decisions from a spreadsheet
 

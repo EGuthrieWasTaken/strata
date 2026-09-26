@@ -1,7 +1,7 @@
-"""The filter expression language: docs/spec/10-cli.md §3 (normative).
+"""The filter expression language: openspec:filter-language (normative).
 
 A small, safe expression language used identically by `--filter` in the CLI,
-the (future) web UI, and analysis specifications. §3 is explicit that this
+the (future) web UI, and analysis specifications. openspec:filter-language is explicit that this
 MUST NOT be implemented by evaluating the host language (no `eval`, no
 `exec`): `parse()` hand-writes a recursive-descent parser producing an AST,
 and `evaluate()` walks that AST against a caller-supplied field resolver.
@@ -13,7 +13,7 @@ milestone actually has data for). Keeping field semantics out of the parser
 is what lets one grammar serve the CLI, the web UI, and analysis specs
 without three copies of it.
 
-Grammar (docs/spec/10-cli.md §3, reproduced here so the parser and the spec
+Grammar (openspec:filter-language, reproduced here so the parser and the spec
 can be read side by side)::
 
     expr    := or_expr
@@ -43,7 +43,7 @@ FieldResolver = Callable[[str], Any]
 
 
 class FilterSyntaxError(ValueError):
-    """A `--filter` expression could not be parsed (docs/spec/10-cli.md §3)."""
+    """A `--filter` expression could not be parsed (openspec:filter-language)."""
 
 
 class FilterEvaluationError(ValueError):

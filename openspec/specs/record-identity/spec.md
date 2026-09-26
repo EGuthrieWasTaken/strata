@@ -8,7 +8,7 @@ and the alias map that keeps every id that ever existed resolvable. Determinism
 is what lets two collaborators import the same export on different machines and
 produce byte-identical files that merge without conflict.
 
-Rationale: `docs/spec/01-domain-model.md` §3.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -30,8 +30,6 @@ available source, in this priority order:
 Priority 7 is the only non-deterministic branch and MUST emit a warning naming
 the offending import row.
 
-_Source: `docs/spec/01-domain-model.md` §3.1_
-
 #### Scenario: Record with DOI and PMID
 
 - **WHEN** a record carrying both a DOI and a PMID is imported
@@ -50,8 +48,6 @@ The record id MUST be computed as
 after the prefix), e.g. `rec_3kq8v1r0zx2m4a7b`. The same input record MUST yield
 the same id regardless of import order, source file, or platform.
 
-_Source: `docs/spec/01-domain-model.md` §3.1; property P5 in `docs/spec/14-testing.md` §2_
-
 #### Scenario: Same paper imported on two machines
 
 - **GIVEN** two collaborators import the same Scopus export independently
@@ -62,8 +58,6 @@ _Source: `docs/spec/01-domain-model.md` §3.1; property P5 in `docs/spec/14-test
 
 A record id is a name, not a checksum. Correcting a record's DOI after import
 MUST NOT change its id; it creates an alias instead.
-
-_Source: `docs/spec/01-domain-model.md` §3.1_
 
 #### Scenario: DOI corrected after import
 
@@ -95,8 +89,6 @@ is a breaking format change governed by format versioning:
 
 Normalisation MUST be idempotent: `normalise(normalise(s)) == normalise(s)`.
 
-_Source: `docs/spec/01-domain-model.md` §3.2; property P6 in `docs/spec/14-testing.md` §2_
-
 #### Scenario: DOI with URL prefix and trailing punctuation
 
 - **WHEN** the DOI `https://doi.org/10.1111/J.1467-9280.2008.02209.X.` is normalised
@@ -124,8 +116,6 @@ resolution MUST be transitive and MUST be cycle-checked at load; a cycle is a
 hard error `E_ALIAS_CYCLE`. Every id that has ever existed MUST resolve forever,
 so an old commit, export, or stale branch still names something real. Any
 sequence of merges MUST yield a resolvable, acyclic alias graph.
-
-_Source: `docs/spec/01-domain-model.md` §3.3; property P7 in `docs/spec/14-testing.md` §2_
 
 #### Scenario: Chained aliases
 
@@ -156,8 +146,6 @@ Other entities MUST use these identifier forms:
 
 Criterion numbers MUST NOT be reused after a criterion is retired, because
 historical events cite them.
-
-_Source: `docs/spec/01-domain-model.md` §3.4_
 
 #### Scenario: Report id mirrors its record
 

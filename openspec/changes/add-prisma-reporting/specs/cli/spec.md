@@ -12,8 +12,6 @@
 | `strata report <section>` | `methods`, `results`, `characteristics`, `amendments`, `checklist`, `rob`, `manuscript` |
 | `strata export <what> --format F` | `effects`, `records`, `bibliography`, `package` |
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Unknown report section
 
 - **WHEN** `strata report discussion` runs

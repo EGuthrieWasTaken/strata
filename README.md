@@ -68,7 +68,7 @@ with a live non-mutating impact preview, rescreening, adjudication, the
 duplicate review queue, a searchable record table, and domain history — all
 server-rendered and fully usable with JavaScript disabled. A screening
 session sustains sub-100ms decision latency at 50,000 records. Extraction
-(M3) and analysis (M4) are not built yet; see [the roadmap](docs/spec/15-roadmap.md)
+(M3) and analysis (M4) are not built yet; see [the roadmap](docs/roadmap.md)
 for what comes next, and [`docs/m1-plan.md`](docs/m1-plan.md) /
 [`docs/m2-plan.md`](docs/m2-plan.md) for the sub-objective-by-sub-objective
 status of each milestone.
@@ -76,7 +76,7 @@ status of each milestone.
 ## Installing
 
 `strata` isn't packaged for PyPI/Homebrew/conda-forge yet (that's tracked in
-[M6](docs/spec/15-roadmap.md#m6--hardening-and-adoption-ongoing)); for now,
+[M6](docs/roadmap.md#m6--hardening-and-adoption-ongoing)); for now,
 run it from a checkout with [`uv`](https://docs.astral.sh/uv/). You'll need
 Python 3.11+ and `git`.
 
@@ -109,7 +109,7 @@ makes the repository's history worth reading later. A full walkthrough:
 strata init my-review --title "My systematic review" --actor you --actor-name "Your Name"
 cd my-review
 
-# Record a search before importing its results (docs/spec/05).
+# Record a search before importing its results.
 strata --why "recording the search before import" search add \
     --database MEDLINE --platform Ovid --by you --query "1 exp Learning/"
 strata --why "first import" import my-export.ris --by you --search S-01-medline
@@ -148,21 +148,20 @@ and [`openspec/changes/`](openspec/changes/) holds the remaining roadmap
 milestones (M3 onwards) as change proposals. Behaviour changes are proposed
 there first; `openspec validate --all --strict` runs on every pull request.
 
-The long-form design rationale lives in [`docs/spec/`](docs/spec/README.md):
-the reasoning, worked examples, and formulae behind each requirement. Where it
-and OpenSpec disagree, OpenSpec wins.
+Each capability has a `spec.md` (the requirements) and a `design.md` (the
+reasoning, worked examples, and rejected alternatives). Start with:
 
-Start with:
-
-1. [Overview, goals and non-goals](docs/spec/00-overview.md)
-2. [Domain model](docs/spec/01-domain-model.md)
-3. [Repository format](docs/spec/02-repository-format.md) — the normative core
-4. [Screening and staleness](docs/spec/06-workflow-screening.md) — the flagship
-   feature, implemented in M2
-5. [The web UI](docs/spec/11-web-ui.md) — `strata serve`
-6. [Testing and CI](docs/spec/14-testing.md) — the pull-request gate, which is
-   the first thing to build
-7. [Roadmap and milestones](docs/spec/15-roadmap.md) — the build order
+1. [Overview](docs/overview.md) — the problem, goals, non-goals, and the
+   deployment topologies (solo, shared git remote, hosted instance)
+2. [Domain model](openspec/specs/domain-model/spec.md)
+3. [Repository format](openspec/specs/repository-format/spec.md) and
+   [event log](openspec/specs/event-log/spec.md) — the normative core
+4. [Staleness](openspec/specs/staleness/spec.md) and its
+   [design](openspec/specs/staleness/design.md) — the flagship feature
+5. [The web UI](openspec/specs/web-ui/spec.md) — `strata serve`
+6. [The CI gate](openspec/specs/ci-gate/spec.md) and
+   [test suite](openspec/specs/test-suite/spec.md)
+7. [Roadmap](docs/roadmap.md) and [open questions](docs/open-questions.md)
 
 The original problem statement that seeded this project is preserved verbatim at
 [`docs/origin/ProgramSpec.org`](docs/origin/ProgramSpec.org).

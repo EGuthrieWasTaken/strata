@@ -1,10 +1,10 @@
 """E2E-04: loosening a criterion stales the exclusions that cited it and
 leaves inclusions alone.
 
-docs/spec/14-testing.md §5: "Criteria loosened (not tightened): assert that
+openspec:test-suite#end-to-end-scenarios: "Criteria loosened (not tightened): assert that
 exclusions citing it go stale and inclusions do not." A scripted run against
 a real git repository, single reviewer (assignment defaults to the one
-actor per docs/spec/03-schemas.md §"screening.assignment" when unset), so
+actor per openspec:data-schemas#project-manifest's `screening.assignment` when unset), so
 the scenario is about criteria/staleness mechanics, not dual-review
 interaction (that is E2E-01's job).
 """

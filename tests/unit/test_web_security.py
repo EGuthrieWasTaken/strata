@@ -1,4 +1,4 @@
-"""Unit tests for strata.web.security: docs/spec/11-web-ui.md §7."""
+"""Unit tests for strata.web.security: openspec:web-ui#localhost-security."""
 
 from __future__ import annotations
 

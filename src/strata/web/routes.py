@@ -1,4 +1,4 @@
-"""Route handlers for `strata serve`: docs/spec/11-web-ui.md §2-§4.
+"""Route handlers for `strata serve`: openspec:web-ui.
 
 Scope built so far (docs/m2-plan.md sub-objective 11 splits the web UI into
 sittings): the dashboard (`/`), the title-abstract/full-text screening
@@ -7,11 +7,11 @@ surface (`/screen/<stage>`), the stale-queue re-screening surface
 criteria editor with its live, non-mutating impact preview (`/criteria`) --
 the one web-UI piece the M2 roadmap acceptance checklist names outright
 ("The criteria editor's impact preview is correct and non-mutating,"
-docs/spec/15-roadmap.md) -- and the read-only `/records`, `/records/<id>`,
+docs/roadmap.md, M2) -- and the read-only `/records`, `/records/<id>`,
 `/history` screens (reusing exactly the CLI's own data paths: `core.filters`
 for `--filter`, `core.provenance.build_provenance` for `strata why`,
 `core.logcmd.domain_log` for `strata log`). All of it is server-rendered
-with full-page-reload semantics (§5's hard "MUST function with JavaScript
+with full-page-reload semantics (openspec:web-ui#technology's hard "MUST function with JavaScript
 disabled" requirement) plus a small keyboard-shortcut script layered on
 top, not a JS-required SPA.
 
@@ -23,29 +23,30 @@ persisting it, and the two actual mutations (auto-merging for real,
 merging or keeping one pair after review) are explicit `POST`s a reviewer
 takes deliberately, each with its own rationale.
 
-**Statelessness and "undo"/"skip".** §1 requires the server be stateless
+**Statelessness and "undo"/"skip".** openspec:web-ui#strictly-local requires the server be stateless
 with respect to the repository, so there is no server-side session
 tracking "what have I shown this browser." The one record `/screen/<stage>`
-shows is always a pure function of the request: the actor's queue (§S14,
+shows is always a pure function of the request: the actor's queue (web-ui S14,
 deterministic, sorted by id) minus a `skip` query parameter carrying
 forward ids the reviewer chose not to decide yet, or a `redo` parameter
-naming a specific record to redecide (how `[u]ndo`, §S7, is implemented --
+naming a specific record to redecide (how `[u]ndo`, web-ui S7, is implemented --
 the *previous* page's redirect carries the just-decided id forward as
 `prev`, and the current page turns that into a `redo` link). This keeps
-every request self-contained (also what makes §S8, "closing the tab and
+every request self-contained (also what makes web-ui S8, "closing the tab and
 returning resumes at the same record," true for free: the queue itself
 already excludes whatever has actually been decided) at the cost of a
 `skip` list that lives only in the URL for that browsing session -- a
 documented, acceptable trade against a much larger stateful-session design
 this sitting does not have the scope for.
 
-**Commit policy.** docs/spec/04-git-integration.md §2.4 batches screening
+**Commit policy.** openspec:git-integration#batched-screening-commits batches screening
 commits (session end, 200 decisions, or 15 minutes idle) rather than
 committing per decision. This sitting appends every decision immediately
 (`record_screen_decision` already fsyncs, so nothing is lost --
 tests/e2e/test_e2e_09_interrupted_screening.py already validates that
 guarantee for the same underlying call) but does not yet implement any of
-§2.4's three commit triggers for the web session specifically; a user ends
+openspec:git-integration#batched-screening-commits's three commit triggers for the web session
+specifically; a user ends
 a web screening session the same way as today, via the CLI (`strata sync`
 or a plain `git commit`) or by leaving it for their next `strata screen`
 CLI session to close out. Wiring an explicit session-end action is tracked
@@ -323,7 +324,7 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
 
 @router.get("/rescreen/{stage}", response_class=HTMLResponse, response_model=None)
 async def rescreen_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
-    """The stale queue (docs/spec/06 §6, docs/spec/11 §3.2): identical to
+    """The stale queue (openspec:staleness, openspec:web-ui#re-screening-mode): identical to
     `/screen/<stage>` (same statelessness, skip/undo design -- see this
     module's docstring), plus the prior decision/reason shown and a fourth
     `[k]eep previous` action. One difference forced by statelessness: `/
@@ -430,7 +431,7 @@ async def rescreen_stage_submit(
 
 @router.get("/adjudicate/{stage}", response_class=HTMLResponse, response_model=None)
 async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
-    """Conflict resolution (docs/spec/06 §8). Same skip-list statelessness
+    """Conflict resolution (openspec:adjudication). Same skip-list statelessness
     as `/screen`/`/rescreen`; there is no "undo" here since an adjudication
     is a one-way resolution of a disagreement, not a routine decision."""
     state: AppState = request.app.state.strata
@@ -508,8 +509,9 @@ async def adjudicate_stage_submit(
 
     pool_mod.regenerate_all(repo)
     # Short subject: a record id is a ~20-char ULID, and
-    # StructuredCommit.subject() enforces a 72-character line (docs/spec/04
-    # §2.2) -- unlike the CLI's own `adjudicate`, which batches a whole
+    # StructuredCommit.subject() enforces a 72-character line (
+    # openspec:git-integration#structured-commit-messages) -- unlike the CLI's own `adjudicate`,
+    # which batches a whole
     # session into one commit (`strata adjudicate N conflict(s)`, no id),
     # the web surface commits one adjudication at a time, so the id has to
     # fit in the summary itself.
@@ -585,7 +587,7 @@ def _criteria_edit_context(
         preview = rescreen_mod.preview_criterion_change_impact(
             repo, criterion_id=criterion["id"], direction=direction
         )
-    # The "Preview" button is a plain GET resubmit (§5's no-JS baseline),
+    # The "Preview" button is a plain GET resubmit (openspec:web-ui#technology's no-JS baseline),
     # which would otherwise reset the definition/rationale textareas to
     # their on-disk values on every preview refresh -- carry forward
     # whatever the reviewer already had typed instead.
@@ -734,7 +736,7 @@ def _dedup_rationale(repo: Any, raw: str) -> tuple[str | None, str | None]:
     """Mirrors `cli.main._get_rationale`'s config-dependent requirement
     (`git.require_rationale`, default `True`) -- unlike `/adjudicate` and
     `/criteria`, the spec doesn't mandate a rationale for dedup decisions
-    unconditionally (docs/spec/04-git-integration.md §2.3), so an empty
+    unconditionally (openspec:git-integration#eliciting-the-rationale), so an empty
     field is only rejected when the repo's own config requires one.
     Returns `(rationale, error)`; exactly one side is `None`.
     """
@@ -770,7 +772,7 @@ def _commit_dedup_change(
 
 @router.get("/dedup", response_class=HTMLResponse)
 async def dedup_queue(request: Request) -> HTMLResponse:
-    """Duplicate review queue (docs/spec/11-web-ui.md §2), backed by
+    """Duplicate review queue (openspec:web-ui#screens), backed by
     `dedup.engine.preview_dedup`'s non-mutating dry run -- see this
     module's docstring for why `run_dedup` itself can't back a `GET`
     directly. One pair at a time, same skip-list statelessness as `/
@@ -860,9 +862,10 @@ async def dedup_run(request: Request) -> RedirectResponse | PlainTextResponse:
 
 @router.post("/dedup/decide", response_model=None)
 async def dedup_decide(request: Request) -> RedirectResponse | PlainTextResponse:
-    """Resolve one pair from the review queue: `merge` (docs/spec/05-
-    workflow-import.md §3.6) or `keep` (records a sticky `dedup-distinct`,
-    §3.1, so the pair is never raised again). Re-checks the submitted pair
+    """Resolve one pair from the review queue: `merge`
+    (openspec:deduplication#review-queue) or `keep` (records a sticky `dedup-distinct`,
+    openspec:deduplication#sticky-reversible-conservative-explainable, so the pair is never raised
+    again). Re-checks the submitted pair
     against a fresh `preview_dedup` rather than trusting the form
     round-trip -- the queue can have moved since the page was rendered,
     the same re-validation `/rescreen`'s `keep-previous` submission does.
@@ -938,10 +941,10 @@ async def dedup_decide(request: Request) -> RedirectResponse | PlainTextResponse
 
 @router.get("/records", response_class=HTMLResponse)
 async def records_list_view(request: Request) -> HTMLResponse:
-    """Searchable/filterable record table (docs/spec/11-web-ui.md §2).
+    """Searchable/filterable record table (openspec:web-ui#screens).
     Read-only, reusing exactly `cli.main.records_list`'s data path
-    (`core.filters`'s `--filter` expression language, docs/spec/10-cli.md
-    §3) -- unlike `/dedup` (which needed a new non-mutating dry run added
+    (`core.filters`'s `--filter` expression language,
+    openspec:filter-language) -- unlike `/dedup` (which needed a new non-mutating dry run added
     to `dedup.engine`, see this module's docstring), nothing here needs
     any new preview infrastructure to compute what to show.
     """

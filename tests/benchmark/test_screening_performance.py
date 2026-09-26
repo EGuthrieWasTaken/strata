@@ -1,7 +1,7 @@
-"""Performance validation: docs/spec/13-nonfunctional.md §1's "screening
+"""Performance validation: openspec:performance#scale-targets's "screening
 decision round trip < 100 ms p95" (hard limit 250 ms), the M2 roadmap
 acceptance bullet "a screening session sustains < 100 ms p95 decision
-latency at 50k records" (docs/spec/15-roadmap.md).
+latency at 50k records" (docs/roadmap.md).
 
 Advisory CI tier (see tests/benchmark/test_dedup_performance.py's module
 docstring for why: wall-clock assertions are too noisy across CI runners to
@@ -50,7 +50,7 @@ from strata.protocol.screening import record_screen_decision
 _SEED = 20260101
 _TOTAL_RECORDS = 50_000
 _DECISIONS_SAMPLED = 1_000  # a substantial screening session, not one click
-_P95_TARGET_SECONDS = 0.100  # docs/spec/13-nonfunctional.md §1 soft target
+_P95_TARGET_SECONDS = 0.100  # openspec:performance#scale-targets soft target
 _P95_HARD_LIMIT_SECONDS = 0.250  # same row's hard limit
 _RSS_LIMIT_KB = 2 * 1024 * 1024  # 2 GB, matching the other 50k benchmarks
 

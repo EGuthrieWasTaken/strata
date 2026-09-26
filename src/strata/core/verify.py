@@ -1,6 +1,7 @@
 """`strata verify`: whole-repository validation.
 
-Implements the checks catalogued in docs/spec/03-schemas.md §10 that are in
+Implements the checks catalogued in openspec:repository-verification#cross-schema-validation-rules
+that are in
 scope at M0 (schema validation, hash-chain integrity, dangling references,
 alias-graph acyclicity). Checks that depend on derived-view regeneration or
 domain events not yet implemented (dedup, screening, extraction, analysis)
@@ -167,8 +168,9 @@ def _verify_criteria(repo: Repo, report: VerifyReport) -> None:
 
 
 def _verify_screen_events(repo: Repo, report: VerifyReport) -> None:
-    """`E_EXCLUSION_NO_CRITERION` and `E_CRITERION_STAGE` (docs/spec/03-schemas.md
-    §10) over persisted `screen` events -- a defensive check against a
+    """`E_EXCLUSION_NO_CRITERION` and `E_CRITERION_STAGE` (
+    openspec:repository-verification#cross-schema-validation-rules) over persisted `screen` events
+    -- a defensive check against a
     hand-edited or corrupted event file, since `protocol.screening.
     record_screen_decision` already refuses to write either violation.
 
@@ -256,7 +258,7 @@ def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
 
 def _verify_dangling_refs(repo: Repo, report: VerifyReport, referenced_records: set[str]) -> None:
     # aliases.ndjson entries key the absorbed record's id as "alias", not
-    # "id" (docs/spec/02-repository-format.md §3.3) -- a non-canonical
+    # "id" (openspec:repository-format#authoritative-versus-derived-files) -- a non-canonical
     # record id therefore never appears in records.ndjson at all.
     record_ids = _load_ndjson_field(repo.path("records", "records.ndjson"), "id")
     alias_ids = _load_ndjson_field(repo.path("records", "aliases.ndjson"), "alias")

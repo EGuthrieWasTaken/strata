@@ -1,4 +1,6 @@
-"""Unit tests for strata.dedup.engine, per docs/spec/05-workflow-import.md §3.1, §3.4, §3.6."""
+"""Unit tests for strata.dedup.engine, per
+openspec:deduplication#sticky-reversible-conservative-explainable,
+openspec:deduplication#thresholds-and-actions, openspec:deduplication#review-queue."""
 
 from __future__ import annotations
 
@@ -51,7 +53,8 @@ def test_thresholds_reads_config(tmp_path: Path) -> None:
 
 
 def test_thresholds_strict_auto_merge_one_review_zero(tmp_path: Path) -> None:
-    # §3.4: --strict means only an exact/DOI match auto-merges, and every
+    # openspec:deduplication#thresholds-and-actions: --strict means only an exact/DOI match
+    # auto-merges, and every
     # other blocked pair is queued for review rather than silently dropped
     # -- see the docstring on `thresholds()` for why that isn't literally
     # (1.0, 1.0).
@@ -143,7 +146,8 @@ def test_run_dedup_ignores_pair_scoring_below_review_threshold(tmp_path: Path) -
 
 def test_run_dedup_blocked_but_scores_distinct_is_a_no_op(tmp_path: Path) -> None:
     """A shared PMID (data error) blocks two genuinely distinct papers together;
-    the low weighted score still yields no event and no queue entry (§3.4:
+    the low weighted score still yields no event and no queue entry
+    (openspec:deduplication#thresholds-and-actions:
     absence is the default)."""
     repo = _repo(tmp_path)
     a = _record("rec_0000000000000001", title="Alpha paper about frogs", PMID="12345")

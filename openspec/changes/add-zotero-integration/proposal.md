@@ -10,8 +10,7 @@ where they already are.
 
 > **Zotero owns the documents. `strata` owns the decisions.**
 
-Roadmap milestone: M6 (`docs/spec/15-roadmap.md`). Design detail:
-`docs/spec/17-zotero-integration.md`.
+Roadmap milestone: M6 ([docs/roadmap.md](../../../docs/roadmap.md)). Design detail: [design.md](design.md).
 
 ## What Changes
 

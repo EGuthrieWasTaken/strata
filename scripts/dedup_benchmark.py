@@ -1,7 +1,7 @@
 """Run the labelled dedup benchmark and (re)write docs/dedup-benchmark-results.md.
 
 Implements the "published in the repository" half of
-docs/spec/05-workflow-import.md §3.8. The fixture itself
+openspec:deduplication#validation-against-a-labelled-benchmark. The fixture itself
 (`tests/fixtures/dedup-benchmark/`) is checked in and hand-labelled (see its
 README for provenance and `scripts/generate_dedup_benchmark_fixture.py` for
 how it was built); this script loads it, runs `strata.dedup.engine.run_dedup`
@@ -32,7 +32,7 @@ from strata.dedup.engine import run_dedup
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "dedup-benchmark"
 REPORT_PATH = Path(__file__).resolve().parent.parent / "docs" / "dedup-benchmark-results.md"
 
-# v1 acceptance target, docs/spec/05-workflow-import.md §3.8.
+# v1 acceptance target, openspec:deduplication#validation-against-a-labelled-benchmark.
 TARGET_RECALL = 0.95
 TARGET_FALSE_MERGE_RATE = 0.001
 
@@ -111,9 +111,9 @@ for why and how it was built). Enforced by
 cannot drift from what the test suite actually checks.
 
 Evaluated at default (non-strict) thresholds: `auto_merge_threshold=0.95`,
-`review_threshold=0.80`, per `docs/spec/05-workflow-import.md` §3.4.
+`review_threshold=0.80`, per openspec:deduplication#thresholds-and-actions.
 
-| Metric | Value | v1 target (§3.8) |
+| Metric | Value | v1 target (openspec:deduplication#validation-against-a-labelled-benchmark) |
 |---|---|---|
 | Recall | {metrics.recall:.3f} | >= {TARGET_RECALL} |
 | False-merge rate | {metrics.false_merge_rate:.4f} | <= {TARGET_FALSE_MERGE_RATE} |
@@ -139,7 +139,8 @@ Detail:
   Either outcome is correct -- both avoid a false merge. See the fixture's
   `README.md` for what each hard-negative pair is testing.
 
-Recall and the false-merge rate are the two numbers §3.8 requires; precision
+Recall and the false-merge rate are the two numbers
+openspec:deduplication#validation-against-a-labelled-benchmark requires; precision
 and F1 are reported for context, not gated on. Recall is computed against
 each ground-truth pair's *final canonical id* after dedup, not against the
 literal `dedup-merge` event log, so a three-record chain (A absorbs B, then

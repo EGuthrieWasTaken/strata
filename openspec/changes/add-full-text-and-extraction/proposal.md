@@ -9,8 +9,7 @@ source). M3 carries the provenance chain from "included at full text" through to
 an analysis-ready dataset, so a complete review can be conducted up to the
 statistics.
 
-Roadmap milestone: M3 (`docs/spec/15-roadmap.md`). Design detail:
-`docs/spec/07-workflow-extraction.md`, `docs/spec/03-schemas.md` §6–§8.
+Roadmap milestone: M3 ([docs/roadmap.md](../../../docs/roadmap.md)). Design detail: [design.md](design.md).
 
 ## What Changes
 

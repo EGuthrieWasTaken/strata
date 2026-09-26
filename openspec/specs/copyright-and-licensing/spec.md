@@ -6,7 +6,7 @@
 database terms of service, third-party content in generated output, and the
 licensing of the tool, its format specification, and its test fixtures.
 
-Rationale: `docs/spec/13-nonfunctional.md` §6, §9.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -14,8 +14,6 @@ Rationale: `docs/spec/13-nonfunctional.md` §6, §9.
 
 `.gitignore` MUST exclude `fulltext/` (except its manifest), and `strata` MUST
 refuse to `git add` a PDF from that directory without an explicit override.
-
-_Source: `docs/spec/13-nonfunctional.md` §6_
 
 #### Scenario: Staging a PDF
 
@@ -28,8 +26,6 @@ _Source: `docs/spec/13-nonfunctional.md` §6_
 Full-text provenance MUST be preserved in `fulltext/manifest.ndjson` by DOI or
 equivalent identifier, without redistributing the document; content hashes MUST
 NOT be used to establish document identity.
-
-_Source: `docs/spec/13-nonfunctional.md` §6_
 
 #### Scenario: Two reviewers with differently annotated copies
 
@@ -44,8 +40,6 @@ LibGen, no institutional-proxy credential handling); Unpaywall integration is
 limited to surfacing links to legally open copies. `strata` MUST NOT scrape or
 automate queries against subscription databases; it consumes their exports.
 
-_Source: `docs/spec/13-nonfunctional.md` §6; `docs/spec/00-overview.md` §4 (N1)_
-
 #### Scenario: Open-access lookup
 
 - **GIVEN** enrichment with Unpaywall enabled
@@ -59,8 +53,6 @@ CC BY 4.0 attribution. The terms of RoB 2 and ROBINS-I MUST be checked and
 documented before shipping those instrument definitions. `strata export package`
 MUST include the review data licence declared in `project.license`.
 
-_Source: `docs/spec/13-nonfunctional.md` §6_
-
 #### Scenario: Flow diagram
 
 - **WHEN** a PRISMA flow diagram is generated
@@ -71,9 +63,7 @@ _Source: `docs/spec/13-nonfunctional.md` §6_
 `strata` itself MUST be licensed GNU GPL v3.0 or later. Test fixtures derived
 from published datasets MUST retain their original licences and MUST be
 attributed in `tests/fixtures/SOURCES.md`. The licence of the repository-format
-specification is an open decision (see `docs/spec/16-open-questions.md` Q2).
-
-_Source: `docs/spec/13-nonfunctional.md` §9_
+specification is an open decision (see Q2 in [docs/open-questions.md](../../../docs/open-questions.md)).
 
 #### Scenario: New fixture from a published dataset
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://strata-review.org/schemas/import-manifest.schema.json",
   "title": "Import manifest",
-  "description": "docs/spec/05-workflow-import.md §2.3 — imports/<id>/manifest.yaml",
+  "description": "openspec:literature-import#what-import-does — imports/<id>/manifest.yaml",
   "type": "object",
   "required": [
     "id",

@@ -7,7 +7,7 @@ TSV, and generated numeric output — so the same logical content produces the
 same bytes on any platform. Cross-platform byte identity is what keeps merges
 conflict-free and lets `strata verify` compare regenerated output byte for byte.
 
-Rationale: `docs/spec/02-repository-format.md` §1 (P5), §5.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -16,8 +16,6 @@ Rationale: `docs/spec/02-repository-format.md` §1 (P5), §5.
 Any file `strata` writes MUST be byte-identical given the same logical content,
 on any platform, across runs, and under any Python hash seed.
 `parse(canon(x)) == x` MUST hold for every schema.
-
-_Source: `docs/spec/02-repository-format.md` §1 (P5); properties P3 and P4 in `docs/spec/14-testing.md` §2_
 
 #### Scenario: Randomised hash seed
 
@@ -45,8 +43,6 @@ NDJSON files MUST follow these rules:
 - `null` and absent are distinct: absent means "never set", `null` means
   "explicitly known to be empty".
 
-_Source: `docs/spec/02-repository-format.md` §5.1_
-
 #### Scenario: Body keys are sorted
 
 - **WHEN** an event with body `{"stage": ..., "decision": ..., "criteria": ...}` is written
@@ -69,8 +65,6 @@ _Source: `docs/spec/02-repository-format.md` §5.1_
 order is stable across machines and unaffected by import order or metadata
 corrections.
 
-_Source: `docs/spec/02-repository-format.md` §5.2_
-
 #### Scenario: Import order does not affect file order
 
 - **GIVEN** two exports imported in opposite orders on two clones
@@ -85,8 +79,6 @@ not sorted. Strings are quoted only when YAML requires it; long prose uses block
 scalars (`>` folded for definitions, `|` literal for query strings, which MUST
 be preserved verbatim). Version numbers, ids, and anything that could be read as
 a number, date, or boolean MUST be quoted.
-
-_Source: `docs/spec/02-repository-format.md` §5.3_
 
 #### Scenario: Search query written as a literal block
 
@@ -105,8 +97,6 @@ no quoting. Tabs, CR, and LF inside a field MUST be replaced with a single space
 at write time. Columns are fixed per view and rows sorted by the view's declared
 sort key.
 
-_Source: `docs/spec/02-repository-format.md` §5.4_
-
 #### Scenario: Title containing a tab
 
 - **WHEN** a record whose title contains a tab character is written to a TSV view
@@ -119,8 +109,6 @@ significant digits before serialisation, and MUST NOT embed timestamps,
 hostnames, absolute paths, locale-dependent formatting, or random ids in any
 generated file. SVG output MUST use fixed element ids derived from content, not
 counters or UUIDs.
-
-_Source: `docs/spec/02-repository-format.md` §5.5_
 
 #### Scenario: Regenerating results on another machine
 

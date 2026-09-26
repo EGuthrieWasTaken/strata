@@ -6,7 +6,7 @@ Scale targets for a large but ordinary review (four databases, 50,000 raw
 records, 40,000 after deduplication, 400 full texts, 60 included studies, 120
 effects) on reference hardware, and how they are enforced in CI.
 
-Rationale: `docs/spec/13-nonfunctional.md` §1.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -30,8 +30,6 @@ Operations MUST meet these hard limits, and SHOULD meet these targets, on a
 | Peak RSS, any operation at 50k records | < 2 GB | 4 GB |
 | Repository size at 50k records | < 200 MB | 500 MB |
 
-_Source: `docs/spec/13-nonfunctional.md` §1_
-
 #### Scenario: Status on a large review
 
 - **WHEN** `strata status` runs on a 50,000-record repository
@@ -49,8 +47,6 @@ _Source: `docs/spec/13-nonfunctional.md` §1_
 repositories at 1k, 10k, and 50k records. On pull requests the benchmark job is
 warn-only; the nightly 50k benchmark is blocking. A regression above the hard
 limit MUST fail CI; a regression above 20% of the target MUST produce a warning.
-
-_Source: `docs/spec/13-nonfunctional.md` §1; `docs/spec/14-testing.md` §7, §9.3, §9.5_
 
 #### Scenario: Regression beyond the hard limit
 

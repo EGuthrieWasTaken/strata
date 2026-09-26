@@ -1,6 +1,6 @@
 """PubMed / MEDLINE (`.nbib`) parser.
 
-Implements the PubMed/MEDLINE row of docs/spec/05-workflow-import.md §2.1:
+Implements the PubMed/MEDLINE row of openspec:literature-import:
 `PMID- `, `TI  - `-style four-character tags padded to a six-column prefix,
 with continuation lines indented six spaces so they line up under the value.
 No general-purpose library parses this format, so it is hand-rolled.

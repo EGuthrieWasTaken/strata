@@ -1,7 +1,7 @@
 """Pairwise similarity scoring for deduplication.
 
-Implements docs/spec/05-workflow-import.md §3.3 exactly, including the DOI
-veto. Pure functions only (docs/spec/12-architecture.md §2, invariant 1): no
+Implements openspec:deduplication#scoring exactly, including the DOI
+veto. Pure functions only (openspec:architecture#the-fold-is-pure): no
 I/O, no thresholds, no merge decisions -- those are sub-objective 6's CLI/
 review-queue layer, which decides what to *do* with a `PairScore`.
 
@@ -36,14 +36,15 @@ LOCATOR_WEIGHT = 0.05
 
 @dataclass(frozen=True)
 class PairScore:
-    """The result of scoring one candidate pair, per docs/spec/05-workflow-import.md §3.3.
+    """The result of scoring one candidate pair, per openspec:deduplication#scoring.
 
-    `score` is the value thresholds are compared against (§3.4): 1.0/0.0 when
+    `score` is the value thresholds are compared against
+    (openspec:deduplication#thresholds-and-actions): 1.0/0.0 when
     both records have a DOI, the weighted feature sum otherwise. `doi_veto` is
     `True` exactly when both records had a DOI and they differed, forcing
     `score` to 0.0 regardless of how similar everything else is. `features`
     is always populated (even under a DOI veto) so a caller can label a
-    high-scoring veto as `doi-conflict` (§3.3's explicit carve-out) and so
+    high-scoring veto as `doi-conflict` (openspec:deduplication#scoring's explicit carve-out) and so
     `strata why`/the review queue can show the breakdown either way.
     """
 
@@ -53,7 +54,8 @@ class PairScore:
 
     @property
     def non_doi_score(self) -> float:
-        """The weighted feature sum, ignoring any DOI veto -- what §3.3 calls the
+        """The weighted feature sum, ignoring any DOI veto -- what openspec:deduplication#scoring
+        calls the
         score to test a `doi_veto`'d pair against `review_threshold` for a
         `doi-conflict` label."""
         return (
@@ -170,7 +172,7 @@ def locator_sim(record_a: dict[str, Any], record_b: dict[str, Any]) -> float:
 
 
 def score_pair(record_a: dict[str, Any], record_b: dict[str, Any]) -> PairScore:
-    """Score one candidate pair per docs/spec/05-workflow-import.md §3.3.
+    """Score one candidate pair per openspec:deduplication#scoring.
 
     Feature scores are always computed (needed for `doi-conflict` labelling
     and for explainability), even when a DOI veto or DOI match decides the

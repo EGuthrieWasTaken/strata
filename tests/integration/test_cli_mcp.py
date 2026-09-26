@@ -1,4 +1,4 @@
-"""`strata mcp`: docs/spec/15-roadmap.md, M2.1.
+"""`strata mcp`: openspec:mcp-server.
 
 Like `strata serve` (`tests/integration/test_cli_serve.py`), the stdio MCP
 server cannot be driven with `typer.testing.CliRunner` (in-process,
@@ -88,7 +88,7 @@ def test_mcp_status_tool_reflects_the_real_repository(tmp_path: Path) -> None:
 
 
 def test_mcp_unknown_record_reports_a_tool_error_not_a_crash(tmp_path: Path) -> None:
-    """An anticipated failure (`ToolError`, docs/spec/15-roadmap.md M2.1's
+    """An anticipated failure (`ToolError`, openspec:mcp-server's
     "no domain logic beyond argument marshalling" still needs *some* error
     reporting) comes back as `is_error=True` with a readable message, not
     a raised exception that tears down the session -- confirmed by making

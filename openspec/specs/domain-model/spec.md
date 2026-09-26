@@ -7,7 +7,7 @@ criterion, search, event, actor), the per-stage screening states derived from
 them, and the configurable stage graph. Every PRISMA count is derived from this
 model, so the distinctions it draws are what make the flow diagram reconcile.
 
-Rationale and diagrams: `docs/spec/01-domain-model.md` §1, §2, §4–§6.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -35,8 +35,6 @@ every count from the model rather than from typed-in numbers:
 whenever one study is reported in more than one paper, and the system MUST
 report both.
 
-_Source: `docs/spec/01-domain-model.md` §1, §2.1–§2.4_
-
 #### Scenario: One study reported in two papers
 
 - **GIVEN** two included reports that are grouped into a single study
@@ -55,8 +53,6 @@ _Source: `docs/spec/01-domain-model.md` §1, §2.1–§2.4_
 
 A report's file MUST NOT be committed to the review repository by `strata`; the
 report is tracked by identifier only.
-
-_Source: `docs/spec/01-domain-model.md` §2.2_
 
 #### Scenario: Retrieved report
 
@@ -81,8 +77,6 @@ The system MUST model:
   display name, email, optional ORCID, and role. Events MUST record the handle,
   not the git author, so a reviewer who changes email or institution does not
   fragment their history.
-
-_Source: `docs/spec/01-domain-model.md` §2.5–§2.8_
 
 #### Scenario: Actor changes email
 
@@ -110,8 +104,6 @@ in exactly one state, derived from the fold and never stored as a mutable field:
 | `exclude` | Resolved: leaves the pool, citing at least one criterion |
 | `not-retrieved` | Full-text stage only: sought, could not be obtained |
 
-_Source: `docs/spec/01-domain-model.md` §4_
-
 #### Scenario: One of two assigned reviewers has decided
 
 - **GIVEN** a record assigned to `ethan` and `sam` at title-abstract
@@ -133,8 +125,6 @@ MUST report both the resolved count and the stale count, and `strata prisma`
 MUST refuse to emit a final diagram while any record is stale unless
 `--allow-stale` is passed.
 
-_Source: `docs/spec/01-domain-model.md` §4_
-
 #### Scenario: Stale inclusion keeps its decision
 
 - **GIVEN** a record resolved `include` at title-abstract
@@ -149,8 +139,6 @@ so an added stage is a configuration change rather than a schema migration. v1
 ships the two stages `title-abstract` and `full-text` in the pipeline
 `import -> dedup -> title-abstract -> [retrieval] -> full-text -> extraction -> analysis`,
 and MUST reject events naming an unknown stage.
-
-_Source: `docs/spec/01-domain-model.md` §5_
 
 #### Scenario: Event names an unconfigured stage
 

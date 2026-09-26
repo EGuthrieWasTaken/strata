@@ -12,10 +12,13 @@ context: |
 
   Goals: nothing is lost (G1); changing your mind is cheap and safe (G2); the
   PRISMA funnel always reconciles (G3); collaboration without git literacy
-  (G4); reproducible analysis, byte for byte (G5); free, local, and yours, with
-  no account, server, or telemetry (G6). Non-goals: not a search engine, a
+  (G4); reproducible analysis, byte for byte (G5); free and yours, with no
+  subscription or telemetry (G6). Git is always the backend: solo users run
+  everything locally; collaborators either run strata locally against a shared
+  git remote (`strata sync`) or use a self-hosted instance with per-user
+  accounts that syncs with that remote. Non-goals: not a search engine, a
   reference manager, a PDF repository, a statistics language, an AI screening
-  product in v1, or a hosted service.
+  product in v1, or a service the project operates.
 
   Tech stack: Python 3.11+, uv, typer (CLI), FastAPI + Jinja2 +
   server-rendered HTML with progressive enhancement (web UI, works without
@@ -34,11 +37,17 @@ context: |
     end-to-end scenarios E2E-01..E2E-12, and E_* error codes. Tests name them
     with `@pytest.mark.req("P10", ...)`; scripts/traceability_report.py
     collects the markers.
-  - docs/spec/ holds the long-form design rationale; requirements cite their
-    source section as `docs/spec/NN-name.md §X.Y`. Code comments cite those
-    sections too.
-  - Roadmap milestones (docs/spec/15-roadmap.md) that are not yet built are
-    tracked as changes under openspec/changes/.
+  - Each capability has spec.md (normative requirements) and design.md
+    (informative rationale, examples, rejected alternatives).
+  - Code comments, docs, and specs cite requirements as
+    `openspec:<capability>#<requirement-slug>` (the slug is the requirement
+    name lower-cased with runs of other characters replaced by `-`), or
+    `openspec:<capability>` for a whole capability. scripts/check_docs.py
+    fails the build if a reference does not resolve, so renaming a
+    requirement means updating its references.
+  - docs/roadmap.md tracks milestones; milestones not yet built are changes
+    under openspec/changes/. docs/overview.md and docs/open-questions.md hold
+    the project's goals and the lead's open decisions.
   - Rationale is part of the record: every mutating command requires a
     "why", and commits carry structured `Strata-` trailers.
 
@@ -46,16 +55,17 @@ context: |
 rules:
   proposal:
     - 'Name the roadmap milestone the change belongs to, if any.'
-    - 'State whether the change alters identity, normalisation, canonical serialisation, the fold, or the staleness rules; if so, say whether the repository schema version must be bumped (docs/spec/02-repository-format.md §7).'
+    - 'State whether the change alters identity, normalisation, canonical serialisation, the fold, or the staleness rules; if so, say whether the repository schema version must be bumped (openspec:repository-format#format-versioning).'
     - 'Never propose an MCP tool or other automated path that records a screening or criteria decision without a human.'
   specs:
     - 'Use MUST/SHALL for normative requirements; a requirement that is only SHOULD must be folded into a related MUST requirement.'
     - 'Keep existing requirement ids (P*, E2E-*, E_*) verbatim in requirement text, and give any new identified requirement an id when it is written.'
-    - 'End each requirement with a `_Source: ..._` line citing the docs/spec section it came from, or "new in <change-name>" if it has none.'
+    - 'Put rationale, examples, and rejected alternatives in the capability''s design.md (or the change''s design.md), not in requirement text.'
+    - 'Renaming a requirement breaks `openspec:` references to it; update them in the same change.'
   design:
-    - 'Record rejected alternatives and the reason, as docs/spec does.'
+    - 'Record rejected alternatives and the reason.'
   tasks:
-    - 'Include the test work docs/spec/14-testing.md §10.2 requires for each kind of change (regression test, property cases, golden fixture, metafor fixture, determinism assertion, guardrail test, and so on).'
+    - 'Include the test work openspec:test-suite#every-change-carries-its-tests requires for each kind of change (regression test, property cases, golden fixture, metafor fixture, determinism assertion, guardrail test, and so on).'
     - 'Include a task to update the wiki for any new or changed user-facing command, web screen, or concept.'
 
 # Per-operation guidance.

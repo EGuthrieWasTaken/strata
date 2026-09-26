@@ -7,8 +7,7 @@ validation rules and their error codes, derived-drift detection, crash safety,
 and the `--fix` recovery path that restores every invariant after arbitrary
 manual git surgery.
 
-Rationale: `docs/spec/03-schemas.md` §10, `docs/spec/13-nonfunctional.md` §2,
-`docs/spec/04-git-integration.md` §1.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -35,8 +34,6 @@ not just the first:
 
 Each code is an identified requirement and MUST be named by at least one test.
 
-_Source: `docs/spec/03-schemas.md` §10; `docs/spec/14-testing.md` §10.5_
-
 #### Scenario: Multiple violations
 
 - **GIVEN** a repository with a broken hash chain and a dangling criterion reference
@@ -62,8 +59,6 @@ _Source: `docs/spec/03-schemas.md` §10; `docs/spec/14-testing.md` §10.5_
 derived drift, and MUST complete in under 2 seconds on a 50,000-record
 repository. The full `strata verify` MAY take longer and runs in CI.
 
-_Source: `docs/spec/04-git-integration.md` §4_
-
 #### Scenario: Pre-commit check
 
 - **WHEN** the pre-commit hook runs `strata verify --fast` on a 50,000-record repository
@@ -74,8 +69,6 @@ _Source: `docs/spec/04-git-integration.md` §4_
 Every mutation MUST be an append to a log that is fsynced before the user sees
 confirmation. A power failure mid-session loses at most the uncommitted tail,
 which `strata status` MUST detect and offer to commit.
-
-_Source: `docs/spec/13-nonfunctional.md` §2_
 
 #### Scenario: Power loss after decisions were confirmed
 
@@ -89,8 +82,6 @@ _Source: `docs/spec/13-nonfunctional.md` §2_
 Interrupting any command MUST leave the repository in a valid state. A
 partially written NDJSON line has no valid digest; readers MUST skip it rather
 than fail, and `strata verify --fix` MUST truncate it.
-
-_Source: `docs/spec/13-nonfunctional.md` §2; `docs/spec/12-architecture.md` §4_
 
 #### Scenario: Truncated last line
 
@@ -106,8 +97,6 @@ chains after any amount of manual git surgery. `strata` MUST NOT wrap git so
 tightly that manual git use can corrupt the repository beyond what `--fix`
 restores.
 
-_Source: `docs/spec/04-git-integration.md` §1; `docs/spec/13-nonfunctional.md` §2; E2E-08 in `docs/spec/14-testing.md` §5_
-
 #### Scenario: Corrupted derived file, truncated event file, deleted cache
 
 - **GIVEN** a repository with a corrupted `derived/pool.tsv`, an event file truncated mid-line, and a deleted `.strata/cache/`
@@ -120,8 +109,6 @@ Nothing MUST be deleted by ordinary operation: deduplication absorbs,
 retirement retains, exclusion records. The only command that removes data is
 `strata gc --imports`, which prunes raw import files, MUST require
 confirmation, and MUST be documented as breaking reproducibility.
-
-_Source: `docs/spec/13-nonfunctional.md` §2_
 
 #### Scenario: Pruning raw imports
 

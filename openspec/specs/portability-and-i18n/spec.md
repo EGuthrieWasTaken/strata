@@ -6,7 +6,7 @@ Cross-platform support (Linux, macOS, Windows) with the platform pitfalls that
 must be handled, Unicode throughout, and internationalisation rules for strings,
 dates, and decimal separators.
 
-Rationale: `docs/spec/13-nonfunctional.md` §3, §7.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -15,8 +15,6 @@ Rationale: `docs/spec/13-nonfunctional.md` §3, §7.
 `strata` MUST support Linux, macOS (Intel and Apple Silicon), and Windows 10+,
 all tested in CI on every commit. Git 2.23+ MUST be required and checked by
 `strata doctor`.
-
-_Source: `docs/spec/13-nonfunctional.md` §3_
 
 #### Scenario: Old git
 
@@ -31,8 +29,6 @@ case-insensitive filesystems (never relying on two paths differing only by
 case), and reserved filenames (`CON`, `PRN`, `NUL`, `AUX`), which no record id
 or study slug may ever become.
 
-_Source: `docs/spec/13-nonfunctional.md` §3_
-
 #### Scenario: Checkout with autocrlf
 
 - **GIVEN** a Windows user with `core.autocrlf = true`
@@ -46,8 +42,6 @@ input. Filenames derived from user data MUST be sanitised, and ids MUST be
 restricted to `[a-z0-9_]`. Nothing in the UI may assume English or left-to-right
 text.
 
-_Source: `docs/spec/13-nonfunctional.md` §3, §7_
-
 #### Scenario: CJK title
 
 - **WHEN** a record with a Japanese title is imported, screened, and displayed
@@ -60,8 +54,6 @@ initially. Dates in output MUST be ISO 8601; dates in prose follow the locale.
 Numbers in generated files MUST always use `.` as the decimal separator;
 numbers in displayed prose follow the locale. Import MUST detect and handle
 `,`-decimal CSVs.
-
-_Source: `docs/spec/13-nonfunctional.md` §7_
 
 #### Scenario: European CSV
 

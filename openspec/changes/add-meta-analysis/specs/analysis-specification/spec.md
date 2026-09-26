@@ -17,8 +17,6 @@ disagree, `metafor`'s convention is authoritative and the difference MUST be
 documented. Any model `strata` cannot compute correctly MUST be absent, not
 approximated.
 
-_Source: `docs/spec/08-analysis.md` §1_
-
 #### Scenario: Unsupported model requested
 
 - **WHEN** an analysis requests a model the native engine does not implement
@@ -34,8 +32,6 @@ An analysis MUST be declared in `analysis/<id>.yaml` with `id`, `title`,
 `sensitivity`, `plots`, and `seed`. Analyses with `preregistered: false` MUST be
 labelled exploratory in all generated output.
 
-_Source: `docs/spec/08-analysis.md` §2_
-
 #### Scenario: Exploratory analysis
 
 - **GIVEN** `analysis/sensitivity-rct-only.yaml` with `preregistered: false`
@@ -49,8 +45,6 @@ _Source: `docs/spec/08-analysis.md` §2_
 `run.json`). `strata analyze --check` MUST validate specifications and report
 guardrails without computing. Results MUST be committed only when the user runs
 `strata analyze` deliberately, never as a side effect of another command.
-
-_Source: `docs/spec/10-cli.md` §2; `docs/spec/02-repository-format.md` §2; `docs/spec/16-open-questions.md` Q4_
 
 #### Scenario: Screening does not rerun analyses
 
@@ -78,8 +72,6 @@ with an acknowledgement, recorded in `run.json`:
 A blocking guardrail MUST exit with code 8 unless `--force` is given, and a
 forced bypass MUST be recorded in `run.json`.
 
-_Source: `docs/spec/08-analysis.md` §8; `docs/spec/10-cli.md` §1; `docs/spec/16-open-questions.md` Q5_
-
 #### Scenario: Two studies
 
 - **WHEN** a random-effects analysis runs with `k = 2`
@@ -100,8 +92,6 @@ serialisation of the exact effect rows and options fed to the estimator, so
 `strata verify` can distinguish "stale because the data changed" from "stale
 because the tool changed". Given the same repository at the same commit,
 `strata analyze` MUST produce byte-identical output on any platform.
-
-_Source: `docs/spec/08-analysis.md` §9_
 
 #### Scenario: Data changed
 

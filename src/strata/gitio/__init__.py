@@ -1,7 +1,7 @@
 """The only module that shells out to git.
 
-Implements docs/spec/04-git-integration.md and the module boundary in
-docs/spec/12-architecture.md §2, invariant 2: everything else in `strata`
+Implements openspec:git-integration and the module boundary in
+openspec:architecture#only-gitio-invokes-git: everything else in `strata`
 operates on the working tree, never on git directly. This keeps the tool
 usable on a non-git directory for testing and makes the git dependency
 swappable.

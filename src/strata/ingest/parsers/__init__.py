@@ -1,18 +1,22 @@
 """Bibliographic export parsers.
 
-Implements docs/spec/05-workflow-import.md §2.1. Every format module in this
+Implements openspec:literature-import. Every format module in this
 package exposes a single `parse(text: str) -> ParseResult` function that takes
 already-decoded, newline-normalised text (see `decode_bytes`/`normalise_newlines`
 below, used by the import pipeline before dispatch) and returns CSL-JSON-shaped
-record dicts per docs/spec/03-schemas.md §2, *without* the `strata` extension
+record dicts per openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension,
+*without* the `strata` extension
 object -- the import pipeline attaches that once it has assigned ids.
 
-A row that cannot be parsed MUST NOT abort the rest of the file (§2.1): parsers
+A row that cannot be parsed MUST NOT abort the rest of the file
+(openspec:literature-import#tolerant-parsing): parsers
 collect failures as `RejectedRow` entries alongside successful `records`
 instead of raising. A record with a missing or empty title is treated as a
 reject for the same reason -- an empty title is a hard requirement violation
-per docs/spec/03-schemas.md §2, and "the whole import aborts" is a worse
-outcome than "one row didn't make it in", exactly per §2.1's stated rationale.
+per openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension, and "the whole
+import aborts" is a worse
+outcome than "one row didn't make it in", exactly per openspec:literature-import#tolerant-parsing's
+stated rationale.
 """
 
 from __future__ import annotations
@@ -44,7 +48,7 @@ class ParseResult:
 
 
 def decode_bytes(raw: bytes) -> tuple[str, str]:
-    """docs/spec/05-workflow-import.md §2.1 -- the encoding fallback chain.
+    """openspec:literature-import -- the encoding fallback chain.
 
     A byte-order mark is detected explicitly (rather than as a decode
     failure) so it is stripped instead of surviving into the text as a
@@ -71,7 +75,7 @@ def decode_bytes(raw: bytes) -> tuple[str, str]:
 
 
 def normalise_newlines(text: str) -> str:
-    """CRLF and lone CR both become LF (docs/spec/05-workflow-import.md §2.1)."""
+    """CRLF and lone CR both become LF (openspec:literature-import)."""
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 

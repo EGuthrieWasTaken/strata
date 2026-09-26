@@ -1,8 +1,8 @@
 """Structured commit message construction.
 
-Implements docs/spec/04-git-integration.md §2.2. Building the message text is
+Implements openspec:git-integration#structured-commit-messages. Building the message text is
 domain logic and stays out of `strata.gitio`, which only ever shells out to
-git with a message already decided (docs/spec/12-architecture.md §2).
+git with a message already decided (openspec:architecture#module-boundaries).
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ _RATIONALE_STOPLIST = frozenset({".", "x", "fix", "update", "wip", "asdf"})
 
 
 class RationaleRejectedError(ValueError):
-    """The supplied rationale fails docs/spec/04-git-integration.md §2.3."""
+    """The supplied rationale fails openspec:git-integration#eliciting-the-rationale."""
 
 
 def validate_rationale(text: str | None) -> str:

@@ -15,8 +15,6 @@ per report: I have the file, open the DOI in a browser, interlibrary loan
 requested, not retrievable, and skip. Each outcome MUST be recorded as a
 `retrieval` event.
 
-_Source: `docs/spec/07-workflow-extraction.md` §1_
-
 #### Scenario: Outstanding reports
 
 - **GIVEN** 204 reports sought of which 196 are resolved
@@ -31,8 +29,6 @@ DOI exists), `version`, optional `path`, `retrieved`, `source`, and `actor`. The
 manifest is committed; the file is not. `locator` is authoritative; `path` is a
 local convenience with no guarantee.
 
-_Source: `docs/spec/07-workflow-extraction.md` §1, §1.1_
-
 #### Scenario: File obtained via institutional access
 
 - **WHEN** a reviewer presses `f` for a report and supplies a local path
@@ -44,8 +40,6 @@ _Source: `docs/spec/07-workflow-extraction.md` §1, §1.1_
 `sha256` MAY be recorded as advisory metadata; a mismatch MUST NOT be treated as
 an error, MUST NOT produce a warning, and MUST NOT be used to decide whether two
 reviewers saw the same document.
-
-_Source: `docs/spec/07-workflow-extraction.md` §1.1_
 
 #### Scenario: Annotated copies
 
@@ -60,8 +54,6 @@ The manifest MUST distinguish document versions by `version` (`preprint`,
 with `locator` being the identifier of that version and optional `related`
 identifiers of other versions.
 
-_Source: `docs/spec/07-workflow-extraction.md` §1.1_
-
 #### Scenario: Preprint and version of record
 
 - **WHEN** one reviewer assessed the preprint and another the version of record
@@ -74,8 +66,6 @@ Marking a report not retrievable MUST require a reason from the fixed vocabulary
 `other` (with free text). These reasons MUST populate the "Reports not
 retrieved" box of the flow diagram.
 
-_Source: `docs/spec/07-workflow-extraction.md` §1_
-
 #### Scenario: Author did not respond
 
 - **WHEN** a report is marked not retrievable with reason `no-response-from-author`
@@ -86,8 +76,6 @@ _Source: `docs/spec/07-workflow-extraction.md` §1_
 With enrichment enabled, `strata` MAY query Unpaywall for a legal open-access
 copy and offer the link. It MUST NOT download anything automatically and MUST
 NOT touch Sci-Hub or comparable sources.
-
-_Source: `docs/spec/07-workflow-extraction.md` §1_
 
 #### Scenario: Open-access copy available
 

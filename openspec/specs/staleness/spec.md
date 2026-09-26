@@ -8,7 +8,7 @@ change could alter, proves the rest are still valid, cascades staleness forward
 across stages without deleting downstream work, and drives the re-screening and
 audit workflows that clear it.
 
-Rationale, including the soundness argument: `docs/spec/06-workflow-screening.md` §4–§6.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -17,8 +17,6 @@ Rationale, including the soundness argument: `docs/spec/06-workflow-screening.md
 Every `screen` and `adjudicate` event MUST record `criteria_version`, the set
 `criteria_digest`, and the specific `criteria[]` cited, so a decision is always
 interpretable against the exact rules in force when it was made.
-
-_Source: `docs/spec/06-workflow-screening.md` §4.1_
 
 #### Scenario: Screening event contents
 
@@ -42,8 +40,6 @@ Everything else MUST remain valid. For a random criteria change and decision
 set, every decision not marked stale MUST be one whose outcome provably cannot
 change under the declared direction (property P10, tested against a brute-force
 reference implementation, and never weakened to make the suite pass).
-
-_Source: `docs/spec/06-workflow-screening.md` §4.2–§4.3; property P10 in `docs/spec/14-testing.md` §2_
 
 #### Scenario: Criterion added
 
@@ -83,8 +79,6 @@ MUST offer `strata audit --criteria [--sample N]`, which re-presents a random
 sample of past exclusions for verification. The documentation MUST state that
 the tool cannot fully protect against a miscited reason.
 
-_Source: `docs/spec/06-workflow-screening.md` §4.3_
-
 #### Scenario: Audit sample
 
 - **WHEN** `strata audit --criteria --sample 50` runs
@@ -96,8 +90,6 @@ A stale `include` at title-abstract MUST mark the dependent full-text decision
 stale as well (reason `upstream-stale`). Downstream work MUST never be silently
 deleted: an extraction for a study whose record was later excluded is retained,
 marked `orphaned`, and reported.
-
-_Source: `docs/spec/06-workflow-screening.md` §4.4; E2E-06 in `docs/spec/14-testing.md` §5_
 
 #### Scenario: Title-abstract reversal orphans downstream work
 
@@ -121,8 +113,6 @@ Each stale decision MUST carry exactly one of these reasons:
 | `upstream-stale` | A prior-stage decision for this record is stale |
 | `manual` | A user explicitly invalidated it with `strata rescreen --mark <records>` |
 
-_Source: `docs/spec/06-workflow-screening.md` §5_
-
 #### Scenario: Manual invalidation
 
 - **WHEN** a user runs `strata rescreen --mark rec_3kq8v1r0zx2m4a7b --why "..."`
@@ -135,8 +125,6 @@ stale counts, break the stale count down by cause, name the command that
 addresses each problem, and estimate re-screening effort at the reviewer's
 recent pace.
 
-_Source: `docs/spec/06-workflow-screening.md` §6_
-
 #### Scenario: After adding a criterion
 
 - **WHEN** `strata status` runs after a change made 180 decisions stale
@@ -147,8 +135,6 @@ _Source: `docs/spec/06-workflow-screening.md` §6_
 `strata rescreen [--stage S]` MUST open the stale queue showing each record with
 its prior decision (clearly marked as prior), when and under which criteria
 version it was made, and the change that invalidated it.
-
-_Source: `docs/spec/06-workflow-screening.md` §6_
 
 #### Scenario: Stale record presented
 
@@ -161,8 +147,6 @@ The keep-previous action MUST append a fresh `screen` event with the same
 decision at the current criteria version, clearing staleness and recording that
 a human reconsidered it. `strata` MUST NOT offer to mark all stale decisions as
 still valid without an explicit `--i-have-reviewed-these` flag and a rationale.
-
-_Source: `docs/spec/06-workflow-screening.md` §6_
 
 #### Scenario: Keep previous decision
 
@@ -178,8 +162,6 @@ _Source: `docs/spec/06-workflow-screening.md` §6_
 
 Staleness computation over 50,000 decisions MUST complete in under 2 seconds
 (hard limit 5 seconds) on reference hardware.
-
-_Source: `docs/spec/13-nonfunctional.md` §1_
 
 #### Scenario: Large review
 

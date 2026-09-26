@@ -1,4 +1,4 @@
-"""Property tests for identity and normalisation, per docs/spec/14-testing.md §2.
+"""Property tests for identity and normalisation, per openspec:test-suite#property-invariants.
 
 P4 canonical stability, P5 id determinism, P6 normalisation idempotence.
 """
@@ -48,7 +48,7 @@ def test_p5_id_determinism(title: str) -> None:
     """The same input record yields the same id regardless of how many times it's computed.
 
     Excludes the priority-7 (fresh ULID) fallback, which is the one
-    deliberately non-deterministic branch (docs/spec 01-domain-model.md §3.1)
+    deliberately non-deterministic branch (openspec:record-identity)
     — it is reached here only when `title` normalises to nothing at all.
     """
     assume(normalise_title(title))

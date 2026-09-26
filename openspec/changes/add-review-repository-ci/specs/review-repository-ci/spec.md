@@ -15,8 +15,6 @@ to the pool.
 `strata verify` action, and `strata init --ci` MUST install them into a review
 repository.
 
-_Source: `docs/spec/14-testing.md` §11_
-
 #### Scenario: Initialising with CI
 
 - **WHEN** `strata init my-review --ci` runs
@@ -27,8 +25,6 @@ _Source: `docs/spec/14-testing.md` §11_
 The review CI MUST run `strata verify` (schemas, hash chains, dangling
 references, derived drift, count reconciliation) on every pull request and fail
 the check on any violation.
-
-_Source: `docs/spec/14-testing.md` §11_
 
 #### Scenario: Hand-edited event file
 
@@ -41,8 +37,6 @@ The review CI MUST post a pull-request comment built from
 `strata status --json` summarising what the change does to the pool: records
 entering and leaving, decisions invalidated, and conflicts opened.
 
-_Source: `docs/spec/14-testing.md` §11_
-
 #### Scenario: Criteria edit under review
 
 - **WHEN** a pull request tightens a criterion
@@ -52,8 +46,6 @@ _Source: `docs/spec/14-testing.md` §11_
 
 When a pull request changes the criteria, the review CI MUST label it
 `protocol-amendment` and request review from the configured methodologist.
-
-_Source: `docs/spec/14-testing.md` §11_
 
 #### Scenario: Criterion added
 

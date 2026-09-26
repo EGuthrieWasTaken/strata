@@ -15,8 +15,6 @@ The common-effect model MUST be computed as `w_i = 1/v_i`,
 "common-effect" in output (with "fixed-effect" as an alias), and MUST NOT be
 selected by default.
 
-_Source: `docs/spec/08-analysis.md` §4.1_
-
 #### Scenario: Model type omitted
 
 - **WHEN** an analysis file omits `model.type`
@@ -32,8 +30,6 @@ scoring with a step-halving fallback, tolerance 1e-10, and at most 200
 iterations; non-convergence MUST be reported as an error, never a silently
 returned last iterate. Results MUST match `metafor` to 1e-8 (1e-6 for iterative
 estimators).
-
-_Source: `docs/spec/08-analysis.md` §4.2; `docs/spec/14-testing.md` §4.1_
 
 #### Scenario: Non-convergence
 
@@ -53,8 +49,6 @@ mean square with a `t` distribution on `k-1` df, and MUST apply `metafor`'s ad
 hoc truncation (the HK standard error never falls below the Wald standard
 error), documenting that it does.
 
-_Source: `docs/spec/08-analysis.md` §4.3_
-
 #### Scenario: Truncation applies
 
 - **WHEN** the Knapp–Hartung standard error would be smaller than the Wald standard error
@@ -69,8 +63,6 @@ be `mu ± t_{k-2, (1+L)/2} * sqrt(tau^2 + var(mu))`, requires `k >= 3`, and the
 output MUST name the `k-2` df convention. The prediction interval SHOULD appear
 on every random-effects forest plot.
 
-_Source: `docs/spec/08-analysis.md` §4.4_
-
 #### Scenario: Too few studies for a prediction interval
 
 - **WHEN** a random-effects model is fitted with `k = 2`
@@ -84,8 +76,6 @@ Categorical moderators MUST be dummy-coded against the declared reference;
 continuous moderators with `centering: mean` MUST be mean-centred and the
 centring constant reported. `strata` MUST warn when `k / p < 10` and MUST refuse
 to fit when `k <= p`.
-
-_Source: `docs/spec/08-analysis.md` §4.5_
 
 #### Scenario: More parameters than studies
 
@@ -103,8 +93,6 @@ with CR2 and Satterthwaite df; SHOULD implement the CHE working model), and
 explicitly, recorded in results, and swept over {0.2, 0.5, 0.8} automatically.
 `strata` MUST warn below 20 clusters and warn strongly below 10, naming the
 Satterthwaite df achieved.
-
-_Source: `docs/spec/08-analysis.md` §5_
 
 #### Scenario: Multiple outcomes per study with no handling
 

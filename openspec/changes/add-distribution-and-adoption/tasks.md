@@ -4,7 +4,7 @@
 
 - [ ] 1.1 Claim or confirm the PyPI name (ship as `strata-review` until the PEP 541 claim on `strata` succeeds)
 - [ ] 1.2 Standalone PyInstaller binaries for macOS (universal), Windows (x64), Linux (x64, musl), attached to each release
-- [ ] 1.3 Homebrew formula, Docker image, conda-forge recipe
+- [ ] 1.3 Homebrew formula and conda-forge recipe (the container image is `add-container-image`)
 - [ ] 1.4 Test the five-minute first run on all three platforms as a release criterion
 
 ## 2. Migration imports

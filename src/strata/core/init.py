@@ -1,8 +1,9 @@
 """Repository initialisation: `strata init`.
 
-Implements the directory layout in docs/spec/02-repository-format.md §2, the
+Implements the directory layout in openspec:repository-format#directory-layout, the
 `.gitattributes` and merge-driver installation in
-docs/spec/04-git-integration.md §3, and hook installation in §4.
+openspec:git-integration#gitattributes, and hook installation in
+openspec:git-integration#versioned-hooks.
 """
 
 from __future__ import annotations

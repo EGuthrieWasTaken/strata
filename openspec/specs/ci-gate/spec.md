@@ -8,7 +8,7 @@ nightly deep checks, specification integrity checks, the flake policy, and
 release requirements. The gate was built first because the project's
 byte-identity and statistical claims cannot be checked on one laptop.
 
-Rationale: `docs/spec/14-testing.md` §9.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -20,8 +20,6 @@ checks), `release.yml` (tag-triggered build, sign, publish, SBOM), and
 `codeql.yml`, plus `PULL_REQUEST_TEMPLATE.md`, `ISSUE_TEMPLATE/bug.yml`,
 `ISSUE_TEMPLATE/parser.yml` (which asks for the failing export file and whether
 it may be redistributed as a fixture), and `dependabot.yml`.
-
-_Source: `docs/spec/14-testing.md` §9.2_
 
 #### Scenario: Reporting a parser bug
 
@@ -44,8 +42,6 @@ Every pull request MUST run these jobs:
 | 3 | `benchmark` — scale targets at 1k/10k | < 10 min | warn only |
 | 3 | `codeql` | — | warn |
 
-_Source: `docs/spec/14-testing.md` §9.3_
-
 #### Scenario: Non-deterministic output
 
 - **WHEN** a pull request introduces output that differs between two runs
@@ -64,8 +60,6 @@ Workflows MUST:
 - Upload failure artefacts: differing files and a diff for `determinism`, the
   pytest report for `test`, the timing JSON for `benchmark`.
 
-_Source: `docs/spec/14-testing.md` §9.3_
-
 #### Scenario: Action pinned by tag
 
 - **WHEN** a workflow references a third-party action by a moving tag
@@ -80,8 +74,6 @@ always-running `gate` job MUST depend on every tier-1 and tier-2 job and assert
 each finished `success` or `skipped`; `gate` is the required check, so
 documentation-only pull requests stay mergeable while no check that should have
 run can be skipped.
-
-_Source: `docs/spec/14-testing.md` §9.4_
 
 #### Scenario: Documentation-only pull request
 
@@ -101,8 +93,6 @@ dependency review), and `cold-install` (install the published artefact from
 scratch on each platform and run the quickstart). Nightly failures MUST open an
 issue automatically.
 
-_Source: `docs/spec/14-testing.md` §9.5_
-
 #### Scenario: Nightly failure
 
 - **WHEN** a nightly job fails
@@ -112,24 +102,41 @@ _Source: `docs/spec/14-testing.md` §9.5_
 
 `docs.yml` MUST verify on every pull request that:
 
-1. Every relative markdown link in the specification resolves to an existing file.
-2. Every `#anchor` resolves to an existing heading in the target file.
-3. Every fenced `toml`, `yaml`, and `json` block in `docs/spec/` parses.
-4. Every document referenced in `docs/spec/README.md` exists, and every
-   document in `docs/spec/` is listed there.
-5. The OpenSpec specs and change proposals under `openspec/` pass
+1. Every relative Markdown link in `README.md`, `docs/`, `openspec/`, and
+   `.github/` resolves to an existing file.
+2. Every `#anchor` in those links resolves to an existing heading in the target
+   file.
+3. Every fenced `toml`, `yaml`, and `json` block in `openspec/` and `docs/`
+   parses.
+4. Every capability under `openspec/specs/` has both a `spec.md` and a
+   `design.md` and is listed in `openspec/README.md`, and every capability
+   listed there exists.
+5. Every `openspec:<capability>` and `openspec:<capability>#<requirement-slug>`
+   reference in the repository resolves to an existing capability and
+   requirement, in `openspec/specs/` or in a change's delta specs.
+6. No file outside the historical milestone plans and the changelog refers to
+   the retired long-form specification directory.
+7. The OpenSpec specs and change proposals under `openspec/` pass
    `openspec validate --all --strict`.
 
-_Source: `docs/spec/14-testing.md` §9.6; extended when the specification moved to OpenSpec_
+#### Scenario: Renamed requirement
+
+- **WHEN** a requirement is renamed and a code comment still cites its old slug
+- **THEN** the `docs` job fails naming the file, line, and unresolved reference
 
 #### Scenario: Renumbered section
 
-- **WHEN** a section is renumbered and another document still links to its old anchor
+- **WHEN** a heading is renamed and another document still links to its old anchor
 - **THEN** the `docs` job fails naming the broken anchor
 
 #### Scenario: Requirement without a scenario
 
 - **WHEN** a pull request adds an OpenSpec requirement with no scenario
+- **THEN** the `docs` job fails
+
+#### Scenario: Capability without a design note
+
+- **WHEN** a pull request adds `openspec/specs/<capability>/spec.md` without a `design.md`
 - **THEN** the `docs` job fails
 
 ### Requirement: Flake policy
@@ -138,8 +145,6 @@ Blanket retry plugins MUST NOT be configured. A job MAY be re-run at most once,
 and only when it died before any test body executed. Skipping, `xfail`-ing, or
 quarantining a test to get a green build is forbidden; a nondeterministic test
 is a bug in the test and MUST be seeded.
-
-_Source: `docs/spec/14-testing.md` §9.7_
 
 #### Scenario: Intermittent failure
 
@@ -151,8 +156,6 @@ _Source: `docs/spec/14-testing.md` §9.7_
 A release MUST additionally require a green nightly, a clean full suite on all
 platforms, updated documentation, a `CHANGELOG` entry, signed artefacts, a
 published SBOM, and `cold-install` green on the release candidate.
-
-_Source: `docs/spec/14-testing.md` §9.8_
 
 #### Scenario: Missing changelog
 

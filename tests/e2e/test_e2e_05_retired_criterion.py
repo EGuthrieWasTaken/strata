@@ -3,7 +3,7 @@ cascade across however many records relied on it), and re-screening lets
 each one land wherever the remaining, still-active grounds actually put it
 -- some stay excluded on separate grounds, some get promoted back in.
 
-docs/spec/14-testing.md §5: "A criterion retired after exclusions cited it;
+openspec:test-suite#end-to-end-scenarios: "A criterion retired after exclusions cited it;
 assert cascade and re-screen." Single reviewer (see test_e2e_04's docstring
 for why: this is a criteria/staleness-mechanics scenario, not a dual-review
 one -- that is E2E-01's job).

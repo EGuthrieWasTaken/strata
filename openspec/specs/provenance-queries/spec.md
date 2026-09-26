@@ -6,7 +6,7 @@ The commands that answer "why is this paper in (or out of) the review?" and
 "what changed?" from the event log and structured git history: `strata why`,
 `strata log`, and `strata diff`.
 
-Rationale and example output: `docs/spec/04-git-integration.md` §6.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -20,8 +20,6 @@ any criteria change that made it stale with the commit and rationale, retrieval,
 full-text decisions, study grouping, and extraction. Each line MUST cite the
 event id and, with `-v`, the commit that carried it. Record ids MAY be
 abbreviated to any unambiguous prefix.
-
-_Source: `docs/spec/04-git-integration.md` §6.1_
 
 #### Scenario: Record found by two searches
 
@@ -41,8 +39,6 @@ _Source: `docs/spec/04-git-integration.md` §6.1_
 `Strata-` trailers rather than as commits. `--criteria` MUST filter to protocol
 changes, `--stage` to one screening stage, and `--actor` to one person.
 
-_Source: `docs/spec/04-git-integration.md` §6.2_
-
 #### Scenario: Protocol changes only
 
 - **WHEN** `strata log --criteria` runs
@@ -54,8 +50,6 @@ _Source: `docs/spec/04-git-integration.md` §6.2_
 history: criteria versions and deltas, records identified and duplicates, pool
 changes per stage, included studies, and — once analyses exist — the change in
 each committed pooled estimate.
-
-_Source: `docs/spec/04-git-integration.md` §6.3_
 
 #### Scenario: Criteria and pool changes between two tags
 

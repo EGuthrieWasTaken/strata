@@ -6,7 +6,7 @@ The small, safe `--filter` expression language used identically by the CLI, the
 web UI, and analysis specifications to select records and effects — parsed to
 an AST and interpreted, never evaluated as host-language code.
 
-Rationale: `docs/spec/10-cli.md` §3.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -14,8 +14,6 @@ Rationale: `docs/spec/10-cli.md` §3.
 
 The filter language MUST NOT be implemented by evaluating the host language (no
 `eval`, no `exec`); it MUST be parsed to an AST and interpreted.
-
-_Source: `docs/spec/10-cli.md` §3_
 
 #### Scenario: Injection attempt
 
@@ -36,8 +34,6 @@ comparison := field op value
 op         := "==" | "!=" | "<" | "<=" | ">" | ">=" | "in" | "not in" | "contains" | "matches"
 value      := string | number | boolean | null | list
 ```
-
-_Source: `docs/spec/10-cli.md` §3_
 
 #### Scenario: Precedence
 
@@ -69,8 +65,6 @@ The language MUST expose these fields, with the listed semantics:
 | `rob_overall`, `rob.<domain>` | string | |
 | `derived_from_pvalue`, `assumed_correlation` | boolean/number | Effect-level |
 
-_Source: `docs/spec/10-cli.md` §3_
-
 #### Scenario: Case-insensitive contains
 
 - **WHEN** `title contains 'SPACING'` is evaluated against a record titled "Spacing effects in learning"
@@ -90,8 +84,6 @@ _Source: `docs/spec/10-cli.md` §3_
 
 `matches` MUST use a linear-time regex engine or enforce a timeout, so
 user-supplied patterns cannot hang the tool.
-
-_Source: `docs/spec/10-cli.md` §3; `docs/spec/13-nonfunctional.md` §5_
 
 #### Scenario: Catastrophic backtracking pattern
 

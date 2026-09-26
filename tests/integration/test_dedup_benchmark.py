@@ -1,4 +1,5 @@
-"""The labelled dedup benchmark's CI gate: docs/spec/05-workflow-import.md §3.8.
+"""The labelled dedup benchmark's CI gate:
+openspec:deduplication#validation-against-a-labelled-benchmark.
 
 Runs `scripts/dedup_benchmark.py`'s `run_benchmark()` against the checked-in
 fixture (`tests/fixtures/dedup-benchmark/`) and asserts the v1 acceptance

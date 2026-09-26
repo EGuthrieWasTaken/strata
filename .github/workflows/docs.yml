@@ -1,8 +1,8 @@
 name: Docs
 
-# Specification integrity checks: docs/spec/14-testing.md §9.6. Kept as its
-# own workflow per docs/spec/12-architecture.md §2 / 14-testing.md §9.2, and
-# required directly in branch protection (§9.4) since GitHub Actions `needs:`
+# Specification integrity checks: openspec:ci-gate#specification-integrity-checks. Kept as its
+# own workflow per openspec:architecture#module-boundaries / openspec:ci-gate#ci-files, and
+# required directly in branch protection (openspec:ci-gate#branch-protection-and-the-gate-job) since GitHub Actions `needs:`
 # cannot reach across workflow files into `ci.yml`'s `gate` job.
 on:
   pull_request:

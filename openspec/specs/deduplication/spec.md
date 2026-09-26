@@ -6,7 +6,7 @@ Finding and merging the same paper imported from several databases —
 conservatively, reversibly, explainably, and stickily — so a missed duplicate
 does not double-count a study and an over-eager merge does not delete one.
 
-Rationale: `docs/spec/05-workflow-import.md` §3.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -22,8 +22,6 @@ Deduplication MUST be:
 - **Conservative**: when uncertain, ask.
 - **Explainable**: every automatic merge MUST store the features that drove it,
   so `strata why` can show them.
-
-_Source: `docs/spec/05-workflow-import.md` §3.1; E2E-07 in `docs/spec/14-testing.md` §5_
 
 #### Scenario: Late fourth import
 
@@ -52,8 +50,6 @@ share any block key:
 
 Any single block MUST be capped at 2,000 members; on exceeding it the block is
 split by year and a warning is emitted.
-
-_Source: `docs/spec/05-workflow-import.md` §3.2_
 
 #### Scenario: Title differs by a subtitle
 
@@ -93,8 +89,6 @@ Scoring MUST be symmetric: `score(a, b) == score(b, a)`.
 DOI-mismatched pairs that score above `review_threshold` on the non-DOI features
 MUST be routed to the review queue labelled `doi-conflict` rather than discarded.
 
-_Source: `docs/spec/05-workflow-import.md` §3.3; property P8 in `docs/spec/14-testing.md` §2_
-
 #### Scenario: Equal DOIs
 
 - **WHEN** two records with the same normalised DOI are scored
@@ -116,8 +110,6 @@ _Source: `docs/spec/05-workflow-import.md` §3.3; property P8 in `docs/spec/14-t
 
 `strata dedup --strict` MUST set both thresholds to 1.0 so every non-exact pair
 is reviewed.
-
-_Source: `docs/spec/05-workflow-import.md` §3.4_
 
 #### Scenario: Pair scoring 0.88
 
@@ -141,8 +133,6 @@ a set union; `strata.sources` is appended; every field's origin is recorded in
 `records.ndjson` with `strata.canonical: false` and an `aliases.ndjson` entry;
 nothing is deleted.
 
-_Source: `docs/spec/05-workflow-import.md` §3.5_
-
 #### Scenario: Truncated abstract on the canonical record
 
 - **GIVEN** a canonical record with a truncated abstract and an absorbed record with the full abstract
@@ -162,8 +152,6 @@ the evidence visible (both records, per-feature similarities, and any
 help. Keeping both MUST record a `dedup-distinct` event so the pair is never
 raised again.
 
-_Source: `docs/spec/05-workflow-import.md` §3.6_
-
 #### Scenario: Keep both
 
 - **WHEN** a reviewer presses `k` on a pair
@@ -174,8 +162,6 @@ _Source: `docs/spec/05-workflow-import.md` §3.6_
 Deduplicating 50,000 records MUST complete in under 120 seconds on a 2020-era
 laptop, single-threaded, and MUST NOT exceed 2 GB of resident memory.
 Implementations SHOULD parallelise scoring across blocks.
-
-_Source: `docs/spec/05-workflow-import.md` §3.7_
 
 #### Scenario: 50,000-record dedup
 
@@ -188,8 +174,6 @@ The dedup engine MUST be evaluated against a labelled benchmark with results
 published in the repository, reporting precision, recall, F1, and — separately
 and weighted most heavily — the false-merge rate. The v1 target is recall
 >= 0.95 and false-merge rate <= 0.001 at default thresholds.
-
-_Source: `docs/spec/05-workflow-import.md` §3.8_
 
 #### Scenario: Benchmark run
 

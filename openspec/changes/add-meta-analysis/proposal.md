@@ -11,8 +11,7 @@ pool. It is the milestone where the project's credibility is established or
 lost, so every estimator is validated against `metafor` and published worked
 examples before it ships.
 
-Roadmap milestone: M4 (`docs/spec/15-roadmap.md`). Design detail and formulae:
-`docs/spec/08-analysis.md`.
+Roadmap milestone: M4 ([docs/roadmap.md](../../../docs/roadmap.md)). Design detail: [design.md](design.md).
 
 ## What Changes
 

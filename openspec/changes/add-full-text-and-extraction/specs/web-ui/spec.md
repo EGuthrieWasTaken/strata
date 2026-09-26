@@ -16,8 +16,6 @@ These screens MUST meet the same keyboard, accessibility, and security
 requirements as the screening surface, and the coding form MUST make entering a
 source locator a single keystroke.
 
-_Source: `docs/spec/11-web-ui.md` §2; `docs/spec/03-schemas.md` §6_
-
 #### Scenario: Reconciling in the browser
 
 - **WHEN** a reconciler resolves a disagreement at `/extract/<study>/reconcile`

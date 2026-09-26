@@ -1,5 +1,5 @@
-"""Derived views: docs/spec/02-repository-format.md §6.1 (`pool.tsv`) and
-§6.3 (`conflicts.tsv`).
+"""Derived views: openspec:derived-views#candidate-pool-view (`pool.tsv`) and
+openspec:derived-views#conflicts-view (`conflicts.tsv`).
 
 `derived/stale.tsv` and `derived/irr.json` are computed in
 `protocol.rescreen`/`protocol.irr` respectively, since their logic is
@@ -37,7 +37,7 @@ _STAGE_COLUMN = {"title-abstract": "tiab", "full-text": "ft"}
 
 
 def _tsv_escape(cell: str) -> str:
-    """docs/spec/02-repository-format.md §5.4: tabs/CR/LF become a single space."""
+    """openspec:canonical-serialisation#tsv-rules: tabs/CR/LF become a single space."""
     return cell.replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 

@@ -20,8 +20,6 @@ inputs each requires. Field types MUST include `integer`, `number`, `quantity`,
 `strata extract init` MUST generate a draft schema from the protocol's declared
 moderators and outcomes.
 
-_Source: `docs/spec/03-schemas.md` §6; `docs/spec/07-workflow-extraction.md` §3.1_
-
 #### Scenario: Draft form from the protocol
 
 - **GIVEN** moderators `mean_age` and `design` in `protocol/moderators.yaml`
@@ -33,8 +31,6 @@ _Source: `docs/spec/03-schemas.md` §6; `docs/spec/07-workflow-extraction.md` §
 Schema changes MUST bump `version`. Adding a required field MUST mark existing
 extractions incomplete for that field, not invalid: `strata status` lists
 studies with missing values and `strata extract --missing` queues exactly those.
-
-_Source: `docs/spec/03-schemas.md` §6; `docs/spec/07-workflow-extraction.md` §3.1_
 
 #### Scenario: New required field mid-extraction
 
@@ -52,8 +48,6 @@ inputs, source, and moderators. Every extracted value SHOULD carry a source
 locator; the UI MUST make entering one a single keystroke, and `strata report`
 MUST be able to emit a per-value provenance table.
 
-_Source: `docs/spec/03-schemas.md` §6–§7_
-
 #### Scenario: Provenance table
 
 - **WHEN** a per-value provenance table is requested
@@ -64,8 +58,6 @@ _Source: `docs/spec/03-schemas.md` §6–§7_
 A `quantity` field MUST store the entered value and unit and the normalised
 value. Unit conversion tables MUST ship for time, mass, length, and dose and be
 extensible per project. An unconvertible unit is `E_UNIT` and blocks analysis.
-
-_Source: `docs/spec/07-workflow-extraction.md` §3.3_
 
 #### Scenario: Retention interval in weeks
 
@@ -88,8 +80,6 @@ reconciliation MUST write a `reconcile` event with the chosen value, its source,
 and a rationale. `strata report` MUST be able to state the extraction agreement
 rate.
 
-_Source: `docs/spec/07-workflow-extraction.md` §3.2_
-
 #### Scenario: Disagreement on a retention interval
 
 - **GIVEN** `ethan` extracted 168 h and `sam` 24 h
@@ -104,8 +94,6 @@ p-value only (`p, n1, n2, direction`), pre-computed (`yi, vi, measure`), and
 pre-post (`n, m_pre, sd_pre, m_post, sd_post, r`), and MUST show the computed
 effect size immediately as the user types. An effect lacking the fields its
 declared design requires is `E_EFFECT_INPUTS`.
-
-_Source: `docs/spec/07-workflow-extraction.md` §3.4; `docs/spec/03-schemas.md` §10_
 
 #### Scenario: SD entered as SE
 
@@ -127,8 +115,6 @@ size; and a reported statistic inconsistent with its p-value (GRIM/statcheck
 style, for t and F tests). Every warning MUST be recordable as acknowledged,
 with a note, so it does not recur and the acknowledgement is auditable.
 
-_Source: `docs/spec/07-workflow-extraction.md` §3.5_
-
 #### Scenario: Implausibly large effect
 
 - **WHEN** an entered effect yields `g = 4.2`
@@ -146,8 +132,6 @@ _Source: `docs/spec/07-workflow-extraction.md` §3.5_
 effect with all study-level and effect-level moderators joined, including
 `study_id` and `effect_id`, directly loadable by `metafor::rma()`.
 
-_Source: `docs/spec/07-workflow-extraction.md` §5_
-
 #### Scenario: Export to R
 
 - **WHEN** `strata export effects --format csv` output is read into R
@@ -158,8 +142,6 @@ _Source: `docs/spec/07-workflow-extraction.md` §5_
 `strata verify` MUST report `E_ORPHAN_EXTRACTION` for an extraction whose study
 is not included (retaining the extraction), and `E_MISSING_EXTRACTION` for an
 included study with no consensus extraction (a warning until analysis).
-
-_Source: `docs/spec/03-schemas.md` §10; `docs/spec/06-workflow-screening.md` §4.4_
 
 #### Scenario: Study excluded after extraction
 

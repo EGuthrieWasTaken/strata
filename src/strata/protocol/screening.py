@@ -1,5 +1,5 @@
-"""Screening: docs/spec/06-workflow-screening.md §1-§2, §7; docs/spec/10-cli.md
-§"Screening" (`strata screen`, `strata assign`).
+"""Screening: openspec:screening; the "Screening commands" requirement of openspec:cli
+(`strata screen`, `strata assign`).
 
 Combines `strata.core.fold.resolve_screening` (the pure state-resolution
 logic, built in M0 in anticipation of this milestone) with the repository
@@ -8,9 +8,10 @@ reading `events/screen/<stage>.<actor>.ndjson` and
 `events/assign/<actor>.ndjson`, validating a decision against the active
 criteria set, and appending the `screen`/`assign` events themselves.
 
-Blinding (docs/spec/06 §2) is structural, not a runtime check: each
+Blinding (openspec:screening#dual-independent-screening-with-blinding) is structural, not a runtime
+check: each
 reviewer's `screen` events live in their own file
-(docs/spec/02-repository-format.md §4.5), and nothing in this module ever
+(openspec:event-log#file-sharding), and nothing in this module ever
 reads *another* actor's opinion to decide what to show the current one --
 `stage_queue` only ever asks "does `actor` have an opinion on this record
 yet", never what that opinion (or anyone else's) actually is.
@@ -128,7 +129,7 @@ def resolve_record_state(
     assign_events: list[dict[str, Any]] | None = None,
     adjudicate_events: list[dict[str, Any]] | None = None,
 ) -> ScreeningState:
-    """A single record's resolved screening state at `stage` (docs/spec 02 §4.3)."""
+    """A single record's resolved screening state at `stage` (openspec:event-log#the-fold)."""
     events = screen_events if screen_events is not None else all_screen_events(repo, stage)
     record_events = [e for e in events if e["body"]["record"] == record_id]
     assigned = assigned_actors(repo, stage, record_id, assign_events=assign_events)
@@ -146,7 +147,7 @@ def stage_queue(
 ) -> list[str]:
     """Record ids assigned to `actor` at `stage` this actor has not yet opined on.
 
-    Sorted by id for a deterministic, resumable order (docs/spec/11-web-ui.md
+    Sorted by id for a deterministic, resumable order (openspec:web-ui
     S14/S8): closing and reopening a session simply re-derives the same
     queue, minus whatever has since been decided.
     """
@@ -222,7 +223,7 @@ def _validate_and_build_body(
         if stage == "full-text":
             raise ScreeningError(
                 "an exclude decision at full-text always requires at least one cited "
-                "criterion (docs/spec/06 §7)"
+                "criterion (openspec:screening#screening-surface-contract)"
             )
         if require_reason:
             raise ScreeningError(
@@ -259,7 +260,7 @@ def record_screen_decision(
     note: str | None = None,
     confidence: str | None = None,
 ) -> dict[str, Any]:
-    """Append one `screen` event: docs/spec/02-repository-format.md §4.4.
+    """Append one `screen` event: openspec:event-log#event-types.
 
     A reviewer who changes their mind simply calls this again for the same
     `(stage, record_id, actor)` -- last-write-wins already handles the
@@ -301,7 +302,7 @@ def _parse_decisions_tsv(text: str) -> list[dict[str, str]]:
 
 
 def import_decisions_tsv(repo: Repo, *, stage: str, text: str, actor: str) -> list[dict[str, Any]]:
-    """`strata screen --decisions <file>` (docs/spec/10-cli.md §5).
+    """`strata screen --decisions <file>` (openspec:cli#non-interactive-use).
 
     Every row is attributed to `actor` and marked `imported: true` in the
     event body, "because their independence cannot be verified." All rows
@@ -338,7 +339,7 @@ def assign_reviewers(
     actor: str,
     filter_expr: str | None = None,
 ) -> dict[str, Any]:
-    """`strata assign`: docs/spec/02-repository-format.md §4.4's `assign` event."""
+    """`strata assign`: openspec:event-log#event-types's `assign` event."""
     if stage not in configured_stages(repo):
         raise ScreeningError(
             f"unknown stage {stage!r}; configured stages are {configured_stages(repo)!r}"

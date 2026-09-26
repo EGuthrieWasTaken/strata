@@ -7,7 +7,7 @@ a versioned protocol, including the mandatory classification of every
 definition change by direction — the input the staleness engine needs to
 compute exactly which prior decisions a change invalidates.
 
-Rationale: `docs/spec/06-workflow-screening.md` §3.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -19,8 +19,6 @@ Rationale: `docs/spec/06-workflow-screening.md` §3.
 invalidated). Any change to the active criteria set MUST increment
 `criteria.version` by one, recompute digests, and emit a `criteria-change` event
 carrying the deltas, the rationale, and the from/to versions.
-
-_Source: `docs/spec/06-workflow-screening.md` §3.1; `docs/spec/10-cli.md` §2_
 
 #### Scenario: Adding a criterion
 
@@ -49,8 +47,6 @@ the change, because the tool cannot reliably infer it from text:
 A criterion **added** MUST behave as `tightened`; a criterion **retired** MUST
 behave as `loosened`.
 
-_Source: `docs/spec/06-workflow-screening.md` §3.2_
-
 #### Scenario: Definition edited interactively
 
 - **WHEN** a user edits `EXC-03`'s definition
@@ -68,8 +64,6 @@ NOT accept it on trust: it MUST verify that only `label`, `examples`, or
 whitespace changed, and MUST refuse `editorial` if the `definition` text changed
 in any other way. `both` MUST always be available as the safe choice.
 
-_Source: `docs/spec/06-workflow-screening.md` §3.2_
-
 #### Scenario: Meaningful edit claimed as editorial
 
 - **WHEN** a user changes "not written in English" to "not written in English or French" and chooses `editorial`
@@ -84,8 +78,6 @@ _Source: `docs/spec/06-workflow-screening.md` §3.2_
 
 Retired criteria MUST stay in `protocol/criteria.yaml` forever, and criterion
 ids MUST never be reused (`E_CRITERION_REUSE`).
-
-_Source: `docs/spec/06-workflow-screening.md` §3; `docs/spec/03-schemas.md` §3, §10_
 
 #### Scenario: Id reuse detected
 

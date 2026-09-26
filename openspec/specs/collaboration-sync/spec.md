@@ -7,7 +7,7 @@ with domain-level reporting, arranged so that dual independent screening never
 produces a git-level conflict and disagreement surfaces in the adjudication
 queue instead.
 
-Rationale: `docs/spec/04-git-integration.md` §5.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -31,8 +31,6 @@ Rationale: `docs/spec/04-git-integration.md` §5.
 9. Push with `git push -u origin <branch>`, with the same retry policy.
 10. Report domain-level consequences (who screened what, pool changes, new
     conflicts and the command that addresses them).
-
-_Source: `docs/spec/04-git-integration.md` §5_
 
 #### Scenario: Dirty working tree
 
@@ -59,8 +57,6 @@ edited the same criterion definition or the same `question.md` paragraph),
 open an editor. It MUST NOT show raw conflict markers unless the user chooses
 the editor. Such a conflict exits with code 5 when it requires human resolution.
 
-_Source: `docs/spec/04-git-integration.md` §5_
-
 #### Scenario: Two people edited the same criterion
 
 - **WHEN** `strata sync` merges divergent edits to `EXC-03`'s definition
@@ -73,8 +69,6 @@ so two reviewers screening the same records touch disjoint files, and
 disagreement between reviewers is never a git-level event — it appears in
 `derived/conflicts.tsv` and the adjudication queue. Any change to file sharding
 MUST preserve this property.
-
-_Source: `docs/spec/04-git-integration.md` §5.1; E2E-02 in `docs/spec/14-testing.md` §5_
 
 #### Scenario: Concurrent screening on separate clones
 

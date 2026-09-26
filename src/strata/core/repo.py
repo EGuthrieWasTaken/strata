@@ -1,7 +1,7 @@
 """Repository discovery, configuration, and locking.
 
-Implements the repository-facing half of docs/spec/02-repository-format.md
-and the locking model in docs/spec/12-architecture.md §4.
+Implements the repository-facing half of openspec:repository-format
+and the locking model in openspec:architecture#concurrency-and-locking.
 """
 
 from __future__ import annotations
@@ -82,7 +82,8 @@ def open_repo(start: Path | None = None) -> Repo:
 
 @contextlib.contextmanager
 def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[None]:
-    """Advisory lock guarding mutating operations, per docs/spec/12-architecture.md §4.
+    """Advisory lock guarding mutating operations, per
+    openspec:architecture#concurrency-and-locking.
 
     Readers never take this lock. Held for the duration of an append-plus-commit.
     """

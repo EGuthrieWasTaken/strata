@@ -1,12 +1,12 @@
 """The fold: event log -> current state.
 
-Implements docs/spec/02-repository-format.md §4.3. This module is **pure**:
-no I/O, no clock, no randomness, no git (docs/spec/12-architecture.md §2,
+Implements openspec:event-log#the-fold. This module is **pure**:
+no I/O, no clock, no randomness, no git (openspec:architecture#module-boundaries,
 invariant 1). Every function here takes events already in memory and returns
 a value; nothing here reads a file or knows what a repository is.
 
 This module is one of the five held to 100% branch coverage
-(docs/spec/14-testing.md §1), because a bug here silently corrupts every
+(openspec:test-suite#test-levels-and-coverage-floors), because a bug here silently corrupts every
 derived view built on top of it.
 """
 
@@ -19,7 +19,7 @@ from typing import Any, TypeVar
 Event = dict[str, Any]
 K = TypeVar("K", bound=Hashable)
 
-# docs/spec/01-domain-model.md §4 — screening states.
+# openspec:domain-model#screening-states-per-stage — screening states.
 UNSCREENED = "unscreened"
 PARTIAL = "partial"
 CONFLICT = "conflict"
@@ -71,7 +71,7 @@ def fold_last_write_wins(events: Iterable[Event], key_fn: Callable[[Event], K]) 
 def fold_first_write(events: Iterable[Event], key_fn: Callable[[Event], K]) -> dict[K, Event]:
     """Like `fold_last_write_wins`, but keeps the *first* event per key.
 
-    Needed for IRR (docs/spec/02-repository-format.md §6.5): an opinion
+    Needed for IRR (openspec:derived-views#inter-rater-reliability-view): an opinion
     changed after seeing another reviewer's decision must be excluded from
     inter-rater reliability, which requires keeping each actor's first
     opinion on a record as well as their last.
@@ -87,7 +87,7 @@ def fold_first_write(events: Iterable[Event], key_fn: Callable[[Event], K]) -> d
 
 @dataclass(frozen=True)
 class ScreeningState:
-    """The resolved state of one (stage, record), per docs/spec 02 §4.3."""
+    """The resolved state of one (stage, record), per openspec:event-log#the-fold."""
 
     status: str
     opinions: dict[str, Event] = field(default_factory=dict)

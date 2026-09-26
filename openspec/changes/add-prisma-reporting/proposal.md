@@ -9,8 +9,7 @@ repository already knows. Transcribing them by hand is a documented source of
 mismatch between what a review says it did and what it did. M5 generates them
 from the event log and commit trailers, and `1.0.0` ships here.
 
-Roadmap milestone: M5 (`docs/spec/15-roadmap.md`). Design detail:
-`docs/spec/09-reporting.md`.
+Roadmap milestone: M5 ([docs/roadmap.md](../../../docs/roadmap.md)). Design detail: [design.md](design.md).
 
 ## What Changes
 

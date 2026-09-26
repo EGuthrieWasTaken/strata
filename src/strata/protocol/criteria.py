@@ -1,22 +1,23 @@
 """Criteria management: `protocol/criteria.yaml` and the `criteria-change` event.
 
-Implements docs/spec/06-workflow-screening.md §3 (direction classification)
-and docs/spec/03-schemas.md §3 (the file shape and digest rules).
+Implements openspec:criteria-management (direction classification)
+and openspec:data-schemas#criteria-file-schema-and-digests (the file shape and digest rules).
 
 `criteria.yaml` is declarative configuration like `strata.toml` -- rewritten
 in full on every change -- not an event-sourced view. The `criteria-change`
 event in `events/criteria/<actor>.ndjson` is what makes the history
-auditable and is what docs/spec/06-workflow-screening.md §4's staleness
-rules are computed against; the YAML file only ever holds the *current*
+auditable and is what openspec:staleness#the-staleness-rules
+are computed against; the YAML file only ever holds the *current*
 state.
 
-**Version numbering decision.** docs/spec/06-workflow-screening.md §3.1 (the
+**Version numbering decision.** openspec:criteria-management#criteria-commands-and-versioning (the
 normative section) says "*any* change to the active criteria set increments
 `criteria.version` by one." Taken literally, adding six criteria during
 initial protocol setup produces version 6, not version 1 -- which
-contradicts the terse "# 6 criteria, version 1" comment in §9's worked
-example. Since §9 is explicitly informative and §3.1 is explicitly
-normative, this module follows §3.1 literally: every `add`/`edit`/`retire`
+contradicts the terse "# 6 criteria, version 1" comment in the worked
+example (openspec/specs/staleness/design.md). Since that example is informative and the requirement
+is
+normative, this module follows the requirement literally: every `add`/`edit`/`retire`
 bumps the version by one, full stop. `strata init` seeds `criteria.yaml` at
 version 0 (not 1) precisely so that whichever criteria are added before the
 protocol's first post-launch amendment land at `since_version: 1`, matching
@@ -54,7 +55,7 @@ _DIRECTIONS: tuple[Direction, ...] = get_args(Direction)
 _ID_RE = re.compile(r"^(INC|EXC)-(\d+)$")
 _WHITESPACE_RE = re.compile(r"\s+")
 
-# Schema-declared key order (docs/spec/02-repository-format.md §5.3).
+# Schema-declared key order (openspec:canonical-serialisation#yaml-rules).
 _FIELD_ORDER = (
     "id",
     "kind",
@@ -80,7 +81,8 @@ def _empty_digest() -> str:
 
 
 def per_criterion_digest(criterion: dict[str, Any]) -> str:
-    """docs/spec/03-schemas.md §3: sha256 over `{id, kind, definition, applies_at}`.
+    """openspec:data-schemas#criteria-file-schema-and-digests: sha256 over `{id, kind, definition,
+    applies_at}`.
 
     `label` and `examples` are deliberately excluded: relabelling is
     presentationally significant but never semantically significant, so it
@@ -228,7 +230,8 @@ def add_criterion(
     criterion_id: str | None = None,
     examples: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
-    """Add a criterion. A criterion **added** behaves as `tightened` (§3.2)."""
+    """Add a criterion. A criterion **added** behaves as `tightened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     if kind not in _KINDS:
         raise CriteriaError(f"kind must be one of {_KINDS}, got {kind!r}")
     if not label.strip():
@@ -289,7 +292,8 @@ def edit_criterion(
 ) -> dict[str, Any]:
     """Edit a criterion's definition/label/applies_at/examples.
 
-    `direction` MUST be supplied by the caller (docs/spec 06 §3.2 -- the tool
+    `direction` MUST be supplied by the caller
+    (openspec:criteria-management#declaring-the-direction-of-a-change -- the tool
     asks the user to classify every definition change because it cannot
     reliably infer the classification from text). The `editorial` guard is
     enforced here: `editorial` is refused unless comparing old and new
@@ -363,9 +367,10 @@ def edit_criterion(
 def retire_criterion(
     repo: Repo, criterion_id: str, *, actor: str, rationale: str
 ) -> dict[str, Any]:
-    """Retire a criterion. A criterion **retired** behaves as `loosened` (§3.2).
+    """Retire a criterion. A criterion **retired** behaves as `loosened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change).
 
-    The id is never reused (docs/spec/01-domain-model.md §3.4); the entry
+    The id is never reused (openspec:record-identity#identifiers-for-other-entities); the entry
     stays in the file forever with `status: retired`.
     """
     doc = read_criteria_doc(repo)
@@ -408,8 +413,8 @@ def reconstruct_at_version(repo: Repo, version: int) -> list[dict[str, Any]]:
 
     Last-write-wins per criterion id, restricted to changes whose
     `to_version` does not exceed `version` -- the same fold shape as
-    everything else in this codebase (docs/spec/02-repository-format.md
-    §4.3), applied here to a declarative config file's own history rather
+    everything else in this codebase (
+    openspec:event-log#the-fold), applied here to a declarative config file's own history rather
     than to `records.ndjson`.
     """
     state: dict[str, dict[str, Any]] = {}

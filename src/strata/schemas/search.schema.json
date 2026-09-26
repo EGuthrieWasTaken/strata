@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://strata-review.org/schemas/search.schema.json",
   "title": "Search",
-  "description": "docs/spec/03-schemas.md §5 — protocol/searches/<id>.yaml",
+  "description": "openspec:data-schemas#search-schema — protocol/searches/<id>.yaml",
   "type": "object",
   "required": ["id", "database", "platform", "executed", "executed_by", "query"],
   "additionalProperties": false,

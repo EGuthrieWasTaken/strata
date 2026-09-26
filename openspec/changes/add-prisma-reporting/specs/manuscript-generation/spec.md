@@ -22,8 +22,6 @@ row per included study, exportable to `docx` and `latex`; and Amendments from
 `criteria-change` events joined to their commit rationales.
 `strata report manuscript --format docx|latex|md|html` MUST assemble them.
 
-_Source: `docs/spec/09-reporting.md` §5_
-
 #### Scenario: Amendments from the origin scenario
 
 - **GIVEN** the age criterion was added with a rationale and 180 decisions were re-screened
@@ -43,8 +41,6 @@ Generated text MUST:
 - Include the caveat for every analysis guardrail that fired.
 
 `strata` MUST NOT generate a Discussion or Conclusion.
-
-_Source: `docs/spec/09-reporting.md` §5.1; `docs/spec/16-open-questions.md` Q8_
 
 #### Scenario: Pooled estimate sentence
 
@@ -68,8 +64,6 @@ _Source: `docs/spec/09-reporting.md` §5.1; `docs/spec/16-open-questions.md` Q8_
 sets `included`, `excluded-at-fulltext`, `all-screened`, and `not-retrieved`.
 CSL-JSON output MUST feed pandoc directly.
 
-_Source: `docs/spec/09-reporting.md` §6_
-
 #### Scenario: Appendix of full-text exclusions
 
 - **WHEN** `strata export bibliography --format ris --set excluded-at-fulltext` runs
@@ -82,8 +76,6 @@ criteria with full version history, the screening decision log, the extraction
 data, the analysis specifications, the results, the review data licence, and a
 README naming the commit it came from. It MUST contain no full texts.
 
-_Source: `docs/spec/09-reporting.md` §7; `docs/spec/13-nonfunctional.md` §6_
-
 #### Scenario: Package contents
 
 - **WHEN** `strata export package --out supplement.zip` runs in a repository with local PDFs under `fulltext/`
@@ -93,8 +85,6 @@ _Source: `docs/spec/09-reporting.md` §7; `docs/spec/13-nonfunctional.md` §6_
 
 `strata.toml` MUST accept competing-interest and funding metadata, which MUST
 flow into generated output for PRISMA items 25 and 26.
-
-_Source: `docs/spec/16-open-questions.md` Q7_
 
 #### Scenario: Funding statement
 

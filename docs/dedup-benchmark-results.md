@@ -8,9 +8,9 @@ for why and how it was built). Enforced by
 cannot drift from what the test suite actually checks.
 
 Evaluated at default (non-strict) thresholds: `auto_merge_threshold=0.95`,
-`review_threshold=0.80`, per `docs/spec/05-workflow-import.md` §3.4.
+`review_threshold=0.80`, per openspec:deduplication#thresholds-and-actions.
 
-| Metric | Value | v1 target (§3.8) |
+| Metric | Value | v1 target (openspec:deduplication#validation-against-a-labelled-benchmark) |
 |---|---|---|
 | Recall | 1.000 | >= 0.95 |
 | False-merge rate | 0.0000 | <= 0.001 |
@@ -36,7 +36,8 @@ Detail:
   Either outcome is correct -- both avoid a false merge. See the fixture's
   `README.md` for what each hard-negative pair is testing.
 
-Recall and the false-merge rate are the two numbers §3.8 requires; precision
+Recall and the false-merge rate are the two numbers
+openspec:deduplication#validation-against-a-labelled-benchmark requires; precision
 and F1 are reported for context, not gated on. Recall is computed against
 each ground-truth pair's *final canonical id* after dedup, not against the
 literal `dedup-merge` event log, so a three-record chain (A absorbs B, then

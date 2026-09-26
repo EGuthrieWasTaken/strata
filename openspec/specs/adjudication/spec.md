@@ -6,7 +6,7 @@ Resolving screening conflicts between reviewers: who may adjudicate, how an
 adjudication supersedes opinions without erasing them, the mandatory rationale,
 and the "discuss" path that leaves a conflict open.
 
-Rationale: `docs/spec/06-workflow-screening.md` §8.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -15,8 +15,6 @@ Rationale: `docs/spec/06-workflow-screening.md` §8.
 `strata adjudicate [--stage S]` MUST present each open conflict with the record
 and every reviewer's opinion, date, cited criteria, and note, and offer
 include, exclude, discuss, and skip.
-
-_Source: `docs/spec/06-workflow-screening.md` §8_
 
 #### Scenario: Conflict shown with both opinions
 
@@ -28,8 +26,6 @@ _Source: `docs/spec/06-workflow-screening.md` §8_
 
 Only actors with the `adjudicator` role or listed in `screening.adjudicators`
 MUST be permitted to resolve a conflict.
-
-_Source: `docs/spec/06-workflow-screening.md` §8_
 
 #### Scenario: Screener attempts adjudication
 
@@ -43,8 +39,6 @@ An `adjudicate` event MUST supersede the conflicting opinions (listing them in
 `supersedes[]`) without erasing them; the opinions remain in the log and IRR
 still reflects the original disagreement.
 
-_Source: `docs/spec/06-workflow-screening.md` §8_
-
 #### Scenario: Resolving a conflict
 
 - **WHEN** an adjudicator records `exclude` on a conflict
@@ -53,8 +47,6 @@ _Source: `docs/spec/06-workflow-screening.md` §8_
 ### Requirement: Rationale is required
 
 A rationale MUST be recorded for every adjudication.
-
-_Source: `docs/spec/06-workflow-screening.md` §8_
 
 #### Scenario: Adjudication without a rationale
 
@@ -67,8 +59,6 @@ Adjudicating a record one did not screen MUST be allowed. Adjudicating one's
 own conflict MUST be allowed but MUST be noted in the event, and generated
 reports MUST count such adjudications.
 
-_Source: `docs/spec/06-workflow-screening.md` §8_
-
 #### Scenario: Lead adjudicates their own conflict
 
 - **GIVEN** `ethan` is one of the two conflicting reviewers and an adjudicator
@@ -79,8 +69,6 @@ _Source: `docs/spec/06-workflow-screening.md` §8_
 
 The discuss action MUST record a `note` event on the record and leave the
 conflict open.
-
-_Source: `docs/spec/06-workflow-screening.md` §8_
 
 #### Scenario: Deferring to a meeting
 

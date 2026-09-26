@@ -1,6 +1,6 @@
 """`strata actor add|list|deactivate`.
 
-Implements docs/spec/03-schemas.md §1: handles are unique and match
+Implements openspec:data-schemas#project-manifest: handles are unique and match
 `^[a-z0-9][a-z0-9-]{0,31}$`; an actor is never removed once they have
 authored an event, only deactivated (`role = "inactive"`).
 """

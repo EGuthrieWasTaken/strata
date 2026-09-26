@@ -7,7 +7,7 @@ pool, open conflicts, stale decisions, PRISMA counts, and inter-rater
 reliability. They exist so a reviewer can read in a `git diff` what a change did
 to the review; they are never read back as input.
 
-Rationale: `docs/spec/02-repository-format.md` §6.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -23,8 +23,6 @@ record_id  tiab  fulltext  stale  year  first_author  title  journal  doi
 - `tiab`, `fulltext`: the screening state per stage.
 - `stale`: `-`, `tiab`, `ft`, or `tiab,ft`.
 - `title`: truncated to 120 characters with a trailing `…` if truncated.
-
-_Source: `docs/spec/02-repository-format.md` §6.1_
 
 #### Scenario: Long title
 
@@ -48,8 +46,6 @@ _Source: `docs/spec/02-repository-format.md` §6.1_
 log, together with the reconciliation assertions that prove the funnel is
 internally consistent.
 
-_Source: `docs/spec/02-repository-format.md` §6.2_
-
 #### Scenario: Counts regenerated after screening
 
 - **WHEN** screening decisions are committed
@@ -65,8 +61,6 @@ record_id  stage  opinions  criteria_cited  first_seen  title
 
 where `opinions` is e.g. `ethan=include;sam=exclude`, sorted by
 `(stage, record_id)`.
-
-_Source: `docs/spec/02-repository-format.md` §6.3_
 
 #### Scenario: New disagreement
 
@@ -85,8 +79,6 @@ record_id  stage  prior_decision  prior_criteria  reason  since_version  title
 where `reason` is one of the defined staleness causes, sorted by
 `(stage, record_id)`.
 
-_Source: `docs/spec/02-repository-format.md` §6.4_
-
 #### Scenario: Inclusion invalidated by a new criterion
 
 - **WHEN** a new exclusion criterion applying at title-abstract is added at version 4
@@ -98,8 +90,6 @@ _Source: `docs/spec/02-repository-format.md` §6.4_
 Cohen's kappa, PABAK, the 2x2 table, and the count of records both reviewers
 screened. It MUST be computed over independent first opinions only; an opinion
 changed after seeing the other reviewer's decision MUST be excluded.
-
-_Source: `docs/spec/02-repository-format.md` §6.5_
 
 #### Scenario: Opinion changed after adjudication discussion
 

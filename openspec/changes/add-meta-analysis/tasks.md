@@ -40,7 +40,7 @@
 - [ ] 6.2 Add the `/analysis/<id>` web screen
 - [ ] 6.3 Show pooled-estimate changes in `strata diff`
 
-## 7. Tests (suite additions, `docs/spec/15-roadmap.md` M4)
+## 7. Tests (suite additions, docs/roadmap.md M4)
 
 - [ ] 7.1 The full `metafor` fixture set and generator script; the nightly live-R drift job
 - [ ] 7.2 Published worked examples (BCG, Borenstein et al., Hedges & Olkin, a Cochrane zero-cell review)

@@ -1,10 +1,10 @@
 """Search recording: `protocol/searches/<id>.yaml`.
 
-Implements docs/spec/05-workflow-import.md §1 and docs/spec/03-schemas.md §5.
+Implements openspec:literature-import#recording-a-search and openspec:data-schemas#search-schema.
 PRISMA item 7 requires the full search strategy for every database, so the
 query string is never optional at the schema level -- when the caller does
 not have it yet, `PENDING_QUERY` is recorded instead and `strata status`
-reports it as an outstanding requirement (docs/spec/10-cli.md §4).
+reports it as an outstanding requirement (openspec:cli#the-status-dashboard).
 
 Re-running a search on a later date is a **new** file with `supersedes` set,
 never an edit -- PRISMA requires the full history of what was actually run.
@@ -26,7 +26,7 @@ from strata.core.validate import validate
 PENDING_QUERY = "PENDING"
 SEARCHES_DIR = ("protocol", "searches")
 
-# Schema-declared key order (docs/spec/02-repository-format.md §5.3: YAML keys
+# Schema-declared key order (openspec:canonical-serialisation#yaml-rules: YAML keys
 # follow the schema, not sorted, because these files are read by humans).
 _FIELD_ORDER = (
     "id",

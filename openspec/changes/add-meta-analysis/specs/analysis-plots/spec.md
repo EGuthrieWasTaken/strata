@@ -16,8 +16,6 @@ rely on colour alone to convey a distinction. Every plot MUST support
 `--format svg|pdf|png` and MUST be accompanied by the underlying values in
 `studies.tsv`.
 
-_Source: `docs/spec/08-analysis.md` §10; `docs/spec/02-repository-format.md` §5.5_
-
 #### Scenario: Cross-platform regeneration
 
 - **WHEN** a forest plot is regenerated on Windows from the same commit that produced it on Linux
@@ -31,8 +29,6 @@ estimate, the prediction interval as a distinct band, and a heterogeneity
 footer (`k`, `tau`, `I2`, `Q`, `p`), with subgroup rows when a categorical
 moderator is specified.
 
-_Source: `docs/spec/08-analysis.md` §10_
-
 #### Scenario: Random-effects forest plot
 
 - **WHEN** a random-effects forest plot is rendered
@@ -44,8 +40,6 @@ The funnel plot MUST default to contour-enhanced, with the pooled estimate and
 pseudo-confidence contours marked. The bubble plot for a continuous moderator
 MUST plot effect against moderator with bubble area proportional to weight and
 a fitted line with a confidence band.
-
-_Source: `docs/spec/08-analysis.md` §10_
 
 #### Scenario: Default funnel plot
 

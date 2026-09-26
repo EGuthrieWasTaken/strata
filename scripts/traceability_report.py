@@ -1,13 +1,15 @@
-"""Requirement-traceability report: docs/spec/14-testing.md §10.5.
+"""Requirement-traceability report: openspec:test-suite#requirement-traceability.
 
 Collects every `@pytest.mark.req(...)` marker across the whole test suite
 and reports which of the specification's identified requirements -- the
-property invariants P1-P13 (§2), the end-to-end scenarios E2E-01-E2E-12
-(§5), and the `E_*` cross-schema validation error codes
-(docs/spec/03-schemas.md §10) -- have no test naming them.
+property invariants P1-P13 (openspec:test-suite#property-invariants), the end-to-end scenarios
+E2E-01-E2E-12
+(openspec:test-suite#end-to-end-scenarios), and the `E_*` cross-schema validation error codes
+(openspec:repository-verification#cross-schema-validation-rules) -- have no test naming them.
 
 Run: uv run python scripts/traceability_report.py
-Writes `build/traceability-report.md` (a CI build artefact, per §10.5's own
+Writes `build/traceability-report.md` (a CI build artefact, per
+openspec:test-suite#requirement-traceability's own
 wording -- not committed, since unlike the dedup benchmark's result this
 changes with every test added and would otherwise go stale in the repo) and
 exits non-zero once every requirement below is covered: "once every current
@@ -27,11 +29,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REPORT_PATH = REPO_ROOT / "build" / "traceability-report.md"
 
-# docs/spec/14-testing.md §2.
+# openspec:test-suite#property-invariants.
 PROPERTY_INVARIANTS = [f"P{i}" for i in range(1, 14)]
-# docs/spec/14-testing.md §5 / docs/spec/15-roadmap.md's M0 acceptance bar.
+# openspec:test-suite#end-to-end-scenarios / docs/roadmap.md's M0 acceptance bar.
 E2E_SCENARIOS = [f"E2E-{i:02d}" for i in range(1, 13)]
-# docs/spec/03-schemas.md §10's cross-schema validation table, in that order.
+# openspec:repository-verification#cross-schema-validation-rules's cross-schema validation table, in
+# that order.
 ERROR_CODES = [
     "E_SCHEMA",
     "E_DANGLING_REF",
@@ -82,7 +85,7 @@ def render_report(covered: dict[str, list[str]]) -> tuple[str, bool]:
     lines = [
         "# Requirement traceability report",
         "",
-        "docs/spec/14-testing.md §10.5: every identified requirement (property",
+        "openspec:test-suite#requirement-traceability: every identified requirement (property",
         "invariants, end-to-end scenarios, cross-schema error codes) should have",
         "at least one test that names it via `@pytest.mark.req(...)`.",
         "",

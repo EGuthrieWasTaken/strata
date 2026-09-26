@@ -8,15 +8,16 @@ by offering a migration path off them. M6 is the ongoing hardening that makes
 `strata` adoptable: packaging for every platform, imports from the incumbent
 tools, a published worked example, and translations.
 
-Roadmap milestone: M6 (`docs/spec/15-roadmap.md`). Design detail:
-`docs/spec/12-architecture.md` §7. Zotero and review-repository CI, also M6, are
+Roadmap milestone: M6 ([docs/roadmap.md](../../../docs/roadmap.md)). Design detail: [design.md](design.md). Zotero and review-repository CI, also M6, are
 separate changes (`add-zotero-integration`, `add-review-repository-ci`).
 
 ## What Changes
 
 - Distribution: PyPI (`strata-review`), Homebrew, standalone binaries
-  (PyInstaller: macOS universal, Windows x64, Linux x64/musl), Docker, and
-  conda-forge.
+  (PyInstaller: macOS universal, Windows x64, Linux x64/musl), and
+  conda-forge. The container image is its own change,
+  `add-container-image`, because the hosted deployment depends on it and it
+  can land much earlier.
 - A five-minute first-run release criterion tested on all three platforms.
 - Import from Covidence, Rayyan, and EPPI-Reviewer exports.
 - The export formats deferred from M1: EndNote XML, Excel, and PRISMA-style
@@ -38,7 +39,7 @@ separate changes (`add-zotero-integration`, `add-review-repository-ci`).
 
 ## Impact
 
-- `release.yml` gains binary, Homebrew, Docker, and conda-forge publishing.
+- `release.yml` gains binary, Homebrew, and conda-forge publishing.
 - New parsers and CSV profiles, each with golden fixtures and fuzz-corpus
   entries.
 - Screening-decision import from the incumbent tools must mark decisions

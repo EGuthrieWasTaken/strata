@@ -1,4 +1,4 @@
-"""Property test for docs/spec/06-workflow-screening.md §4.2's staleness rules.
+"""Property test for openspec:staleness#the-staleness-rules.
 
 P10: staleness soundness. For a random criteria change and decision set,
 `strata.protocol.staleness.evaluate_staleness`'s verdict MUST agree with an

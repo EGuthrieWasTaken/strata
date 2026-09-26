@@ -14,8 +14,6 @@ independent studies, so no study is double-counted.
 (`study-group` event) and split one report into several studies (`study-split`
 event). Both MUST require a rationale.
 
-_Source: `docs/spec/07-workflow-extraction.md` §2_
-
 #### Scenario: Follow-up paper
 
 - **GIVEN** two included reports of the same trial
@@ -34,8 +32,6 @@ registration numbers, a shared author set with overlapping sample size and
 population description, explicit "follow-up of" or "secondary analysis of"
 language, and reports citing each other. Suggestions MUST never be applied
 automatically.
-
-_Source: `docs/spec/07-workflow-extraction.md` §2_
 
 #### Scenario: Shared registration number
 

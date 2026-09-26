@@ -1,6 +1,6 @@
 # Fixture provenance
 
-Per `docs/spec/14-testing.md` §3, every fixture under `tests/fixtures/` must be
+Per openspec:test-suite#golden-parser-fixtures, every fixture under `tests/fixtures/` must be
 redistributable: either synthesised to mimic a real export format, or drawn
 from records whose metadata is not copyrightable (bibliographic facts --
 titles, author names, journal names, volumes, pages, DOIs, years -- are not
@@ -21,7 +21,7 @@ export.
 - `csl-json/clean.json`, `csl-json/malformed.json`,
   `csl-json/broken-document.json` -- CSL-JSON, hand-written. One record's
   metadata (Cepeda, Vul & Rohrer, 2008, *Psychological Science*) matches the
-  paper used as a running example throughout `docs/spec/`.
+  paper used as a running example throughout `openspec/`.
 - `ris/clean.ris`, `ris/malformed.ris`, `ris/malformed-bom.ris`,
   `ris/malformed-cp1252.ris` -- RIS, hand-written tag-per-line text.
   `malformed-bom.ris` and `malformed-cp1252.ris` are generated with a small
@@ -31,7 +31,7 @@ export.
   rather than approximations of them.
 - `bibtex/clean.bib`, `bibtex/malformed.bib` -- BibTeX, hand-written.
 - `medline/clean.nbib`, `medline/malformed.nbib` -- PubMed/MEDLINE, hand-written
-  tag-per-line text (see `docs/spec/05-workflow-import.md` §2.1's `PMID- `/
+  tag-per-line text (see openspec:literature-import's `PMID- `/
   `TI  - ` convention). `malformed.nbib`'s line endings were converted to CRLF
   with a small script (not checked in) after being written, for the same
   reason as the RIS encoding fixtures above.
@@ -52,7 +52,7 @@ ones that don't -- see `tests/golden/test_golden_parsers.py`.
 
 ## Malformation coverage
 
-Tracking against the list in `docs/spec/14-testing.md` §3:
+Tracking against the list in openspec:test-suite#golden-parser-fixtures:
 
 | Malformation | Covered by |
 |---|---|
@@ -78,10 +78,10 @@ Tracking against the list in `docs/spec/14-testing.md` §3:
 
 ## `tests/fixtures/dedup-benchmark/`
 
-The labelled dedup benchmark required by `docs/spec/05-workflow-import.md`
-§3.8. Same provenance rule as above (hand-authored, metadata may match real
+The labelled dedup benchmark required by
+openspec:deduplication#validation-against-a-labelled-benchmark. Same provenance rule as above (hand-authored, metadata may match real
 papers, no bytes copied from a real export) plus one more: it is a
-synthesised stand-in for the ASySD/`revtools` benchmarks §3.8 names, not a
+synthesised stand-in for the ASySD/`revtools` benchmarks openspec:deduplication#validation-against-a-labelled-benchmark names, not a
 redistributed copy of either -- see that directory's own `README.md` for the
 full rationale and the fixture's structure.
 
@@ -89,7 +89,7 @@ Not yet covered (carried forward -- see `docs/m1-plan.md` sub-objective 3):
 CR-only (old Mac) line endings; a lone-CR variant; LaTeX-escaped diacritics
 (`\"u`) rather than literal UTF-8 in BibTeX author names, since this
 implementation does not run `bibtexparser`'s LaTeX-decoding middleware; and
-the remaining platform-specific fixtures the table in §3 asks for by name
+the remaining platform-specific fixtures the table in openspec:test-suite#golden-parser-fixtures asks for by name
 (Ovid, EBSCOhost RIS/CSV live examples, ProQuest, Cochrane CENTRAL,
 ClinicalTrials.gov, EndNote, Google Scholar), which belong to the EndNote XML
 and Excel parsers of sub-objective 3 (not yet implemented) or would need a

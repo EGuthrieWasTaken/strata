@@ -8,7 +8,7 @@ parser fixtures, statistical validation against `metafor` and published worked
 examples, fuzzing, performance regression, usability testing, and the rule that
 every change carries its tests, with requirement traceability.
 
-Rationale: `docs/spec/14-testing.md` §1–§8, §10.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -19,8 +19,6 @@ end-to-end, performance, fuzz, cross-platform, and manual (usability) levels.
 Line coverage MUST be at least 90% overall, and branch coverage MUST be 100% in
 `core/fold.py`, `core/ids.py`, `core/canon.py`, `protocol/staleness.py`, and
 `stats/escalc.py`.
-
-_Source: `docs/spec/14-testing.md` §1_
 
 #### Scenario: Uncovered branch in a critical module
 
@@ -51,8 +49,6 @@ referenced by its id:
 P10 and P11 protect the product's central claims and MUST NOT be weakened to
 make the suite pass.
 
-_Source: `docs/spec/14-testing.md` §2_
-
 #### Scenario: Staleness soundness property
 
 - **WHEN** the P10 property test generates a random criteria change and decision set
@@ -69,8 +65,6 @@ quotes, HTML entities, inconsistent continuation indentation, diacritics,
 corporate authors, missing years, DOIs with trailing punctuation, an empty
 title) and MUST be redistributable, with sources documented in
 `tests/fixtures/SOURCES.md`.
-
-_Source: `docs/spec/14-testing.md` §3_
 
 #### Scenario: Parser change alters output
 
@@ -92,8 +86,6 @@ identical `v_i`, one dominant weight, `tau^2 = 0`, zero cells in every arm,
 `r = 1`, `n = 3` for Fisher's z, very large `n`) MUST each produce the correct
 value or a specific actionable error, never `NaN`, `inf`, or a silently wrong
 number.
-
-_Source: `docs/spec/14-testing.md` §4_
 
 #### Scenario: Upstream convention change
 
@@ -127,8 +119,6 @@ asserting on file contents, counts, and generated output:
 
 E2E-01 is the specification's acceptance criterion and MUST NOT be weakened.
 
-_Source: `docs/spec/14-testing.md` §5_
-
 #### Scenario: Origin scenario
 
 - **WHEN** E2E-01 runs
@@ -140,8 +130,6 @@ _Source: `docs/spec/14-testing.md` §5_
 parser MUST never hang, exhaust memory, execute code, or crash with an unhandled
 exception; it either parses or reports a `ParseError` with a line number.
 
-_Source: `docs/spec/14-testing.md` §6_
-
 #### Scenario: Mutated RIS input
 
 - **WHEN** the fuzzer feeds a randomly mutated RIS file to the parser
@@ -152,8 +140,6 @@ _Source: `docs/spec/14-testing.md` §6_
 At each milestone, at least three usability sessions with researchers who have
 not used the tool MUST be run and recorded with consent, and their findings
 MUST drive a prioritised issue list. This is a release gate.
-
-_Source: `docs/spec/14-testing.md` §8_
 
 #### Scenario: M2 release
 
@@ -179,8 +165,6 @@ have failed before the change. In particular, each kind of change MUST carry:
 | Performance-sensitive change | A benchmark case if the path is not already covered |
 | Documentation only | None, but specification integrity checks still run |
 
-_Source: `docs/spec/14-testing.md` §10.1–§10.2_
-
 #### Scenario: Bug fix without a regression test
 
 - **WHEN** a pull request fixes a bug but adds no test that fails on `main`
@@ -191,8 +175,6 @@ _Source: `docs/spec/14-testing.md` §10.1–§10.2_
 Changed lines MUST be at least 95% covered, and changed lines in the five
 critical modules MUST have 100% branch coverage with no exemption. A deliberate
 exclusion MUST use an inline `# pragma: no cover` with an explanatory comment.
-
-_Source: `docs/spec/14-testing.md` §10.4_
 
 #### Scenario: Under-covered pull request
 
@@ -207,8 +189,6 @@ cross-schema error codes — MUST have at least one test naming it with
 of uncovered requirements as a build artefact; once every current requirement is
 covered, an uncovered requirement MUST become a gate failure rather than a
 warning. New identified requirements get an id when written.
-
-_Source: `docs/spec/14-testing.md` §10.5_
 
 #### Scenario: Traceability report
 

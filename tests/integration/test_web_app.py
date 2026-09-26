@@ -1,4 +1,4 @@
-"""Integration tests for the `strata serve` FastAPI app: docs/spec/11-web-ui.md.
+"""Integration tests for the `strata serve` FastAPI app: openspec:web-ui.
 
 Uses FastAPI's TestClient (an in-process ASGI transport, no real socket)
 against a real temporary repository -- the same fidelity level as the CLI's
@@ -440,7 +440,7 @@ def test_both_configured_stages_are_reachable(tmp_path: Path, stage: str) -> Non
 def test_screen_shows_a_plain_string_author(tmp_path: Path) -> None:
     """The record schema requires structured `author` objects, so a plain
     string entry can only occur via a hand-edited/pre-schema file on disk
-    (docs/spec/04-git-integration.md §1: "every invariant is restorable"
+    (openspec:git-integration#git-is-never-the-user-interface: "every invariant is restorable"
     after manual git surgery) -- `_author_display` defends against it
     anyway rather than crashing the whole screening page over one odd
     record."""

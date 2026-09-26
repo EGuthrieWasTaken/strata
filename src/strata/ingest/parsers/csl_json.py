@@ -1,14 +1,16 @@
 """CSL-JSON parser: the native format, and a near-passthrough.
 
-Implements the CSL-JSON row of docs/spec/05-workflow-import.md §2.1. CSL-JSON
-already matches the shape docs/spec/03-schemas.md §2 wants (minus the `strata`
+Implements the CSL-JSON row of openspec:literature-import. CSL-JSON
+already matches the shape
+openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension wants (minus the
+`strata`
 extension object, attached later by the import pipeline), so this parser's
 only job is to isolate malformed entries. Unlike every other format in this
 package, a JSON document is not line-oriented: a single unparsable *document*
 has no per-row recovery, but a single unparsable *entry* inside an otherwise
 well-formed array does, and unknown CSL fields are preserved verbatim since
-`strata` is not permitted to silently drop metadata (docs/spec/03-schemas.md
-§2).
+`strata` is not permitted to silently drop metadata (
+openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension).
 """
 
 from __future__ import annotations

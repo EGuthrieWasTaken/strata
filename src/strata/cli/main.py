@@ -1,6 +1,6 @@
 """The `strata` command-line interface.
 
-Per docs/spec/12-architecture.md §2, invariant 3: this module contains no
+Per openspec:architecture#presentation-layers-contain-no-domain-logic: this module contains no
 domain logic. Every command is a thin adapter that parses arguments, calls
 into `strata.core`/`strata.gitio`, and formats the result — the same service
 layer the (future) web UI will call.
@@ -99,7 +99,7 @@ out_console = Console()
 def _print_json(value: object) -> None:
     """Print a `--json` payload verbatim: no word-wrap, no markup/highlight
     interpretation of its content. `--json` output is a stable, versioned
-    contract (docs/spec/10-cli.md §1); Rich's default `print` would otherwise
+    contract (openspec:cli); Rich's default `print` would otherwise
     wrap long lines and treat a literal `[...]` in the data as a markup tag.
     """
     out_console.print(json_mod.dumps(value), soft_wrap=True, markup=False, highlight=False)
@@ -183,7 +183,7 @@ def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> st
 
 
 def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
-    """Elicit a commit rationale per docs/spec/04-git-integration.md §2.3.
+    """Elicit a commit rationale per openspec:git-integration#eliciting-the-rationale.
 
     Returns `None` when `git.require_rationale` is false and no rationale was
     supplied. Exits with `EXIT_RATIONALE_REFUSED` when one is required but
@@ -200,8 +200,9 @@ def _get_required_rationale(ctx: typer.Context, repo: Repo, context_lines: str) 
     """Like `_get_rationale`, but the rationale is required unconditionally,
     regardless of `git.require_rationale` — for operations the specification
     itself requires a rationale for with no config escape hatch: criteria
-    changes (docs/spec/06-workflow-screening.md §3.2's "Why did you make this
-    change?" prompt) and adjudications (§8: "A rationale is REQUIRED for
+    changes (openspec:criteria-management#declaring-the-direction-of-a-change's "Why did you make
+    this
+    change?" prompt) and adjudications (openspec:adjudication: "A rationale is REQUIRED for
     adjudications").
     """
     del repo  # kept for signature symmetry with `_get_rationale`; not consulted
@@ -239,7 +240,7 @@ def _parse_config_value(raw: str) -> bool | int | float | str:
 def _parse_map_option(raw: str) -> dict[str, str]:
     """`--map title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
 
-    docs/spec/05-workflow-import.md §2.2's own example uses exactly this
+    openspec:literature-import#csv-column-mapping's own example uses exactly this
     comma-separated `field=Column Name` syntax; a column name containing a
     literal comma isn't expressible this way, a known limitation.
     """
@@ -428,8 +429,9 @@ def log_command(
 def _commit_manifest_op(
     ctx: typer.Context, repo: Repo, *, op: str, scope: str, summary: str, trailers: dict[str, str]
 ) -> None:
-    """Commit a `strata.toml`-only change (docs/spec/04-git-integration.md
-    §2.1: every mutating command produces exactly one commit)."""
+    """Commit a `strata.toml`-only change (
+    openspec:git-integration#one-operation-one-commit: every mutating command produces exactly one
+    commit)."""
     if ctx.obj["no_commit"]:
         out_console.print(f"[green]{summary}[/] (not committed)")
         return
@@ -609,7 +611,7 @@ def import_command(
 ) -> None:
     """Import one or more bibliographic exports: copy raw, parse, assign ids, commit.
 
-    Each file is its own import (docs/spec/02-repository-format.md §2:
+    Each file is its own import (openspec:repository-format#directory-layout:
     `imports/<id>/`) and, unless `--dry-run`/`--no-commit`, its own commit —
     a failure partway through a multi-file import leaves every earlier file's
     import already committed rather than the tree half-written and dirty.
@@ -877,7 +879,7 @@ def dedup_command(
 
 
 def _resolve_record_id(repo: Repo, record_id: str) -> str:
-    """`<id>` may be any unambiguous prefix (docs/spec/10-cli.md §1); exits
+    """`<id>` may be any unambiguous prefix (openspec:cli); exits
     with a clear error, not a traceback, for zero or multiple matches."""
     try:
         return records_mod.resolve_id_prefix(repo, record_id)
@@ -898,7 +900,7 @@ def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _apply_record_filter(records: list[dict[str, Any]], filter_expr: str) -> list[dict[str, Any]]:
-    """Shared `--filter` evaluation (docs/spec/10-cli.md §3), used by `records list`,
+    """Shared `--filter` evaluation (openspec:filter-language), used by `records list`,
     `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
     that can't be evaluated, rather than raising past the CLI boundary."""
     try:
@@ -921,7 +923,7 @@ def _apply_record_filter(records: list[dict[str, Any]], filter_expr: str) -> lis
 def records_list(
     ctx: typer.Context,
     filter_expr: str | None = typer.Option(
-        None, "--filter", help="Filter expression, docs/spec/10-cli.md §3"
+        None, "--filter", help="Filter expression, openspec:filter-language"
     ),
     fmt: str = typer.Option("tsv", "--format", help="tsv | json | csl"),
     all_records: bool = typer.Option(
@@ -1091,7 +1093,8 @@ def criteria_add(
     by: str = typer.Option(..., "--by", help="Actor handle making the change"),
     criterion_id: str | None = typer.Option(None, "--id"),
 ) -> None:
-    """Add a criterion. A criterion added behaves as `tightened` (docs/spec/06 §3.2)."""
+    """Add a criterion. A criterion added behaves as `tightened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(
         ctx, repo, f"You are adding a new {kind} criterion: {label!r}."
@@ -1140,7 +1143,8 @@ def criteria_edit(
     label: str | None = typer.Option(None, "--label"),
     applies_at: str | None = typer.Option(None, "--applies-at", help="Comma-separated stages"),
 ) -> None:
-    """Edit a criterion; MUST classify the change's direction (docs/spec/06 §3.2)."""
+    """Edit a criterion; MUST classify the change's direction
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are editing {criterion_id} ({direction}).")
     try:
@@ -1179,7 +1183,8 @@ def criteria_edit(
 def criteria_retire(
     ctx: typer.Context, criterion_id: str, by: str = typer.Option(..., "--by")
 ) -> None:
-    """Retire a criterion; behaves as `loosened` (docs/spec/06 §3.2)."""
+    """Retire a criterion; behaves as `loosened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are retiring {criterion_id}.")
     try:
@@ -1247,7 +1252,7 @@ def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
 
 
 def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
-    """Canonical record ids matching `--filter`, per docs/spec/10-cli.md §3."""
+    """Canonical record ids matching `--filter`, per openspec:filter-language."""
     records = [
         r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
     ]
@@ -1258,7 +1263,8 @@ _DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
 
 
 def _parse_criteria_numbers(raw: str, active_criteria: list[dict[str, Any]]) -> list[str]:
-    """`1,3` -> the ids of the 1st and 3rd listed criteria (docs/spec/06 §7's
+    """`1,3` -> the ids of the 1st and 3rd listed criteria
+    (openspec:screening#screening-surface-contract's
     "digits 1-9 cite criteria"). Out-of-range numbers are reported and skipped
     rather than aborting the whole citation."""
     ids: list[str] = []
@@ -1309,7 +1315,7 @@ def screen_command(
     filter_expr: str | None = typer.Option(None, "--filter", help="Narrow the queue"),
     limit: int | None = typer.Option(None, "--limit", help="Screen at most N records"),
     decisions_file: str | None = typer.Option(
-        None, "--decisions", help="TSV of record_id/decision/criteria/note (docs/spec/10 §5)"
+        None, "--decisions", help="TSV of record_id/decision/criteria/note"
     ),
 ) -> None:
     """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`."""
@@ -1499,7 +1505,7 @@ def rescreen_command(
     by: str = typer.Option(..., "--by", help="Actor handle doing the re-screening"),
     mark: list[str] | None = _MARK_OPTION,
 ) -> None:
-    """Open the stale queue: docs/spec/06-workflow-screening.md §6."""
+    """Open the stale queue: openspec:staleness."""
     repo = _resolve_repo(ctx)
     stages = [stage] if stage else screening_mod.configured_stages(repo)
 
@@ -1632,7 +1638,7 @@ def adjudicate_command(
     stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
     by: str = typer.Option(..., "--by", help="Actor handle adjudicating"),
 ) -> None:
-    """Resolve screening conflicts: docs/spec/06-workflow-screening.md §8."""
+    """Resolve screening conflicts: openspec:adjudication."""
     repo = _resolve_repo(ctx)
     if not adjudication_mod.is_adjudicator(repo, by):
         err_console.print(
@@ -1736,7 +1742,8 @@ def audit_command(
     sample: int = typer.Option(20, "--sample", help="Sample size"),
     seed: int | None = typer.Option(None, "--seed", help="Reproduce a specific sample"),
 ) -> None:
-    """Re-present a random sample of past exclusions for verification (docs/spec/06 §4.3)."""
+    """Re-present a random sample of past exclusions for verification
+    (openspec:staleness#mitigations-for-miscited-criteria)."""
     if not criteria:
         err_console.print("[red]error:[/] strata audit currently only supports --criteria")
         raise typer.Exit(EXIT_USAGE)
@@ -1788,7 +1795,8 @@ def irr_command(
     ctx: typer.Context,
     stage: str | None = typer.Option(None, "--stage", help="Restrict to one stage"),
 ) -> None:
-    """Inter-rater reliability, over independent first opinions (docs/spec/02 §6.5).
+    """Inter-rater reliability, over independent first opinions
+    (openspec:derived-views#inter-rater-reliability-view).
 
     Read-only with respect to the event log: recomputes and rewrites
     `derived/irr.json` on disk, but does not commit -- the next mutating
@@ -1855,10 +1863,10 @@ def serve_command(
     inactivity_timeout: float = typer.Option(
         web_security.DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
         "--inactivity-timeout",
-        help="Seconds of inactivity before the server exits (docs/spec/11 §7)",
+        help="Seconds of inactivity before the server exits (openspec:web-ui#localhost-security)",
     ),
 ) -> None:
-    """Start the local web UI (docs/spec/11-web-ui.md)."""
+    """Start the local web UI (openspec:web-ui)."""
     repo = _resolve_repo(ctx)
 
     try:
@@ -1893,7 +1901,7 @@ def serve_command(
 
 @app.command("mcp")
 def mcp_command(ctx: typer.Context) -> None:
-    """Run the local, read-only MCP server over stdio (docs/spec/15-roadmap.md, M2.1).
+    """Run the local, read-only MCP server over stdio (openspec:mcp-server).
 
     Exposes status/why/log/records/criteria-diff/impact-preview as MCP tools --
     nothing that writes. Spawned by an MCP-aware client (Claude Code, Claude

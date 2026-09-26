@@ -1,6 +1,6 @@
 name: Release
 
-# Tag-triggered build, SBOM, and draft release: docs/spec/14-testing.md §9.8.
+# Tag-triggered build, SBOM, and draft release: openspec:ci-gate#release-requirements.
 #
 # NOTE: this builds the sdist/wheel, runs the full suite, generates an SBOM,
 # and creates a draft GitHub release with the artefacts attached. It does

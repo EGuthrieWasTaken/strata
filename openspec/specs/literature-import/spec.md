@@ -7,7 +7,7 @@ importing database exports through tolerant parsers and CSV mapping profiles,
 and doing so idempotently with full provenance, including records found through
 methods other than database searching.
 
-Rationale: `docs/spec/05-workflow-import.md` §1–§2.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -22,8 +22,6 @@ requirement (PRISMA item 7) until supplied.
 Where an export format carries the query, `strata import` MUST offer to
 pre-fill it and MUST show the user what it extracted for confirmation rather
 than accepting it silently.
-
-_Source: `docs/spec/05-workflow-import.md` §1_
 
 #### Scenario: Query not available yet
 
@@ -52,8 +50,6 @@ _Source: `docs/spec/05-workflow-import.md` §1_
 | Excel | `.xlsx` | Read-only; first sheet unless `--sheet` given |
 | PRISMA-style citation list | `.txt` | Best-effort; always routed to manual review |
 
-_Source: `docs/spec/05-workflow-import.md` §2.1_
-
 #### Scenario: RIS with single-space tag separator
 
 - **WHEN** a RIS file using `TY - JOUR` spacing is imported
@@ -75,8 +71,6 @@ entities in titles and abstracts.
 A row that cannot be parsed MUST NOT abort the import: it is written verbatim to
 `imports/<id>/rejected.txt` with the parse error and a line number, counted in
 the manifest, and reported.
-
-_Source: `docs/spec/05-workflow-import.md` §2.1_
 
 #### Scenario: CP1252 export
 
@@ -100,8 +94,6 @@ Because CSV exports vary by platform and user configuration, `strata` MUST:
    `--map title=Article Title,doi=DOI,...`.
 3. Save the resolved mapping to `imports/<id>/manifest.yaml` and offer to reuse
    it for the next import with the same signature.
-
-_Source: `docs/spec/05-workflow-import.md` §2.2_
 
 #### Scenario: Scopus CSV
 
@@ -127,8 +119,6 @@ _Source: `docs/spec/05-workflow-import.md` §2.2_
    detected, rows read, records created, rows rejected, column mapping, search id.
 6. Emit an `import` event, regenerate derived views, and commit.
 
-_Source: `docs/spec/05-workflow-import.md` §2.3_
-
 #### Scenario: Paper already present from another database
 
 - **GIVEN** a record with DOI `10.1111/j.1467-9280.2008.02209.x` imported from MEDLINE
@@ -146,8 +136,6 @@ Importing the same file twice MUST create no new records and no second `import`
 event (detected by file digest), and MUST say so rather than appearing to
 succeed silently.
 
-_Source: `docs/spec/05-workflow-import.md` §2.3_
-
 #### Scenario: Re-importing a file
 
 - **WHEN** a file already imported is imported again
@@ -161,8 +149,6 @@ MUST tag records accordingly, and those tags MUST flow through to the "other
 methods" column of the PRISMA flow diagram. Citation chasing results MAY be
 imported as a normal export with `--via citation-searching`; `strata` v1 does
 not perform the chasing itself.
-
-_Source: `docs/spec/05-workflow-import.md` §2.4_
 
 #### Scenario: Citation-chased records
 

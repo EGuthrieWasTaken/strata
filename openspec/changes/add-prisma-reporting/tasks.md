@@ -32,7 +32,7 @@
 - [ ] 5.1 Add the CLI commands and their `--json` output
 - [ ] 5.2 Add the live `/prisma` web screen
 
-## 6. Tests (suite additions, `docs/spec/15-roadmap.md` M5)
+## 6. Tests (suite additions, docs/roadmap.md M5)
 
 - [ ] 6.1 Property test P11 over randomly generated review histories
 - [ ] 6.2 E2E-03 end to end

@@ -35,7 +35,7 @@
 - [ ] 5.1 Add the CLI commands and their `--json` output
 - [ ] 5.2 Add `/extract/<study>`, `/extract/<study>/reconcile`, and `/rob/<study>` web screens
 
-## 6. Tests (suite additions, `docs/spec/15-roadmap.md` M3)
+## 6. Tests (suite additions, docs/roadmap.md M3)
 
 - [ ] 6.1 Unit-conversion round-trip tests
 - [ ] 6.2 A test asserting each data-quality guard fires

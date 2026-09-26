@@ -1,11 +1,12 @@
 """`strata import`: turn a bibliographic export file into records.
 
-Implements docs/spec/05-workflow-import.md §2.3 -- copy the file unmodified,
+Implements openspec:literature-import#what-import-does -- copy the file unmodified,
 parse it, normalise and assign ids, append to an existing record's sources on
 an exact-id match rather than duplicating it, write the import manifest, emit
 `import`/`record-add` events, and regenerate `records/records.ndjson`.
 
-Import is idempotent by file digest (§2.3): re-importing the same bytes finds
+Import is idempotent by file digest (openspec:literature-import#what-import-does): re-importing the
+same bytes finds
 the earlier `imports/<id>/manifest.yaml` and makes no changes, reporting that
 rather than silently repeating the import.
 """
@@ -67,7 +68,7 @@ _EXTENSION_FORMATS = {
 }
 
 # `.txt` is ambiguous (RIS, MEDLINE, and PRISMA-text exports all use it, per
-# docs/spec/05-workflow-import.md §2.1's table) so it is sniffed by content
+# openspec:literature-import's table) so it is sniffed by content
 # rather than mapped by extension.
 _MEDLINE_SNIFF_PREFIX = "PMID"
 _RIS_SNIFF_PREFIX = "TY"
@@ -143,7 +144,8 @@ def detect_format(path: Path, text: str) -> str:
 
 
 def _apply_identifier_normalisation(record: dict[str, Any]) -> None:
-    """docs/spec/03-schemas.md §2 -- DOI/PMID/PMCID/ISBN are normalised per 01 §3.2 on storage.
+    """openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension --
+    DOI/PMID/PMCID/ISBN are normalised per openspec:record-identity#normalisation-rules on storage.
 
     A value that fails to normalise (not DOI-shaped, no digits) is left as
     parsed rather than dropped: strata never silently discards metadata, it
@@ -271,7 +273,7 @@ def import_file(
         if not deterministic:  # pragma: no cover - unreachable while every parser rejects
             # a title-less record before it reaches this loop (see has_title()
             # in strata.ingest.parsers); kept as a defensive flag per
-            # docs/spec/01-domain-model.md §3.1 priority 7 in case a future
+            # openspec:record-identity priority 7 in case a future
             # parser ever admits one.
             nondeterministic_rows.append(row_number)
         source_entry: dict[str, Any] = {

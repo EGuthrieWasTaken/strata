@@ -1,9 +1,9 @@
 """E2E-02 (skeleton): two collaborators screening concurrently on separate
 clones sync with zero manual conflict resolution.
 
-Full fidelity with docs/spec/14-testing.md's E2E-02 (repeated syncing via
+Full fidelity with openspec:test-suite's E2E-02 (repeated syncing via
 `strata sync`) lands once that command exists; this exercises the structural
-invariant it depends on (docs/spec/04-git-integration.md §5.1): two actors
+invariant it depends on (openspec:collaboration-sync#dual-screening-never-conflicts): two actors
 writing to disjoint per-actor event files never produces a git conflict,
 even under a genuine three-way merge.
 """

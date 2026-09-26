@@ -1,4 +1,4 @@
-"""The local MCP server (docs/spec/15-roadmap.md, M2.1).
+"""The local MCP server (openspec:mcp-server).
 
 A fourth thin presentation layer alongside the CLI (`strata.cli.main`) and
 the web UI (`strata.web.routes`); see `strata.mcpserver.server` for the

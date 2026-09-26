@@ -1,7 +1,9 @@
 """Deduplication orchestration: blocking + scoring + merge against a real repository.
 
-Implements docs/spec/05-workflow-import.md §3.1 (stickiness), §3.4
-(thresholds and actions), and the event/alias-emitting side of §3.5 that
+Implements openspec:deduplication#sticky-reversible-conservative-explainable (stickiness),
+openspec:deduplication#thresholds-and-actions
+(thresholds and actions), and the event/alias-emitting side of
+openspec:deduplication#merge-semantics that
 `strata.dedup.merge`'s pure functions don't touch.
 """
 
@@ -57,7 +59,8 @@ def judged_pairs(repo: Repo) -> set[tuple[str, str]]:
 def thresholds(repo: Repo, *, strict: bool) -> tuple[float, float]:
     """`(auto_merge_threshold, review_threshold)`, from `[dedup]` or `--strict`.
 
-    §3.4 describes `--strict` as setting "both thresholds to 1.0, so every
+    openspec:deduplication#thresholds-and-actions describes `--strict` as setting "both thresholds
+    to 1.0, so every
     non-exact pair is reviewed." Taken literally that collapses the review
     band `[review_threshold, auto_merge_threshold)` to the empty interval
     `[1.0, 1.0)`, which would route every non-exact pair to *distinct*
@@ -96,7 +99,8 @@ class DedupOutcome:
 
 
 def _is_doi_conflict(result: PairScore, review_threshold: float) -> bool:
-    """§3.3: a DOI-vetoed pair scoring high on everything else is `doi-conflict`, not discarded."""
+    """openspec:deduplication#scoring: a DOI-vetoed pair scoring high on everything else is
+    `doi-conflict`, not discarded."""
     return result.doi_veto and result.non_doi_score >= review_threshold
 
 
@@ -173,7 +177,8 @@ def _compute_dedup(
     """The pure classification pass shared by `run_dedup` (which persists the
     result) and `preview_dedup` (which doesn't): blocks candidate pairs,
     scores each one, and sorts it into auto-merge/review/silently-distinct
-    (§3.4). Chained duplicates are handled correctly within one pass by
+    (openspec:deduplication#thresholds-and-actions). Chained duplicates are handled correctly within
+    one pass by
     folding each auto-merge into `by_id` immediately, so a later pair
     sharing a just-merged id sees the merged record, not a stale one.
 
@@ -248,7 +253,8 @@ def run_dedup(repo: Repo, *, actor: str, strict: bool = False) -> DedupOutcome:
     every auto-merge, and returns the pairs that clear `review_threshold`
     (or are a `doi-conflict`) for the caller to run through
     `apply_review_decision`. Never emits an event for a pair that scores
-    below `review_threshold` -- absence is the default (§3.4).
+    below `review_threshold` -- absence is the default
+    (openspec:deduplication#thresholds-and-actions).
 
     Every auto-merge's event and alias entry is batched and written once
     after the loop (`append_new_events`, one `write_aliases`), not one at a
@@ -289,7 +295,7 @@ def preview_dedup(repo: Repo, *, strict: bool = False) -> DedupOutcome:
     Same candidate blocking, scoring, and auto-merge/review-queue split as
     `run_dedup`, but never writes `records.ndjson`, never appends a
     `dedup-merge`/`dedup-distinct` event, and never touches
-    `aliases.ndjson`. Exists so `GET /dedup` (docs/spec/11-web-ui.md §2)
+    `aliases.ndjson`. Exists so `GET /dedup` (openspec:web-ui#screens)
     can render "what's pending review" and "what would auto-merge" without
     violating HTTP safety -- `run_dedup` itself always commits its
     auto-merges to disk as a side effect, so it can't be reused directly
@@ -308,10 +314,12 @@ def apply_review_decision(
     decision: Decision,
     actor: str,
 ) -> None:
-    """Apply one human decision from the review queue: `merge` or `distinct` (§3.6).
+    """Apply one human decision from the review queue: `merge` or `distinct`
+    (openspec:deduplication#review-queue).
 
     `[k]eep both` records a `dedup-distinct` event so the pair is never
-    raised again (sticky, §3.1); it changes nothing else.
+    raised again (sticky,
+    openspec:deduplication#sticky-reversible-conservative-explainable); it changes nothing else.
     """
     trust = source_trust_order(repo)
     events_path = repo.path("events", "dedup", f"{actor}.ndjson")

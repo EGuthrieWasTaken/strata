@@ -1,4 +1,4 @@
-"""Unit tests for strata.dedup.blocking, per docs/spec/05-workflow-import.md §3.2."""
+"""Unit tests for strata.dedup.blocking, per openspec:deduplication#blocking."""
 
 from __future__ import annotations
 

@@ -9,8 +9,6 @@ specifications, writing `analysis/results/<id>/`) and `strata analyze --check`
 (validate specifications and report guardrails without computing). Blocking
 guardrails MUST exit with code 8 unless `--force` is given.
 
-_Source: `docs/spec/10-cli.md` §2_
-
 #### Scenario: Check without computing
 
 - **WHEN** `strata analyze --check` runs

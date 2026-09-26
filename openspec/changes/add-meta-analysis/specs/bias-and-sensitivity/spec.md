@@ -18,8 +18,6 @@ Begg's rank correlation; Duval & Tweedie trim-and-fill (`L0` default, `R0` and
 bias-corrected estimate; and PET-PEESE (PEESE selected when PET's one-tailed
 intercept test has p < .10).
 
-_Source: `docs/spec/08-analysis.md` §6_
-
 #### Scenario: Log odds ratio analysis
 
 - **WHEN** a small-study test is requested for a log OR analysis
@@ -35,8 +33,6 @@ _Source: `docs/spec/08-analysis.md` §6_
 `strata` MUST refuse to compute Egger, Begg, or PET-PEESE with `k < 10` unless
 `--force` is given, and MUST label forced results accordingly.
 
-_Source: `docs/spec/08-analysis.md` §6_
-
 #### Scenario: Seven studies
 
 - **WHEN** Egger's test is requested with `k = 7` without `--force`
@@ -46,8 +42,6 @@ _Source: `docs/spec/08-analysis.md` §6_
 
 `strata` MUST NOT describe any method as correcting for publication bias;
 generated prose MUST use language such as "consistent with small-study effects".
-
-_Source: `docs/spec/08-analysis.md` §6_
 
 #### Scenario: Asymmetric funnel
 
@@ -63,8 +57,6 @@ values), subset analyses by any filter expression, and cumulative
 meta-analysis ordered by year or any moderator. Influence diagnostics MUST flag
 studies exceeding `|rstudent| > 1.96`, `Cook's D > 0.45`, or `hat > 3/k`, and
 MUST NOT remove anything automatically.
-
-_Source: `docs/spec/08-analysis.md` §7_
 
 #### Scenario: Influential study
 

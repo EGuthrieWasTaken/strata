@@ -1,8 +1,9 @@
 """Identity and normalisation.
 
-Implements docs/spec/01-domain-model.md §3. These rules are normative: a
-change to them is a breaking format change (docs/spec/02-repository-format.md
-§7) because it can change every id in an existing repository.
+Implements openspec:record-identity. These rules are normative: a
+change to them is a breaking format change (
+openspec:repository-format#format-versioning) because it can change every id in an existing
+repository.
 """
 
 from __future__ import annotations
@@ -76,7 +77,7 @@ def base32_crockford(data: bytes) -> str:
 
 
 def normalise_doi(raw: str | None) -> str | None:
-    """docs/spec/01-domain-model.md §3.2 — DOI."""
+    """openspec:record-identity#normalisation-rules — DOI."""
     if not raw:
         return None
     s = raw.strip()
@@ -89,7 +90,7 @@ def normalise_doi(raw: str | None) -> str | None:
 
 
 def normalise_title(raw: str | None) -> str:
-    """docs/spec/01-domain-model.md §3.2 — Title.
+    """openspec:record-identity#normalisation-rules — Title.
 
     Also used, unmodified, for author family names and journal titles before
     their own extra rules are layered on.
@@ -106,7 +107,7 @@ def normalise_title(raw: str | None) -> str:
 
 
 def normalise_author_family(raw: str | None) -> tuple[str, str]:
-    """docs/spec/01-domain-model.md §3.2 — Author family name.
+    """openspec:record-identity#normalisation-rules — Author family name.
 
     Returns (stripped, unstripped): the particle-stripped form (for identity
     and blocking) and the unstripped form (retained as a blocking alternate).
@@ -121,7 +122,7 @@ def normalise_author_family(raw: str | None) -> tuple[str, str]:
 
 
 def normalise_year(raw: Any) -> int | None:
-    """docs/spec/01-domain-model.md §3.2 — Year.
+    """openspec:record-identity#normalisation-rules — Year.
 
     Takes the first 4-digit number in [1400, current_year + 2].
     """
@@ -137,7 +138,7 @@ def normalise_year(raw: Any) -> int | None:
 
 
 def normalise_pages(raw: Any) -> str | None:
-    """docs/spec/01-domain-model.md §3.2 — Pages: the first integer run."""
+    """openspec:record-identity#normalisation-rules — Pages: the first integer run."""
     if raw is None:
         return None
     match = _DIGIT_RUN_RE.search(str(raw))
@@ -145,7 +146,7 @@ def normalise_pages(raw: Any) -> str | None:
 
 
 def normalise_journal(raw: str | None) -> str:
-    """docs/spec/01-domain-model.md §3.2 — Journal / container title."""
+    """openspec:record-identity#normalisation-rules — Journal / container title."""
     base = normalise_title(raw)
     if not base:
         return base
@@ -154,7 +155,7 @@ def normalise_journal(raw: str | None) -> str:
 
 
 def normalise_pmid(raw: Any) -> str | None:
-    """docs/spec/01-domain-model.md §3.1 — PubMed id: digits only."""
+    """openspec:record-identity — PubMed id: digits only."""
     if raw is None:
         return None
     digits = re.sub(r"\D", "", str(raw))
@@ -162,7 +163,7 @@ def normalise_pmid(raw: Any) -> str | None:
 
 
 def normalise_pmcid(raw: Any) -> str | None:
-    """docs/spec/01-domain-model.md §3.1 — PMC id: `PMC` + digits."""
+    """openspec:record-identity — PMC id: `PMC` + digits."""
     if raw is None:
         return None
     digits = re.sub(r"\D", "", str(raw))
@@ -170,7 +171,7 @@ def normalise_pmcid(raw: Any) -> str | None:
 
 
 def normalise_isbn(raw: Any) -> str | None:
-    """docs/spec/01-domain-model.md §3.1 — ISBN: digits only.
+    """openspec:record-identity — ISBN: digits only.
 
     No check-digit normalisation yet (tracked in docs/m1-plan.md); this
     matches what `canonical_key`'s isbn branch has always done.
@@ -192,7 +193,7 @@ def _first_author_family(record: dict[str, Any]) -> str:
 
 
 def canonical_key(record: dict[str, Any]) -> tuple[str, bool]:
-    """docs/spec/01-domain-model.md §3.1 — the canonical key priority ladder.
+    """openspec:record-identity — the canonical key priority ladder.
 
     Returns (key, is_deterministic). `is_deterministic` is False only for the
     priority-7 fallback (a fresh ULID), which callers MUST warn about.
@@ -230,7 +231,7 @@ def canonical_key(record: dict[str, Any]) -> tuple[str, bool]:
 
 
 def record_id(canonical_key_value: str) -> str:
-    """docs/spec/01-domain-model.md §3.1 — `rec_` + 16 lowercase base32 chars."""
+    """openspec:record-identity — `rec_` + 16 lowercase base32 chars."""
     digest = hashlib.sha256(canonical_key_value.encode("utf-8")).digest()[:10]
     return "rec_" + base32_crockford(digest).lower()
 
@@ -242,10 +243,10 @@ def assign_record_id(record: dict[str, Any]) -> tuple[str, str, bool]:
 
 
 def new_event_id() -> str:
-    """`ev_` + lowercase ULID, per docs/spec/01-domain-model.md §3.4."""
+    """`ev_` + lowercase ULID, per openspec:record-identity#identifiers-for-other-entities."""
     return f"ev_{ULID()!s}".lower()
 
 
 def new_import_id() -> str:
-    """`imp_` + ULID, per docs/spec/01-domain-model.md §3.4."""
+    """`imp_` + ULID, per openspec:record-identity#identifiers-for-other-entities."""
     return f"imp_{ULID()!s}".lower()

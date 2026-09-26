@@ -1,5 +1,5 @@
 """Integration tests for the duplicate review queue (`/dedup`):
-docs/spec/05-workflow-import.md §3, docs/spec/11-web-ui.md §2.
+openspec:deduplication, openspec:web-ui#screens.
 
 `GET /dedup` is backed by `dedup.engine.preview_dedup`, a non-mutating dry
 run -- these tests lean on that by asserting the repo is untouched after a

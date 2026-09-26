@@ -1,6 +1,7 @@
-"""Performance validation: docs/spec/05-workflow-import.md §3.7 (normative).
+"""Performance validation: openspec:deduplication#performance (normative).
 
-§3.7 requires deduplicating 50,000 records to complete in under 120 seconds,
+openspec:deduplication#performance requires deduplicating 50,000 records to complete in under 120
+seconds,
 single-threaded, on a 2020-era laptop, using under 2 GB of resident memory.
 This lives in the advisory `benchmark` CI tier (`.github/workflows/ci.yml`'s
 `benchmark` job, `continue-on-error: true`), not the blocking merge gate --
@@ -30,9 +31,10 @@ calibration loop is disabled (`rounds=1, iterations=1`) since re-running a
 the time budget this test is trying to check.
 
 Known gap, tracked in docs/m1-plan.md sub-objective 8: measured at **126.0s**
-in the sandboxed environment this was developed in -- just over §3.7's strict
+in the sandboxed environment this was developed in -- just over openspec:deduplication#performance's
+strict
 120s, though comfortably inside the M1 acceptance bar's looser 300s
-(docs/spec/15-roadmap.md). This used to be far worse (>240s, and climbing):
+(docs/roadmap.md). This used to be far worse (>240s, and climbing):
 sub-objective 8 found and fixed an O(n^2) event/alias-append bug that was the
 dominant cost for the ~5,000 merges this fixture produces (see
 `strata.core.events.append_new_events`'s docstring). What remains is
@@ -62,7 +64,7 @@ from strata.dedup.engine import run_dedup
 _SEED = 20260101
 _TOTAL_RECORDS = 50_000
 _DUPLICATE_WORKS = 5_000  # each contributes a near-duplicate pair -> 10,000 records
-_TIME_LIMIT_SECONDS = 120  # docs/spec/05-workflow-import.md §3.7
+_TIME_LIMIT_SECONDS = 120  # openspec:deduplication#performance
 _RSS_LIMIT_KB = 2 * 1024 * 1024  # 2 GB; Linux's ru_maxrss is already in KB
 
 _JOURNALS = [

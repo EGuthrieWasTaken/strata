@@ -1,4 +1,5 @@
-"""E2E-01: the origin scenario, docs/spec/06-workflow-screening.md §9.
+"""E2E-01: the origin scenario (the worked example in
+openspec/specs/staleness/design.md).
 
 The specification's own acceptance criterion, executed end to end against a
 real git repository: init, criteria, two searches, two imports (with a
@@ -6,17 +7,18 @@ genuine duplicate pair so dedup does real work), dual screening, adding an
 exclusion criterion mid-review, asserting the *exact* stale set it
 produces, and re-screening it away.
 
-**Why this test's numbers are not "180 of 2,918."** §9's narrative describes
+**Why this test's numbers are not "180 of 2,918."** The worked example's narrative describes
 adding one exclusion criterion and only 180 of 2,918 *already-included*
-decisions going stale. Read literally against §4.2's normative rule --
+decisions going stale. Read literally against openspec:staleness#the-staleness-rules's normative
+rule --
 `D.decision == "include" and there exists a change in Delta with direction
 in {tightened, both}`, where `Delta` is *every* criterion change applying
 at that stage since the decision was made -- adding one new criterion
 applying at title-abstract makes `Delta` non-empty for *every* decision
 made before that addition, regardless of what the record is about. The
 rule has no per-record content test; it can only distinguish decisions by
-*when* they were made relative to the change. §9 is explicitly informative,
-§4.2 is explicitly normative, and docs/m2-plan.md sub-objective 1 already
+*when* they were made relative to the change. The worked example is informative,
+openspec:staleness#the-staleness-rules is normative, and docs/m2-plan.md sub-objective 1 already
 established the precedent of following the normative text where the two
 conflict (there, over version numbering). This test does the same: it
 screens one batch of records *before* adding the new criterion and asserts
@@ -58,7 +60,7 @@ _MEDLINE_RECORDS = [
     for i in range(1, 11)
 ]
 # The MEDLINE and Embase exports share one record with an identical DOI
-# ("medline.1"/e1) -- identity by DOI (docs/spec/01-domain-model.md §3.1)
+# ("medline.1"/e1) -- identity by DOI (openspec:record-identity)
 # means these collapse into one canonical record during *import* itself
 # (the second import appends a `sources` entry rather than duplicating the
 # record), before `strata dedup`'s own fuzzy blocking/scoring ever runs.
@@ -324,7 +326,7 @@ def test_origin_scenario_exact_stale_set_and_rescreen(tmp_path: Path) -> None:
     # Day 15: the fix -- re-screen every stale record. Half are kept as
     # still-valid inclusions; half are now excluded citing the new criterion.
     # `rescreen`'s queue order is deterministic (sorted by record id, docs/
-    # spec/06 §6), the same for both reviewers, so feeding both the same
+    # openspec:staleness), the same for both reviewers, so feeding both the same
     # sequence of choices makes them agree at every record -- a real dual
     # re-screen, not a conflict-generating mismatch. EXC-07 is the 3rd
     # active criterion applying at title-abstract (added after INC-01,

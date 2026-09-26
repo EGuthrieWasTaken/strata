@@ -1,5 +1,5 @@
 """Performance validation: a 50,000-record import (E2E-11, and the M1
-acceptance bar in docs/spec/15-roadmap.md: "50,000-record import under 60s").
+acceptance bar in docs/roadmap.md: "50,000-record import under 60s").
 
 Advisory CI tier (see tests/benchmark/test_dedup_performance.py's module
 docstring for why: wall-clock assertions are too noisy across CI runners to
@@ -24,7 +24,7 @@ from strata.ingest.pipeline import import_file
 
 _SEED = 20260101
 _TOTAL_RECORDS = 50_000
-_TIME_LIMIT_SECONDS = 60  # docs/spec/15-roadmap.md's M1 acceptance bar
+_TIME_LIMIT_SECONDS = 60  # docs/roadmap.md's M1 acceptance bar
 _RSS_LIMIT_KB = 2 * 1024 * 1024  # 2 GB, matching the dedup perf budget
 
 

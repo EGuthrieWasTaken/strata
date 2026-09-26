@@ -1,4 +1,4 @@
-"""Labelled dedup benchmark metrics: docs/spec/05-workflow-import.md §3.8.
+"""Labelled dedup benchmark metrics: openspec:deduplication#validation-against-a-labelled-benchmark.
 
 Pure metric computation only, deliberately separated from the I/O of loading
 a fixture and running `dedup.engine.run_dedup` against a real repo -- both
@@ -35,7 +35,8 @@ def _pair_key(a: str, b: str) -> tuple[str, str]:
 
 @dataclass(frozen=True)
 class BenchmarkMetrics:
-    """One benchmark run's results, per docs/spec/05-workflow-import.md §3.8.
+    """One benchmark run's results, per
+    openspec:deduplication#validation-against-a-labelled-benchmark.
 
     `precision`/`false_merge_rate` are computed over auto-merge *actions*;
     `recall` is computed over ground-truth pairs against the final

@@ -1,6 +1,6 @@
 """`strata status`: the repository dashboard.
 
-Per docs/spec/10-cli.md §4: project identity, actors, commit count,
+Per openspec:cli#the-status-dashboard: project identity, actors, commit count,
 working-tree cleanliness, criteria version, record count, searches, and
 (as of M2) per-stage screening counts (resolved/unscreened/partial/
 conflicts/stale) plus a single "next action" recommendation. Dedup's own

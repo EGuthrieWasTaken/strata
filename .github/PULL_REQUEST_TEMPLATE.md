@@ -9,8 +9,10 @@
 ## Spec
 - [ ] OpenSpec change proposed/archived under openspec/ (validated with
       `openspec validate --all --strict`), or this changes no specified behaviour
+- [ ] `openspec:` references updated for any renamed requirement
+      (`uv run python scripts/check_docs.py`)
 - [ ] Schema version bumped, or this is not a breaking format change
 
 ## Wiki
 - [ ] Wiki updated for any new/changed user-facing command, web screen, or
-      concept (docs/spec/15-roadmap.md, M2.1), or this PR has none
+      concept (docs/roadmap.md, M2.1), or this PR has none

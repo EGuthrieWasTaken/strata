@@ -1,16 +1,19 @@
-"""Staleness computation: docs/spec/06-workflow-screening.md §4-§5.
+"""Staleness computation: openspec:staleness#the-staleness-rules and
+openspec:staleness#staleness-causes.
 
 Pure module, no I/O, no repository knowledge — one of the five
-100%-branch-coverage modules named in docs/spec/14-testing.md §1. This is
+100%-branch-coverage modules named in openspec:test-suite#test-levels-and-coverage-floors. This is
 the module the whole project's credibility rests on: "if the staleness
 engine does not work and does not feel trustworthy, the project has no
-reason to exist" (docs/spec/15-roadmap.md).
+reason to exist" (docs/roadmap.md).
 
 This module answers exactly one question: given one resolved screening
 decision and the criterion changes that have happened since it was made,
 is it stale, and why? It deliberately does not know about cross-stage
-cascading (`upstream-stale`, §4.4) or manual invalidation (`manual`,
-§6) — those need context (a record's *other* stage decisions, or an
+cascading (`upstream-stale`,
+openspec:staleness#staleness-cascades-across-stages-without-deleting-work) or manual
+invalidation (`manual`, openspec:staleness#staleness-causes) — those need context (a record's
+*other* stage decisions, or an
 explicit user action) a pure per-decision function cannot have on its own.
 The caller (docs/m2-plan.md sub-objective 4) layers those on.
 """
@@ -41,7 +44,7 @@ _EFFECTIVE_DIRECTION_EXCLUDE = frozenset({"loosened", "both"})
 class CriterionChange:
     """One criterion's state transition, as of one version bump.
 
-    `origin`/`direction` follow docs/spec/06-workflow-screening.md §3.2: a
+    `origin`/`direction` follow openspec:criteria-management#declaring-the-direction-of-a-change: a
     criterion **added** behaves as `tightened`; a criterion **retired**
     behaves as `loosened`; an **edited** criterion carries whatever
     direction the user classified the edit as (including `editorial`,
@@ -78,7 +81,7 @@ def relevant_changes(
     stage: str,
 ) -> list[CriterionChange]:
     """`Δ(v_D, v_now, stage)`: changes strictly after `decision_version`, at or
-    before `current_version`, that apply at `stage` (docs/spec 06 §4.2)."""
+    before `current_version`, that apply at `stage` (openspec:staleness#the-staleness-rules)."""
     return [
         c
         for c in changes
@@ -95,7 +98,8 @@ def evaluate_staleness(
     stage: str,
     changes: Sequence[CriterionChange],
 ) -> StaleInfo:
-    """docs/spec/06-workflow-screening.md §4.2's three-clause rule, plus §5's
+    """openspec:staleness#the-staleness-rules's three-clause rule, plus
+    openspec:staleness#staleness-causes's
     reason labels:
 
     ```
@@ -109,7 +113,8 @@ def evaluate_staleness(
     stale, `criterion-both` takes priority (it is the most conservative,
     most informative label to surface), then the origin-specific reason
     (`criterion-added`/`criterion-retired`), then the generic direction
-    reason (`criterion-tightened`/`criterion-loosened`) — the spec's §5
+    reason (`criterion-tightened`/`criterion-loosened`) — the spec's
+    openspec:staleness#staleness-causes
     table does not itself rank overlapping causes, so this ordering is this
     implementation's own deterministic tie-break, documented here rather
     than left implicit.
@@ -152,7 +157,8 @@ def evaluate_staleness(
             stale=True, reason=reason, causes=frozenset(c.criterion_id for c in causing)
         )
 
-    # decision == "maybe": any non-editorial change, cited or not (§4.2).
+    # decision == "maybe": any non-editorial change, cited or not
+    # (openspec:staleness#the-staleness-rules).
     causing = [c for c in delta if c.effective_direction != "editorial"]
     if not causing:
         return StaleInfo(stale=False)

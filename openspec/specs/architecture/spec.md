@@ -8,7 +8,7 @@ invariants, the derived-state cache, concurrency and locking, plugin interfaces
 `metafor` engine, and deliberate dependency choices such as hand-written
 deterministic SVG.
 
-Rationale, including the stack decision: `docs/spec/12-architecture.md`.
+Rationale and worked examples: [design.md](design.md).
 
 ## Requirements
 
@@ -22,8 +22,6 @@ events, fold, ids, canonical serialisation, derived views), `protocol`
 enrichment), `dedup`, `extract`, `stats`, `report`, `gitio`, and `schemas`
 (shipped JSON Schema data).
 
-_Source: `docs/spec/12-architecture.md` §2_
-
 #### Scenario: New parser
 
 - **WHEN** a contributor adds a parser for a new export format
@@ -34,8 +32,6 @@ _Source: `docs/spec/12-architecture.md` §2_
 `core.fold` MUST be pure: events in, state out, with no I/O, no clock, no
 randomness, and no git.
 
-_Source: `docs/spec/12-architecture.md` §2, invariant 1_
-
 #### Scenario: Folding in isolation
 
 - **WHEN** the fold is called with an in-memory list of events
@@ -45,8 +41,6 @@ _Source: `docs/spec/12-architecture.md` §2, invariant 1_
 
 `gitio` MUST be the only module that invokes git; everything else operates on
 the working tree.
-
-_Source: `docs/spec/12-architecture.md` §2, invariant 2_
 
 #### Scenario: Searching for git invocations
 
@@ -59,8 +53,6 @@ _Source: `docs/spec/12-architecture.md` §2, invariant 2_
 adapters over the same service layer in `core`/`protocol`, which guarantees
 they cannot diverge in behaviour.
 
-_Source: `docs/spec/12-architecture.md` §2, invariant 3; `docs/spec/15-roadmap.md` M2.1_
-
 #### Scenario: Screening from two surfaces
 
 - **WHEN** the same decision is recorded once via the CLI and once via the web UI on identical repositories
@@ -71,8 +63,6 @@ _Source: `docs/spec/12-architecture.md` §2, invariant 3; `docs/spec/15-roadmap.
 `stats` MUST have no knowledge of the repository: it takes arrays and options
 and returns numbers.
 
-_Source: `docs/spec/12-architecture.md` §2, invariant 4_
-
 #### Scenario: Using stats as a library
 
 - **WHEN** a stats function is called with plain arrays
@@ -82,8 +72,6 @@ _Source: `docs/spec/12-architecture.md` §2, invariant 4_
 
 `ingest.parsers` MUST NOT write events; they parse bytes to record dicts and
 report failures, so parsers can be fuzzed in isolation.
-
-_Source: `docs/spec/12-architecture.md` §2, invariant 5_
 
 #### Scenario: Fuzzing a parser
 
@@ -97,8 +85,6 @@ inputs. It MUST be gitignored and never authoritative; it MUST be invalidated
 when any event file's digest changes, on `post-checkout`, and on schema version
 change; and it MUST be deletable at any time with no loss. The fold MUST be fast
 enough to run without it (under 5 seconds for 50,000 records).
-
-_Source: `docs/spec/12-architecture.md` §3_
 
 #### Scenario: Corrupt cache
 
@@ -116,8 +102,6 @@ Appends MUST be complete-line `O_APPEND` writes (atomic under `PIPE_BUF` on
 POSIX), longer lines written via temp file and rename; on Windows appends are
 serialised through the lock.
 
-_Source: `docs/spec/12-architecture.md` §4_
-
 #### Scenario: Lock held by another process
 
 - **GIVEN** `strata serve` holds the lock while committing
@@ -132,8 +116,6 @@ v1: `Parser`, `Enricher`, `Prioritiser`, `Engine`, `Instrument`, `Renderer`. A
 withhold a decision, and this constraint MUST hold for any future
 implementation.
 
-_Source: `docs/spec/12-architecture.md` §5_
-
 #### Scenario: Prioritiser output
 
 - **WHEN** a prioritiser is applied to a screening queue
@@ -144,8 +126,6 @@ _Source: `docs/spec/12-architecture.md` §5_
 `engine = "metafor"` MUST shell out to `Rscript` with a JSON contract on stdin
 and stdout. It MUST be optional and detected at runtime, and its absence MUST
 never be an error unless it is explicitly selected.
-
-_Source: `docs/spec/12-architecture.md` §6_
 
 #### Scenario: R not installed
 
@@ -159,8 +139,6 @@ Dependencies MUST be kept deliberately small. Committed and verified plots MUST
 be produced by a hand-written deterministic SVG emitter; `matplotlib` MAY be
 offered as an optional renderer but MUST NOT produce output that is committed
 and verified.
-
-_Source: `docs/spec/12-architecture.md` §8_
 
 #### Scenario: Plot regeneration
 
