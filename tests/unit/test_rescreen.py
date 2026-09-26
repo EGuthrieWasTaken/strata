@@ -24,7 +24,7 @@ from strata.protocol.screening import record_screen_decision
 def _init_single(tmp_path: Path, stages: tuple[str, ...] = ("title-abstract", "full-text")):  # type: ignore[no-untyped-def]
     """A repo where ethan alone resolves every stage (assignment of one) --
     the simplest way to get a *resolved* decision without needing a second
-    reviewer to agree, matching effectively docs/spec's `single` mode."""
+    reviewer to agree, matching effectively the spec's `single` mode."""
     root = tmp_path / "review"
     init_repository(root, title="T", actor_handle="ethan", actor_name="Ethan")
     doc = manifest_mod.load_manifest_doc(root)
@@ -705,7 +705,7 @@ def test_regenerate_stale_tsv_empty_when_nothing_stale(tmp_path: Path) -> None:
 
 
 def test_preview_matches_what_the_real_edit_would_produce(tmp_path: Path) -> None:
-    """The preview's whole point (docs/spec/11-web-ui.md §4) is that it
+    """The preview's whole point (openspec:web-ui#criteria-editor-impact-preview) is that it
     tells the truth about what saving would do -- so assert it against the
     real, post-edit `compute_stale_records` result, not just its own
     internals."""

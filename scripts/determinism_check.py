@@ -1,8 +1,8 @@
 """Emit a fixture exercising canonical serialisation and identity assignment.
 
 Run twice under two different `PYTHONHASHSEED` values by the CI `determinism`
-job (docs/spec/14-testing.md §9.3); the output MUST be byte-identical both
-times (docs/spec/02-repository-format.md §5, property P4/P5).
+job (openspec:ci-gate#tiered-pull-request-gate); the output MUST be byte-identical both
+times (openspec:canonical-serialisation, property P4/P5).
 """
 
 from __future__ import annotations

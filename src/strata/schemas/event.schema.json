@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://strata-review.org/schemas/event.schema.json",
   "title": "Event envelope",
-  "description": "docs/spec/02-repository-format.md §4.2",
+  "description": "openspec:event-log",
   "type": "object",
   "required": ["ev", "id", "ts", "actor", "seq", "body", "tool", "digest"],
   "additionalProperties": false,

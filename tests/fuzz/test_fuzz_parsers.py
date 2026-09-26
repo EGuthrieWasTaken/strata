@@ -1,11 +1,11 @@
-"""Fuzz testing for strata.ingest.parsers: docs/spec/14-testing.md §6.
+"""Fuzz testing for strata.ingest.parsers: openspec:test-suite#fuzzing.
 
 Wired into the nightly `fuzz` job (`.github/workflows/nightly.yml`, which
 already runs `pytest tests/fuzz -q` if this directory exists) -- not the
 pull-request gate: mutation fuzzing explores a large input space and is
 allowed to take longer than a per-commit budget affords.
 
-Uses `hypothesis`-driven mutation, not `atheris` (§6 names either):
+Uses `hypothesis`-driven mutation, not `atheris` (openspec:test-suite#fuzzing names either):
 `atheris` needs a native libFuzzer-linked CPython build, which is fragile to
 install portably across the three-OS CI matrix this project targets (Linux/
 macOS/Windows); `hypothesis` is already a project dependency, and its
@@ -13,9 +13,9 @@ macOS/Windows); `hypothesis` is already a project dependency, and its
 truncation, insertion -- against the same seed corpus, without a new,
 platform-sensitive dependency.
 
-Every parser's actual contract (docs/spec/05-workflow-import.md §2.1): a row
+Every parser's actual contract (openspec:literature-import): a row
 that fails to parse becomes a `RejectedRow` inside the returned
-`ParseResult`, never a raised exception -- "reports a `ParseError`" in §6's
+`ParseResult`, never a raised exception -- "reports a `ParseError`" in openspec:test-suite#fuzzing's
 more abstract wording. So the only thing this suite asserts is that
 `parse()` returns at all, for any input, without raising, hanging, or (so
 far as a Python-level test can observe) executing anything. It deliberately
@@ -64,7 +64,7 @@ def _seed_corpus(directory: Path) -> list[bytes]:
 def _mutated_bytes(draw: st.DrawFn, seeds: list[bytes]) -> bytes:
     """One seed fixture with 0-8 local byte mutations applied: a flip,
     insertion, deletion, or truncation at a random position -- "mutating
-    bytes/encoding/structure" per §6, anchored to real export bytes rather
+    bytes/encoding/structure" per openspec:test-suite#fuzzing, anchored to real export bytes rather
     than fully unstructured noise."""
     buffer = bytearray(draw(st.sampled_from(seeds)))
     for _ in range(draw(st.integers(min_value=0, max_value=_MAX_MUTATIONS))):

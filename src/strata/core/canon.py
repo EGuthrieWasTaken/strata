@@ -1,6 +1,6 @@
 """Canonical serialisation.
 
-Implements docs/spec/02-repository-format.md §5: any file `strata` writes MUST
+Implements openspec:canonical-serialisation: any file `strata` writes MUST
 be byte-identical given the same logical content, on any platform. This module
 is the single place that encodes JSON values; nothing else in the codebase
 should call `json.dumps` on data destined for a committed file.
@@ -16,7 +16,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-# Event envelope field order, per docs/spec/02-repository-format.md §4.2.
+# Event envelope field order, per openspec:event-log.
 ENVELOPE_KEY_ORDER = ("ev", "id", "ts", "actor", "seq", "body", "tool", "prev", "digest")
 
 
@@ -33,7 +33,9 @@ def _canonical_value(value: Any) -> str:
         return str(value)
     if isinstance(value, float):
         if math.isnan(value) or math.isinf(value):
-            raise CanonError("NaN and Infinity MUST NOT be emitted (02 §5.1)")
+            raise CanonError(
+                "NaN and Infinity MUST NOT be emitted (openspec:canonical-serialisation)"
+            )
         return repr(value)
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
@@ -74,7 +76,7 @@ def dump_yaml_str(data: Any) -> str:
     """Block-style YAML, 2-space indent, no aliases/anchors, no flow mappings.
 
     Key order follows the insertion order of `data` (schema-declared order),
-    per docs/spec/02-repository-format.md §5.3.
+    per openspec:canonical-serialisation#yaml-rules.
     """
     yaml = YAML(typ="rt")
     yaml.default_flow_style = False

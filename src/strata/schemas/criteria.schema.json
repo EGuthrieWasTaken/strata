@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://strata-review.org/schemas/criteria.schema.json",
   "title": "Criteria",
-  "description": "docs/spec/03-schemas.md §3 — protocol/criteria.yaml",
+  "description": "openspec:data-schemas#criteria-file-schema-and-digests — protocol/criteria.yaml",
   "type": "object",
   "required": ["version", "digest", "criteria"],
   "additionalProperties": false,

@@ -1,7 +1,7 @@
 """Integration tests for the web criteria editor (`/criteria`):
-docs/spec/11-web-ui.md §4, the one web-UI piece the M2 roadmap acceptance
+openspec:web-ui#criteria-editor-impact-preview, the one web-UI piece the M2 roadmap acceptance
 checklist names outright ("The criteria editor's impact preview is
-correct and non-mutating," docs/spec/15-roadmap.md)."""
+correct and non-mutating," docs/roadmap.md)."""
 
 from __future__ import annotations
 
@@ -130,7 +130,7 @@ def test_criteria_edit_view_previews_tightened_as_no_impact_for_an_exclusion(
 ) -> None:
     """Tightening EXC-03 doesn't stale the exclusion that cited it (only
     loosening/retiring an exclusion's own cited criterion does, per
-    docs/spec/06 §4.2) -- the preview must say so, not just "not zero"."""
+    openspec:staleness#the-staleness-rules) -- the preview must say so, not just "not zero"."""
     repo = _repo_with_one_stale_candidate(tmp_path)
     client = _client(repo)
     r = client.get("/criteria/EXC-03/edit?direction=tightened")

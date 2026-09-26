@@ -7,6 +7,27 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- The specification now lives entirely in [OpenSpec](openspec/README.md):
+  29 capability specs under `openspec/specs/` (M0–M2.1), each with a
+  `spec.md` of requirements and WHEN/THEN scenarios and a `design.md` of
+  rationale and worked examples, and the unbuilt milestones as change
+  proposals under `openspec/changes/`. The long-form `docs/spec/` documents
+  were converted and then retired (archived OpenSpec change
+  `retire-docs-spec`): the overview, roadmap, and open questions moved to
+  `docs/`, and every reference in code, tests, scripts, workflows, templates,
+  and JSON Schemas now cites `openspec:<capability>#<requirement>`.
+  `scripts/check_docs.py` was rewritten (links, anchors, config blocks, a
+  capability index, resolution of every `openspec:` reference, and a guard
+  against references to the retired directory) with unit tests, and the
+  `docs` CI job also runs `openspec validate --all --strict` (OpenSpec 1.13.2,
+  telemetry disabled). The OpenSpec Claude Code skills and `/opsx:*`
+  commands are installed under `.claude/`.
+- Planned (OpenSpec changes, not yet implemented): a container image
+  (`add-container-image`) and a self-hosted team instance with per-user
+  accounts and an automatic git sync loop (`add-hosted-team-deployment`),
+  following the decision to support hosted collaboration with git as the
+  backend (`docs/open-questions.md`, Q11).
+
 - A fuzz corpus for `ingest.parsers` (`tests/fuzz/`, `hypothesis`-driven
   mutation of the real fixture corpus, wired into the nightly `fuzz` job)
   and a requirement-traceability report (`scripts/traceability_report.py`,

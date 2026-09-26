@@ -1,4 +1,4 @@
-"""Unit tests for `strata.mcpserver.server` (docs/spec/15-roadmap.md, M2.1).
+"""Unit tests for `strata.mcpserver.server` (openspec:mcp-server).
 
 Exercises `RepoTools` directly -- the marshalling layer -- without going
 through MCP tool registration or the stdio transport at all, the same

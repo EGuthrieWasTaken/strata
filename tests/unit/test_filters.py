@@ -1,4 +1,4 @@
-"""Unit tests for strata.core.filters, per docs/spec/10-cli.md §3."""
+"""Unit tests for strata.core.filters, per openspec:filter-language."""
 
 from __future__ import annotations
 

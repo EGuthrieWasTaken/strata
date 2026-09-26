@@ -1,7 +1,8 @@
 """Git hook content and commit-message trailer validation.
 
-Implements docs/spec/04-git-integration.md §4 (hooks) and the trailer-block
-half of §2.2 (structured commit messages). The hooks themselves are thin
+Implements openspec:git-integration#versioned-hooks (hooks) and the trailer-block
+half of openspec:git-integration#structured-commit-messages (structured commit messages). The hooks
+themselves are thin
 shell scripts that call back into `strata internal hook-*`, so the checks
 they run are exactly the checks `strata verify` runs — there is only one
 implementation of each.

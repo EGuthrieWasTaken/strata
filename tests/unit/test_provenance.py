@@ -1,4 +1,4 @@
-"""Unit tests for strata.core.provenance ("strata why"), docs/spec/10-cli.md §2."""
+"""Unit tests for strata.core.provenance ("strata why"), openspec:cli."""
 
 from __future__ import annotations
 

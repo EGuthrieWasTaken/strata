@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Static security analysis: docs/spec/14-testing.md §9.3, tier 3 (advisory,
+# Static security analysis: openspec:ci-gate#tiered-pull-request-gate, tier 3 (advisory,
 # never blocks the merge).
 on:
   pull_request:

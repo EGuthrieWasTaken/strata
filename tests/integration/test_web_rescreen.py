@@ -1,5 +1,5 @@
 """Integration tests for the web rescreen surface (`/rescreen/<stage>`):
-docs/spec/06-workflow-screening.md §6, docs/spec/11-web-ui.md §3.2."""
+openspec:staleness, openspec:web-ui#re-screening-mode."""
 
 from __future__ import annotations
 

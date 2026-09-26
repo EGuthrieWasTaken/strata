@@ -1,7 +1,7 @@
 """`strata doctor`: diagnose and repair a repository's git-level setup.
 
-Implements docs/spec/04-git-integration.md §3.1 ("`strata doctor` MUST detect
-missing drivers and offer to install them") and §4 (hooks).
+Implements openspec:git-integration#merge-drivers ("`strata doctor` MUST detect
+missing drivers and offer to install them") and openspec:git-integration#versioned-hooks (hooks).
 """
 
 from __future__ import annotations

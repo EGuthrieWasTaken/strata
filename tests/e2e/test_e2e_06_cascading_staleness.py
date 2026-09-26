@@ -1,12 +1,13 @@
 """E2E-06: cascading staleness -- a title/abstract reversal orphans a
 downstream full-text decision, without deleting it.
 
-docs/spec/14-testing.md §5: "Cascading staleness: a title/abstract reversal
+openspec:test-suite#end-to-end-scenarios: "Cascading staleness: a title/abstract reversal
 orphans a full-text decision and an extraction, without deleting the
 extraction." Extraction does not exist until M3 (docs/m2-plan.md's own
 precedent: M1 left EndNote/Excel import partial and documented it rather
-than blocking on it), so this test's scope is the part of §4.4
-(docs/spec/06-workflow-screening.md) M2 actually implements: the forward
+than blocking on it), so this test's scope is the part of
+openspec:staleness#staleness-cascades-across-stages-without-deleting-work
+that M2 actually implements: the forward
 cascade (a stale title-abstract `include` marks the dependent full-text
 decision stale too, `protocol/rescreen.py`'s `upstream-stale` reason) and
 the "never silently delete downstream work" guarantee, checked against the
@@ -21,7 +22,8 @@ is asserted directly. Once the reviewer resolves it by reversing to
 `exclude`, title-abstract's own opinion is fresh again (it was actively
 re-decided) and so no longer stale, and `upstream-stale` stops applying
 (nothing is pending for the reviewer to act on any more, and re-screening
-an already-excluded record's full text would be pointless). What §4.4
+an already-excluded record's full text would be pointless). What
+openspec:staleness#staleness-cascades-across-stages-without-deleting-work
 actually promises for that state -- "never silently delete downstream
 work" -- is that the full-text `include` opinion is *retained*: still
 present in `events/screen/full-text.<actor>.ndjson`, still visible via
@@ -185,7 +187,8 @@ def test_title_abstract_reversal_orphans_full_text_without_deleting_it(tmp_path:
     stale = compute_stale_records(repo)
     stale_by_stage = {s.stage: s for s in stale}
 
-    # The cascade (docs/spec/06 §4.4): the native title-abstract staleness
+    # The cascade (openspec:staleness#staleness-cascades-across-stages-without-deleting-work): the
+    # native title-abstract staleness
     # marks the dependent full-text decision stale too, *while it is still
     # pending*.
     assert set(stale_by_stage) == {"title-abstract", "full-text"}

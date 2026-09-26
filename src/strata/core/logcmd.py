@@ -1,6 +1,6 @@
 """`strata log`: a domain-level `git log` read through `Strata-` trailers.
 
-Implements docs/spec/04-git-integration.md §6.2.
+Implements openspec:provenance-queries#strata-log.
 """
 
 from __future__ import annotations

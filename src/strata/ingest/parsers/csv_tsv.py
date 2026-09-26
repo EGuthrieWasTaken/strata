@@ -1,6 +1,6 @@
 """CSV/TSV parser with explicit column mapping.
 
-Implements docs/spec/05-workflow-import.md §2.2: CSV exports vary per
+Implements openspec:literature-import#csv-column-mapping: CSV exports vary per
 platform, so column mapping cannot be hard-coded into the parser itself.
 Unlike every other module in this package, `parse` here cannot resolve a
 header row into records on its own -- it takes a `mapping` (target field ->

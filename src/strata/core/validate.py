@@ -1,6 +1,6 @@
 """JSON Schema loading and validation for the schemas shipped under `strata/schemas/`.
 
-Implements docs/spec/03-schemas.md §1: every persisted object type MUST be
+Implements openspec:data-schemas#project-manifest: every persisted object type MUST be
 validated on write and on load against its shipped JSON Schema.
 """
 

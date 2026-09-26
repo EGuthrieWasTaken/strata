@@ -1,6 +1,7 @@
-"""Unit tests for docs/spec/06-workflow-screening.md §4-§5's staleness rules.
+"""Unit tests for openspec:staleness's staleness rules and causes.
 
-Exercises every row of §5's reason table by name, plus the §4.3 residual-risk
+Exercises every row of openspec:staleness#staleness-causes's reason table by name, plus the
+openspec:staleness#mitigations-for-miscited-criteria residual-risk
 scenario (a carelessly miscited exclusion). The property test in
 tests/property/test_staleness_properties.py (P10) covers the general
 combinatorics against an independent brute-force reference; this file pins
@@ -44,7 +45,8 @@ def test_include_with_no_relevant_change_is_not_stale() -> None:
 
 
 def test_criterion_added_stales_an_include() -> None:
-    """§5 `criterion-added`: a new criterion applies at this stage and the
+    """openspec:staleness#staleness-causes `criterion-added`: a new criterion applies at this stage
+    and the
     record was included."""
     change = _change("EXC-07", origin="added", direction="tightened", to_version=4)
     result = evaluate_staleness(
@@ -61,7 +63,8 @@ def test_criterion_added_stales_an_include() -> None:
 
 
 def test_criterion_tightened_stales_an_include() -> None:
-    """§5 `criterion-tightened`: a cited-or-not criterion was tightened and
+    """openspec:staleness#staleness-causes `criterion-tightened`: a cited-or-not criterion was
+    tightened and
     the record was included."""
     change = _change("EXC-03", origin="edited", direction="tightened", to_version=4)
     result = evaluate_staleness(
@@ -77,7 +80,7 @@ def test_criterion_tightened_stales_an_include() -> None:
 
 
 def test_loosening_does_not_stale_an_include() -> None:
-    """§4.3: inclusions are robust to loosening."""
+    """openspec:staleness#the-staleness-rules: inclusions are robust to loosening."""
     change = _change("EXC-03", origin="edited", direction="loosened", to_version=4)
     result = evaluate_staleness(
         decision="include",
@@ -91,7 +94,8 @@ def test_loosening_does_not_stale_an_include() -> None:
 
 
 def test_criterion_loosened_stales_the_exclusion_that_cited_it() -> None:
-    """§5: `criterion-loosened` -- a criterion this exclusion cited was loosened."""
+    """openspec:staleness#staleness-causes: `criterion-loosened` -- a criterion this exclusion cited
+    was loosened."""
     change = _change("EXC-03", origin="edited", direction="loosened", to_version=4)
     result = evaluate_staleness(
         decision="exclude",
@@ -107,7 +111,8 @@ def test_criterion_loosened_stales_the_exclusion_that_cited_it() -> None:
 
 
 def test_criterion_retired_stales_the_exclusion_that_cited_it() -> None:
-    """§5: `criterion-retired` -- a criterion this exclusion cited was retired."""
+    """openspec:staleness#staleness-causes: `criterion-retired` -- a criterion this exclusion cited
+    was retired."""
     change = _change("EXC-02", origin="retired", direction="loosened", to_version=4)
     result = evaluate_staleness(
         decision="exclude",
@@ -122,7 +127,8 @@ def test_criterion_retired_stales_the_exclusion_that_cited_it() -> None:
 
 
 def test_tightening_does_not_stale_an_exclusion() -> None:
-    """§4.3: exclusions are robust to tightening -- adding grounds cannot rescue a paper."""
+    """openspec:staleness#the-staleness-rules: exclusions are robust to tightening -- adding grounds
+    cannot rescue a paper."""
     added = _change("EXC-07", origin="added", direction="tightened", to_version=4)
     tightened = _change("EXC-02", origin="edited", direction="tightened", to_version=4)
     result = evaluate_staleness(
@@ -137,7 +143,8 @@ def test_tightening_does_not_stale_an_exclusion() -> None:
 
 
 def test_exclusion_unaffected_by_a_change_to_an_uncited_criterion() -> None:
-    """An exclusion citing EXC-02 is unaffected by a change to EXC-03 (§4.3)."""
+    """An exclusion citing EXC-02 is unaffected by a change to EXC-03
+    (openspec:staleness#the-staleness-rules)."""
     change = _change("EXC-03", origin="edited", direction="loosened", to_version=4)
     result = evaluate_staleness(
         decision="exclude",
@@ -151,7 +158,8 @@ def test_exclusion_unaffected_by_a_change_to_an_uncited_criterion() -> None:
 
 
 def test_criterion_both_stales_include_and_cited_exclude() -> None:
-    """§5: `criterion-both` -- a bidirectional change stales both directions."""
+    """openspec:staleness#staleness-causes: `criterion-both` -- a bidirectional change stales both
+    directions."""
     change = _change("EXC-03", origin="edited", direction="both", to_version=4)
     include_result = evaluate_staleness(
         decision="include",
@@ -191,7 +199,8 @@ def test_both_takes_priority_over_added_when_causes_overlap() -> None:
 
 
 def test_maybe_stales_on_any_non_editorial_change() -> None:
-    """§5: `maybe-any-change` -- the decision was `maybe` and anything (non-editorial) changed."""
+    """openspec:staleness#staleness-causes: `maybe-any-change` -- the decision was `maybe` and
+    anything (non-editorial) changed."""
     change = _change("EXC-05", origin="edited", direction="tightened", to_version=4)
     result = evaluate_staleness(
         decision="maybe",
@@ -219,7 +228,8 @@ def test_maybe_is_not_stale_from_editorial_change_alone() -> None:
 
 
 def test_maybe_stales_even_for_an_uncited_criterion() -> None:
-    """§4.2: for `maybe`, Δ != ∅ is sufficient -- no citation restriction, unlike `exclude`."""
+    """openspec:staleness#the-staleness-rules: for `maybe`, Δ != ∅ is sufficient -- no citation
+    restriction, unlike `exclude`."""
     change = _change("EXC-05", origin="edited", direction="tightened", to_version=4)
     result = evaluate_staleness(
         decision="maybe",
@@ -281,7 +291,8 @@ def test_change_at_a_different_stage_is_irrelevant() -> None:
 
 
 def test_miscited_criterion_residual_risk_from_spec_4_3() -> None:
-    """§4.3's worked residual-risk scenario: a reviewer excludes a rodent study
+    """openspec:staleness#mitigations-for-miscited-criteria's worked residual-risk scenario: a
+    reviewer excludes a rodent study
     but cites EXC-05 (wrong outcome) instead of EXC-02 (animal model).
 
     Retiring EXC-05 correctly flags the record stale (no harm, since it

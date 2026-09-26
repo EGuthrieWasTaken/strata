@@ -1,5 +1,12 @@
 # M1 ("Literature in") — sub-objective plan
 
+> **Historical record.** This plan cites the long-form specification that
+> lived under `docs/spec/` when it was written (for example
+> `docs/spec/05-workflow-import.md §3.7`). That directory has since been
+> retired in favour of [OpenSpec](../openspec/README.md); the cited text is
+> preserved at
+> [commit 69eec94](https://github.com/EGuthrieWasTaken/strata/tree/69eec94dae31794925b6bf25dce7c9659f57a310/docs/spec).
+
 Not part of the specification in `docs/spec/` (which is normative/informative
 design content executed once) — this is a working implementation-tracking
 note for whichever agent or session picks up M1 next, kept outside

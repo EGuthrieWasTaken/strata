@@ -1,4 +1,4 @@
-"""Property test for alias resolution, per docs/spec/14-testing.md §2.
+"""Property test for alias resolution, per openspec:test-suite#property-invariants.
 
 P7: any sequence of merges yields a resolvable, acyclic alias graph.
 """

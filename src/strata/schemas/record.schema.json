@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://strata-review.org/schemas/record.schema.json",
   "title": "Record",
-  "description": "docs/spec/03-schemas.md §2 — one line of records/records.ndjson",
+  "description": "openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension — one line of records/records.ndjson",
   "type": "object",
   "required": ["id", "type", "title", "strata"],
   "additionalProperties": true,

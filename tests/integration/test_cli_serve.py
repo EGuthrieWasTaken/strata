@@ -1,4 +1,4 @@
-"""`strata serve`: docs/spec/11-web-ui.md, docs/spec/10-cli.md.
+"""`strata serve`: openspec:web-ui, openspec:cli.
 
 Unlike every other `test_cli_*.py` file, this one cannot use
 `typer.testing.CliRunner` (in-process, synchronous): `strata serve` blocks

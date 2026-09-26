@@ -1,5 +1,5 @@
 name: Parser / import problem
-description: "My export file does not import (docs/spec/14-testing.md §9.2)."
+description: "My export file does not import (openspec:ci-gate#ci-files)."
 labels: ["parser"]
 body:
   - type: markdown
@@ -8,7 +8,7 @@ body:
         The most common bug report against `strata` is a database export it
         mishandles, and the fix always starts with the file. This template
         exists to get it, and to ask whether it can become a permanent test
-        fixture (docs/spec/14-testing.md §3).
+        fixture (openspec:test-suite#golden-parser-fixtures).
   - type: dropdown
     id: platform
     attributes:

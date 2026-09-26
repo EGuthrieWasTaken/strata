@@ -1,6 +1,6 @@
 """Golden fixture tests for the bibliographic export parsers.
 
-Implements docs/spec/14-testing.md §3. Each fixture under
+Implements openspec:test-suite#golden-parser-fixtures. Each fixture under
 `tests/fixtures/exports/` is read as raw bytes, put through the same
 decode/newline-normalisation pipeline the import pipeline uses, parsed, and
 compared against a committed expected result -- see `tests/fixtures/SOURCES.md`
@@ -82,7 +82,8 @@ def test_malformed_fixture_matches_expected(format_dir: str, malformed_file: str
 
 
 def test_csl_json_malformed_fixture_isolates_bad_entries() -> None:
-    """A bad entry must not swallow the valid ones on either side of it (§2.1)."""
+    """A bad entry must not swallow the valid ones on either side of it
+    (openspec:literature-import#tolerant-parsing)."""
     result, _ = _parse_fixture("csl-json", "malformed.json")
     titles = [r["title"] for r in result.records]
     assert titles == [

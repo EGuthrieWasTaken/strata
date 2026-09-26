@@ -1,9 +1,10 @@
-"""`strata audit --criteria`: docs/spec/06-workflow-screening.md §4.3's
+"""`strata audit --criteria`: openspec:staleness#mitigations-for-miscited-criteria's
 sampling workflow.
 
 Re-presents a random sample of past exclusion decisions so a reviewer can
 verify the cited criterion still looks correct -- the mitigation the spec
-names for the miscited-criterion residual risk (§4.3: staleness alone
+names for the miscited-criterion residual risk
+(openspec:staleness#mitigations-for-miscited-criteria: staleness alone
 cannot catch a record excluded on a criterion it never actually cited,
 because retiring the *wrong* criterion won't flag it). A review aid, not a
 mutating command: it never appends an event itself; a correction found
@@ -34,7 +35,7 @@ class AuditItem:
 def all_exclusions(repo: Repo) -> list[AuditItem]:
     """Every actor's *current standing* exclude opinion, across all stages.
 
-    Last-write-wins per `(stage, record, actor)` (docs/spec/02 §4.3): if a
+    Last-write-wins per `(stage, record, actor)` (openspec:event-log#the-fold): if a
     reviewer excluded and then changed their mind, only their current
     opinion is a live exclusion worth auditing.
     """

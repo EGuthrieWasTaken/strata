@@ -1,8 +1,9 @@
-"""Inter-rater reliability: docs/spec/02-repository-format.md §6.5.
+"""Inter-rater reliability: openspec:derived-views#inter-rater-reliability-view.
 
 Computed over *independent first opinions only* — an opinion changed after
 seeing another reviewer's decision would no longer be independent
-(docs/spec/06 §2's blinding requirement exists precisely so first opinions
+(openspec:screening#dual-independent-screening-with-blinding's blinding requirement exists precisely
+so first opinions
 are trustworthy), which is why this uses `core.fold.fold_first_write`, not
 the last-write-wins fold everything else in this codebase uses.
 
@@ -136,7 +137,7 @@ def compute_stage_irr(repo: Repo, stage: str) -> list[PairIrr]:
 
 
 def regenerate_irr_json(repo: Repo) -> str:
-    """Regenerate `derived/irr.json` (docs/spec/02-repository-format.md §6.5)."""
+    """Regenerate `derived/irr.json` (openspec:derived-views#inter-rater-reliability-view)."""
     payload: dict[str, list[dict[str, Any]]] = {}
     for stage in screening_mod.configured_stages(repo):
         payload[stage] = [

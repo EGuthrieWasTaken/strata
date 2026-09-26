@@ -1,4 +1,4 @@
-"""Integration tests for `strata records`/`why`/`fix`, docs/spec/10-cli.md §2."""
+"""Integration tests for `strata records`/`why`/`fix`, openspec:cli."""
 
 import json
 from pathlib import Path

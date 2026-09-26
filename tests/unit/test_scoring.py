@@ -1,4 +1,4 @@
-"""Unit tests for strata.dedup.scoring, per docs/spec/05-workflow-import.md §3.3."""
+"""Unit tests for strata.dedup.scoring, per openspec:deduplication#scoring."""
 
 from __future__ import annotations
 
@@ -213,7 +213,8 @@ def test_score_pair_doi_mismatch_vetoes_to_zero() -> None:
 
 
 def test_score_pair_doi_conflict_non_doi_score_is_high() -> None:
-    """§3.3: a DOI-vetoed pair scoring high on everything else is a `doi-conflict`."""
+    """openspec:deduplication#scoring: a DOI-vetoed pair scoring high on everything else is a
+    `doi-conflict`."""
     result = score_pair(_CEPEDA_A, _CEPEDA_B_DOI_CONFLICT)
     assert result.non_doi_score >= 0.80  # would clear the default review_threshold
 

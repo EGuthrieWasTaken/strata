@@ -1,10 +1,11 @@
 """E2E-07: dedup after a late fourth import doesn't re-raise earlier decisions.
 
-docs/spec/14-testing.md §5: "Deduplication after a late fourth import,
+openspec:test-suite#end-to-end-scenarios: "Deduplication after a late fourth import,
 asserting that earlier manual dedup decisions are not re-raised." A scripted
 run against a real git repository: import two near-duplicate records,
 resolve that pair manually (`[k]eep both`, the sticky "not duplicates"
-decision per §3.1/§3.6 of docs/spec/05-workflow-import.md), import two more
+decision per
+openspec:deduplication#sticky-reversible-conservative-explainable), import two more
 unrelated records later, and confirm the first pair is never queued again
 while the fourth import is still correctly considered fresh.
 """

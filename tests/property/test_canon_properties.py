@@ -1,7 +1,7 @@
-"""Property test for canonical serialisation, per docs/spec/14-testing.md §2.
+"""Property test for canonical serialisation, per openspec:test-suite#property-invariants.
 
 P3: `parse(canon(x)) == x` for every schema. `canonical_json` is a
-hand-written recursive serialiser (docs/spec/02-repository-format.md §5), not
+hand-written recursive serialiser (openspec:canonical-serialisation), not
 a thin wrapper over `json.dumps`, so this genuinely exercises its own
 recursion and per-type formatting rather than restating a stdlib guarantee.
 """
@@ -16,7 +16,8 @@ from hypothesis import strategies as st
 
 from strata.core.canon import canonical_json
 
-# Only values `canonical_json` actually accepts (docs/spec 02 §5.1: no NaN/
+# Only values `canonical_json` actually accepts (openspec:canonical-serialisation#ndjson-rules: no
+# NaN/
 # Infinity) and only `list`/`dict` containers -- a `tuple` would round-trip
 # through JSON as a `list`, which is a real, known asymmetry of JSON itself,
 # not something P3 is about.
@@ -74,5 +75,6 @@ def test_p3_serialisation_round_trip(value: object) -> None:
 )
 def test_p3_serialisation_round_trip_record_shaped(record: dict[str, object]) -> None:
     """The same property, over a record-schema-shaped document specifically --
-    §3's "for every schema" wording, not just arbitrary JSON."""
+    P3's "for every schema" wording (openspec:test-suite#property-invariants), not just arbitrary
+    JSON."""
     assert json.loads(canonical_json(record)) == record

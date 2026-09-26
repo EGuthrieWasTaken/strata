@@ -114,7 +114,7 @@ def test_verify_chain_detects_broken_prev(tmp_path: Path) -> None:
 
 
 def test_verify_chain_allows_restart_matching_earlier_digest(tmp_path: Path) -> None:
-    """A union merge of two divergent same-actor tails: docs/spec 02 §4.2's caveat.
+    """A union merge of two divergent same-actor tails: openspec:event-log's caveat.
 
     `e2b` restarts from `e1`'s digest rather than the immediately preceding
     line (`e2a`'s), which is exactly the case the union-merge caveat exists

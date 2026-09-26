@@ -1,14 +1,17 @@
 """Wiring the pure staleness engine to real repository state.
 
-Implements docs/spec/06-workflow-screening.md §4.4 (cascading staleness) and
-§6 (the re-screening workflow), plus docs/spec/02-repository-format.md §6.4
+Implements openspec:staleness#staleness-cascades-across-stages-without-deleting-work (cascading
+staleness) and
+openspec:staleness#re-screening-shows-the-prior-decision (the re-screening workflow), plus
+openspec:derived-views#stale-decisions-view
 (`derived/stale.tsv`). `strata.protocol.staleness` is deliberately pure and
 knows nothing about a repository, an actor, or a fold; this module is the
 impure half that reads criteria-change events, screen/adjudicate events, and
 `core.fold`'s resolution to decide which *resolved* records are stale, and
 drives `strata rescreen`.
 
-**Multi-reviewer staleness, a documented simplification.** §4.1 defines
+**Multi-reviewer staleness, a documented simplification.**
+openspec:staleness#decisions-bind-to-the-criteria-they-were-made-under defines
 staleness per decision, and every `screen` event is its own decision with
 its own `criteria_version`. A resolved record in dual mode, though, is the
 *agreement* of two independent opinions that may have been recorded at two
@@ -28,10 +31,11 @@ adjudication event's own `criteria_version`/`criteria` directly, once
 **`maybe` is out of scope for the resolved-decision model.** `core.fold`'s
 own resolution rule folds any `maybe` opinion (dual or single reviewer) into
 `conflict`, never into a resolved `maybe` -- so `D.decision == "maybe"` in
-§4.2's rule only ever applies to an individual, unresolved opinion. This
+openspec:staleness#the-staleness-rules's rule only ever applies to an individual, unresolved
+opinion. This
 module only computes staleness for *resolved* (`include`/`exclude`)
 decisions, matching every reason `derived/stale.tsv`'s own reason table
-lists staleness against (docs/spec/06 §5's table has no "conflict" reason).
+lists staleness against (openspec:staleness#staleness-causes's table has no "conflict" reason).
 Per-opinion staleness for a still-open conflict is a real, deliberately
 deferred refinement -- `protocol.staleness.evaluate_staleness` already
 supports it directly if a future session wants it.
@@ -117,7 +121,8 @@ def _effective_opinion(state: ScreeningState, *, actor: str | None) -> _Opinion 
     the record is actually *resolved* (`include`/`exclude`).
 
     `actor=<handle>` is that reviewer's own most recent opinion, evaluated
-    directly per §4.2's literal per-decision rule -- independent of the
+    directly per openspec:staleness#the-staleness-rules's literal per-decision rule -- independent
+    of the
     record's aggregate status. This is what makes dual-mode re-screening
     actually work: the instant one reviewer's fresh opinion disagrees with
     the other's still-stale one, the record's aggregate status flips to
@@ -208,9 +213,9 @@ def mark_manual_stale(
     repo: Repo, *, stage: str, record_id: str, actor: str, rationale: str
 ) -> dict[str, Any]:
     """`strata rescreen --mark`: force a record stale outside the criteria-change
-    mechanism (docs/spec/06 §5's `manual` reason).
+    mechanism (openspec:staleness#staleness-causes's `manual` reason).
 
-    Implemented as a `note` event (docs/spec/02-repository-format.md §4.4:
+    Implemented as a `note` event (openspec:event-log#event-types:
     "free-form, attaches to any entity") rather than a new event type. A
     mark is "consumed" the moment a fresh `screen` decision is recorded
     after it -- there is no separate un-marking mechanism, matching this
@@ -321,7 +326,8 @@ def _compute_stale(
 def compute_stale_records(repo: Repo) -> list[StaleRecord]:
     """Every stale resolved decision, across all configured stages.
 
-    Cascading (docs/spec/06 §4.4): a stale `title-abstract` decision marks
+    Cascading (openspec:staleness#staleness-cascades-across-stages-without-deleting-work): a stale
+    `title-abstract` decision marks
     the same record's `full-text` decision stale too (`upstream-stale`),
     layered *after* full-text's own criterion-change staleness so a more
     specific native reason always wins when both would apply.
@@ -369,7 +375,7 @@ def preview_criterion_change_impact(
 ) -> list[StaleRecord]:
     """Non-mutating preview: what `compute_stale_records` would return if
     `criterion_id` were changed this way right now, without writing
-    anything (docs/spec/11-web-ui.md §4: "The preview MUST be computed
+    anything (openspec:web-ui#criteria-editor-impact-preview: "The preview MUST be computed
     without mutating anything, MUST update as the direction radio
     changes"). Drives the web criteria editor's live impact panel.
 
@@ -406,7 +412,7 @@ def preview_criterion_change_impact(
 
 
 def regenerate_stale_tsv(repo: Repo) -> str:
-    """Regenerate `derived/stale.tsv` (docs/spec/02-repository-format.md §6.4)."""
+    """Regenerate `derived/stale.tsv` (openspec:derived-views#stale-decisions-view)."""
     records = records_mod.index_by_id(records_mod.read_records(repo))
     rows = []
     for stale in compute_stale_records(repo):
@@ -437,5 +443,5 @@ def regenerate_stale_tsv(repo: Repo) -> str:
 
 
 def _tsv_escape(cell: str) -> str:
-    """docs/spec/02-repository-format.md §5.4: tabs/CR/LF become a single space."""
+    """openspec:canonical-serialisation#tsv-rules: tabs/CR/LF become a single space."""
     return cell.replace("\t", " ").replace("\r", " ").replace("\n", " ")

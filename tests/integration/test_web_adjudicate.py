@@ -1,5 +1,5 @@
 """Integration tests for the web adjudication surface
-(`/adjudicate/<stage>`): docs/spec/06-workflow-screening.md §8."""
+(`/adjudicate/<stage>`): openspec:adjudication."""
 
 from __future__ import annotations
 

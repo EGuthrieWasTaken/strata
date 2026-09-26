@@ -1,8 +1,8 @@
 name: Docs
 
-# Specification integrity checks: docs/spec/14-testing.md §9.6. Kept as its
-# own workflow per docs/spec/12-architecture.md §2 / 14-testing.md §9.2, and
-# required directly in branch protection (§9.4) since GitHub Actions `needs:`
+# Specification integrity checks: openspec:ci-gate#specification-integrity-checks. Kept as its
+# own workflow per openspec:architecture#module-boundaries / openspec:ci-gate#ci-files, and
+# required directly in branch protection (openspec:ci-gate#branch-protection-and-the-gate-job) since GitHub Actions `needs:`
 # cannot reach across workflow files into `ci.yml`'s `gate` job.
 on:
   pull_request:
@@ -29,3 +29,12 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv sync
       - run: uv run python scripts/check_docs.py
+      # OpenSpec specs and change proposals (openspec/README.md). Uses the
+      # runner's preinstalled Node (OpenSpec needs >= 20.19); the package
+      # version is pinned so a new OpenSpec release cannot change the gate.
+      - name: openspec validate
+        env:
+          OPENSPEC_TELEMETRY: "0"
+        run: |
+          node --version
+          npx --yes @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive

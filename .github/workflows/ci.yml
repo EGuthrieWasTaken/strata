@@ -1,6 +1,6 @@
 name: CI
 
-# docs/spec/14-testing.md §9.3: the pull-request gate. Trigger is `pull_request`,
+# openspec:ci-gate#tiered-pull-request-gate: the pull-request gate. Trigger is `pull_request`,
 # never `pull_request_target` — fork PRs must never see secrets.
 on:
   pull_request:
@@ -114,7 +114,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - name: Run committed metafor fixture comparisons (docs/spec 14 §4.1)
+      - name: Run committed metafor fixture comparisons (openspec:test-suite#statistical-validation)
         run: |
           if [ -d tests/statistical ]; then
             uv run pytest tests/statistical -q
@@ -184,9 +184,9 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
       - run: uv run pytest -q --cov=strata --cov-report=xml --cov-report=term-missing
-      - name: Enforce global coverage floors (docs/spec 14 §1)
+      - name: Enforce global coverage floors (openspec:test-suite#test-levels-and-coverage-floors)
         run: uv run coverage report --fail-under=90
-      - name: Diff coverage against base branch (docs/spec 14 §10.4)
+      - name: Diff coverage against base branch (openspec:test-suite#diff-coverage)
         if: github.event_name == 'pull_request'
         run: |
           git fetch origin "${{ github.base_ref }}"
@@ -195,9 +195,9 @@ jobs:
             --fail-under=95
 
   # `docs` (specification integrity) lives in its own workflow, docs.yml, per
-  # docs/spec/14-testing.md §9.2 -- `needs:` cannot cross workflow files, so it
+  # openspec:ci-gate#ci-files -- `needs:` cannot cross workflow files, so it
   # is not a dependency of `gate` below; branch protection requires it directly
-  # instead (docs/spec 14 §9.4).
+  # instead (openspec:ci-gate#branch-protection-and-the-gate-job).
 
   # ---- Tier 3: advisory, never blocks the merge ---------------------------
 
@@ -214,7 +214,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - name: Run benchmarks at 1k/10k (docs/spec 13 §1), warn only
+      - name: Run benchmarks at 1k/10k (openspec:performance#scale-targets), warn only
         run: |
           if [ -d tests/benchmark ]; then
             uv run pytest tests/benchmark -q --benchmark-json=benchmark.json
@@ -242,7 +242,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - name: Requirement traceability report (docs/spec 14 §10.5), warn only
+      - name: Requirement traceability report (openspec:test-suite#requirement-traceability), warn only
         run: uv run python scripts/traceability_report.py || true
       - name: Upload traceability report
         if: always()

@@ -1,4 +1,4 @@
-"""Property tests for deduplication scoring, per docs/spec/14-testing.md §2.
+"""Property tests for deduplication scoring, per openspec:test-suite#property-invariants.
 
 P8: dedup symmetry -- `score(a, b) == score(b, a)`.
 """

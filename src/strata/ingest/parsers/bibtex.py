@@ -1,6 +1,6 @@
 """BibTeX parser.
 
-Implements the BibTeX row of docs/spec/05-workflow-import.md §2.1:
+Implements the BibTeX row of openspec:literature-import:
 brace-balanced parsing -- handled by `bibtexparser`'s own tokeniser, which
 isolates a malformed entry (e.g. an unbalanced brace) into `failed_blocks`
 without losing the rest of the file -- and preservation of `@misc` and
@@ -62,8 +62,8 @@ def _clean(value: str) -> str:
     """Strip BibTeX's protective braces (e.g. `{DNA}` mid-title) and decode HTML entities.
 
     Neither is standard BibTeX, but both occur in real exports (a title
-    round-tripped through a web export pipeline), and docs/spec/05-workflow-
-    import.md §2.1 requires tolerating HTML entities wherever they appear.
+    round-tripped through a web export pipeline), and
+    openspec:literature-import requires tolerating HTML entities wherever they appear.
     """
     return html.unescape(_BRACE_RE.sub("", value)).strip()
 

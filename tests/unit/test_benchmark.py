@@ -1,4 +1,5 @@
-"""Unit tests for strata.dedup.benchmark, per docs/spec/05-workflow-import.md §3.8."""
+"""Unit tests for strata.dedup.benchmark, per
+openspec:deduplication#validation-against-a-labelled-benchmark."""
 
 from __future__ import annotations
 

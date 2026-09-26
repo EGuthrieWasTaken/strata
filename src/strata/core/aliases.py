@@ -1,6 +1,6 @@
 """`records/aliases.ndjson`: absorbed-id -> canonical-id.
 
-Implements docs/spec/01-domain-model.md §3.3. Alias resolution is transitive
+Implements openspec:record-identity#alias-resolution. Alias resolution is transitive
 by construction here: a merge only ever appends one new `alias -> canonical`
 edge for the record it just absorbed, never rewrites an older entry, so a
 record absorbed twice (once into an intermediate canonical, later again when

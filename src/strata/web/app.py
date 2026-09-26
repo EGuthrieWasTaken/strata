@@ -1,4 +1,4 @@
-"""The `strata serve` FastAPI application: docs/spec/11-web-ui.md.
+"""The `strata serve` FastAPI application: openspec:web-ui.
 
 `create_app` is the one entry point `strata.cli.main`'s `serve` command
 (and every test in this package) uses. It is a factory, not a module-level
@@ -57,7 +57,7 @@ class AppState:
     Deliberately not the repository's own mutable state -- `repo` is
     re-opened fresh per handler call (`strata.core.repo.open_repo`'s own
     contract: every read reflects the current working tree, matching "the
-    server is stateless with respect to the repository," §1), but the
+    server is stateless with respect to the repository," openspec:web-ui#strictly-local), but the
     *server's* identity (which token, which actor, which host it was told
     to bind to) is fixed for the process's lifetime.
     """
@@ -122,7 +122,8 @@ def create_app(
                     status_code=503,
                 )
 
-            # Every request needs the session (stricter than §7's letter,
+            # Every request needs the session (stricter than openspec:web-ui#localhost-security's
+            # letter,
             # which only requires it on mutating requests -- deliberately:
             # nothing about "local" should mean another process or browser
             # tab can read repository content without the token too).

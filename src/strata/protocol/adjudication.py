@@ -1,19 +1,21 @@
 """Adjudication: resolving screening conflicts.
 
-Implements docs/spec/06-workflow-screening.md §8 and the `adjudicate` event
-in docs/spec/02-repository-format.md §4.4.
+Implements openspec:adjudication and the `adjudicate` event
+in openspec:event-log#event-types.
 
-**`criteria_version`/`criteria_digest` on the `adjudicate` event.** §4.4's
+**`criteria_version`/`criteria_digest` on the `adjudicate` event.** openspec:event-log#event-types's
 event catalog table lists `adjudicate`'s body fields as `stage, record,
 decision, criteria[], rationale, supersedes[]` -- no version/digest. But
-§4.1 (normative) says plainly: "Every `screen` **and `adjudicate`** event
+openspec:staleness#decisions-bind-to-the-criteria-they-were-made-under (normative) says plainly:
+"Every `screen` **and `adjudicate`** event
 records `criteria_version`, the set `criteria_digest`, and the specific
 `criteria[]` cited. A decision is therefore always interpretable against
 the exact rules in force when it was made." An adjudication is exactly the
 kind of decision `docs/m2-plan.md` sub-objective 4's staleness engine needs
 a stamped version for (`protocol.rescreen._effective_opinion`'s
 adjudication branch already expects one). This module follows the
-normative §4.1 text and stamps both fields, treating the catalog table's
+normative openspec:staleness#decisions-bind-to-the-criteria-they-were-made-under text and stamps
+both fields, treating the catalog table's
 omission as incomplete rather than as an exemption.
 """
 
@@ -38,7 +40,8 @@ class AdjudicationError(ValueError):
 
 
 def is_adjudicator(repo: Repo, actor: str) -> bool:
-    """§8: "Only actors with the `adjudicator` role or listed in
+    """openspec:adjudication#only-adjudicators-may-resolve: "Only actors with the `adjudicator` role
+    or listed in
     `screening.adjudicators` may resolve a conflict.\""""
     if actor in set(repo.config.get("screening", {}).get("adjudicators", [])):
         return True
@@ -90,7 +93,7 @@ def record_adjudication(
     rationale: str,
     cited: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Resolve one conflict: docs/spec/06 §8.
+    """Resolve one conflict: openspec:adjudication.
 
     Rationale is REQUIRED unconditionally (no `git.require_rationale`
     escape hatch, matching `cli.main._get_required_rationale`'s framing).
@@ -104,7 +107,9 @@ def record_adjudication(
             "(screening.adjudicators or role 'adjudicator'/'lead')"
         )
     if not rationale.strip():
-        raise AdjudicationError("a rationale is required for every adjudication (docs/spec/06 §8)")
+        raise AdjudicationError(
+            "a rationale is required for every adjudication (openspec:adjudication)"
+        )
     if stage not in screening_mod.configured_stages(repo):
         raise AdjudicationError(
             f"unknown stage {stage!r}; configured stages are "
@@ -125,7 +130,7 @@ def record_adjudication(
     if decision == "exclude" and not cited_ids and stage == "full-text":
         raise AdjudicationError(
             "an exclude decision at full-text always requires at least one cited "
-            "criterion (docs/spec/06 §7)"
+            "criterion (openspec:screening#screening-surface-contract)"
         )
 
     state = screening_mod.resolve_record_state(repo, stage, record_id)
@@ -159,7 +164,7 @@ def record_adjudication(
 def record_discussion(
     repo: Repo, *, stage: str, record_id: str, actor: str, text: str
 ) -> dict[str, Any]:
-    """`[d]iscuss`: "records a note event and leaves the conflict open" (§8)."""
+    """`[d]iscuss`: "records a note event and leaves the conflict open" (openspec:adjudication)."""
     body = {"subject": _DISCUSS_SUBJECT, "text": text, "stage": stage, "record": record_id}
     return append_new_event(
         repo.path("events", "note", f"{actor}.ndjson"), ev="note", actor=actor, body=body

@@ -1,8 +1,8 @@
 """E2E-09: interrupted screening (SIGKILL mid-session), then resume with no
 lost decisions.
 
-docs/spec/14-testing.md §5: "Interrupted screening (SIGKILL mid-session),
-then resume with no lost decisions." docs/spec/04-git-integration.md §2.4:
+openspec:test-suite#end-to-end-scenarios: "Interrupted screening (SIGKILL mid-session),
+then resume with no lost decisions." openspec:git-integration#batched-screening-commits:
 "Decisions are appended to the event log immediately (so nothing is lost if
 the process dies) but left uncommitted. A commit is created when the user
 ends a screening session[...]." That is exactly the boundary this test
@@ -146,7 +146,8 @@ def test_sigkill_mid_session_loses_nothing_and_resumes_cleanly(tmp_path: Path) -
 
     assert proc.returncode != 0
 
-    # Exactly one decision survived: appended immediately, per §2.4.
+    # Exactly one decision survived: appended immediately, per
+    # openspec:git-integration#batched-screening-commits.
     repo = open_repo(root)
     events = all_screen_events(repo, "title-abstract")
     assert len(events) == 1

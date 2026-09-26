@@ -1,5 +1,5 @@
 """Integration tests for the read-only `/history` screen:
-docs/spec/11-web-ui.md §2, reusing `core.logcmd.domain_log` (`strata
+openspec:web-ui#screens, reusing `core.logcmd.domain_log` (`strata
 log`'s own data path -- `Strata-` commit trailers, never raw commit
 messages)."""
 

@@ -1,6 +1,6 @@
 """Merge semantics for deduplication.
 
-Implements docs/spec/05-workflow-import.md §3.5. Pure functions: no I/O, no
+Implements openspec:deduplication#merge-semantics. Pure functions: no I/O, no
 knowledge of `records.ndjson`/`aliases.ndjson` file layout -- callers in
 `strata.dedup.engine` are responsible for persisting the result.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-# docs/spec/05-workflow-import.md §3.5: "most complete record (count of
+# openspec:deduplication#merge-semantics: "most complete record (count of
 # populated high-value fields: DOI, abstract, authors, pages)".
 _HIGH_VALUE_FIELDS = ("DOI", "abstract", "author", "page")
 
@@ -24,7 +24,7 @@ def _best_trust(record: dict[str, Any], source_trust: list[str]) -> tuple[int, s
     """The record's most-trusted cited source: `(rank, label)`.
 
     Lower rank is more trusted. A source's `database` and `platform` are both
-    checked against the configured list (docs/spec/03-schemas.md §1's
+    checked against the configured list (openspec:data-schemas#project-manifest's
     `source_trust` example mixes database-like and platform-like names, so a
     record's trust is the best match across either field on any of its
     sources). A record with no source matching the list ranks last, labelled
@@ -47,7 +47,8 @@ def _best_trust(record: dict[str, Any], source_trust: list[str]) -> tuple[int, s
 def choose_canonical(
     record_a: dict[str, Any], record_b: dict[str, Any], source_trust: list[str]
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """`(canonical, absorbed)` per §3.5: most complete, then most trusted, then lowest id."""
+    """`(canonical, absorbed)` per openspec:deduplication#merge-semantics: most complete, then most
+    trusted, then lowest id."""
     rank_a, _label_a = _best_trust(record_a, source_trust)
     rank_b, _label_b = _best_trust(record_b, source_trust)
     key_a = (-_completeness(record_a), rank_a, record_a["id"])
@@ -60,7 +61,8 @@ def _split_keywords(value: str) -> list[str]:
 
 
 def _merge_keywords(a: str, b: str) -> str:
-    """Set union, order-preserving (§3.5: `keyword`: set union)."""
+    """Set union, order-preserving (openspec:deduplication#merge-semantics: `keyword`: set
+    union)."""
     seen: list[str] = []
     for value in (*_split_keywords(a), *_split_keywords(b)):
         if value not in seen:
@@ -71,7 +73,7 @@ def _merge_keywords(a: str, b: str) -> str:
 def merge_fields(
     canonical: dict[str, Any], absorbed: dict[str, Any], source_trust: list[str]
 ) -> tuple[dict[str, Any], dict[str, str]]:
-    """Field-wise merge of `absorbed` into `canonical`, per §3.5.
+    """Field-wise merge of `absorbed` into `canonical`, per openspec:deduplication#merge-semantics.
 
     Returns `(fields, field_provenance)` -- CSL fields only (`id` and
     `strata` excluded; the caller assembles those). `field_provenance` maps

@@ -1,6 +1,6 @@
 """The event log: envelope construction, append, and hash-chain validation.
 
-Implements docs/spec/02-repository-format.md §4. This module performs I/O
+Implements openspec:event-log. This module performs I/O
 (appending to and reading NDJSON files); the *pure* reduction of events to
 state lives in `strata.core.fold`.
 """
@@ -27,7 +27,7 @@ class ChainError(ValueError):
 
 
 def utc_now_iso() -> str:
-    """RFC 3339, UTC, second precision, always `Z` — per docs/spec 02 §4.2."""
+    """RFC 3339, UTC, second precision, always `Z` — per openspec:event-log."""
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -69,8 +69,8 @@ def read_events(path: Path) -> list[dict[str, Any]]:
 
     A partially-written trailing line (no closing brace, e.g. a crashed
     writer) has no valid JSON and MUST be skipped rather than fail — the
-    write will complete momentarily (docs/spec 02-repository-format.md §4.2,
-    12-architecture.md §4).
+    write will complete momentarily (openspec:event-log,
+    openspec:architecture#concurrency-and-locking).
     """
     if not path.exists():
         return []
@@ -102,7 +102,7 @@ class ChainViolation:
 
 
 def verify_chain(path: Path) -> list[ChainViolation]:
-    """Validate the per-file hash chain, per docs/spec 02-repository-format.md §4.2.
+    """Validate the per-file hash chain, per openspec:event-log.
 
     Because `git`'s `union` merge driver can interleave independently-grown
     chains, a chain restart is valid iff the restarting line's `prev` matches
@@ -139,7 +139,7 @@ def last_digest(path: Path) -> str | None:
 
 
 def next_seq(path: Path) -> int:
-    """Monotonic per (actor, file) sequence number, per docs/spec 02-repository-format.md §4.2."""
+    """Monotonic per (actor, file) sequence number, per openspec:event-log."""
     events = read_events(path)
     if not events:
         return 1
@@ -150,7 +150,7 @@ def append_event(path: Path, envelope: dict[str, Any]) -> None:
     """Append one complete, digested event line atomically.
 
     A single `os.write` of a line under `PIPE_BUF` is atomic on POSIX, per
-    docs/spec/12-architecture.md §4.
+    openspec:architecture#concurrency-and-locking.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     line = (serialise_envelope(envelope) + "\n").encode("utf-8")

@@ -1,6 +1,6 @@
 """Detection profiles for common platform CSV exports.
 
-Implements docs/spec/05-workflow-import.md §2.2: match a CSV export to a
+Implements openspec:literature-import#csv-column-mapping: match a CSV export to a
 known platform by its header row, so importing a Scopus or Web of Science
 export doesn't require `--map` every time.
 
@@ -13,7 +13,7 @@ These column names are compiled from each platform's public export
 documentation and community references (e.g. published systematic-review
 tooling that consumes the same exports), **not verified against a live
 export file from every platform listed**. Per the `parser.yml` issue
-template (docs/spec/14-testing.md §9.2), a real export that doesn't match one
+template (openspec:ci-gate#ci-files), a real export that doesn't match one
 of these signatures is the bug to report, and the fix is almost always
 widening or correcting a signature or mapping here -- never a reason to
 distrust `--map`, which always works regardless of whether a profile matches.
