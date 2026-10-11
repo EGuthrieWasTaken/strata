@@ -1,0 +1,30 @@
+name: strata verify
+description: >-
+  Run `strata verify` on a review repository: schemas, hash chains, dangling
+  references, derived-view drift, and count reconciliation. Fails the step on any violation.
+  Check the repository out first (actions/checkout).
+
+inputs:
+  path:
+    description: Directory of the review repository, relative to the workspace
+    default: "."
+  strata-spec:
+    description: "pip requirement for strata, e.g. strata-review==0.1.0"
+    default: strata-review
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+    - name: Install strata
+      shell: bash
+      env:
+        STRATA_SPEC: ${{ inputs.strata-spec }}
+      run: |
+        uv venv "$RUNNER_TEMP/strata-venv"
+        uv pip install --python "$RUNNER_TEMP/strata-venv/bin/python" "$STRATA_SPEC"
+    - name: Verify the repository
+      shell: bash
+      env:
+        REVIEW_PATH: ${{ inputs.path }}
+      run: '"$RUNNER_TEMP/strata-venv/bin/strata" -C "$REVIEW_PATH" verify'

@@ -1,0 +1,107 @@
+name: Review CI
+
+# openspec:review-repository-ci: the reusable workflow for *review repositories* (not this
+# repository's own CI -- that is ci.yml). A review repository calls it from the thin workflow
+# `strata init --ci` installs at `.github/workflows/strata.yml`.
+#
+# Trigger discipline follows openspec:ci-gate#workflow-hygiene: the caller triggers on
+# `pull_request`, never `pull_request_target`, and every job that writes to the pull request
+# no-ops on forks (their token is read-only).
+on:
+  workflow_call:
+    inputs:
+      strata-spec:
+        description: "pip requirement for strata, e.g. strata-review==0.1.0"
+        type: string
+        default: strata-review
+      methodologist:
+        description: "GitHub login to request review from when a pull request changes the criteria (optional)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# Distinct from ci.yml's `ci-${{ github.ref }}` so a review repository's own CI never shares a group.
+concurrency:
+  group: ci-strata-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # openspec:review-repository-ci#verification-check
+  verify:
+    name: strata verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install strata
+        env:
+          STRATA_SPEC: ${{ inputs.strata-spec }}
+        run: |
+          uv venv "$RUNNER_TEMP/strata-venv"
+          uv pip install --python "$RUNNER_TEMP/strata-venv/bin/python" "$STRATA_SPEC"
+      - name: Verify the repository
+        run: '"$RUNNER_TEMP/strata-venv/bin/strata" verify'
+
+  # openspec:review-repository-ci#pool-impact-comment and #protocol-amendment-detection
+  pool-impact:
+    name: pool impact
+    needs: verify
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      METHODOLOGIST: ${{ inputs.methodologist }}
+      STRATA_SPEC: ${{ inputs.strata-spec }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install strata
+        run: |
+          uv venv "$RUNNER_TEMP/strata-venv"
+          uv pip install --python "$RUNNER_TEMP/strata-venv/bin/python" "$STRATA_SPEC"
+      - name: Compare the base and the pull request
+        run: |
+          venv="$RUNNER_TEMP/strata-venv/bin"
+          "$venv/strata" -C base --json status > base-status.json
+          "$venv/strata" -C head --json status > head-status.json
+          "$venv/python" -m strata.core.review_ci comment base-status.json head-status.json > comment.md
+          echo "criteria_changed=$("$venv/python" -m strata.core.review_ci criteria-changed base-status.json head-status.json)" >> "$GITHUB_OUTPUT"
+        id: compare
+      - name: Post or update the pool-impact comment
+        run: |
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- strata-pool-impact -->")) | .id' | head -n 1)
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$existing" -F body=@comment.md
+          else
+            gh pr comment "$PR" --repo "$REPO" --body-file comment.md
+          fi
+      - name: Label protocol amendments and request the methodologist
+        if: steps.compare.outputs.criteria_changed == 'true'
+        run: |
+          gh label create protocol-amendment --repo "$REPO" --color BFD4F2 \
+            --description "Changes the review protocol (criteria)" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$REPO" --add-label protocol-amendment
+          if [ -n "$METHODOLOGIST" ]; then
+            gh pr edit "$PR" --repo "$REPO" --add-reviewer "$METHODOLOGIST" \
+              || echo "::warning::could not request review from $METHODOLOGIST"
+          fi

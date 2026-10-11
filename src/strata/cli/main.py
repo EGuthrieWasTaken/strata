@@ -262,6 +262,14 @@ def init(
     actor_handle: str | None = typer.Option(None, "--actor", help="Your actor handle"),
     actor_name: str | None = typer.Option(None, "--actor-name"),
     actor_email: str | None = typer.Option(None, "--actor-email"),
+    ci: bool = typer.Option(
+        False,
+        "--ci",
+        help=(
+            "Also install the GitHub Actions workflow that checks pull requests "
+            "(strata verify, pool-impact comment, protocol-amendment label)"
+        ),
+    ),
 ) -> None:
     """Create a repository: layout, strata.toml, .gitattributes, hooks, merge drivers, commit."""
     interactive = sys.stdin.isatty()
@@ -289,6 +297,7 @@ def init(
             actor_name=actor_name,
             actor_email=actor_email,
             remote=remote,
+            ci=ci,
         )
     except init_mod.InitError as exc:
         err_console.print(f"[red]error:[/] {exc}")

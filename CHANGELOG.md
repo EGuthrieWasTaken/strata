@@ -7,6 +7,11 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- `strata init --ci` installs a GitHub Actions workflow into a new review repository
+  that runs `strata verify` on every pull request, comments with the pull request's effect on
+  records, invalidated decisions and conflicts, and labels protocol amendments
+  (`add-review-repository-ci`, in progress: the reusable workflow and `verify` action live
+  under `.github/`; they resolve once a release containing them is tagged and published).
 - The specification now lives entirely in [OpenSpec](openspec/README.md):
   29 capability specs under `openspec/specs/` (M0–M2.1), each with a
   `spec.md` of requirements and WHEN/THEN scenarios and a `design.md` of

@@ -19,6 +19,11 @@ from strata import __version__, gitio
 from strata.core import manifest as manifest_mod
 from strata.core.commit import StructuredCommit
 from strata.core.hooks import HOOK_SCRIPTS, HOOKS_DIR
+from strata.core.review_ci_workflow import (
+    REVIEW_CI_CALLER,
+    REVIEW_CI_WORKFLOW_PATH,
+    VERSION_PLACEHOLDER,
+)
 
 GITATTRIBUTES = """\
 * text=auto eol=lf
@@ -127,6 +132,7 @@ def init_repository(
     actor_email: str | None = None,
     remote: str | None = None,
     slug: str | None = None,
+    ci: bool = False,
 ) -> Path:
     if root.exists() and any(root.iterdir()):
         raise InitError(f"{root} is not empty")
@@ -171,6 +177,12 @@ def init_repository(
         gitio.set_config(root, f"merge.{driver_name}.driver", cfg["driver"])
     if remote:
         gitio.run(["remote", "add", "origin", remote], cwd=root)
+
+    if ci:
+        path = root / REVIEW_CI_WORKFLOW_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = REVIEW_CI_CALLER.replace(VERSION_PLACEHOLDER, __version__)
+        path.write_text(content, encoding="utf-8")
 
     gitio.add_all(root)
     initial_commit = StructuredCommit(
