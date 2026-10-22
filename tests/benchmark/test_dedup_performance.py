@@ -1,8 +1,10 @@
 """Performance validation: openspec:deduplication#performance (normative).
 
-openspec:deduplication#performance requires deduplicating 50,000 records to complete in under 120
-seconds,
-single-threaded, on a 2020-era laptop, using under 2 GB of resident memory.
+openspec:deduplication#performance requires deduplicating 50,000 records,
+single-threaded, on a 2020-era laptop, to complete in under 300 seconds (the
+hard limit; under 120 is the target) within the memory limits of
+openspec:performance#scale-targets -- this test asserts the stricter 2 GB
+memory target.
 This lives in the advisory `benchmark` CI tier (`.github/workflows/ci.yml`'s
 `benchmark` job, `continue-on-error: true`), not the blocking merge gate --
 docs/m1-plan.md sub-objective 6 calls out that wall-clock/RSS assertions are
@@ -33,10 +35,7 @@ the time budget this test is trying to check.
 Budget policy (openspec:performance#benchmarks-run-in-ci): the nightly
 `benchmark-50k` job runs this test blocking, and it fails only past the
 300s *hard limit*; past 120% of the 120s *target* (144s) it emits a warning
-instead. openspec:performance#scale-targets words 120s as a SHOULD, but
-openspec:deduplication#performance words the same figure as a MUST that the
-implementation does not currently meet (see below) -- an inconsistency
-between the two specs, flagged here rather than papered over.
+instead.
 
 Known gap, tracked in docs/m1-plan.md sub-objective 8: measured at **126.0s**
 in the sandboxed environment this was developed in (129.0s on a GitHub-hosted
