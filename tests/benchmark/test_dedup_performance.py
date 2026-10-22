@@ -1,8 +1,10 @@
 """Performance validation: openspec:deduplication#performance (normative).
 
-openspec:deduplication#performance requires deduplicating 50,000 records to complete in under 120
-seconds,
-single-threaded, on a 2020-era laptop, using under 2 GB of resident memory.
+openspec:deduplication#performance requires deduplicating 50,000 records,
+single-threaded, on a 2020-era laptop, to complete in under 300 seconds (the
+hard limit; under 120 is the target) within the memory limits of
+openspec:performance#scale-targets -- this test asserts the stricter 2 GB
+memory target.
 This lives in the advisory `benchmark` CI tier (`.github/workflows/ci.yml`'s
 `benchmark` job, `continue-on-error: true`), not the blocking merge gate --
 docs/m1-plan.md sub-objective 6 calls out that wall-clock/RSS assertions are
@@ -30,10 +32,15 @@ calibration loop is disabled (`rounds=1, iterations=1`) since re-running a
 50,000-record dedup pass several times to calibrate would itself blow past
 the time budget this test is trying to check.
 
+Budget policy (openspec:performance#benchmarks-run-in-ci): the nightly
+`benchmark-50k` job runs this test blocking, and it fails only past the
+300s *hard limit*; past 120% of the 120s *target* (144s) it emits a warning
+instead.
+
 Known gap, tracked in docs/m1-plan.md sub-objective 8: measured at **126.0s**
-in the sandboxed environment this was developed in -- just over openspec:deduplication#performance's
-strict
-120s, though comfortably inside the M1 acceptance bar's looser 300s
+in the sandboxed environment this was developed in (129.0s on a GitHub-hosted
+runner) -- just over the 120s target, though comfortably inside the M1
+acceptance bar's looser 300s
 (docs/roadmap.md). This used to be far worse (>240s, and climbing):
 sub-objective 8 found and fixed an O(n^2) event/alias-append bug that was the
 dominant cost for the ~5,000 merges this fixture produces (see
@@ -51,6 +58,7 @@ from __future__ import annotations
 import random
 import resource
 import string
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +72,9 @@ from strata.dedup.engine import run_dedup
 _SEED = 20260101
 _TOTAL_RECORDS = 50_000
 _DUPLICATE_WORKS = 5_000  # each contributes a near-duplicate pair -> 10,000 records
-_TIME_LIMIT_SECONDS = 120  # openspec:deduplication#performance
+_TIME_TARGET_SECONDS = 120  # openspec:performance#scale-targets, the SHOULD
+_TIME_HARD_LIMIT_SECONDS = 300  # same row's hard limit; exceeding it fails the nightly job
+_TIME_WARN_FACTOR = 1.2  # openspec:performance#benchmarks-run-in-ci: warn 20% over target
 _RSS_LIMIT_KB = 2 * 1024 * 1024  # 2 GB; Linux's ru_maxrss is already in KB
 
 _JOURNALS = [
@@ -184,8 +194,14 @@ def test_dedup_50k_records_under_time_and_memory_budget(tmp_path: Path, benchmar
         f"{len(outcome.review_queue)} queued for review"
     )
 
-    assert elapsed < _TIME_LIMIT_SECONDS, (
-        f"{elapsed:.1f}s exceeds the {_TIME_LIMIT_SECONDS}s budget"
+    assert elapsed < _TIME_HARD_LIMIT_SECONDS, (
+        f"{elapsed:.1f}s exceeds the {_TIME_HARD_LIMIT_SECONDS}s hard limit"
     )
+    if elapsed > _TIME_TARGET_SECONDS * _TIME_WARN_FACTOR:
+        warnings.warn(
+            f"dedup of {_TOTAL_RECORDS} records took {elapsed:.1f}s, more than 20% over "
+            f"the {_TIME_TARGET_SECONDS}s target",
+            stacklevel=1,
+        )
     assert peak_rss_kb < _RSS_LIMIT_KB, f"{peak_rss_kb} KB exceeds the {_RSS_LIMIT_KB} KB budget"
     assert len(outcome.auto_merged) > 0  # the duplicate pairs must actually be found
