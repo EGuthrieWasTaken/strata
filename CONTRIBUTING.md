@@ -22,7 +22,7 @@ git config user.name "Your Name" && git config user.email you@example.org   # th
 uv run ruff format --check
 uv run ruff check
 uv run mypy src
-uv run pytest                                 # the whole suite; `-k` or a path while you work
+uv run pytest -n auto                         # the whole suite on every core (pytest-xdist); `-k` or a path while you work
 uv run python scripts/check_docs.py           # links, anchors and `openspec:` references resolve
 npx --yes @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive
 ```

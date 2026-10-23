@@ -37,7 +37,7 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
       - name: Full suite must be green before a release is built
-        run: uv run pytest -q
+        run: uv run pytest -q -n auto
       - run: uv build
       - name: Generate a CycloneDX SBOM
         run: uvx --from cyclonedx-bom cyclonedx-py environment --output-format json --output-file sbom.json

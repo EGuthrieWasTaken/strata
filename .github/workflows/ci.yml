@@ -44,8 +44,11 @@ jobs:
     # budget was set for -- not a one-off fluke, since two consecutive
     # runs on the same PR both timed out at the same point). Same
     # "raise the budget, don't shrink the suite" precedent as the `test`
-    # and `coverage` jobs below.
-    timeout-minutes: 12
+    # and `coverage` jobs below. M3-M6 took the unit and property tests from
+    # ~1,000 to ~1,900 and a single process no longer fits in 12 minutes (the
+    # first run of the whole branch hit exactly that), so they run on every
+    # core (pytest-xdist) with a budget that still has room on a small runner.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -53,7 +56,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - run: uv run pytest tests/unit tests/property -q
+      - run: uv run pytest tests/unit tests/property -q -n auto
         env:
           PYTHONHASHSEED: random
 
@@ -92,7 +95,7 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
-      - run: uv run pytest -q --junit-xml=pytest-report.xml
+      - run: uv run pytest -q -n auto --junit-xml=pytest-report.xml
         env:
           PYTHONHASHSEED: random
       - name: Upload pytest report
@@ -183,7 +186,7 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
-      - run: uv run pytest -q --cov=strata --cov-report=xml --cov-report=term-missing
+      - run: uv run pytest -q -n auto --cov=strata --cov-report=xml --cov-report=term-missing
       - name: Enforce global coverage floors (openspec:test-suite#test-levels-and-coverage-floors)
         run: uv run coverage report --fail-under=90
       - name: Diff coverage against base branch (openspec:test-suite#diff-coverage)
