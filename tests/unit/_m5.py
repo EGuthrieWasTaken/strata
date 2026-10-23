@@ -161,3 +161,53 @@ def finished_review(tmp_path: Path, *, finish: bool = True) -> tuple[Repo, dict[
         rationale="Same trial, reported twice.",
     )  # fmt: skip
     return repo, criteria
+
+
+def full_review(tmp_path: Path, *, run: bool = True) -> tuple[Repo, dict[str, str]]:
+    """`finished_review` carried through extraction, risk of bias and one analysis: 10 studies,
+    each with one two-group-means effect, RoB 2 judgements, and a random-effects analysis `primary`
+    (Egger's test, leave-one-out, forest and funnel plots)."""
+    from strata.analysis import run as analysis_run
+    from strata.core.canon import dump_yaml_str
+    from strata.extract import records as rec_mod
+    from strata.extract import rob as rob_mod
+    from tests.unit._m4 import DIFFS, MEANS, write_spec
+    from tests.unit.test_extract_records import FORM
+
+    repo, criteria = finished_review(tmp_path)
+    repo.path("extraction").mkdir(exist_ok=True)
+    repo.path("extraction", "schema.yaml").write_text(dump_yaml_str(FORM), encoding="utf-8")
+    members = studies_mod.study_map(repo).members
+    judgements = ["low", "low", "some-concerns", "high", "low"]
+    rob_mod.init_instrument(repo, "rob2")
+    for n, study in enumerate(sorted(members), start=1):
+        diff = DIFFS[(n - 1) % len(DIFFS)]
+        size = 30 + n
+        rec_mod.set_field(repo, study=study, handle="ethan", name="n_total", raw=str(2 * size))
+        rec_mod.set_field(repo, study=study, handle="ethan", name="design", raw="rct")
+        rec_mod.set_field(
+            repo, study=study, handle="ethan", name="retention_interval", raw=f"{n} days"
+        )
+        rec_mod.add_effect(
+            repo, study=study, handle="ethan", outcome="recall", design="two-group-means",
+            inputs={**MEANS, "m1": 0.5 + diff, "m2": 0.5, "n1": size, "n2": size},
+            timepoint="1 week", moderators={"dose": n},
+        )  # fmt: skip
+        for index, domain in enumerate(["D1", "D2", "D3", "D4", "D5"]):
+            rob_mod.record_judgement(
+                repo, study=study, handle="ethan", domain=domain,
+                judgement=judgements[(n + index) % len(judgements)],
+            )  # fmt: skip
+        rob_mod.record_judgement(
+            repo, study=study, handle="ethan", domain="overall",
+            judgement=judgements[n % len(judgements)],
+            override_justification="Judged on the whole report.",
+        )  # fmt: skip
+    write_spec(
+        repo, publication_bias=["egger"], plots=["forest", "funnel"],
+        sensitivity=[{"id": "loo", "type": "leave_one_out"}],
+        model={"type": "random-effects", "tau2_estimator": "REML", "ci_method": "wald"},
+    )  # fmt: skip
+    if run:
+        analysis_run.run_analysis(repo, "primary")
+    return repo, criteria

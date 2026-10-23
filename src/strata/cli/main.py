@@ -64,8 +64,11 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
+from strata.report import facts as facts_mod
 from strata.report import flow as flow_mod
+from strata.report import sections as sections_mod
 from strata.stats import models as models_mod
 from strata.stats import robust as robust_mod
 from strata.web import security as web_security
@@ -3534,6 +3537,138 @@ def prisma_command(
         out_console.print(
             f"[yellow]{flow_mod.DRAFT_TEXT}[/]: the diagram is watermarked as a draft"
         )
+
+
+_REPORT_EXT = {
+    "md": "md",
+    "html": "html",
+    "docx": "docx",
+    "latex": "tex",
+    "csv": "csv",
+    "svg": "svg",
+}
+
+
+@app.command("report")
+def report_command(
+    ctx: typer.Context,
+    section: str = typer.Argument(
+        ..., help="methods | results | characteristics | amendments | checklist | rob | manuscript"
+    ),
+    status: bool = typer.Option(False, "--status", help="checklist: how many items remain"),
+    fmt: str = typer.Option(
+        "md", "--format", help="md | html | docx | latex (csv for characteristics, svg for rob)"
+    ),
+    out: str | None = typer.Option(None, "--out", help="Write here (`-` for standard output)"),
+) -> None:
+    """Generate manuscript material from the repository: openspec:manuscript-generation.
+
+    Methods and Results (and the characteristics table, the amendments, the risk-of-bias table and
+    the PRISMA checklist) are drafted from what the repository records, marked with the commit
+    they came from. strata does not write a Discussion or a Conclusion. Output goes to
+    reports/<section>.<format> and is committed.
+
+    Example: strata report manuscript --format docx
+    """
+    repo = _resolve_repo(ctx)
+    name = section.lower()
+    if "discussion" in name or "conclusion" in name:
+        err_console.print(f"[red]refused:[/] {sections_mod.DISCUSSION_REFUSAL}")
+        raise typer.Exit(EXIT_USAGE)
+    if name not in sections_mod.SECTIONS:
+        err_console.print(
+            f"[red]error:[/] unknown report section {section!r}; "
+            f"the sections are {', '.join(sections_mod.SECTIONS)}"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    allowed = (
+        {"md", "html", "docx", "latex"}
+        | ({"csv"} if name == "characteristics" else set())
+        | ({"svg"} if name == "rob" else set())
+    )
+    if fmt not in allowed:
+        err_console.print(
+            f"[red]error:[/] --format for {name} must be one of {', '.join(sorted(allowed))}"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    if status and name != "checklist":
+        err_console.print("[red]error:[/] --status applies to the checklist only")
+        raise typer.Exit(EXIT_USAGE)
+    facts = facts_mod.collect(repo)
+    if name != "amendments":
+        try:
+            counts_mod.require_reconciled(facts.counts)
+        except counts_mod.CountReconcileError as exc:
+            err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+            raise typer.Exit(EXIT_VALIDATION) from None
+    if name == "checklist" and status:
+        summary = checklist_mod.status(checklist_mod.build(facts))
+        if ctx.obj["json"]:
+            _print_json(summary)
+        else:
+            out_console.print(
+                f"{summary['auto_filled']} auto-filled, {summary['auto_located']} auto-located, "
+                f"{summary['author']} for the author (of {summary['items']} items and sub-items)"
+            )
+            if summary["needs_author"]:
+                out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
+        return
+    outputs: dict[str, bytes] = {}
+    try:
+        if name == "checklist":
+            outputs["prisma-checklist.md"] = checklist_mod.render(facts).encode("utf-8")
+        elif name == "rob":
+            if fmt != "svg":
+                outputs["rob.md"] = sections_mod.rob_markdown(repo, facts).encode("utf-8")
+            plot = sections_mod.rob_svg(repo)
+            if plot is not None and fmt in ("md", "svg"):
+                outputs["rob-traffic-light.svg"] = plot
+        elif name == "characteristics" and fmt == "csv":
+            columns, rows = sections_mod.characteristics_rows(repo)
+            table = "\n".join(
+                "\t".join(c.replace("\t", " ").replace("\n", " ") for c in row)
+                for row in [columns, *rows]
+            )
+            outputs["characteristics.tsv"] = (table + "\n").encode("utf-8")
+        else:
+            text = {
+                "methods": lambda: sections_mod.methods(facts),
+                "results": lambda: sections_mod.results(facts),
+                "characteristics": lambda: sections_mod.characteristics_markdown(repo, facts),
+                "amendments": lambda: sections_mod.amendments_section(facts),
+                "manuscript": lambda: sections_mod.manuscript(facts),
+            }[name]()
+            outputs[f"{name}.{_REPORT_EXT[fmt]}"] = sections_mod.convert(
+                text, fmt, title=str(facts.project.get("title", ""))
+            )
+    except sections_mod.PandocError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out == "-":
+        if len(outputs) != 1 or fmt in ("docx",):
+            err_console.print(
+                "[red]error:[/] this output has more than one file or is binary; give --out FILE"
+            )
+            raise typer.Exit(EXIT_USAGE)
+        sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
+        return
+    written = []
+    for filename, payload in outputs.items():
+        target = Path(out) if out else repo.path("reports", filename)
+        if out and len(outputs) > 1:
+            target = Path(out).parent / filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        written.append(str(target))
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="report", scope=name, summary=f"generated the {name} report",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    if ctx.obj["json"]:
+        _print_json({"section": name, "written": written})
+        return
+    out_console.print(f"[green]wrote[/] {', '.join(written)}")
 
 
 @app.command("audit")
