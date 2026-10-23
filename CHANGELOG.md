@@ -25,8 +25,8 @@ All notable changes to `strata` are documented here. Format follows
   from-scratch build. `strata serve` gained `--public-url` / `STRATA_PUBLIC_URL` (Host and Origin are
   validated against it; DNS-rebinding protection stays), `STRATA_TOKEN`, and an unauthenticated
   `GET /healthz`; `strata --version` now exists. **The image has not been built or run** (no container
-  runtime in the build environment), the base image is not pinned by digest, and cosign signing is not
-  done. `.github/workflows/container.yml` builds both architectures, publishes them to GHCR and smoke-tests
+  runtime in the build environment; CI built and smoke-tested it on amd64 and arm64 on the first run), the
+  base image is pinned by digest, and cosign signing is not done. `.github/workflows/container.yml` builds both architectures, publishes them to GHCR and smoke-tests
   what was published. See `docs/container.md`.
 - **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
   init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata

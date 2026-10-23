@@ -55,4 +55,11 @@ curl -fsS -H 'Host: localhost:8765' "http://127.0.0.1:8765/?token=${token_url##*
     || { echo "the dashboard did not load with the token" >&2; exit 1; }
 # a request that names any other host is a DNS-rebinding attempt and is refused
 [ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: attacker.example:8765' http://127.0.0.1:8765/)" = "400" ]
+# the image's own HEALTHCHECK (30 s interval after a 10 s start period) reports healthy
+for _ in $(seq 1 40); do
+    state="$(docker inspect --format '{{.State.Health.Status}}' "$name")"
+    [ "$state" = "healthy" ] && break
+    sleep 3
+done
+[ "$state" = "healthy" ] || { echo "the container never became healthy (last state: $state)" >&2; exit 1; }
 echo "container smoke test passed"

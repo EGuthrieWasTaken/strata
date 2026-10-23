@@ -274,3 +274,10 @@ def test_the_ghcr_workflow_publishes_both_architectures_and_verifies_what_it_pub
 
 def _on_trigger(workflow: dict) -> dict:  # type: ignore[type-arg]
     return workflow.get("on", workflow.get(True))  # YAML 1.1 reads a bare `on` as true
+
+
+def test_the_base_image_is_pinned_by_digest_in_both_stages() -> None:
+    from_lines = re.findall(r"^FROM\s+(\S+)", _dockerfile(), flags=re.MULTILINE)
+    assert len(from_lines) == 2 and from_lines[0] == from_lines[1]
+    assert re.fullmatch(r"python:3\.12-slim@sha256:[0-9a-f]{64}", from_lines[0])
+

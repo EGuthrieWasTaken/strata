@@ -4,14 +4,15 @@ The image (`Dockerfile`; openspec change `add-container-image`) runs every `stra
 local web UI, against a review repository mounted at `/review`. Nothing in it is specific to a
 platform: it is `strata` and `git` on a slim Debian base, as an unprivileged user.
 
-> **Status.** The Dockerfile, entrypoint, compose file and CI/release/nightly jobs are written and
-> linted (hadolint, actionlint) and their logic is tested, but **the image had not been built or run
-> by the person who wrote them** (no container runtime was available there). `.github/workflows/container.yml`
-> is the first real build: it publishes the image for amd64 and arm64 to
-> `ghcr.io/eguthriewastaken/strata` (tagged `sha-<commit>`, plus `pr-<n>` or `edge`), then pulls it back from
-> the registry and runs `scripts/container_smoke.sh` on each architecture. Until a release is tagged, use one
-> of those tags (a package created by a workflow starts private; make it public in the repository's package
-> settings to pull it without logging in), or build it yourself: `docker build -t strata .`
+> **Status.** Built and smoke-tested by CI on amd64 and arm64 (the `container` jobs in `ci.yml`, and
+> `.github/workflows/container.yml`, which publishes the image to `ghcr.io/eguthriewastaken/strata` tagged
+> `sha-<commit>`, plus `pr-<n>` or `edge`, and pulls it back from the registry): `--version`, `git`, `init`,
+> `verify` and `status` against a mounted repository as the host user and as a different uid, then `serve`
+> with its generated token, the `/healthz` probe, Docker's health status and the Host checks. Not yet tried by
+> hand: Docker Desktop on macOS or Windows, an SSH agent for `strata sync`, and `compose.yaml` (its structure
+> is tested; it has not been run). Until a release is tagged, use one of those tags (a package created by a
+> workflow starts private; make it public in the repository's package settings to pull it without logging
+> in), or build it yourself: `docker build -t strata .`
 
 ## One-off commands
 

@@ -5,13 +5,12 @@
 #
 #   docker build -t strata .
 #
-# The base image should be pinned by digest (`python:3.12-slim@sha256:...`); dependabot's docker
-# ecosystem keeps a pinned digest current, but it reads literal `FROM` lines only, so the image is
-# named in both of them rather than through an ARG. Until a digest is recorded here the tag floats,
-# which openspec:container-image#published-multi-architecture-image does not allow for a release image.
+# The base image is pinned by digest (the multi-architecture index of python:3.12-slim, recorded from
+# a registry lookup on 2026-10-23); dependabot's docker ecosystem keeps the pin current. It reads
+# literal `FROM` lines only, so the image is named in both of them rather than through an ARG.
 
 # ---- build: the locked dependency set and the package, with the tools that need to compile ----
-FROM python:3.12-slim AS build
+FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704 AS build
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -24,7 +23,7 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable
 
 # ---- runtime: the virtualenv and git, nothing to build with ----
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
 # git is whatever the base image's Debian release ships (the spec asks for 2.23 or newer, not an
 # exact version), so the apt package is deliberately unpinned.
 # hadolint ignore=DL3008

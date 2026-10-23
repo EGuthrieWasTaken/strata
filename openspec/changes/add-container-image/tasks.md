@@ -2,8 +2,8 @@
 
 ## 1. Image
 
-- [ ] 1.1 Add a multi-stage `Dockerfile` (`python:3.12-slim` pinned by digest, `uv sync --frozen`, `git` installed, non-root uid 10001, writable `HOME`, `WORKDIR /review`, entrypoint `strata`) and a `.dockerignore`
-- [ ] 1.2 Set `safe.directory = *` in the container's system git config and document why
+- [x] 1.1 Add a multi-stage `Dockerfile` (`python:3.12-slim` pinned by digest, `uv sync --frozen`, `git` installed, non-root uid 10001, writable `HOME`, `WORKDIR /review`, entrypoint `strata`) and a `.dockerignore`
+- [x] 1.2 Set `safe.directory = *` in the container's system git config and document why
 - [ ] 1.3 Add a `HEALTHCHECK` using `/healthz`
 - [ ] 1.4 Add an example `compose.yaml` for the local web UI (loopback-published port, repository bind mount, token from an environment variable)
 
@@ -15,9 +15,9 @@
 
 ## 3. CI and release
 
-- [ ] 3.1 Add a `container` job to `ci.yml`, path-filtered to `Dockerfile`, `.dockerignore`, `pyproject.toml`, `uv.lock`, and `src/`, that builds both architectures and smoke-tests `--version`, `init`, `verify`, and `serve` + `/healthz`; wire it into `gate`
+- [x] 3.1 Add a `container` job to `ci.yml`, path-filtered to `Dockerfile`, `.dockerignore`, `pyproject.toml`, `uv.lock`, and `src/`, that builds both architectures and smoke-tests `--version`, `init`, `verify`, and `serve` + `/healthz`; wire it into `gate`
 - [x] 3.2 Lint the `Dockerfile` (hadolint, pinned by SHA)
-- [ ] 3.3 Run `scripts/determinism_check.py` inside the image and compare with a native run
+- [x] 3.3 Run `scripts/determinism_check.py` inside the image and compare with a native run
 - [ ] 3.4 Publish to GHCR on release tags with cosign signing and an attached SBOM
 - [ ] 3.5 Add the image to the nightly `cold-install` job
 
@@ -35,24 +35,20 @@
 
 ## Notes
 
-Written and checked without a container runtime: hadolint accepts the `Dockerfile`, actionlint accepts
-every workflow, the entrypoint and the web changes are tested; **no image has been built or run**.
+The first run on GitHub built the image on amd64 and arm64 and passed the smoke test; open items are the ones
+that run has not covered.
 
-- 1.1: the `Dockerfile` and `.dockerignore` exist and are multi-stage, `uv sync --frozen`, non-root uid
-  10001, `WORKDIR /review`, but the base image is `python:3.12-slim` by tag, not by digest (Docker Hub
-  rate-limited the lookup); dependabot's docker ecosystem is configured to maintain a pin once one is added.
-  Left open for the digest and for a first real build.
-- 1.2 / 1.3 / 1.4: `safe.directory = *`, the `HEALTHCHECK` on `/healthz` and `compose.yaml` are written (the
-  probe's endpoint and the compose structure are tested); left open until they have been seen working in
-  a built image.
-- 3.1: the `container` job (both architectures natively, hadolint, smoke test, determinism comparison) is
-  in `ci.yml` and wired into `gate`; it has not run on GitHub.
-- 3.3: the determinism comparison is a step of that job; not yet run.
+- 1.1, 1.2, 3.1 and 3.3 are done and were seen working on GitHub: the image built on amd64 and arm64, the smoke
+  test (init, verify and status as the host user and as another uid, so `safe.directory` works; serve with its
+  token; `/healthz`) passed, and the determinism fixture was byte-identical natively and in the image. The base
+  image is pinned by digest (the index digest of `python:3.12-slim`, taken from a registry lookup in CI).
+- 1.3 / 1.4: the `HEALTHCHECK` is declared and the smoke test now waits for Docker to report the container
+  healthy (tick 1.3 once that has been seen on a run); `compose.yaml`'s structure is tested but it has not been run.
 - 3.4: GHCR publishing with BuildKit SBOM and provenance is in `release.yml`; **cosign signing is not
-  done** (same reason as the Sigstore note in `release.yml`), and nothing has been published.
+  done** (same reason as the Sigstore note in `release.yml`); the release-tag publish has not run, while the
+  `container.yml` publish for pull requests has.
 - 3.5: `cold-install-container` is in `nightly.yml`; not yet run.
 - 4.1: written as `docs/container.md` in the repository, not as a wiki page; open until the wiki page exists.
-- 3.1 / 3.4 (addendum): `.github/workflows/container.yml` publishes the image to GHCR on pull requests that touch
-  it and on `main` (tags `sha-<commit>`, `pr-<n>`, `edge`), then pulls it back and smoke-tests it on both
-  architectures; the first run on GitHub is what shows whether the image builds and works.
-
+- 3.4 (addendum): `.github/workflows/container.yml` publishes the image to GHCR on pull requests that touch it and
+  on `main` (tags `sha-<commit>`, `pr-<n>`, `edge`), then pulls it back and smoke-tests it on both architectures;
+  it passed on the first run (PR 48).
