@@ -481,6 +481,9 @@ def _sync_round(
     report.totals_after = _totals(open_repo(repo.root))
     if merging or gitio.is_dirty(repo.root):
         _git(repo, "add", "-A")
+    # A tree can look dirty and stage nothing (line endings rewritten on Windows, a refreshed
+    # stat); only a merge is concluded without changes.
+    if merging or gitio.has_staged_changes(repo.root):
         summary = "sync with " + remote
         message = StructuredCommit(
             op="sync", scope=None, summary=summary,

@@ -40,7 +40,8 @@ def run(
         timeout=timeout,
     )
     if check and result.returncode != 0:
-        raise GitError(args, result.returncode, result.stderr)
+        # `git commit` says "nothing to commit" on stdout, so a failure can have an empty stderr.
+        raise GitError(args, result.returncode, result.stderr.strip() or result.stdout)
     return result
 
 
@@ -65,6 +66,11 @@ def add(path: Path, pathspecs: list[str]) -> None:
 
 def add_all(path: Path) -> None:
     run(["add", "-A"], cwd=path)
+
+
+def has_staged_changes(path: Path) -> bool:
+    """Whether the index differs from HEAD, i.e. whether a commit would record anything."""
+    return run(["diff", "--cached", "--quiet"], cwd=path, check=False).returncode == 1
 
 
 def is_dirty(path: Path) -> bool:

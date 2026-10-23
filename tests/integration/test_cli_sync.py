@@ -77,6 +77,30 @@ def test_a_fast_forward_reports_what_the_collaborator_did(review: tuple[Repo, Re
     assert verify_repository(open_repo(ethan.root)).ok
 
 
+def test_a_tree_that_looks_dirty_but_stages_nothing_still_syncs(
+    review: tuple[Repo, Repo, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On Windows a fast-forward leaves files that git lists as modified (line endings rewritten
+    by the regeneration) although `git add` stages nothing; `git commit` then failed with "nothing
+    to commit" and the sync with it."""
+    ethan, sam, _bare = review
+    screen(sam, "sam", record_ids(sam)[:3], "exclude", ["EXC-01"])
+    cli(sam, "sync")
+    real = gitio.is_dirty
+    calls: list[int] = []
+
+    def dirty_after_the_first_look(path: Path) -> bool:
+        calls.append(1)
+        return True if len(calls) > 1 else real(path)
+
+    monkeypatch.setattr(sync_mod.gitio, "is_dirty", dirty_after_the_first_look)
+    before = _head(ethan)
+    result = cli(ethan, "sync")
+    assert "Fast-forwarding" in result.output and len(calls) > 1
+    assert _head(ethan) != before and verify_repository(open_repo(ethan.root)).ok
+    assert not gitio.has_staged_changes(ethan.root)
+
+
 # --- the structural promise: dual screening never conflicts -----------------------------------
 
 
@@ -216,10 +240,10 @@ def test_resolve_mine_and_theirs(review: tuple[Repo, Repo, Path]) -> None:
     assert "<<<<" not in sam.path("protocol", "criteria.yaml").read_text()
     assert verify_repository(open_repo(sam.root)).ok
     cli(ethan, "sync")
-    assert (
-        ethan.path("protocol", "criteria.yaml").read_bytes()
-        == sam.path("protocol", "criteria.yaml").read_bytes()
-    )
+    # The repository content is the same; a file the tool wrote may carry the platform's newline.
+    assert ethan.path("protocol", "criteria.yaml").read_bytes().replace(b"\r\n", b"\n") == sam.path(
+        "protocol", "criteria.yaml"
+    ).read_bytes().replace(b"\r\n", b"\n")
 
 
 def test_the_prompt_offers_mine_theirs_or_an_editor(review: tuple[Repo, Repo, Path]) -> None:
