@@ -137,7 +137,9 @@ See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m5-1-plan.md`](docs/m5-1-plan.md) /
 [`docs/m6-plan.md`](docs/m6-plan.md) for
 the sub-objective-by-sub-objective status of each milestone, including what is
-deliberately partial.
+deliberately partial. Reference pages: [statistical methods](docs/statistics.md) (formulae and
+sources), [running in a container](docs/container.md), and [contributing](CONTRIBUTING.md) (including
+how to add an import parser).
 
 ## Installing
 

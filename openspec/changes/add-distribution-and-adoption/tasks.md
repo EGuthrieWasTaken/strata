@@ -39,4 +39,9 @@ EPPI-Reviewer imports (2.1-2.3) do not exist yet.
 - Limits worth knowing: dates stored in Excel as dates arrive as serial numbers (a year typed as a
   number or text is read as written); the citation-list parser understands two layouts; EndNote's
   `<foreign-keys>`, notes and attachments are not read.
+- 3.2 (documentation set) stays open: `docs/statistics.md` (the statistical methods reference with formulae
+  and sources) and `CONTRIBUTING.md` (including how to add a parser) now exist. Still to write: a
+  quickstart for a first review in 30 minutes (the README's Getting started is the start of one), the "I have
+  never used git" guide, the methods-text cookbook, a repository format reference for users (the format is
+  specified in `openspec/specs/repository-format`), and a recovery guide.
 
