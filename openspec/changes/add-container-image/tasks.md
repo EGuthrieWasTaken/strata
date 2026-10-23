@@ -52,4 +52,7 @@ every workflow, the entrypoint and the web changes are tested; **no image has be
   done** (same reason as the Sigstore note in `release.yml`), and nothing has been published.
 - 3.5: `cold-install-container` is in `nightly.yml`; not yet run.
 - 4.1: written as `docs/container.md` in the repository, not as a wiki page; open until the wiki page exists.
+- 3.1 / 3.4 (addendum): `.github/workflows/container.yml` publishes the image to GHCR on pull requests that touch
+  it and on `main` (tags `sha-<commit>`, `pr-<n>`, `edge`), then pulls it back and smoke-tests it on both
+  architectures; the first run on GitHub is what shows whether the image builds and works.
 

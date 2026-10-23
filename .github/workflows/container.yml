@@ -1,0 +1,144 @@
+name: Container image
+
+# openspec:container-image. Builds the image for amd64 and arm64 on native runners, publishes it to
+# GHCR under a tag that names the commit, and then pulls it back from the registry on each
+# architecture and runs the smoke test against what was actually published (not against a local
+# build): a pull request that touches the image gets the check, and `main` keeps `edge` current.
+# Releases are published, with the version tag, by release.yml.
+#
+# Third-party actions are not used at all: the registry login, the build (BuildKit with an SBOM and
+# a provenance attestation) and the manifest are plain `docker` commands.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - compose.yaml
+      - docker/**
+      - pyproject.toml
+      - uv.lock
+      - src/**
+      - scripts/container_smoke.sh
+      - .github/workflows/container.yml
+  workflow_dispatch: {}
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # A fork's pull request has no token that can write packages: it is skipped (ci.yml's own
+  # `container` job still builds and smoke-tests it).
+  tag:
+    name: image tag
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+      sha_tag: ${{ steps.name.outputs.sha_tag }}
+      moving_tag: ${{ steps.name.outputs.moving_tag }}
+    steps:
+      - id: name
+        env:
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${COMMIT::12}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "moving_tag=pr-${PR}" >> "$GITHUB_OUTPUT"
+          else
+            echo "moving_tag=edge" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: publish (${{ matrix.arch }})
+    needs: tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IMAGE: ${{ needs.tag.outputs.image }}
+      SHA_TAG: ${{ needs.tag.outputs.sha_tag }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and push the ${{ matrix.arch }} image
+        run: |
+          echo "$GH_TOKEN" | docker login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --name strata --driver docker-container --use
+          docker buildx build --platform "linux/${ARCH}" \
+            --tag "${IMAGE}:${SHA_TAG}-${ARCH}" \
+            --sbom=true --provenance=mode=max --push .
+
+  manifest:
+    name: multi-architecture manifest
+    needs: [tag, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IMAGE: ${{ needs.tag.outputs.image }}
+      SHA_TAG: ${{ needs.tag.outputs.sha_tag }}
+      MOVING_TAG: ${{ needs.tag.outputs.moving_tag }}
+    steps:
+      - name: Join the two images under the commit tag and the moving tag
+        run: |
+          echo "$GH_TOKEN" | docker login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${SHA_TAG}" --tag "${IMAGE}:${MOVING_TAG}" \
+            "${IMAGE}:${SHA_TAG}-amd64" "${IMAGE}:${SHA_TAG}-arm64"
+          docker buildx imagetools inspect "${IMAGE}:${SHA_TAG}"
+
+  verify:
+    name: verify from the registry (${{ matrix.arch }})
+    needs: [tag, manifest]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      IMAGE: ${{ needs.tag.outputs.image }}
+      SHA_TAG: ${{ needs.tag.outputs.sha_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Pull what was published and smoke-test it
+        run: |
+          echo "$GH_TOKEN" | docker login "$REGISTRY" --username "$GITHUB_ACTOR" --password-stdin
+          docker pull "${IMAGE}:${SHA_TAG}"
+          docker image inspect "${IMAGE}:${SHA_TAG}" --format 'architecture: {{.Architecture}}  size: {{.Size}} bytes'
+          scripts/container_smoke.sh "${IMAGE}:${SHA_TAG}"

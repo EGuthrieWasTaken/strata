@@ -242,3 +242,35 @@ def test_the_nightly_builds_the_image_from_scratch() -> None:
 def test_the_standard_version_flag_reports_the_installed_version() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0 and result.output.strip() == f"strata {__version__}"
+
+
+def test_the_ghcr_workflow_publishes_both_architectures_and_verifies_what_it_published() -> None:
+    wf = load_yaml_str(
+        (ROOT / ".github" / "workflows" / "container.yml").read_text(encoding="utf-8")
+    )
+    jobs = wf["jobs"]
+    assert {"tag", "publish", "manifest", "verify"} <= set(jobs)
+    for name in ("publish", "verify"):
+        assert {m["arch"] for m in jobs[name]["strategy"]["matrix"]["include"]} == {
+            "amd64",
+            "arm64",
+        }
+    assert jobs["publish"]["permissions"]["packages"] == "write"
+    assert jobs["verify"]["permissions"]["packages"] == "read"  # it only reads what was published
+    publish = " ".join(step.get("run", "") for step in jobs["publish"]["steps"])
+    assert "--sbom=true" in publish and "--provenance=mode=max" in publish and "--push" in publish
+    verify = " ".join(step.get("run", "") for step in jobs["verify"]["steps"])
+    assert "docker pull" in verify and "scripts/container_smoke.sh" in verify
+    assert jobs["verify"]["needs"] == ["tag", "manifest"] and jobs["manifest"]["needs"] == [
+        "tag",
+        "publish",
+    ]
+    # a fork's pull request has no token that can write packages, so it is skipped, not failed
+    assert "head.repo.full_name == github.repository" in jobs["tag"]["if"]
+    trigger = _on_trigger(wf)
+    assert "pull_request" in trigger and "pull_request_target" not in trigger
+    assert trigger["push"]["branches"] == ["main"] and "workflow_dispatch" in trigger
+
+
+def _on_trigger(workflow: dict) -> dict:  # type: ignore[type-arg]
+    return workflow.get("on", workflow.get(True))  # YAML 1.1 reads a bare `on` as true

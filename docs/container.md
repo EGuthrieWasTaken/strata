@@ -5,10 +5,13 @@ local web UI, against a review repository mounted at `/review`. Nothing in it is
 platform: it is `strata` and `git` on a slim Debian base, as an unprivileged user.
 
 > **Status.** The Dockerfile, entrypoint, compose file and CI/release/nightly jobs are written and
-> linted (hadolint, actionlint) and their logic is tested, but **the image has not been built or run**
-> by the person who wrote them (no container runtime was available); CI's `container` job is the first
-> real build. No image is published yet, and the base image is not yet pinned by digest. Build it
-> yourself until a release exists: `docker build -t strata .`
+> linted (hadolint, actionlint) and their logic is tested, but **the image had not been built or run
+> by the person who wrote them** (no container runtime was available there). `.github/workflows/container.yml`
+> is the first real build: it publishes the image for amd64 and arm64 to
+> `ghcr.io/eguthriewastaken/strata` (tagged `sha-<commit>`, plus `pr-<n>` or `edge`), then pulls it back from
+> the registry and runs `scripts/container_smoke.sh` on each architecture. Until a release is tagged, use one
+> of those tags (a package created by a workflow starts private; make it public in the repository's package
+> settings to pull it without logging in), or build it yourself: `docker build -t strata .`
 
 ## One-off commands
 

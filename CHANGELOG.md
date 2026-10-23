@@ -26,7 +26,8 @@ All notable changes to `strata` are documented here. Format follows
   validated against it; DNS-rebinding protection stays), `STRATA_TOKEN`, and an unauthenticated
   `GET /healthz`; `strata --version` now exists. **The image has not been built or run** (no container
   runtime in the build environment), the base image is not pinned by digest, and cosign signing is not
-  done. See `docs/container.md`.
+  done. `.github/workflows/container.yml` builds both architectures, publishes them to GHCR and smoke-tests
+  what was published. See `docs/container.md`.
 - **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
   init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata
   verify`, comments what the change does to the review (records entering and leaving, decisions invalidated,
