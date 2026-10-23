@@ -39,6 +39,8 @@ from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
+from strata.extract import export as export_mod
+from strata.extract import schema as extraction_schema_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.ingest.enrich import unpaywall as unpaywall_mod
 from strata.mcpserver import server as mcp_server_mod
@@ -91,11 +93,15 @@ records_app = typer.Typer(
 criteria_app = typer.Typer(
     name="criteria", help="Manage inclusion/exclusion criteria.", no_args_is_help=True
 )
+export_app = typer.Typer(
+    name="export", help="Export data for analysis elsewhere.", no_args_is_help=True
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
+app.add_typer(export_app, name="export")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -2094,6 +2100,49 @@ def studies_command(
             ctx, repo, op="studies", scope=None, summary=f"{decided} study decision(s)", by=by
         )
     out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
+
+
+@export_app.command("effects")
+def export_effects_command(
+    ctx: typer.Context,
+    fmt: str = typer.Option("csv", "--format", help="csv | tsv | xlsx | rds | json"),
+    out: str | None = typer.Option(None, "--out", help="Write here instead of standard output"),
+) -> None:
+    """One row per effect, with study-level and effect-level moderators joined, for outside
+    analysis: openspec:data-extraction#exporting-effects-for-outside-analysis.
+
+    The columns include `study_id`, `effect_id`, `yi` and `vi`, so the CSV loads straight into
+    `metafor::rma(yi, vi, data = read.csv("effects.csv"))`. xlsx and rds are binary and need --out.
+
+    Example: strata export effects --format csv --out effects.csv
+    """
+    repo = _resolve_repo(ctx)
+    if fmt not in export_mod.FORMATS:
+        err_console.print(f"[red]error:[/] --format must be one of {', '.join(export_mod.FORMATS)}")
+        raise typer.Exit(EXIT_USAGE)
+    if fmt in ("xlsx", "rds") and not out:
+        err_console.print(f"[red]error:[/] --format {fmt} is binary; give --out FILE")
+        raise typer.Exit(EXIT_USAGE)
+    try:
+        table = export_mod.effect_table(repo, extras=_export_extras(repo))
+        payload = export_mod.render(table, fmt)
+    except (export_mod.ExportError, extraction_schema_mod.ExtractionSchemaError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out:
+        Path(out).write_bytes(payload)
+        message = f"wrote {len(table.rows)} effect(s) to {out}"
+        if ctx.obj["json"]:
+            _print_json({"effects": len(table.rows), "columns": table.columns, "path": out})
+        else:
+            out_console.print(f"[green]{message}[/]")
+    else:
+        sys.stdout.write(payload.decode("utf-8"))
+
+
+def _export_extras(repo: Repo) -> export_mod.Extras | None:
+    """Further study-level columns for the export (risk of bias, once assessed)."""
+    return None
 
 
 @app.command("audit")
