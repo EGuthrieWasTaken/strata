@@ -71,6 +71,24 @@ def test_rescreening_after_the_change_is_counted_from_history(tmp_path: Path) ->
     assert amendment.invalidated == invalidated_at_first
 
 
+def test_a_change_in_the_same_second_as_the_first_decision_is_still_an_amendment(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    """Timestamps have second precision, so a fast run (or a script) can change the criteria in the
+    very second of the first decision; the event order (`ts`, then the ULID `id`) still puts the
+    change after it."""
+    repo, _ = finished_review(tmp_path)
+    first = min(
+        e["ts"]
+        for stage in screening_mod.configured_stages(repo)
+        for e in screening_mod.all_screen_events(repo, stage)
+    )
+    monkeypatch.setattr("strata.core.events.utc_now_iso", lambda: first)
+    _amend(repo)
+    (amendment,) = am.amendments(repo)
+    assert amendment.ts == first
+
+
 def test_the_paragraph_states_date_criterion_numbers_and_the_authors_rationale(
     tmp_path: Path,
 ) -> None:

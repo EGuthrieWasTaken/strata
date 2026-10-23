@@ -53,14 +53,20 @@ def _resolved_now(repo: Repo, stage: str, record_ids: list[str]) -> dict[str, st
     return {r: s.status for r, s in states.items()}
 
 
-def _first_decision(repo: Repo) -> str | None:
-    """When the first screening decision, at any stage, was recorded."""
-    stamps = [
-        e["ts"]
+def _order(event: dict[str, Any]) -> tuple[str, str]:
+    """`(ts, id)`, the order the fold uses: `ts` has second precision, and the ULID `id` still
+    orders two events made in the same second."""
+    return event["ts"], event["id"]
+
+
+def _first_decision(repo: Repo) -> tuple[str, str] | None:
+    """Where the first screening decision, at any stage, falls in the order of events."""
+    keys = [
+        _order(e)
         for stage in screening_mod.configured_stages(repo)
         for e in screening_mod.all_screen_events(repo, stage)
     ]
-    return min(stamps) if stamps else None
+    return min(keys) if keys else None
 
 
 def amendments(repo: Repo) -> list[Amendment]:
@@ -73,7 +79,7 @@ def amendments(repo: Repo) -> list[Amendment]:
         body = event["body"]
         to_version, from_version = int(body["to_version"]), int(body["from_version"])
         # Setting the criteria up before anyone screens is writing the protocol, not amending it.
-        if started is None or event["ts"] <= started:
+        if started is None or _order(event) <= started:
             continue
         after = {
             (s.record_id, s.stage)

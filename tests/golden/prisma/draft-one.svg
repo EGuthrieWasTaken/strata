@@ -2,70 +2,70 @@
 <title id="strata-title">PRISMA 2020 flow diagram</title>
 <desc id="strata-desc">27 records identified, 4 duplicates removed, 23 screened, 6 excluded, 17 reports sought, 0 not retrieved, 12 assessed, 4 excluded with reasons, 7 studies included in 8 reports.</desc>
 <style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
-<rect id="rect-42e06cef" class="f-surface" x="0" y="0" width="643" height="521"/>
-<text id="text-a02a17a0" class="f-ink" x="59" y="48" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Identification of studies via databases, registers and other methods</text>
-<rect id="rect-a31f5183" class="f-surface" x="59" y="81" width="250" height="96"/>
-<rect id="rect-dffae979" class="s-ink" fill="none" x="59" y="81" width="250" height="96"/>
-<text id="text-7bb5da8f" class="f-ink" x="67" y="99" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Records identified from:</text>
-<text id="text-034a0c5a" class="f-ink" x="67" y="115" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Databases (n = 18)</text>
-<text id="text-77f21243" class="f-ink" x="67" y="131" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Registers (n = 4)</text>
-<text id="text-34e84020" class="f-ink" x="67" y="147" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Citation searching (n = 3)</text>
-<text id="text-18535404" class="f-ink" x="67" y="163" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Websites (n = 2)</text>
-<rect id="rect-46b23dc0" class="f-surface" x="343" y="81" width="286" height="96"/>
-<rect id="rect-59e4cb94" class="s-ink" fill="none" x="343" y="81" width="286" height="96"/>
-<text id="text-44fb7000" class="f-ink" x="351" y="99" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Records removed before screening:</text>
-<text id="text-2b0f0a27" class="f-ink" x="351" y="115" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Duplicate records removed (n = 4)</text>
-<text id="text-4f221475" class="f-ink" x="351" y="131" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records marked as ineligible by automation</text>
-<text id="text-11c96993" class="f-ink" x="351" y="147" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">tools (n = 0)</text>
-<text id="text-53f9b7a0" class="f-ink" x="351" y="163" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records removed for other reasons (n = 0)</text>
-<line id="line-8cf61004" class="s-ink" x1="309" y1="129" x2="343" y2="129" stroke-width="1.2"/>
-<polygon id="polygon-af7617bb" class="f-ink" points="343,129 336,125.5 336,132.5"/>
-<line id="line-1809a8c6" class="s-ink" x1="184" y1="177" x2="184" y2="207" stroke-width="1.2"/>
-<polygon id="polygon-06c01e14" class="f-ink" points="184,207 180.5,200 187.5,200"/>
-<rect id="rect-8d25a2f9" class="f-surface" x="59" y="207" width="250" height="32"/>
-<rect id="rect-018d2e16" class="s-ink" fill="none" x="59" y="207" width="250" height="32"/>
-<text id="text-91b6eada" class="f-ink" x="67" y="225" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records screened (n = 23)</text>
-<rect id="rect-c1d4f5bc" class="f-surface" x="343" y="207" width="286" height="32"/>
-<rect id="rect-81ef433e" class="s-ink" fill="none" x="343" y="207" width="286" height="32"/>
-<text id="text-96152247" class="f-ink" x="351" y="225" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records excluded (n = 6)</text>
-<line id="line-6dd64974" class="s-ink" x1="309" y1="223" x2="343" y2="223" stroke-width="1.2"/>
-<polygon id="polygon-f187fda8" class="f-ink" points="343,223 336,219.5 336,226.5"/>
-<line id="line-976691a3" class="s-ink" x1="184" y1="239" x2="184" y2="269" stroke-width="1.2"/>
-<polygon id="polygon-aab6eb84" class="f-ink" points="184,269 180.5,262 187.5,262"/>
-<rect id="rect-ef571c6e" class="f-surface" x="59" y="269" width="250" height="48"/>
-<rect id="rect-718668a8" class="s-ink" fill="none" x="59" y="269" width="250" height="48"/>
-<text id="text-eabf354c" class="f-ink" x="67" y="287" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports sought for retrieval (n = 17)</text>
-<text id="text-f8faf1ba" class="f-accent2" x="67" y="303" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">of which awaiting retrieval (n = 5)</text>
-<rect id="rect-d8667d34" class="f-surface" x="343" y="269" width="286" height="48"/>
-<rect id="rect-abac9863" class="s-ink" fill="none" x="343" y="269" width="286" height="48"/>
-<text id="text-2587ae01" class="f-ink" x="351" y="287" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports not retrieved (n = 0)</text>
-<line id="line-9ac03511" class="s-ink" x1="309" y1="293" x2="343" y2="293" stroke-width="1.2"/>
-<polygon id="polygon-07de7c59" class="f-ink" points="343,293 336,289.5 336,296.5"/>
-<line id="line-6d69b795" class="s-ink" x1="184" y1="317" x2="184" y2="347" stroke-width="1.2"/>
-<polygon id="polygon-a793ec1c" class="f-ink" points="184,347 180.5,340 187.5,340"/>
-<rect id="rect-f44897bd" class="f-surface" x="59" y="347" width="250" height="64"/>
-<rect id="rect-868e90e0" class="s-ink" fill="none" x="59" y="347" width="250" height="64"/>
-<text id="text-b3f9c3a5" class="f-ink" x="67" y="365" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports assessed for eligibility (n = 12)</text>
-<rect id="rect-4f6df8a9" class="f-surface" x="343" y="347" width="286" height="64"/>
-<rect id="rect-cb728eb9" class="s-ink" fill="none" x="343" y="347" width="286" height="64"/>
-<text id="text-ba7557f7" class="f-ink" x="351" y="365" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Reports excluded:</text>
-<text id="text-e116cab0" class="f-ink" x="351" y="381" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">No comparison group (n = 3)</text>
-<text id="text-8551cca1" class="f-ink" x="351" y="397" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Not peer reviewed (n = 1)</text>
-<line id="line-681a4ec0" class="s-ink" x1="309" y1="379" x2="343" y2="379" stroke-width="1.2"/>
-<polygon id="polygon-62dd3438" class="f-ink" points="343,379 336,375.5 336,382.5"/>
-<line id="line-fbcc4192" class="s-ink" x1="184" y1="411" x2="184" y2="441" stroke-width="1.2"/>
-<polygon id="polygon-53c22f9e" class="f-ink" points="184,441 180.5,434 187.5,434"/>
-<rect id="rect-321055e8" class="f-surface" x="59" y="441" width="250" height="66"/>
-<rect id="rect-5d90fd37" class="s-ink" fill="none" x="59" y="441" width="250" height="66"/>
-<text id="text-1b086d0d" class="f-ink" x="67" y="459" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Studies included in review (n = 7)</text>
-<text id="text-82ba28c5" class="f-ink" x="67" y="475" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports of included studies (n = 8)</text>
-<rect id="rect-162a3a87" class="f-band" x="14" y="81" width="24" height="96"/>
-<text id="text-4396f2e6" class="f-ink" x="30" y="129" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 129)">Identification</text>
-<rect id="rect-9dcc6036" class="f-band" x="14" y="207" width="24" height="204"/>
-<text id="text-a348ed11" class="f-ink" x="30" y="309" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 309)">Screening</text>
-<rect id="rect-f52f51fa" class="f-band" x="14" y="441" width="24" height="66"/>
-<text id="text-c4417d9f" class="f-ink" x="30" y="474" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 474)">Included</text>
-<text id="text-039a8eb0" class="f-tint3" x="321.5" y="260.5" font-family="Helvetica, Arial, sans-serif" font-size="26" text-anchor="middle" font-weight="bold" transform="rotate(-20 321.5 260.5)">DRAFT — screening incomplete</text>
-<text id="text-8f9a8f83" class="f-accent2" x="321.5" y="24" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold">DRAFT — screening incomplete</text>
-<text id="text-af76cabc" class="f-muted" x="321.5" y="518" font-family="Helvetica, Arial, sans-serif" font-size="8" text-anchor="middle">PRISMA 2020 flow diagram, CC BY 4.0 (Page et al., BMJ 2021;372:n71)</text>
+<rect id="rect-2bc30b1b" class="f-surface" x="0" y="0" width="643" height="521"/>
+<text id="text-e3c658d4" class="f-ink" x="59" y="48" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Identification of studies via databases, registers and other methods</text>
+<rect id="rect-6064f8f8" class="f-surface" x="59" y="81" width="250" height="96"/>
+<rect id="rect-b39edcb2" class="s-ink" fill="none" x="59" y="81" width="250" height="96"/>
+<text id="text-f98ef974" class="f-ink" x="67" y="99" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Records identified from:</text>
+<text id="text-15b747c8" class="f-ink" x="67" y="115" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Databases (n = 18)</text>
+<text id="text-d2c15f56" class="f-ink" x="67" y="131" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Registers (n = 4)</text>
+<text id="text-19bd5d16" class="f-ink" x="67" y="147" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Citation searching (n = 3)</text>
+<text id="text-4c88e93d" class="f-ink" x="67" y="163" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Websites (n = 2)</text>
+<rect id="rect-b309e89e" class="f-surface" x="343" y="81" width="286" height="96"/>
+<rect id="rect-f32e622e" class="s-ink" fill="none" x="343" y="81" width="286" height="96"/>
+<text id="text-6408905f" class="f-ink" x="351" y="99" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Records removed before screening:</text>
+<text id="text-979670d2" class="f-ink" x="351" y="115" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Duplicate records removed (n = 4)</text>
+<text id="text-275ee1a8" class="f-ink" x="351" y="131" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records marked as ineligible by automation</text>
+<text id="text-654436b5" class="f-ink" x="351" y="147" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">tools (n = 0)</text>
+<text id="text-fe966876" class="f-ink" x="351" y="163" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records removed for other reasons (n = 0)</text>
+<line id="line-f1a1dfaa" class="s-ink" x1="309" y1="129" x2="343" y2="129" stroke-width="1.2"/>
+<polygon id="polygon-b1c41f78" class="f-ink" points="343,129 336,125.5 336,132.5"/>
+<line id="line-9af9296a" class="s-ink" x1="184" y1="177" x2="184" y2="207" stroke-width="1.2"/>
+<polygon id="polygon-16fea0bc" class="f-ink" points="184,207 180.5,200 187.5,200"/>
+<rect id="rect-4da14c15" class="f-surface" x="59" y="207" width="250" height="32"/>
+<rect id="rect-a05797ad" class="s-ink" fill="none" x="59" y="207" width="250" height="32"/>
+<text id="text-f15fdcf5" class="f-ink" x="67" y="225" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records screened (n = 23)</text>
+<rect id="rect-ebaf8393" class="f-surface" x="343" y="207" width="286" height="32"/>
+<rect id="rect-877af444" class="s-ink" fill="none" x="343" y="207" width="286" height="32"/>
+<text id="text-503a36fa" class="f-ink" x="351" y="225" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Records excluded (n = 6)</text>
+<line id="line-b67ba27c" class="s-ink" x1="309" y1="223" x2="343" y2="223" stroke-width="1.2"/>
+<polygon id="polygon-67f07537" class="f-ink" points="343,223 336,219.5 336,226.5"/>
+<line id="line-d9ce766d" class="s-ink" x1="184" y1="239" x2="184" y2="269" stroke-width="1.2"/>
+<polygon id="polygon-fa30edf6" class="f-ink" points="184,269 180.5,262 187.5,262"/>
+<rect id="rect-5688958a" class="f-surface" x="59" y="269" width="250" height="48"/>
+<rect id="rect-8691845d" class="s-ink" fill="none" x="59" y="269" width="250" height="48"/>
+<text id="text-7590e91b" class="f-ink" x="67" y="287" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports sought for retrieval (n = 17)</text>
+<text id="text-17ab7154" class="f-accent2" x="67" y="303" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">of which awaiting retrieval (n = 5)</text>
+<rect id="rect-aad61dff" class="f-surface" x="343" y="269" width="286" height="48"/>
+<rect id="rect-e227226d" class="s-ink" fill="none" x="343" y="269" width="286" height="48"/>
+<text id="text-025f767b" class="f-ink" x="351" y="287" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports not retrieved (n = 0)</text>
+<line id="line-d7ca8339" class="s-ink" x1="309" y1="293" x2="343" y2="293" stroke-width="1.2"/>
+<polygon id="polygon-185d5f77" class="f-ink" points="343,293 336,289.5 336,296.5"/>
+<line id="line-b21c4fa3" class="s-ink" x1="184" y1="317" x2="184" y2="347" stroke-width="1.2"/>
+<polygon id="polygon-046e4721" class="f-ink" points="184,347 180.5,340 187.5,340"/>
+<rect id="rect-3c81fbc3" class="f-surface" x="59" y="347" width="250" height="64"/>
+<rect id="rect-6134e85d" class="s-ink" fill="none" x="59" y="347" width="250" height="64"/>
+<text id="text-d82766fe" class="f-ink" x="67" y="365" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports assessed for eligibility (n = 12)</text>
+<rect id="rect-883c9ef6" class="f-surface" x="343" y="347" width="286" height="64"/>
+<rect id="rect-c9b6fc5f" class="s-ink" fill="none" x="343" y="347" width="286" height="64"/>
+<text id="text-19e3967c" class="f-ink" x="351" y="365" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Reports excluded:</text>
+<text id="text-ebcc82a1" class="f-ink" x="351" y="381" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">No comparison group (n = 3)</text>
+<text id="text-b6208afe" class="f-ink" x="351" y="397" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Not peer reviewed (n = 1)</text>
+<line id="line-a683952f" class="s-ink" x1="309" y1="379" x2="343" y2="379" stroke-width="1.2"/>
+<polygon id="polygon-8b92743b" class="f-ink" points="343,379 336,375.5 336,382.5"/>
+<line id="line-9e406ca6" class="s-ink" x1="184" y1="411" x2="184" y2="441" stroke-width="1.2"/>
+<polygon id="polygon-f8588f44" class="f-ink" points="184,441 180.5,434 187.5,434"/>
+<rect id="rect-13f0f655" class="f-surface" x="59" y="441" width="250" height="66"/>
+<rect id="rect-fa9057e1" class="s-ink" fill="none" x="59" y="441" width="250" height="66"/>
+<text id="text-78c4e2da" class="f-ink" x="67" y="459" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start" font-weight="bold">Studies included in review (n = 7)</text>
+<text id="text-6f77d856" class="f-ink" x="67" y="475" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="start">Reports of included studies (n = 8)</text>
+<rect id="rect-d0fe3727" class="f-band" x="14" y="81" width="24" height="96"/>
+<text id="text-497905a6" class="f-ink" x="30" y="129" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 129)">Identification</text>
+<rect id="rect-4a7ff117" class="f-band" x="14" y="207" width="24" height="204"/>
+<text id="text-4fb5200f" class="f-ink" x="30" y="309" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 309)">Screening</text>
+<rect id="rect-3543a7f8" class="f-band" x="14" y="441" width="24" height="66"/>
+<text id="text-27ab3ceb" class="f-ink" x="30" y="474" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold" transform="rotate(-90 30 474)">Included</text>
+<text id="text-7419e886" class="f-tint3" x="321.5" y="260.5" font-family="Helvetica, Arial, sans-serif" font-size="26" text-anchor="middle" font-weight="bold" transform="rotate(-20 321.5 260.5)">DRAFT — screening incomplete</text>
+<text id="text-5d45b830" class="f-accent2" x="321.5" y="24" font-family="Helvetica, Arial, sans-serif" font-size="12" text-anchor="middle" font-weight="bold">DRAFT — screening incomplete</text>
+<text id="text-880c8bd8" class="f-muted" x="321.5" y="518" font-family="Helvetica, Arial, sans-serif" font-size="8" text-anchor="middle">PRISMA 2020 flow diagram, CC BY 4.0 (Page et al., BMJ 2021;372:n71)</text>
 </svg>
