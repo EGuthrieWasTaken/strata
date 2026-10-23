@@ -13,7 +13,7 @@
 - [x] 2.4 Require `--allow-stale` and watermark drafts while any decision is stale
 - [x] 2.5 Regenerate and byte-compare the diagram in `strata verify`
 - [x] 2.6 Implement `strata report checklist [--status]` with the three item states
-- [ ] 2.7 Verify all labels and wording against the official PRISMA 2020 materials; add CC BY 4.0 attribution
+- [x] 2.7 Verify all labels and wording against the official PRISMA 2020 materials; add CC BY 4.0 attribution
 
 ## 3. Manuscript sections
 
@@ -41,12 +41,13 @@
 
 ## Notes
 
-- 2.7 is partly done. The flow-diagram labels were compared with the template that ships in the
-  `PRISMA2020` R package (its `data` keys and box labels), and the output carries the CC BY 4.0
-  attribution. The 27-item checklist wording could not be compared with the official template from
-  the build environment, so the generated checklist says in its header that the wording is not yet
-  verified (`WORDING_VERIFIED = False` in `report/checklist.py`). Compare it with
-  https://www.prisma-statement.org/ and flip the flag.
+- 2.7 is done. The flow-diagram labels were compared with the template that ships in the `PRISMA2020` R
+  package (its `data` keys and box labels). The checklist's 42 items and sub-items were compared with
+  Table 1 of the PRISMA 2020 statement (Page et al., BMJ 2021;372:n71), parsed from the article's text:
+  three items used US spelling (13d, 13f, 20d), item 27's topic lacked the Oxford comma, and items 2 and 16a
+  had dropped the article's cross-references ("table 2", "see fig 1"); all now match.
+  `tests/fixtures/prisma2020/checklist.json` pins the result, `WORDING_VERIFIED` is `True`, and the output
+  carries the CC BY 4.0 attribution. Not covered: the abstract checklist (Table 2) is not generated.
 - 6.4 is a manual release gate: a methodologist reads the generated Methods text. It has not been done.
 - 2.5: `strata verify` regenerates `reports/prisma.svg` in both column layouts and warns
   (`W_DIAGRAM_STALE`) when the committed file matches neither, since a diagram is out of date after

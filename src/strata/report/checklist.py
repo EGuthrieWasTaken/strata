@@ -6,9 +6,10 @@ material and the item says where, and **author** when only the author can supply
 judgement, the discussion, certainty of evidence). Items 22 (certainty) and 23 (discussion) are
 author work in v1 by design.
 
-`WORDING_VERIFIED` is False: the item wording below is reproduced from the PRISMA 2020 statement
-(Page et al., BMJ 2021;372:n71, CC BY 4.0) without having been compared with the official template,
-which the specification requires before release. The generated file says so.
+`WORDING_VERIFIED` is True: the item wording below was compared, item by item, with Table 1 of the PRISMA
+2020 statement (Page et al., BMJ 2021;372:n71, CC BY 4.0), and tests/fixtures/prisma2020/checklist.json
+(parsed from that article) pins it. The wording is the article's word for word, including its British
+spelling and the cross-references in items 2 and 16a to the article's own table 2 and figure 1.
 """
 
 # ruff: noqa: E501  (the checklist wording and generated sentences are single long strings)
@@ -20,7 +21,7 @@ from typing import Any
 from strata.report import amendments as amendments_mod
 from strata.report.facts import AnalysisFacts, Facts
 
-WORDING_VERIFIED = False
+WORDING_VERIFIED = True
 AUTO_FILLED, AUTO_LOCATED, AUTHOR = "auto-filled", "auto-located", "author"
 ATTRIBUTION = (
     "PRISMA 2020 checklist: Page MJ, McKenzie JE, Bossuyt PM, et al. The PRISMA 2020 statement: an "
@@ -31,7 +32,7 @@ ATTRIBUTION = (
 # (item, section, topic, wording)
 ITEMS: list[tuple[str, str, str, str]] = [
     ("1", "Title", "Title", "Identify the report as a systematic review."),
-    ("2", "Abstract", "Abstract", "See the PRISMA 2020 for Abstracts checklist."),
+    ("2", "Abstract", "Abstract", "See the PRISMA 2020 for Abstracts checklist (table 2)."),
     ("3", "Introduction", "Rationale", "Describe the rationale for the review in the context of existing knowledge."),
     ("4", "Introduction", "Objectives", "Provide an explicit statement of the objective(s) or question(s) the review addresses."),
     ("5", "Methods", "Eligibility criteria", "Specify the inclusion and exclusion criteria for the review and how studies were grouped for the syntheses."),
@@ -46,12 +47,12 @@ ITEMS: list[tuple[str, str, str, str]] = [
     ("13a", "Methods", "Synthesis methods", "Describe the processes used to decide which studies were eligible for each synthesis (e.g. tabulating the study intervention characteristics and comparing against the planned groups for each synthesis (item #5))."),
     ("13b", "Methods", "Synthesis methods", "Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions."),
     ("13c", "Methods", "Synthesis methods", "Describe any methods used to tabulate or visually display results of individual studies and syntheses."),
-    ("13d", "Methods", "Synthesis methods", "Describe any methods used to synthesize results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify the presence and extent of statistical heterogeneity, and software package(s) used."),
+    ("13d", "Methods", "Synthesis methods", "Describe any methods used to synthesise results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify the presence and extent of statistical heterogeneity, and software package(s) used."),
     ("13e", "Methods", "Synthesis methods", "Describe any methods used to explore possible causes of heterogeneity among study results (e.g. subgroup analysis, meta-regression)."),
-    ("13f", "Methods", "Synthesis methods", "Describe any sensitivity analyses conducted to assess robustness of the synthesized results."),
+    ("13f", "Methods", "Synthesis methods", "Describe any sensitivity analyses conducted to assess robustness of the synthesised results."),
     ("14", "Methods", "Reporting bias assessment", "Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases)."),
     ("15", "Methods", "Certainty assessment", "Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome."),
-    ("16a", "Results", "Study selection", "Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram."),
+    ("16a", "Results", "Study selection", "Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram (see fig 1)."),
     ("16b", "Results", "Study selection", "Cite studies that might appear to meet the inclusion criteria, but which were excluded, and explain why they were excluded."),
     ("17", "Results", "Study characteristics", "Cite each included study and present its characteristics."),
     ("18", "Results", "Risk of bias in studies", "Present assessments of risk of bias for each included study."),
@@ -59,7 +60,7 @@ ITEMS: list[tuple[str, str, str, str]] = [
     ("20a", "Results", "Results of syntheses", "For each synthesis, briefly summarise the characteristics and risk of bias among contributing studies."),
     ("20b", "Results", "Results of syntheses", "Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (e.g. confidence/credible interval) and measures of statistical heterogeneity. If comparing groups, describe the direction of the effect."),
     ("20c", "Results", "Results of syntheses", "Present results of all investigations of possible causes of heterogeneity among study results."),
-    ("20d", "Results", "Results of syntheses", "Present results of all sensitivity analyses conducted to assess the robustness of the synthesized results."),
+    ("20d", "Results", "Results of syntheses", "Present results of all sensitivity analyses conducted to assess the robustness of the synthesised results."),
     ("21", "Results", "Reporting biases", "Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed."),
     ("22", "Results", "Certainty of evidence", "Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed."),
     ("23a", "Discussion", "Discussion", "Provide a general interpretation of the results in the context of other evidence."),
@@ -71,7 +72,7 @@ ITEMS: list[tuple[str, str, str, str]] = [
     ("24c", "Other information", "Registration and protocol", "Describe and explain any amendments to information provided at registration or in the protocol."),
     ("25", "Other information", "Support", "Describe sources of financial or non-financial support for the review, and the role of the funders or sponsors in the review."),
     ("26", "Other information", "Competing interests", "Declare any competing interests of review authors."),
-    ("27", "Other information", "Availability of data, code and other materials", "Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review."),
+    ("27", "Other information", "Availability of data, code, and other materials", "Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review."),
 ]  # fmt: skip
 
 
@@ -639,7 +640,13 @@ def render(facts: Facts) -> str:
         "",
         f"> {ATTRIBUTION}",
     ]
-    if not WORDING_VERIFIED:
+    if WORDING_VERIFIED:
+        lines += [
+            "",
+            "> The item wording is Table 1 of the statement, word for word; 'table 2' in item 2 and 'fig 1' in item "
+            "16a are the article's own abstract checklist and flow diagram.",
+        ]
+    else:
         lines += [
             "",
             "> **Not yet verified:** the item wording above has not been compared with the official PRISMA 2020 "

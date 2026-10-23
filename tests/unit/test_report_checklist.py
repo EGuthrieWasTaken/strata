@@ -33,13 +33,14 @@ def test_every_item_and_sub_item_of_the_statement_is_present(tmp_path: Path) -> 
     assert all(i.wording and i.topic and i.section for i in items)
 
 
-def test_the_file_carries_the_attribution_and_says_the_wording_is_unverified(
+def test_the_file_carries_the_attribution_and_says_the_wording_is_verified(
     tmp_path: Path,
 ) -> None:
     repo, _ = finished_review(tmp_path)
     text = cl.render(facts_mod.collect(repo))
     assert "CC BY 4.0" in text and "doi.org/10.1136/bmj.n71" in text
-    assert "Not yet verified" in text and cl.WORDING_VERIFIED is False
+    assert "Not yet verified" not in text and cl.WORDING_VERIFIED is True
+    assert "Table 1 of the statement, word for word" in text
     assert (
         "| Item | Section / topic | Checklist item | Status | Repository source | Location where item is reported |"
         in text
@@ -211,3 +212,17 @@ def test_the_manifest_schema_accepts_funding_and_competing_interests() -> None:
         broken["project"]["funding"] = bad
         with pytest.raises(SchemaValidationError):
             validate("manifest", broken)
+
+
+def test_the_wording_is_the_official_table_one_word_for_word() -> None:
+    """tests/fixtures/prisma2020/checklist.json was parsed from Table 1 of Page et al., BMJ
+    2021;372:n71 (CC BY 4.0); the sections and topics are those of the same table."""
+    fixture = json.loads(
+        (Path(__file__).parent.parent / "fixtures" / "prisma2020" / "checklist.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [i for i, *_ in cl.ITEMS] == list(fixture) == EXPECTED_IDS
+    for item_id, _section, topic, wording in cl.ITEMS:
+        assert wording == fixture[item_id]["wording"], item_id
+        assert topic == fixture[item_id]["topic"], item_id

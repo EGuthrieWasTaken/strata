@@ -102,3 +102,12 @@ ClinicalTrials.gov, EndNote, Google Scholar), which belong to the EndNote XML
 and Excel parsers of sub-objective 3 (not yet implemented) or would need a
 real export to verify the EBSCOhost/ProQuest/Dimensions/Google-Scholar-PoP CSV
 profiles in `strata.ingest.profiles` against.
+
+## `tests/fixtures/prisma2020/`
+
+- `checklist.json` -- the 42 items and sub-items of Table 1 of Page MJ, McKenzie JE, Bossuyt PM, et al. *The PRISMA
+  2020 statement: an updated guideline for reporting systematic reviews.* BMJ 2021;372:n71
+  (https://doi.org/10.1136/bmj.n71), licensed CC BY 4.0, parsed from the article's text (a PDF supplied by the project
+  lead) with the page watermark removed and a line-break hyphen joined (`meta-regression`). It pins the wording in
+  `strata.report.checklist`.
+

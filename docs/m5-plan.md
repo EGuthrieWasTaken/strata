@@ -18,12 +18,14 @@ records what was built, the conventions that emerged, and what is deliberately p
 
 ### Partial or deliberately left for later
 
-- **Official wording.** The flow-diagram labels were compared with the template in the `PRISMA2020` R
-  package. The 27-item checklist wording could not be compared with the official template from the
-  build environment; the generated checklist says so in its header and `WORDING_VERIFIED` in
-  `report/checklist.py` is `False`. Compare it with prisma-statement.org, correct any difference
-  (the official wording governs) and flip the flag. The item wording was written from the published
-  statement, not copied from a machine-readable source.
+- **Official wording (done).** The flow-diagram labels were compared with the template in the `PRISMA2020` R
+  package. The 42 items and sub-items of the checklist were compared with Table 1 of the PRISMA 2020
+  statement (Page et al., BMJ 2021;372:n71, supplied as a PDF) by parsing the table from the article's
+  text; the differences were the article's British spelling ("synthesise" in 13d, 13f and 20d), the Oxford
+  comma in item 27's topic, and the article's own cross-references in item 2 ("table 2") and item 16a
+  ("see fig 1"), all now the article's. `tests/fixtures/prisma2020/checklist.json` pins the wording and
+  `WORDING_VERIFIED` is `True`. The abstract checklist (Table 2) is not generated. The PDF's own page
+  watermark text was removed when parsing; nothing else was altered.
 - **Methodologist review.** A person who has written methods sections should read the generated Methods
   before release (task 6.4). It has not happened.
 - **`registry` and `contact` imports.** The PRISMA 2020 template names websites, organisations and

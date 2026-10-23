@@ -36,6 +36,6 @@ or that anything "causes" anything outside text you quote yourself.
   tau-squared, Knapp–Hartung adjustment"); the formulae and sources are in [`statistics.md`](statistics.md).
   Report the prediction interval with its `k - 2` degrees of freedom convention if a reader will compare it with
   another package's.
-- **The checklist's wording has not yet been compared with the official PRISMA 2020 template,** and the
-  generated Methods have not yet had a methodologist's review (see [`m5-plan.md`](m5-plan.md)); check both
-  against the statement (Page et al., *BMJ* 2021;372:n71) before you rely on them.
+- **The generated Methods have not yet had a methodologist's review** (see [`m5-plan.md`](m5-plan.md)); read
+  them against the PRISMA 2020 statement (Page et al., *BMJ* 2021;372:n71) before you rely on them. The
+  checklist's item wording is that statement's Table 1, word for word.

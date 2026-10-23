@@ -68,9 +68,9 @@ All notable changes to `strata` are documented here. Format follows
   all-screened|not-retrieved` (BibTeX, CSL-JSON, RIS) and `strata export package` (no
   full text, a required data licence, deterministic bytes). New tests: P11 over random
   review histories, E2E-03 through to the package, E2E-01's generated amendment and
-  reconciled counts, golden flow diagrams. Open: the checklist wording is not yet compared
-  with the official template, and the generated Methods have not had a methodologist's
-  review. See `docs/m5-plan.md`.
+  reconciled counts, golden flow diagrams. The checklist wording is Table 1 of the
+  PRISMA 2020 statement word for word, pinned by a fixture parsed from the article. Open:
+  the generated Methods have not had a methodologist's review. See `docs/m5-plan.md`.
 - **M4: analysis** (OpenSpec change `add-meta-analysis`, in flight until its last
   test-suite item closes). `strata analyze [<id>] [--all] [--check]` runs the
   versioned `analysis/<id>.yaml` specifications and writes

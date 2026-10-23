@@ -125,9 +125,8 @@ the amendments section reports each change to the eligibility criteria after
 screening began with what it invalidated and what became of it. `strata export
 bibliography` lists the included, excluded-at-full-text, screened or
 not-retrieved records as BibTeX, CSL-JSON or RIS, and `strata export package`
-builds the supplement PRISMA item 27 asks for with no full text in it. Two items
-are open: the checklist wording has not been compared with the official
-template, and a methodologist has not yet read the generated Methods; see
+builds the supplement PRISMA item 27 asks for with no full text in it. One item
+is open: a methodologist has not yet read the generated Methods; see
 [`docs/m5-plan.md`](docs/m5-plan.md).
 
 See [the roadmap](docs/roadmap.md) for what comes next, and
