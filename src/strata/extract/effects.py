@@ -94,6 +94,16 @@ def _two_group_binary(inputs: dict[str, Any]) -> es.EffectSize:
     return functions[measure](*args)
 
 
+def _single_group_proportion(inputs: dict[str, Any]) -> es.EffectSize:
+    measure = inputs.get("measure", "PLO")
+    functions = {"PLO": es.logit_proportion, "PFT": es.freeman_tukey_proportion}
+    if measure not in functions:
+        raise EffectInputError(
+            f"a single-group-proportion effect is one of {sorted(functions)}, not {measure!r}"
+        )
+    return functions[measure](_num(inputs, "events"), _num(inputs, "n"))
+
+
 def _precomputed(inputs: dict[str, Any]) -> es.EffectSize:
     measure = inputs.get("measure")
     if not isinstance(measure, str) or not measure:
@@ -126,6 +136,12 @@ DESIGNS: dict[str, Design] = {
             ("events1", "n1", "events2", "n2"),
             _two_group_binary,
             "2x2 table",
+        ),
+        Design(
+            "single-group-proportion",
+            ("events", "n"),
+            _single_group_proportion,
+            "Single-group proportion (events of n)",
         ),
         Design(
             "correlation",

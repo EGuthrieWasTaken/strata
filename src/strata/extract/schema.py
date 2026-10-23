@@ -49,6 +49,7 @@ _FIELD_KEY_ORDER = (
 _DEFAULT_DESIGNS = (
     "two-group-means",
     "two-group-binary",
+    "single-group-proportion",
     "correlation",
     "precomputed",
     "pre-post",

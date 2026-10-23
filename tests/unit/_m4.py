@@ -34,7 +34,7 @@ def meta_repo(
         )
         rec_mod.add_effect(
             repo, study=study(n), handle="ethan", outcome="recall", design="two-group-means",
-            inputs=inputs, timepoint="1 week", moderators={"dose": n},
+            inputs=inputs, timepoint="1 week", moderators={"dose": n, "other": (n * 7) % 5 + 1},
         )  # fmt: skip
         for extra_effect in (extra or {}).get(n, []):
             rec_mod.add_effect(repo, study=study(n), handle="ethan", **extra_effect)
@@ -53,3 +53,11 @@ def write_spec(repo: Repo, analysis_id: str = "primary", **overrides: Any) -> di
     repo.path("analysis").mkdir(exist_ok=True)
     repo.path("analysis", f"{analysis_id}.yaml").write_text(dump_yaml_str(doc), encoding="utf-8")
     return doc
+
+
+def effects_repo(tmp_path: Path, effects: list[dict[str, Any]]) -> Repo:
+    """One included study per entry, each with the given effect (`design`, `inputs`, ...)."""
+    repo = _review(tmp_path, studies=len(effects))
+    for n, effect in enumerate(effects, start=1):
+        rec_mod.add_effect(repo, study=study(n), handle="ethan", outcome="recall", **effect)
+    return repo
