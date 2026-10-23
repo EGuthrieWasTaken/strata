@@ -60,5 +60,156 @@
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
     }
-  }
+  },
+  "$defs": {
+    "report_id": { "type": "string", "pattern": "^rpt_[0-9a-z]{16}$" },
+    "study_id": { "type": "string", "pattern": "^std_[0-9a-z]{16}$" },
+    "retrieval_version": {
+      "enum": [
+        "preprint",
+        "accepted-manuscript",
+        "version-of-record",
+        "corrected",
+        "retracted",
+        "unknown"
+      ]
+    },
+    "not_retrieved_reason": {
+      "enum": ["no-access", "not-found", "retracted", "language", "no-response-from-author", "other"]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "ev": { "const": "retrieval" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["report", "status"],
+            "properties": {
+              "report": { "$ref": "#/$defs/report_id" },
+              "status": { "enum": ["sought", "ill-requested", "retrieved", "not-retrieved"] },
+              "source": { "type": "string" },
+              "locator": { "type": "object" },
+              "version": { "$ref": "#/$defs/retrieval_version" },
+              "reason": { "$ref": "#/$defs/not_retrieved_reason" },
+              "reason_text": { "type": "string", "minLength": 1 },
+              "note": { "type": "string" }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "status": { "const": "not-retrieved" } }, "required": ["status"] },
+                "then": { "required": ["reason"] }
+              },
+              {
+                "if": { "properties": { "reason": { "const": "other" } }, "required": ["reason"] },
+                "then": { "required": ["reason_text"] }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "study-group" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["study", "reports", "rationale"],
+            "properties": {
+              "study": { "$ref": "#/$defs/study_id" },
+              "reports": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/report_id" }
+              },
+              "rationale": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "study-split" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["report", "studies", "rationale"],
+            "properties": {
+              "report": { "$ref": "#/$defs/report_id" },
+              "studies": {
+                "type": "array",
+                "minItems": 2,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/study_id" }
+              },
+              "rationale": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "extract" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["study", "fields_changed", "digest"],
+            "properties": {
+              "study": { "$ref": "#/$defs/study_id" },
+              "fields_changed": { "type": "array", "items": { "type": "string" } },
+              "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "schema_version": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "reconcile" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["study", "field", "chosen", "from", "rationale"],
+            "properties": {
+              "study": { "$ref": "#/$defs/study_id" },
+              "field": { "type": "string", "minLength": 1 },
+              "from": { "type": "string", "minLength": 1 },
+              "rationale": { "type": "string", "minLength": 1 },
+              "candidates": { "type": "object" },
+              "source": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "rob" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["study", "domain", "judgement"],
+            "properties": {
+              "study": { "$ref": "#/$defs/study_id" },
+              "domain": { "type": "string", "minLength": 1 },
+              "judgement": { "type": "string", "minLength": 1 },
+              "support": { "type": "string" },
+              "source": { "type": "string" },
+              "instrument": { "type": "string" },
+              "signalling": { "type": "object" },
+              "suggested": { "type": "string" },
+              "override_justification": { "type": "string" },
+              "scope": { "enum": ["reviewer", "consensus"] }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

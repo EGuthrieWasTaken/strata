@@ -268,3 +268,24 @@ def amend_field(
         },
     )
     return old_value, value
+
+
+def short_citation(record: dict[str, Any]) -> str:
+    """`Cepeda et al. (2008)`: the label a person recognises a paper by, from CSL-JSON fields."""
+    names: list[str] = []
+    for author in record.get("author") or []:
+        if isinstance(author, dict):
+            names.append(str(author.get("family") or author.get("literal") or "").strip())
+        else:
+            names.append(str(author).strip())
+    names = [n for n in names if n]
+    if not names:
+        who = "(no author)"
+    elif len(names) == 1:
+        who = names[0]
+    elif len(names) == 2:
+        who = f"{names[0]} & {names[1]}"
+    else:
+        who = f"{names[0]} et al."
+    year = normalise_year(record.get("issued"))
+    return f"{who} ({year})" if year is not None else who

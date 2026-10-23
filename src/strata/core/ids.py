@@ -250,3 +250,47 @@ def new_event_id() -> str:
 def new_import_id() -> str:
     """`imp_` + ULID, per openspec:record-identity#identifiers-for-other-entities."""
     return f"imp_{ULID()!s}".lower()
+
+
+_RECORD_SUFFIX_RE = re.compile(r"^[0-9a-z]{16}$")
+
+
+def _suffix_of(identifier: str, prefix: str) -> str:
+    head, _, suffix = identifier.partition("_")
+    if head != prefix or not _RECORD_SUFFIX_RE.match(suffix):
+        raise ValueError(f"{identifier!r} is not a {prefix}_ identifier")
+    return suffix
+
+
+def report_id(record_identifier: str) -> str:
+    """`rpt_` + the same 16 characters as its canonical record
+    (openspec:record-identity#identifiers-for-other-entities). Derived, not assigned."""
+    return "rpt_" + _suffix_of(record_identifier, "rec")
+
+
+def record_id_for_report(report_identifier: str) -> str:
+    """The canonical record a report was promoted from (inverse of `report_id`)."""
+    return "rec_" + _suffix_of(report_identifier, "rpt")
+
+
+def singleton_study_id(report_identifier: str) -> str:
+    """The study a report forms on its own until it is grouped or split.
+
+    openspec:record-identity#identifiers-for-other-entities makes study ids "assigned at
+    creation, permanent". A report nobody has grouped is, by definition, a study of one, so
+    its id is derived from the report's (the same 16 characters) and exists without any
+    event having to create it; a `study-group` or `study-split` event assigns fresh ids.
+    """
+    return "std_" + _suffix_of(report_identifier, "rpt")
+
+
+def new_study_id() -> str:
+    """`std_` + 16 characters of a ULID's randomness, for a study created by grouping/splitting."""
+    return "std_" + str(ULID()).lower()[-16:]
+
+
+def effect_id(study_identifier: str, sequence: int) -> str:
+    """`eff_` + the study's 16 characters + `_` + a 4-character sequence."""
+    if not 1 <= sequence <= 9999:
+        raise ValueError(f"effect sequence must be 1..9999, got {sequence}")
+    return f"eff_{_suffix_of(study_identifier, 'std')}_{sequence:04d}"

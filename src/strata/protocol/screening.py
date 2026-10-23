@@ -142,6 +142,52 @@ def resolve_record_state(
     )
 
 
+def stage_states(
+    repo: Repo, stage: str, canonical_ids: list[str] | None = None
+) -> dict[str, ScreeningState]:
+    """The resolved screening state of every canonical record at `stage`.
+
+    An unconfigured stage resolves to nothing (`{}`) rather than raising, so a caller that
+    asks about the optional `full-text` stage on a one-stage review gets an empty answer.
+    """
+    if stage not in configured_stages(repo):
+        return {}
+    ids = canonical_ids
+    if ids is None:
+        ids = sorted(
+            r["id"]
+            for r in records_mod.read_records(repo)
+            if r.get("strata", {}).get("canonical", True)
+        )
+    events_by_record: dict[str, list[dict[str, Any]]] = {}
+    for event in all_screen_events(repo, stage):
+        events_by_record.setdefault(event["body"]["record"], []).append(event)
+    adjudicate_by_record: dict[str, list[dict[str, Any]]] = {}
+    for event in all_adjudicate_events(repo, stage):
+        adjudicate_by_record.setdefault(event["body"]["record"], []).append(event)
+    assign_events = all_assign_events(repo)
+    return {
+        record_id: resolve_record_state(
+            repo,
+            stage,
+            record_id,
+            screen_events=events_by_record.get(record_id, []),
+            assign_events=assign_events,
+            adjudicate_events=adjudicate_by_record.get(record_id, []),
+        )
+        for record_id in ids
+    }
+
+
+def included_record_ids(repo: Repo, stage: str) -> list[str]:
+    """Canonical record ids whose state at `stage` has resolved to `include`, sorted."""
+    return sorted(
+        record_id
+        for record_id, state in stage_states(repo, stage).items()
+        if state.status == "include"
+    )
+
+
 def stage_queue(
     repo: Repo, stage: str, actor: str, *, only_ids: set[str] | None = None
 ) -> list[str]:

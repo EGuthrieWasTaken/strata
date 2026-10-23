@@ -16,7 +16,9 @@ from pathlib import Path
 from typing import Any
 
 from strata.core import events as events_mod
+from strata.core import fulltext as fulltext_mod
 from strata.core.canon import load_yaml_str
+from strata.core.ids import record_id_for_report
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate
 from strata.protocol import criteria as criteria_mod
@@ -67,6 +69,8 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
                 referenced_records.add(record)
             for absorbed in body.get("absorbed") or []:
                 referenced_records.add(absorbed)
+            for report_ref in [body.get("report"), *(body.get("reports") or [])]:
+                referenced_records |= _records_for_reports([report_ref])
 
         if not fast:
             for violation in events_mod.verify_chain(path):
@@ -89,6 +93,48 @@ def _load_ndjson_field(path: Path, field: str) -> set[str]:
         if field in obj:
             values.add(obj[field])
     return values
+
+
+def _records_for_reports(reports: list[Any]) -> set[str]:
+    """Record ids behind report ids (`rpt_x` -> `rec_x`); a malformed id is E_SCHEMA's to report."""
+    found: set[str] = set()
+    for report_ref in reports:
+        if not isinstance(report_ref, str):
+            continue
+        try:
+            found.add(record_id_for_report(report_ref))
+        except ValueError:
+            continue
+    return found
+
+
+def _verify_fulltext_manifest(repo: Repo, report: VerifyReport) -> set[str]:
+    """Schema-check `fulltext/manifest.ndjson` and return the record ids its entries cite.
+
+    Deliberately compares nothing about `sha256`: two reviewers' copies of the same paper
+    differ in bytes the moment one annotates it, which is not a discrepancy
+    (openspec:full-text-retrieval#documents-are-never-identified-by-content-hash).
+    """
+    path = fulltext_mod.manifest_path(repo)
+    if not path.exists():
+        return set()
+    rel = path.relative_to(repo.root).as_posix()
+    cited: list[Any] = []
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+            validate("fulltext-entry", entry)
+        except json.JSONDecodeError as exc:
+            report.add("E_SCHEMA", f"line {i + 1}: not valid JSON ({exc.msg})", path=rel)
+            continue
+        except SchemaValidationError as exc:
+            for error in exc.errors:
+                report.add("E_SCHEMA", f"line {i + 1}: {error}", path=rel)
+            continue
+        cited.append(entry["report"])
+    return _records_for_reports(cited)
 
 
 def _verify_searches(repo: Repo, report: VerifyReport) -> None:
@@ -272,6 +318,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     report = VerifyReport()
     _verify_manifest(repo, report)
     referenced_records = _verify_events(repo, report, fast=fast)
+    referenced_records |= _verify_fulltext_manifest(repo, report)
     _verify_searches(repo, report)
     _verify_records(repo, report)
     _verify_criteria(repo, report)

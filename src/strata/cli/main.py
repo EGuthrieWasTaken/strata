@@ -26,6 +26,7 @@ from strata import __version__, gitio
 from strata.core import actor as actor_mod
 from strata.core import doctor as doctor_mod
 from strata.core import filters as filters_mod
+from strata.core import ids as ids_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
@@ -46,6 +47,7 @@ from strata.protocol import criteria as criteria_mod
 from strata.protocol import irr as irr_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
+from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.web import security as web_security
@@ -65,6 +67,7 @@ EXIT_GUARDRAIL = 8
 # scope, not inline in a signature, or ruff's flake8-bugbear B008 flags it.
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
 _IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
+_LOCATOR_OPTION = typer.Option(None, "--locator", help="kind=value (doi, pmid, ...); repeatable")
 _MARK_OPTION = typer.Option(
     None, "--mark", help="Force record(s) stale (manual reason) instead of re-screening"
 )
@@ -408,6 +411,14 @@ def status(ctx: typer.Context) -> None:
             out_console.print(f"  {stage.conflicts} conflicts                strata adjudicate")
         if stage.stale:
             out_console.print(f"  {stage.stale} STALE                    strata rescreen")
+    if s.retrieval is not None and s.retrieval.sought:
+        r = s.retrieval
+        out_console.print(
+            f"\n[bold]RETRIEVAL[/]  {r.sought} reports sought    {r.retrieved} retrieved · "
+            f"{r.outstanding} outstanding · {r.not_retrieved} not retrieved"
+        )
+        if r.outstanding:
+            out_console.print("  strata retrieve")
     if s.next_action:
         out_console.print(f"\n[bold]NEXT[/]  {s.next_action}")
 
@@ -749,7 +760,8 @@ def _commit_domain_op(
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    gitio.add(repo.root, ["records", "events", "derived"])
+    candidates = ("records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob")
+    gitio.add(repo.root, [p for p in candidates if repo.path(*p.split("/")).exists()])
     gitio.commit(repo.root, commit_obj.message())
 
 
@@ -1731,6 +1743,195 @@ def adjudicate_command(
         _print_json({"decided": decided})
     else:
         out_console.print(f"[green]done[/] -- {decided} conflict(s) resolved")
+
+
+def _parse_locator_options(raw: list[str] | None) -> dict[str, str] | None:
+    """`--locator doi=10.1/x --locator pmid=123` -> `{"doi": "10.1/x", "pmid": "123"}`."""
+    if not raw:
+        return None
+    locator: dict[str, str] = {}
+    for item in raw:
+        kind, sep, value = item.partition("=")
+        if (
+            not sep
+            or not value.strip()
+            or kind not in ("doi", "pmid", "pmcid", "arxiv", "isbn", "url")
+        ):
+            raise typer.BadParameter(
+                f"--locator {item!r} must look like doi=..., pmid=..., pmcid=..., arxiv=..., "
+                "isbn=... or url=..."
+            )
+        locator[kind] = value.strip()
+    return locator
+
+
+def _render_report(index: int, total: int, report: str, record: dict[str, Any]) -> str:
+    journal = record.get("container-title") or ""
+    lines = [f"{report}  {records_mod.short_citation(record)}  {journal}".rstrip()]
+    for kind, label in (("DOI", "doi"), ("PMID", "pmid"), ("URL", "url")):
+        if record.get(kind):
+            lines.append(f"  {label}:{record[kind]}")
+    lines.append("")
+    lines.append(f"({index + 1} of {total})")
+    lines.append(
+        "[f] I have the file   [u] open DOI in browser   [i] interlibrary loan requested\n"
+        "[n] not retrievable   [s] skip   [q] quit"
+    )
+    return "\n".join(lines)
+
+
+@app.command("retrieve")
+def retrieve_command(
+    ctx: typer.Context,
+    by: str = typer.Option(..., "--by", help="Actor handle recording the outcome"),
+    report: str | None = typer.Option(None, "--report", help="Record one outcome for this report"),
+    outcome: str | None = typer.Option(
+        None, "--outcome", help="retrieved | ill-requested | not-retrieved | sought"
+    ),
+    source: str | None = typer.Option(None, "--source", help="e.g. institutional-access"),
+    version: str | None = typer.Option(
+        None, "--version", help="preprint | version-of-record | ..."
+    ),
+    path: str | None = typer.Option(None, "--path", help="Local file path (a convenience only)"),
+    locator: list[str] | None = _LOCATOR_OPTION,
+    reason: str | None = typer.Option(None, "--reason", help="Why it could not be retrieved"),
+    reason_text: str | None = typer.Option(None, "--reason-text", help="Required for 'other'"),
+    list_only: bool = typer.Option(False, "--list", help="List outstanding reports and exit"),
+) -> None:
+    """Work the queue of reports sought for retrieval: openspec:full-text-retrieval.
+
+    Interactive by default. With --report and --outcome it records one outcome and exits
+    (scriptable); with --list it prints the outstanding reports.
+
+    Example: strata retrieve --by ethan --report rpt_3kq8v1r0zx2m4a7b --outcome retrieved
+    --source institutional-access --version version-of-record
+    """
+    repo = _resolve_repo(ctx)
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+
+    if report is not None:
+        if outcome is None:
+            err_console.print("[red]error:[/] --report needs --outcome")
+            raise typer.Exit(EXIT_USAGE)
+        try:
+            event = retrieval_mod.record_retrieval(
+                repo,
+                report=report,
+                status=outcome,
+                actor=by,
+                source=source,
+                locator=_parse_locator_options(locator),
+                version=version,
+                reason=reason,
+                reason_text=reason_text,
+                path=path,
+            )
+        except retrieval_mod.RetrievalError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        pool_mod.regenerate_all(repo)
+        _commit_domain_op(
+            ctx, repo, op="retrieve", scope=None, summary=f"{outcome}: {report}", by=by
+        )
+        if ctx.obj["json"]:
+            _print_json({"report": report, "status": outcome, "event": event["id"]})
+        else:
+            out_console.print(f"[green]recorded[/] {report}: {outcome}")
+        return
+
+    queue = retrieval_mod.outstanding_reports(repo)
+    counts = retrieval_mod.retrieval_counts(repo)
+    if list_only or ctx.obj["json"]:
+        items = [
+            {
+                "report": r,
+                "record": ids_mod.record_id_for_report(r),
+                "citation": records_mod.short_citation(
+                    records.get(ids_mod.record_id_for_report(r), {})
+                ),
+                "doi": records.get(ids_mod.record_id_for_report(r), {}).get("DOI"),
+            }
+            for r in queue
+        ]
+        if ctx.obj["json"]:
+            _print_json(
+                {"sought": counts.sought, "outstanding": counts.outstanding, "reports": items}
+            )
+        else:
+            out_console.print(f"{counts.sought} reports sought. {counts.outstanding} outstanding.")
+            for item in items:
+                out_console.print(f"  {item['report']}  {item['citation']}")
+        return
+
+    out_console.print(f"\n  {counts.sought} reports sought. {counts.outstanding} outstanding.\n")
+    recorded = 0
+    index = 0
+    while index < len(queue):
+        current = queue[index]
+        record = records.get(ids_mod.record_id_for_report(current), {})
+        out_console.print(_render_report(index, len(queue), current, record))
+        choice = typer.prompt("Outcome", default="s").strip().lower()
+        if choice == "q":
+            break
+        if choice == "s":
+            index += 1
+            continue
+        if choice == "u":
+            doi = record.get("DOI")
+            if doi:
+                webbrowser.open(f"https://doi.org/{doi}")
+            else:
+                out_console.print("[yellow]no DOI on this record to open[/]")
+            continue
+        try:
+            if choice == "f":
+                entered_path = typer.prompt("Path to the file (optional)", default="").strip()
+                entered_source = typer.prompt("Source", default="institutional-access").strip()
+                entered_version = typer.prompt("Version", default="version-of-record").strip()
+                retrieval_mod.record_retrieval(
+                    repo,
+                    report=current,
+                    status="retrieved",
+                    actor=by,
+                    source=entered_source,
+                    version=entered_version,
+                    path=entered_path or None,
+                )
+            elif choice == "i":
+                retrieval_mod.record_retrieval(
+                    repo, report=current, status="ill-requested", actor=by
+                )
+            elif choice == "n":
+                entered_reason = typer.prompt(
+                    f"Reason ({', '.join(retrieval_mod.NOT_RETRIEVED_REASONS)})",
+                    default="no-access",
+                ).strip()
+                entered_text = (
+                    typer.prompt("What happened?").strip() if entered_reason == "other" else None
+                )
+                retrieval_mod.record_retrieval(
+                    repo,
+                    report=current,
+                    status="not-retrieved",
+                    actor=by,
+                    reason=entered_reason,
+                    reason_text=entered_text,
+                )
+            else:
+                out_console.print(f"[yellow]unrecognised choice {choice!r}[/]")
+                continue
+        except retrieval_mod.RetrievalError as exc:
+            out_console.print(f"[red]error:[/] {exc}")
+            continue
+        recorded += 1
+        index += 1
+
+    if recorded:
+        pool_mod.regenerate_all(repo)
+        _commit_domain_op(
+            ctx, repo, op="retrieve", scope=None, summary=f"recorded {recorded} outcome(s)", by=by
+        )
+    out_console.print(f"[green]done[/] -- {recorded} outcome(s) recorded")
 
 
 @app.command("audit")

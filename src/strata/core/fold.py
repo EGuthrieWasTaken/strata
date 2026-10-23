@@ -142,3 +142,105 @@ def apply_undo(events: Iterable[Event], undone_event_id: str) -> list[Event]:
     undo itself as an auditable event elsewhere in the log.
     """
     return [e for e in events if e["id"] != undone_event_id]
+
+
+# openspec:full-text-retrieval — retrieval states. A report with no `retrieval` event is
+# `sought`; `NOT_RETRIEVED` above is shared with the full-text screening state of the same name.
+RETRIEVAL_SOUGHT = "sought"
+RETRIEVAL_ILL_REQUESTED = "ill-requested"
+RETRIEVAL_RETRIEVED = "retrieved"
+
+
+@dataclass(frozen=True)
+class RetrievalState:
+    """The resolved retrieval state of one report: its latest `retrieval` event wins."""
+
+    status: str
+    event: Event
+
+
+def fold_retrieval(events: Iterable[Event]) -> dict[str, RetrievalState]:
+    """Resolve `retrieval` events to a state per report (last write wins across actors).
+
+    A report absent from the result has no retrieval event and is therefore `sought`.
+    Undoing an outcome is an appended `sought` event, like every other correction.
+    """
+    latest = fold_last_write_wins(events, key_fn=lambda e: e["body"]["report"])
+    return {
+        report: RetrievalState(status=e["body"]["status"], event=e) for report, e in latest.items()
+    }
+
+
+@dataclass(frozen=True)
+class StudyMap:
+    """Reports grouped into studies, as folded from `study-group` / `study-split` events."""
+
+    members: dict[str, tuple[str, ...]]
+    studies_of: dict[str, tuple[str, ...]]
+    defined_by: dict[str, Event]
+
+
+def fold_studies(
+    report_ids: Iterable[str],
+    study_events: Iterable[Event],
+    singleton_study: Callable[[str], str],
+) -> StudyMap:
+    """Fold grouping and splitting decisions over `report_ids` (openspec:study-grouping).
+
+    Every report starts as a study of one (`singleton_study(report)`). In `(ts, id)` order:
+
+    - `study-group {study, reports}` makes `study` consist of exactly `reports`: each listed
+      report leaves its other studies (except the sibling studies of a split it is part of,
+      when `study` is one of them), and a report dropped from `study` falls back to its
+      remaining studies, or to its own singleton.
+    - `study-split {report, studies}` makes the one report belong to exactly those studies.
+
+    Events naming a report outside `report_ids` (not an included report) are ignored here;
+    `strata verify` is what flags a reference to a report that does not exist at all.
+    """
+    reports = sorted(set(report_ids))
+    edges: dict[str, set[str]] = {r: {singleton_study(r)} for r in reports}
+    split_into: dict[str, set[str]] = {}
+    defined_by: dict[str, Event] = {}
+
+    for event in normalise_events(study_events):
+        body = event["body"]
+        if event["ev"] == "study-group":
+            study = body["study"]
+            members = {r for r in body["reports"] if r in edges}
+            for report, studies in edges.items():
+                if study in studies and report not in members:
+                    studies.discard(study)
+                    if report in split_into:
+                        split_into[report].discard(study)
+                    if not studies:
+                        studies.add(singleton_study(report))
+            for report in members:
+                kept = (
+                    split_into.get(report, set()) if study in split_into.get(report, ()) else set()
+                )
+                if kept:
+                    split_into[report] = kept
+                else:
+                    split_into.pop(report, None)
+                edges[report] = set(kept) | {study}
+            defined_by[study] = event
+        else:
+            report = body["report"]
+            if report not in edges:
+                continue
+            studies = set(body["studies"])
+            edges[report] = set(studies)
+            split_into[report] = set(studies)
+            for study in studies:
+                defined_by[study] = event
+
+    members_of: dict[str, list[str]] = {}
+    for report in reports:
+        for study in edges[report]:
+            members_of.setdefault(study, []).append(report)
+    return StudyMap(
+        members={study: tuple(rs) for study, rs in sorted(members_of.items())},
+        studies_of={report: tuple(sorted(edges[report])) for report in reports},
+        defined_by={s: e for s, e in defined_by.items() if s in members_of},
+    )
