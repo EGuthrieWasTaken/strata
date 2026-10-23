@@ -211,6 +211,11 @@ def begg(yi: Sequence[float], vi: Sequence[float]) -> SmallStudyTest:
             "a study's variance is not larger than the pooled variance; cannot standardise"
         )
     y_star = (y - theta) / np.sqrt(v_star)
+    if len(set(v.tolist())) < 2 or len(set(y_star.tolist())) < 2:
+        raise BiasMethodError(
+            "Begg's rank correlation is undefined: the variances (or the standardised effects) "
+            "are all tied"
+        )
     ties = len(set(v.tolist())) < k or len(set(y_star.tolist())) < k
     method = "exact" if (not ties and k <= 200) else "asymptotic"
     result = stats.kendalltau(y_star, v, method=method)
@@ -272,6 +277,11 @@ def trim_and_fill(
         raise BiasMethodError("trim-and-fill needs at least 2 studies")
     original = models.random_effects(y, v, method=method, ci_method="wald")
     if side is None:
+        if float(np.ptp(v)) == 0.0:
+            raise BiasMethodError(
+                "the side with missing studies cannot be chosen when every sampling variance is "
+                "equal (a funnel with no spread in precision); pass side='left' or 'right'"
+            )
         design = np.column_stack([np.ones(k), np.sqrt(v)])
         slope = models.random_effects(
             y, v, method=method, ci_method="wald", x=design.tolist(), columns=("intrcpt", "sei")

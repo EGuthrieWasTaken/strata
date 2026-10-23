@@ -181,6 +181,16 @@ def _mad(values: np.ndarray) -> float:
     return float(1.4826 * np.median(np.abs(values - np.median(values))))
 
 
+def _ratio(numerator: float, denominator: float, estimator: str) -> float:
+    """A step of a `tau^2` estimator, or a specific error when no study but one has any weight."""
+    if not (math.isfinite(denominator) and denominator > 0):
+        raise ModelError(
+            f"tau^2 cannot be estimated by {estimator}: one study carries essentially all the "
+            "weight (the sampling variances span too many orders of magnitude); check them"
+        )
+    return numerator / denominator
+
+
 def _tau2_iterative(
     method: str, y: np.ndarray, v: np.ndarray, x: np.ndarray, start: float
 ) -> tuple[float, int]:
@@ -194,7 +204,7 @@ def _tau2_iterative(
         if method == "ML":
             adj = (float(np.sum(wr**2)) - float(np.sum(w))) / float(np.sum(w**2))
         elif method == "REML":
-            adj = (float(np.sum(wr**2)) - _trace_p(x, fit)) / _trace_pp(x, fit)
+            adj = _ratio(float(np.sum(wr**2)) - _trace_p(x, fit), _trace_pp(x, fit), "REML")
         else:  # EB
             adj = (fit.rss * k / (k - p) - k) / float(np.sum(w))
         if not math.isfinite(adj):
@@ -260,7 +270,7 @@ def _estimate_tau2(
     elif method in ("DL", "HS"):
         fit = _wls(y, x, 1.0 / v)
         if method == "DL":
-            tau2 = (fit.rss - (k - p)) / _trace_p(x, fit)
+            tau2 = _ratio(fit.rss - (k - p), _trace_p(x, fit), "DL")
         else:
             tau2 = (fit.rss - k) / float(np.sum(fit.w))
     elif method == "SJ":

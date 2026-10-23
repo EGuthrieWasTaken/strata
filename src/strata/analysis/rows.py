@@ -173,6 +173,11 @@ def build_rows(repo: Repo, spec: AnalysisSpec, *, include_filter: bool = True) -
                 selection.exclude("zero events in both arms (double-zero study)", effect_id)
                 continue
             yi, vi = computed.yi, computed.vi
+            if not vi > 0:
+                selection.exclude(
+                    "zero sampling variance (no events, or all events, in both arms)", effect_id
+                )
+                continue
             details = dict(computed.details)
             if spec.measure == "SMD" and effect_cfg["correction"] == "none":
                 d = float(details["d"])
