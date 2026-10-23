@@ -170,8 +170,10 @@ def create_app(
 
     app.mount("/static", StaticFiles(directory=_static_dir()), name="static")
 
+    from strata.web.extraction_routes import router as extraction_router
     from strata.web.routes import router
 
     app.include_router(router)
+    app.include_router(extraction_router)
 
     return app

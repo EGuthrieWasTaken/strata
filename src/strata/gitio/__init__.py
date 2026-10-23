@@ -70,6 +70,12 @@ def is_dirty(path: Path) -> bool:
     return bool(result.stdout.strip())
 
 
+def has_changes(path: Path, pathspecs: list[str]) -> bool:
+    """Whether any of `pathspecs` is modified, staged, or untracked."""
+    result = run(["status", "--porcelain", "--", *pathspecs], cwd=path)
+    return bool(result.stdout.strip())
+
+
 def commit(path: Path, message: str, *, allow_empty: bool = False) -> str:
     args = ["commit", "-m", message]
     if allow_empty:

@@ -1,5 +1,5 @@
 /*
- * Two small progressive enhancements, both optional: every control here
+ * A few small progressive enhancements, all optional: every control here
  * also has a plain clickable/tappable target (or, for the screening
  * shortcuts, an `accesskey`), so every page is fully operable with this
  * script disabled (openspec:web-ui#technology's hard requirement) -- this
@@ -10,6 +10,8 @@
  *     criteria editor's live impact preview (openspec:web-ui#criteria-editor-impact-preview: "MUST update as the
  *     direction radio changes"). Opt in per form via
  *     `data-auto-submit-on-change="<radio name>"`.
+ *
+ *  3. The extraction coding form: "@" in a value jumps to its source locator.
  *
  * No external requests, no build step, no dependency: this is the entire
  * client-side script strata ships (openspec:web-ui#technology's "total shipped JavaScript SHOULD
@@ -45,6 +47,19 @@
           form.submit();
         }
       });
+    });
+  });
+
+  // 3. The extraction coding form: "@" in a value jumps to that value's source locator, so
+  //    entering one is a single keystroke (openspec:web-ui, extraction screens).
+  document.querySelectorAll("input[data-source-input]").forEach(function (input) {
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "@" || event.metaKey || event.ctrlKey || event.altKey) return;
+      var target = document.getElementById(input.dataset.sourceInput);
+      if (target) {
+        event.preventDefault();
+        target.focus();
+      }
     });
   });
 

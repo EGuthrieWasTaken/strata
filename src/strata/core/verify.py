@@ -24,6 +24,7 @@ from strata.core.ids import record_id_for_report, report_id, singleton_study_id
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate
 from strata.extract import records as extraction_records_mod
+from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import studies as studies_mod
@@ -404,6 +405,39 @@ def _verify_extraction(repo: Repo, report: VerifyReport) -> None:
         )
 
 
+def _verify_rob(repo: Repo, report: VerifyReport) -> None:
+    """The instrument and every risk-of-bias assessment (openspec:risk-of-bias). An assessment of
+    a study that is no longer included is flagged and retained, as an extraction is."""
+    if not rob_mod.instrument_path(repo).exists():
+        return
+    try:
+        instrument = rob_mod.load_instrument(repo)
+    except rob_mod.RobError as exc:
+        report.add("E_SCHEMA", str(exc), path="rob/instrument.yaml")
+        return
+    members = studies_mod.study_map(repo).members
+    for _kind, _handle, path in rob_mod.assessment_paths(repo):
+        rel = path.relative_to(repo.root).as_posix()
+        try:
+            assessment = rob_mod.read_assessment(path)
+        except YAMLError as exc:
+            report.add("E_SCHEMA", f"not valid YAML: {exc}", path=rel)
+            continue
+        if assessment is None:
+            report.add("E_SCHEMA", "not a mapping", path=rel)
+            continue
+        for problem in rob_mod.validate_assessment(instrument, assessment):
+            report.add("E_SCHEMA", problem, path=rel)
+        study = assessment.get("study")
+        if isinstance(study, str) and study not in members:
+            report.add(
+                "E_ORPHAN_EXTRACTION",
+                f"{study} has a risk-of-bias assessment but is not an included study "
+                "(the assessment is retained)",
+                path=rel,
+            )
+
+
 def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     report = VerifyReport()
     _verify_manifest(repo, report)
@@ -420,4 +454,5 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
             repo, report, referenced_records | _all_record_ids(repo), referenced_studies
         )
         _verify_extraction(repo, report)
+        _verify_rob(repo, report)
     return report

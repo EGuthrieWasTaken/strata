@@ -24,6 +24,7 @@ from typing import Any
 
 from strata.core.canon import dump_yaml_str, load_yaml_str
 from strata.core.events import append_new_event
+from strata.core.ids import record_id_for_report
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate, validate_event_body
 from strata.extract import records as rec_mod
@@ -376,6 +377,20 @@ def moderators(repo: Repo) -> dict[str, dict[str, Any]]:
     return found
 
 
+def moderators_by_record(repo: Repo) -> dict[str, dict[str, Any]]:
+    """The same moderators keyed by canonical record id, for `--filter` on records: every report
+    of a judged study carries that study's judgements."""
+    by_study = moderators(repo)
+    if not by_study:
+        return {}
+    members = studies_mod.study_map(repo).members
+    return {
+        record_id_for_report(report): values
+        for study, values in by_study.items()
+        for report in members.get(study, ())
+    }
+
+
 # --- validation (strata verify) --------------------------------------------------------------
 
 
@@ -402,7 +417,37 @@ def validate_assessment(instrument: Instrument, assessment: dict[str, Any]) -> l
             and not block.get("override_justification")
         ):
             problems.append(f"{domain_id}: overrides the suggestion without a justification")
+    overall = assessment.get(OVERALL) or {}
+    judgement = overall.get("judgement")
+    if judgement is not None:
+        if instrument.overall_algorithm == "sum":
+            valid = str(judgement).lstrip("-").isdigit()
+        else:
+            valid = judgement in instrument.overall_judgements
+        if not valid:
+            problems.append(f"overall: {judgement!r} is not a judgement of this instrument")
+        suggested = overall.get("suggested")
+        if (
+            valid
+            and suggested is not None
+            and judgement != suggested
+            and not overall.get("override_justification")
+        ):
+            problems.append("overall: overrides the suggestion without a justification")
     return problems
+
+
+def assessment_paths(repo: Repo) -> list[tuple[str, str, Path]]:
+    """Every assessment file as `(kind, handle, path)`; `kind` is `reviewer` or `consensus`."""
+    found: list[tuple[str, str, Path]] = []
+    reviewers = repo.path("rob", "by-reviewer")
+    if reviewers.exists():
+        for folder in sorted(p for p in reviewers.iterdir() if p.is_dir()):
+            found += [("reviewer", folder.name, p) for p in sorted(folder.glob("*.yaml"))]
+    consensus = repo.path("rob", "consensus")
+    if consensus.exists():
+        found += [("consensus", "", p) for p in sorted(consensus.glob("*.yaml"))]
+    return found
 
 
 # --- reconciliation --------------------------------------------------------------------------

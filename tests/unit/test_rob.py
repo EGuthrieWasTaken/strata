@@ -465,3 +465,74 @@ def test_reconciling_needs_two_reviewers(tmp_path: Path) -> None:
     with pytest.raises(rob.RobError, match="at least two"):
         rob.compare(repo, S1)
     assert rob.reviewer_handles(_review(tmp_path / "other"), S1) == []
+
+
+# --- strata verify, filters ------------------------------------------------------------------
+
+
+def _codes(repo) -> dict[str, list[str]]:  # type: ignore[no-untyped-def]
+    from strata.core.verify import verify_repository
+
+    found: dict[str, list[str]] = {}
+    for issue in verify_repository(repo).issues:
+        if issue.severity == "error":
+            found.setdefault(issue.code, []).append(issue.message)
+    return found
+
+
+def test_verify_accepts_well_formed_assessments(tmp_path: Path) -> None:
+    repo = _ready(tmp_path)
+    _answer_d1(repo)
+    rob.record_judgement(repo, study=S1, handle="ethan", domain="D1", judgement="low")
+    assert _codes(repo) == {}
+
+
+def test_verify_reports_an_instrument_that_does_not_validate(tmp_path: Path) -> None:
+    repo = _ready(tmp_path)
+    repo.path("rob", "instrument.yaml").write_text("instrument: broken\n", encoding="utf-8")
+    assert "E_SCHEMA" in _codes(repo)
+
+
+def test_verify_reports_invalid_assessments_and_keeps_orphans(tmp_path: Path) -> None:
+    repo = _ready(tmp_path)
+    rob.record_judgement(repo, study=S1, handle="ethan", domain="D1", judgement="low")
+    path = rob.consensus_path(repo, S1)
+    assessment = rob.read_assessment(path)
+    assert assessment is not None
+    assessment["domains"]["D1"].update(judgement="fine", suggested="high")
+    assessment["overall"] = {"judgement": "terrible"}
+    path.write_text(dump_yaml_str(assessment), encoding="utf-8")
+    messages = _codes(repo)["E_SCHEMA"]
+    assert any("'fine'" in m for m in messages) and any("overall" in m for m in messages)
+
+    orphan = rob.consensus_path(repo, "std_" + "9" * 16)
+    orphan.write_text(dump_yaml_str({"study": "std_" + "9" * 16, "domains": {}}), encoding="utf-8")
+    (rob.consensus_path(repo, S2)).write_text("- not\n- a mapping\n", encoding="utf-8")
+    found = _codes(repo)
+    assert any("not an included study" in m for m in found["E_ORPHAN_EXTRACTION"])
+    assert any("not a mapping" in m for m in found["E_SCHEMA"]) and orphan.exists()
+
+
+def test_filters_see_the_studies_risk_of_bias(tmp_path: Path) -> None:
+    """openspec scenario: `rob_overall == 'low'` includes only low-risk studies."""
+    from strata.core import filters
+    from strata.core.ids import record_id_for_report
+    from strata.core.records import record_field_resolver
+    from tests.unit._m3 import rpt
+
+    repo = _ready(tmp_path, studies=3)
+    _judge_all(repo, {d: "low" for d in ("D1", "D2", "D3", "D4", "D5")}, S1)
+    rob.record_judgement(repo, study=S1, handle="ethan", domain="overall", judgement="low")
+    _judge_all(repo, {"D1": "high"}, S2)
+    by_record = rob.moderators_by_record(repo)
+    assert set(by_record) == {record_id_for_report(rpt(1)), record_id_for_report(rpt(2))}
+
+    def keep(expression: str, n: int) -> bool:
+        fields = by_record.get(record_id_for_report(rpt(n)), {})
+        resolver = record_field_resolver({"id": "x"}, study_fields=fields)
+        return filters.matches_filter(expression, resolver)
+
+    assert [keep("rob_overall == 'low'", n) for n in (1, 2, 3)] == [True, False, False]
+    assert [keep("rob.D1 == 'high'", n) for n in (1, 2, 3)] == [False, True, False]
+    assert [keep("rob_overall != 'low'", n) for n in (1, 2, 3)] == [False, True, True]
+    assert rob.moderators_by_record(_review(tmp_path / "none")) == {}

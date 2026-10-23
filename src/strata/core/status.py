@@ -21,9 +21,13 @@ from strata.core import records as records_mod
 from strata.core.canon import load_yaml_str
 from strata.core.ids import report_id
 from strata.core.repo import Repo
+from strata.extract import reconcile as reconcile_mod
+from strata.extract import records as extraction_records_mod
+from strata.extract import schema as extraction_schema_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
+from strata.protocol import studies as studies_mod
 from strata.protocol.searches import list_searches, pending_search_ids
 
 _RESOLVED_STATUSES = frozenset({"include", "exclude"})
@@ -41,6 +45,16 @@ class StageStatus:
 
 
 @dataclass
+class ExtractionStatus:
+    """Where extraction stands: the included studies and what each still lacks."""
+
+    studies: int
+    complete: int
+    missing: dict[str, list[str]]
+    reconcile: int = 0  # studies with unresolved differences between dual reviewers
+
+
+@dataclass
 class StatusReport:
     title: str
     slug: str
@@ -54,6 +68,7 @@ class StatusReport:
     stages: list[StageStatus] = field(default_factory=list)
     next_action: str | None = None
     retrieval: retrieval_mod.RetrievalCounts | None = None
+    extraction: ExtractionStatus | None = None
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -124,7 +139,9 @@ def _compute_stage_status(
 
 
 def _next_action(
-    stages: list[StageStatus], retrieval: retrieval_mod.RetrievalCounts | None = None
+    stages: list[StageStatus],
+    retrieval: retrieval_mod.RetrievalCounts | None = None,
+    extraction: ExtractionStatus | None = None,
 ) -> str | None:
     if any(s.conflicts for s in stages):
         return "strata adjudicate"
@@ -136,7 +153,29 @@ def _next_action(
             return "strata retrieve"
         if s.unscreened or s.partial:
             return f"strata screen {s.stage}"
+    if extraction is not None:
+        if extraction.reconcile:
+            return "strata extract --reconcile"
+        if extraction.missing:
+            return "strata extract --missing"
     return None
+
+
+def _extraction_status(repo: Repo) -> ExtractionStatus | None:
+    """`None` until a coding form exists and there is an included study to code."""
+    if not extraction_schema_mod.schema_exists(repo):
+        return None
+    try:
+        missing = extraction_records_mod.studies_missing(repo)
+    except extraction_schema_mod.ExtractionSchemaError:
+        return None
+    studies = len(studies_mod.study_map(repo).members)
+    if not studies:
+        return None
+    unresolved = 0
+    if extraction_records_mod.extraction_mode(repo) == "dual":
+        unresolved = sum(1 for c in reconcile_mod.all_comparisons(repo) if c.unresolved)
+    return ExtractionStatus(studies, studies - len(missing), missing, unresolved)
 
 
 def compute_status(repo: Repo) -> StatusReport:
@@ -162,6 +201,8 @@ def compute_status(repo: Repo) -> StatusReport:
         repo, sought=[report_id(r) for r in computed[0][1]] if computed else []
     )
 
+    extraction = _extraction_status(repo)
+
     return StatusReport(
         title=project.get("title", "(untitled)"),
         slug=project.get("slug", ""),
@@ -173,6 +214,7 @@ def compute_status(repo: Repo) -> StatusReport:
         search_count=len(list_searches(repo)),
         pending_searches=pending_search_ids(repo),
         stages=stages,
-        next_action=_next_action(stages, retrieval),
+        next_action=_next_action(stages, retrieval, extraction),
         retrieval=retrieval,
+        extraction=extraction,
     )

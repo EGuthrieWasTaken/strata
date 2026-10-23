@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Reconcile {{ citation }}{% endblock %}
+{% block content %}
+<h1>Reconcile &mdash; {{ citation }}</h1>
+<p class="record-title">{{ title }}</p>
+<p class="field-meta"><code>{{ study }}</code> &middot; reviewers: {{ handles | join(", ") }}</p>
+
+{% if agreed %}
+<form method="post" action="/extract/{{ study }}/reconcile">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="action" value="accept-agreements">
+  <input type="hidden" name="commit_rationale" value="Accepted the values both reviewers agree on.">
+  <p>{{ agreed | length }} item(s) the reviewers already agree on.</p>
+  <button type="submit" class="btn">Accept all agreements</button>
+</form>
+{% endif %}
+
+<h2>Items</h2>
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Item</th>
+      {% for h in handles %}<th scope="col">{{ h }}</th>{% endfor %}
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <th scope="row">{{ i.label }}</th>
+      {% for h in handles %}
+      <td>{{ i.candidates[h] if i.candidates[h] is not none else "—" }}{% if i.sources[h] %}<br><span class="field-meta">@ {{ i.sources[h] }}</span>{% endif %}</td>
+      {% endfor %}
+      <td>{% if i.resolved %}<span class="done-note">reconciled</span>{% elif i.agree %}agree{% else %}<strong>differ</strong>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% for i in items %}{% if not i.agree and not i.resolved %}
+<form method="post" action="/extract/{{ study }}/reconcile" class="reconcile-item">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="item" value="{{ i.id }}">
+  <fieldset>
+    <legend>{{ i.label }}</legend>
+    {% for h in handles %}
+    <label class="criterion"><input type="radio" name="choice" value="{{ h }}" required> {{ h }}: {{ i.candidates[h] if i.candidates[h] is not none else "—" }}</label>
+    {% endfor %}
+    <label class="criterion"><input type="radio" name="choice" value="other"> another value
+      <input type="text" name="value" placeholder="value @ source"></label>
+    {% if i.kind == "effect" %}
+    <label class="criterion"><input type="radio" name="choice" value="dropped"> drop this effect</label>
+    {% endif %}
+  </fieldset>
+  <label class="note-field">Why? (required)
+    <textarea name="rationale" required></textarea>
+  </label>
+  <input type="hidden" name="commit_rationale" value="Reconciled a difference between reviewers.">
+  <button type="submit" class="btn">Reconcile</button>
+</form>
+{% endif %}{% endfor %}
+<p><a href="/extract/{{ study }}">&larr; Back to the coding form</a></p>
+{% endblock %}

@@ -40,6 +40,9 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
+from strata.extract import reconcile as reconcile_mod
+from strata.extract import records as extraction_records_mod
+from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.ingest.enrich import unpaywall as unpaywall_mod
@@ -430,6 +433,24 @@ def status(ctx: typer.Context) -> None:
         )
         if r.outstanding:
             out_console.print("  strata retrieve")
+    if s.extraction is not None:
+        e = s.extraction
+        out_console.print(
+            f"\n[bold]EXTRACTION[/]  {e.studies} studies    {e.complete} complete · "
+            f"{len(e.missing)} missing values"
+        )
+        for study_id, names in list(e.missing.items())[:10]:
+            out_console.print(f"  {study_id}  missing: {', '.join(names)}")
+        if len(e.missing) > 10:
+            out_console.print(
+                f"  ... and {len(e.missing) - 10} more  (strata extract --missing --list)"
+            )
+        if e.reconcile:
+            out_console.print(
+                f"  {e.reconcile} to reconcile             strata extract --reconcile"
+            )
+        elif e.missing:
+            out_console.print("  strata extract --missing")
     if s.next_action:
         out_console.print(f"\n[bold]NEXT[/]  {s.next_action}")
 
@@ -766,13 +787,16 @@ def _commit_domain_op(
 ) -> None:
     if ctx.obj["no_commit"]:
         return
+    candidates = ("records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob")
+    paths = [p for p in candidates if repo.path(*p.split("/")).exists()]
+    if not gitio.has_changes(repo.root, paths):
+        return  # e.g. a form re-created identically: nothing to record
     rationale = _get_rationale(ctx, repo, f"You {summary}.")
     trailers = {"Op": op, "Actor": by, **(extra_trailers or {})}
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    candidates = ("records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob")
-    gitio.add(repo.root, [p for p in candidates if repo.path(*p.split("/")).exists()])
+    gitio.add(repo.root, paths)
     gitio.commit(repo.root, commit_obj.message())
 
 
@@ -922,19 +946,30 @@ def _csl_view(record: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in record.items() if k != "strata"}
 
 
-def _apply_record_filter(records: list[dict[str, Any]], filter_expr: str) -> list[dict[str, Any]]:
+def _apply_record_filter(
+    records: list[dict[str, Any]], filter_expr: str, repo: Repo | None = None
+) -> list[dict[str, Any]]:
     """Shared `--filter` evaluation (openspec:filter-language), used by `records list`,
     `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
-    that can't be evaluated, rather than raising past the CLI boundary."""
+    that can't be evaluated, rather than raising past the CLI boundary.
+
+    Given `repo`, a filter that names `rob_overall` / `rob.<domain>` sees each record's study-level
+    risk-of-bias judgements (openspec:risk-of-bias#rob-plots-and-moderators)."""
     try:
         ast = filters_mod.parse(filter_expr)
     except filters_mod.FilterSyntaxError as exc:
         err_console.print(f"[red]error:[/] invalid --filter: {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    moderators = (
+        rob_mod.moderators_by_record(repo) if repo is not None and "rob" in filter_expr else None
+    )
     matched = []
     for record in records:
+        study_fields = None if moderators is None else moderators.get(record["id"], {})
         try:
-            if filters_mod.evaluate(ast, records_mod.record_field_resolver(record)):
+            if filters_mod.evaluate(
+                ast, records_mod.record_field_resolver(record, study_fields=study_fields)
+            ):
                 matched.append(record)
         except filters_mod.FilterEvaluationError as exc:
             err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
@@ -964,7 +999,7 @@ def records_list(
         records = [r for r in records if r.get("strata", {}).get("canonical", True)]
 
     if filter_expr:
-        records = _apply_record_filter(records, filter_expr)
+        records = _apply_record_filter(records, filter_expr, repo)
 
     if fmt == "json":
         _print_json(records)
@@ -1279,7 +1314,7 @@ def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
     records = [
         r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
     ]
-    return {r["id"] for r in _apply_record_filter(records, filter_expr)}
+    return {r["id"] for r in _apply_record_filter(records, filter_expr, repo)}
 
 
 _DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
@@ -2141,8 +2176,1024 @@ def export_effects_command(
 
 
 def _export_extras(repo: Repo) -> export_mod.Extras | None:
-    """Further study-level columns for the export (risk of bias, once assessed)."""
-    return None
+    """Further study-level columns for the export: the risk-of-bias moderators, once assessed."""
+    found = rob_mod.moderators(repo)
+    if not found:
+        return None
+    return lambda study: dict(found.get(study, {}))
+
+
+# --- extraction and risk of bias -------------------------------------------------------------
+
+_SET_OPTION = typer.Option(None, "--set", help="NAME=VALUE ('value @ source' ok); repeatable")
+_EFFECT_OPTION = typer.Option(None, "--effect", help="An effect as a JSON object; repeatable")
+_ANSWER_OPTION = typer.Option(None, "--answer", help="QUESTION=ANSWER, e.g. 1.2=Y; repeatable")
+_ACK_OPTION = typer.Option(None, "--ack", help="CODE=EFFECT_KEY: accept a data-quality warning")
+_QUIT = ":q"
+
+
+def _resolve_study(repo: Repo, text: str) -> str:
+    """An included study named by its id or any unambiguous prefix of it."""
+    members = studies_mod.study_map(repo).members
+    if text in members:
+        return text
+    matches = sorted(s for s in members if s.startswith(text))
+    if len(matches) == 1:
+        return matches[0]
+    if matches:
+        err_console.print(f"[red]error:[/] {text!r} matches {len(matches)} studies")
+    else:
+        err_console.print(f"[red]error:[/] no included study {text!r}")
+    raise typer.Exit(EXIT_USAGE)
+
+
+def _study_heading(repo: Repo, study: str, records: dict[str, dict[str, Any]]) -> str:
+    reports = studies_mod.study_map(repo).members.get(study, ())
+    first = records.get(ids_mod.record_id_for_report(reports[0]), {}) if reports else {}
+    more = f" (+{len(reports) - 1} more report(s))" if len(reports) > 1 else ""
+    return f"{study}  {records_mod.short_citation(first)}{more}\n  {first.get('title') or ''}"
+
+
+def _need_by(by: str | None) -> str:
+    if not by:
+        err_console.print("[red]error:[/] --by HANDLE is required")
+        raise typer.Exit(EXIT_USAGE)
+    return by
+
+
+def _entry_text(entry: dict[str, Any] | None) -> str:
+    if entry is None:
+        return ""
+    if entry.get("not_reported"):
+        text = "NR"
+    else:
+        value = entry.get("value")
+        text = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+        if entry.get("unit"):
+            text += f" {entry['unit']}"
+        if entry.get("entered") and entry["entered"] != text:
+            text += f" (entered {entry['entered']})"
+    return f"{text} @ {entry['source']}" if entry.get("source") else text
+
+
+def _effect_line(result: Any) -> str:
+    computed = result.computed
+    if computed is None:
+        return "  effect size: (waiting for more inputs)"
+    se = computed.vi**0.5
+    return f"  effect size: {computed.measure} = {computed.yi:.3f}  (SE {se:.3f})"
+
+
+def _show_warnings(result: Any) -> None:
+    for warning in result.warnings:
+        out_console.print(f"  [yellow]warning ({warning.code}):[/] {warning.message}")
+
+
+def _extract_init(ctx: typer.Context, repo: Repo, by: str | None, overwrite: bool) -> None:
+    try:
+        schema = extraction_schema_mod.init_schema(repo, overwrite=overwrite)
+    except extraction_schema_mod.ExtractionSchemaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    names = [f["name"] for f in schema.fields]
+    _commit_domain_op(
+        ctx,
+        repo,
+        op="extract-init",
+        scope=None,
+        summary="drafted the coding form",
+        by=by or "strata",
+    )
+    if ctx.obj["json"]:
+        _print_json(
+            {"path": "extraction/schema.yaml", "fields": names, "outcomes": schema.outcomes}
+        )
+    else:
+        out_console.print(f"[green]created[/] extraction/schema.yaml with {len(names)} field(s):")
+        out_console.print("  " + ", ".join(names))
+        out_console.print("Edit it (and raise its version) to add fields; then run strata extract.")
+
+
+def _extract_queue(
+    ctx: typer.Context, repo: Repo, by: str | None, target: str | None, missing: bool
+) -> list[str]:
+    try:
+        gaps = extraction_records_mod.studies_missing(repo, by)
+    except extraction_schema_mod.ExtractionSchemaError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if target:
+        return [_resolve_study(repo, target)]
+    if missing:
+        return list(gaps)
+    return sorted(studies_mod.study_map(repo).members)
+
+
+def _extract_listing(ctx: typer.Context, repo: Repo, by: str | None, queue: list[str]) -> None:
+    gaps = extraction_records_mod.studies_missing(repo, by)
+    if ctx.obj["json"]:
+        _print_json({"studies": [{"study": s, "missing": gaps.get(s, [])} for s in queue]})
+        return
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    out_console.print(f"{len(queue)} stud{'y' if len(queue) == 1 else 'ies'}")
+    for study in queue:
+        gap = gaps.get(study, [])
+        out_console.print(f"  {_study_heading(repo, study, records).splitlines()[0]}")
+        out_console.print(f"    {'missing: ' + ', '.join(gap) if gap else 'complete'}")
+
+
+def _extract_script(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    study: str,
+    by: str,
+    set_values: list[str],
+    effects: list[str],
+    ack: list[str],
+    note: str | None,
+) -> None:
+    """Scriptable entry: `--set NAME=VALUE`, `--effect JSON`, `--ack CODE=EFFECT_KEY --note`."""
+    done: dict[str, Any] = {"study": study, "fields": [], "effects": [], "acknowledged": []}
+    try:
+        for assignment in set_values:
+            name, sep, raw = assignment.partition("=")
+            if not sep:
+                raise extraction_records_mod.ExtractionError(
+                    f"--set needs NAME=VALUE: {assignment!r}"
+                )
+            extraction_records_mod.set_field(
+                repo, study=study, handle=by, name=name.strip(), raw=raw
+            )
+            done["fields"].append(name.strip())
+        for text in effects:
+            try:
+                spec = json_mod.loads(text)
+            except json_mod.JSONDecodeError as exc:
+                raise extraction_records_mod.ExtractionError(
+                    f"--effect is not JSON: {exc}"
+                ) from None
+            if not isinstance(spec, dict) or "design" not in spec or "outcome" not in spec:
+                raise extraction_records_mod.ExtractionError(
+                    "--effect needs a JSON object with at least outcome and design"
+                )
+            reserved = ("outcome", "design", "timepoint", "label", "source", "moderators")
+            result = extraction_records_mod.add_effect(
+                repo,
+                study=study,
+                handle=by,
+                outcome=spec["outcome"],
+                design=spec["design"],
+                timepoint=spec.get("timepoint"),
+                label=spec.get("label"),
+                source=spec.get("source"),
+                moderators=spec.get("moderators"),
+                inputs={k: v for k, v in spec.items() if k not in reserved},
+            )
+            done["effects"].append(
+                {
+                    "key": extraction_records_mod.effect_key(result.effect),
+                    "yi": result.computed.yi if result.computed else None,
+                    "vi": result.computed.vi if result.computed else None,
+                    "warnings": [{"code": w.code, "message": w.message} for w in result.warnings],
+                }
+            )
+        for pair in ack:
+            code, sep, key = pair.partition("=")
+            if not sep:
+                raise extraction_records_mod.ExtractionError(
+                    f"--ack needs CODE=EFFECT_KEY: {pair!r}"
+                )
+            extraction_records_mod.acknowledge_warning(
+                repo, study=study, effect=key, code=code, note=note or "", actor=by
+            )
+            done["acknowledged"].append({"code": code, "effect": key})
+    except (ValueError, KeyError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    _commit_domain_op(ctx, repo, op="extract", scope=study, summary="extracted data", by=by)
+    if ctx.obj["json"]:
+        _print_json(done)
+        return
+    for item in done["effects"]:
+        out_console.print(f"effect {item['key']}: yi={item['yi']} vi={item['vi']}")
+        for warning in item["warnings"]:
+            out_console.print(f"  [yellow]warning ({warning['code']}):[/] {warning['message']}")
+    out_console.print(
+        f"[green]recorded[/] {len(done['fields'])} field(s), {len(done['effects'])} effect(s)"
+    )
+
+
+def _prompt_field(repo: Repo, study: str, by: str, spec: dict[str, Any]) -> str:
+    """One field: returns 'saved', 'skipped' or 'quit'."""
+    path = extraction_records_mod.working_path(repo, by, study)
+    current = (extraction_records_mod.read_record(path) or {}).get("fields", {}).get(spec["name"])
+    unit = f" in {spec['unit']}" if spec.get("unit") else ""
+    levels = f" [{'/'.join(spec['levels'])}]" if spec.get("levels") else ""
+    required = " *" if spec.get("required") else ""
+    hint = f"  help: {spec['help']}" if spec.get("help") else ""
+    if hint:
+        out_console.print(hint)
+    while True:
+        shown = f" [now: {_entry_text(current)}]" if current else ""
+        raw = typer.prompt(
+            f"{spec.get('label') or spec['name']}{required} ({spec['type']}{unit}){levels}{shown}",
+            default="",
+            show_default=False,
+        ).strip()
+        if raw == _QUIT:
+            return "quit"
+        if not raw:
+            return "skipped"
+        try:
+            entry = extraction_records_mod.set_field(
+                repo, study=study, handle=by, name=spec["name"], raw=raw
+            )
+        except ValueError as exc:
+            out_console.print(f"  [red]{exc}[/]")
+            continue
+        out_console.print(f"  stored: {_entry_text(entry)}")
+        return "saved"
+
+
+def _prompt_effect(repo: Repo, study: str, by: str) -> bool:
+    """Walk through one effect with the size shown as the inputs are entered. True if saved."""
+    schema = extraction_schema_mod.load_schema(repo)
+    designs = schema.designs
+    design = typer.prompt(
+        f"Add an effect? design ({', '.join(designs)}; blank to finish)",
+        default="",
+        show_default=False,
+    ).strip()
+    if not design:
+        return False
+    if design not in designs:
+        out_console.print(f"  [red]unknown design {design!r}[/]")
+        return True
+    outcome = (
+        typer.prompt(f"Outcome ({', '.join(schema.outcomes)})", default=schema.outcomes[0]).strip()
+        if schema.outcomes
+        else typer.prompt("Outcome").strip()
+    )
+    timepoint = typer.prompt("Timepoint", default="", show_default=False).strip() or None
+    label = typer.prompt("Label", default="", show_default=False).strip() or None
+    inputs: dict[str, Any] = {}
+    for name in designs[design]:
+        raw = typer.prompt(f"  {name}", default="", show_default=False).strip()
+        if raw:
+            inputs[name] = raw
+        preview = extraction_records_mod.preview_effect(
+            repo, study=study, design=design, inputs=inputs, outcome=outcome
+        )
+        out_console.print(_effect_line(preview))
+    source = typer.prompt("Source (page, table)", default="", show_default=False).strip() or None
+    try:
+        result = extraction_records_mod.add_effect(
+            repo,
+            study=study,
+            handle=by,
+            outcome=outcome,
+            design=design,
+            inputs=inputs,
+            timepoint=timepoint,
+            label=label,
+            source=source,
+        )
+    except ValueError as exc:
+        out_console.print(f"  [red]{exc}[/]")
+        return True
+    out_console.print(_effect_line(result).replace("effect size", "saved effect"))
+    _show_warnings(result)
+    key = extraction_records_mod.effect_key(result.effect)
+    for warning in result.warnings:
+        why = typer.prompt(
+            f"  Acknowledge {warning.code}? note (blank to leave it open)",
+            default="",
+            show_default=False,
+        ).strip()
+        if why:
+            extraction_records_mod.acknowledge_warning(
+                repo, study=study, effect=key, code=warning.code, note=why, actor=by
+            )
+    return True
+
+
+def _extract_interactive(
+    ctx: typer.Context, repo: Repo, by: str, queue: list[str], *, only_missing: bool
+) -> None:
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    schema = extraction_schema_mod.load_schema(repo)
+    touched = 0
+    for index, study in enumerate(queue, start=1):
+        out_console.print(f"\n[{index}/{len(queue)}] {_study_heading(repo, study, records)}")
+        path = extraction_records_mod.working_path(repo, by, study)
+        have = (extraction_records_mod.read_record(path) or {}).get("fields", {})
+        quit_now = False
+        for spec in schema.fields:
+            if only_missing and spec["name"] in have:
+                continue
+            outcome = _prompt_field(repo, study, by, spec)
+            if outcome == "quit":
+                quit_now = True
+                break
+            touched += outcome == "saved"
+        if not quit_now:
+            while _prompt_effect(repo, study, by):
+                touched += 1
+        if quit_now:
+            break
+    if touched:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="extract",
+            scope=None,
+            summary=f"extracted data ({touched} entries)",
+            by=by,
+        )
+    out_console.print(f"[green]done[/] -- {touched} entr{'y' if touched == 1 else 'ies'} saved")
+
+
+def _reconcile_targets(repo: Repo, target: str | None) -> list[str]:
+    if target:
+        return [_resolve_study(repo, target)]
+    return [c.study for c in reconcile_mod.all_comparisons(repo) if c.unresolved]
+
+
+def _extract_reconcile(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    by: str | None,
+    target: str | None,
+    list_only: bool,
+    item: str | None,
+    choose: str | None,
+    value: str | None,
+    rationale: str | None,
+    source: str | None,
+) -> None:
+    try:
+        studies = _reconcile_targets(repo, target)
+        if item is not None or choose is not None:
+            if not (item and choose and len(studies) == 1):
+                err_console.print(
+                    "[red]error:[/] --item and --choose need one study and each other"
+                )
+                raise typer.Exit(EXIT_USAGE)
+            event = reconcile_mod.resolve(
+                repo,
+                study=studies[0],
+                reconciler=_need_by(by),
+                item_id=item,
+                choice=choose,
+                rationale=rationale or "",
+                other_value=value,
+                source=source,
+            )
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="reconcile",
+                scope=studies[0],
+                summary=f"reconciled {item}",
+                by=by or "",
+            )
+            if ctx.obj["json"]:
+                _print_json({"event": event["id"], "item": item, "choice": choose})
+            else:
+                out_console.print(f"[green]reconciled[/] {item}: {choose}")
+            return
+        comparisons = [reconcile_mod.compare(repo, s) for s in studies]
+    except reconcile_mod.ReconcileError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    rate = reconcile_mod.agreement_rate(comparisons)
+    if list_only or ctx.obj["json"]:
+        payload = {
+            "agreement": rate,
+            "studies": [
+                {
+                    "study": c.study,
+                    "reviewers": c.handles,
+                    "items": [
+                        {
+                            "id": i.id,
+                            "label": i.label,
+                            "agree": i.agree,
+                            "resolved": i.resolved,
+                            "values": i.candidates,
+                            "sources": i.sources,
+                        }
+                        for i in c.items
+                    ],
+                }
+                for c in comparisons
+            ],
+        }
+        if ctx.obj["json"]:
+            _print_json(payload)
+        else:
+            out_console.print(
+                f"{rate['agreed']} of {rate['compared']} items agree ({rate['rate']:.0%})"
+            )
+            for c in comparisons:
+                for i in c.disagreements:
+                    shown = "  |  ".join(f"{h}: {i.candidates[h]}" for h in c.handles)
+                    out_console.print(f"  {c.study} {i.id}: {shown}")
+        return
+
+    reconciler = _need_by(by)
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+    resolved = 0
+    quit_all = False
+    for comparison in comparisons:
+        out_console.print(f"\n{_study_heading(repo, comparison.study, records)}")
+        agreed = [i for i in comparison.items if i.agree and not i.resolved]
+        if agreed:
+            out_console.print(f"  {len(agreed)} item(s) the reviewers agree on")
+            if typer.confirm("  Accept them all?", default=True):
+                resolved += reconcile_mod.accept_agreements(
+                    repo, study=comparison.study, reconciler=reconciler
+                )
+        for current in comparison.disagreements:
+            if current.resolved:
+                continue
+            out_console.print(f"  {current.id}  {current.label}")
+            for handle in comparison.handles:
+                src = f" @ {current.sources[handle]}" if current.sources.get(handle) else ""
+                out_console.print(f"    {handle}: {current.candidates[handle]}{src}")
+            options = [*comparison.handles, "other", "skip", "quit"]
+            choice = ""
+            while True:
+                choice = typer.prompt(f"  Choose ({'/'.join(options)})", default="skip").strip()
+                if choice == "quit":
+                    break
+                if choice == "skip":
+                    break
+                value_text = None
+                if choice == "other":
+                    value_text = typer.prompt("  Value (optionally 'value @ source')").strip()
+                why = typer.prompt("  Rationale").strip()
+                try:
+                    reconcile_mod.resolve(
+                        repo,
+                        study=comparison.study,
+                        reconciler=reconciler,
+                        item_id=current.id,
+                        choice=choice,
+                        rationale=why,
+                        other_value=value_text,
+                    )
+                except reconcile_mod.ReconcileError as exc:
+                    out_console.print(f"  [red]{exc}[/]")
+                    continue
+                resolved += 1
+                break
+            if choice == "quit":
+                quit_all = True
+                break
+        if quit_all:
+            break
+    if resolved:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="reconcile",
+            scope=None,
+            summary=f"reconciled {resolved} item(s)",
+            by=reconciler,
+        )
+    out_console.print(f"[green]done[/] -- {resolved} item(s) reconciled")
+
+
+@app.command("extract")
+def extract_command(
+    ctx: typer.Context,
+    target: str | None = typer.Argument(None, help="`init`, or a study id (a prefix will do)"),
+    by: str | None = typer.Option(None, "--by", help="Actor handle extracting"),
+    missing: bool = typer.Option(
+        False, "--missing", help="Only studies with missing required values"
+    ),
+    reconcile: bool = typer.Option(False, "--reconcile", help="Reconcile dual extractions"),
+    list_only: bool = typer.Option(False, "--list", help="List the queue and exit"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="With init: replace the coding form"),
+    set_values: list[str] | None = _SET_OPTION,
+    effects: list[str] | None = _EFFECT_OPTION,
+    ack: list[str] | None = _ACK_OPTION,
+    note: str | None = typer.Option(
+        None, "--note", help="With --ack: why the warning is acceptable"
+    ),
+    item: str | None = typer.Option(None, "--item", help="With --reconcile: the item to settle"),
+    choose: str | None = typer.Option(
+        None, "--choose", help="A reviewer's handle, agreement, other"
+    ),
+    value: str | None = typer.Option(None, "--value", help="With --choose other: the value"),
+    rationale: str | None = typer.Option(None, "--rationale", help="Why this choice"),
+    source: str | None = typer.Option(None, "--source", help="Source locator for the chosen value"),
+) -> None:
+    """Extract data from included studies: openspec:data-extraction.
+
+    `strata extract init` drafts the coding form from the protocol's moderators and outcomes.
+    `strata extract` walks the studies (`--missing`: only those lacking required values; `NR` means
+    not reported; add '@ p.4' after a value for its source). With dual extraction each reviewer
+    works into their own files and `--reconcile` settles the differences.
+
+    Example: strata extract std_3kq8v1r0zx2m4a7b --by ethan --set "n_total=120 @ Table 1" \\
+        --effect '{"outcome": "memory", "design": "two-group-means", "n1": 20, "m1": 5.1, ...}'
+    """
+    repo = _resolve_repo(ctx)
+    if target == "init":
+        _extract_init(ctx, repo, by, overwrite)
+        return
+    if reconcile:
+        _extract_reconcile(
+            ctx,
+            repo,
+            by=by,
+            target=target,
+            list_only=list_only,
+            item=item,
+            choose=choose,
+            value=value,
+            rationale=rationale,
+            source=source,
+        )
+        return
+    queue = _extract_queue(ctx, repo, by, target, missing)
+    if set_values or effects or ack:
+        if len(queue) != 1 or target is None:
+            err_console.print("[red]error:[/] --set, --effect and --ack need one study")
+            raise typer.Exit(EXIT_USAGE)
+        _extract_script(
+            ctx,
+            repo,
+            study=queue[0],
+            by=_need_by(by),
+            set_values=set_values or [],
+            effects=effects or [],
+            ack=ack or [],
+            note=note,
+        )
+        return
+    if list_only or ctx.obj["json"]:
+        _extract_listing(ctx, repo, by, queue)
+        return
+    if not queue:
+        out_console.print("nothing to extract")
+        return
+    _extract_interactive(ctx, repo, _need_by(by), queue, only_missing=missing)
+
+
+def _rob_domain_listing(repo: Repo, by: str | None, study: str) -> dict[str, Any]:
+    instrument = rob_mod.load_instrument(repo)
+    path = rob_mod.working_path(repo, by or "", study)
+    assessment = rob_mod.read_assessment(path) or {}
+    domains = []
+    for domain in instrument.domains:
+        state = rob_mod.domain_state(instrument, assessment, domain["id"])
+        domains.append(
+            {
+                "domain": domain["id"],
+                "label": domain["label"],
+                "answers": state.answers,
+                "suggested": state.suggested,
+                "judgement": state.judgement,
+            }
+        )
+    overall = assessment.get("overall") or {}
+    return {
+        "study": study,
+        "instrument": instrument.name,
+        "domains": domains,
+        "overall": overall.get("judgement"),
+        "suggested_overall": rob_mod.overall_suggestion(instrument, assessment),
+    }
+
+
+def _rob_prompt_domain(repo: Repo, study: str, by: str, domain: dict[str, Any]) -> bool:
+    """Walk one domain: the signalling questions the algorithm needs, then the judgement."""
+    instrument = rob_mod.load_instrument(repo)
+    questions = {q["id"]: q for q in domain.get("signalling_questions", [])}
+    path = rob_mod.working_path(repo, by, study)
+    state = rob_mod.domain_state(instrument, rob_mod.read_assessment(path), domain["id"])
+    out_console.print(f"\n  Domain {domain['id']}: {domain['label']}")
+    if domain.get("algorithm"):
+        while state.needed is not None:
+            q = questions[state.needed]
+            answer = typer.prompt(
+                f"    {q['id']} {q['topic']} ({'/'.join(q['options'])})", default=""
+            ).strip()
+            if answer == _QUIT:
+                return False
+            if not answer:
+                break
+            try:
+                state = rob_mod.answer_question(
+                    repo,
+                    study=study,
+                    handle=by,
+                    domain=domain["id"],
+                    question=q["id"],
+                    answer=answer,
+                )
+            except rob_mod.RobError as exc:
+                out_console.print(f"    [red]{exc}[/]")
+    elif questions:
+        for q in questions.values():
+            answer = typer.prompt(
+                f"    {q['id']} {q['topic']} ({'/'.join(q['options'])})", default=""
+            ).strip()
+            if answer == _QUIT:
+                return False
+            if answer:
+                try:
+                    rob_mod.answer_question(
+                        repo,
+                        study=study,
+                        handle=by,
+                        domain=domain["id"],
+                        question=q["id"],
+                        answer=answer,
+                    )
+                except rob_mod.RobError as exc:
+                    out_console.print(f"    [red]{exc}[/]")
+    if state.suggested:
+        out_console.print(f"    the algorithm suggests: {state.suggested}")
+    return _rob_prompt_judgement(
+        repo, study, by, domain["id"], domain["judgements"], state.suggested
+    )
+
+
+def _rob_prompt_judgement(
+    repo: Repo, study: str, by: str, domain: str, choices: list[str] | None, suggested: str | None
+) -> bool:
+    options = f" ({'/'.join(choices)})" if choices else ""
+    while True:
+        judgement = typer.prompt(
+            f"    Judgement{options}", default=suggested or "", show_default=bool(suggested)
+        ).strip()
+        if judgement == _QUIT:
+            return False
+        if not judgement:
+            return True
+        justification = None
+        if suggested and judgement != suggested:
+            justification = typer.prompt("    Why override the suggestion?").strip()
+        support = typer.prompt(
+            "    Support (quote or note)", default="", show_default=False
+        ).strip()
+        source = typer.prompt("    Source (page, section)", default="", show_default=False).strip()
+        try:
+            rob_mod.record_judgement(
+                repo,
+                study=study,
+                handle=by,
+                domain=domain,
+                judgement=judgement,
+                support=support,
+                source=source or None,
+                override_justification=justification,
+            )
+        except rob_mod.RobError as exc:
+            out_console.print(f"    [red]{exc}[/]")
+            continue
+        return True
+
+
+def _rob_script(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    study: str,
+    by: str,
+    domain: str,
+    answers: list[str],
+    judgement: str | None,
+    support: str,
+    source: str | None,
+    justification: str | None,
+) -> None:
+    done: dict[str, Any] = {"study": study, "domain": domain, "answers": {}}
+    try:
+        state = None
+        for pair in answers:
+            question, sep, answer = pair.partition("=")
+            if not sep:
+                raise rob_mod.RobError(f"--answer needs QUESTION=ANSWER: {pair!r}")
+            state = rob_mod.answer_question(
+                repo,
+                study=study,
+                handle=by,
+                domain=domain,
+                question=question.strip(),
+                answer=answer.strip(),
+            )
+            done["answers"][question.strip()] = answer.strip()
+        if state is not None:
+            done["suggested"] = state.suggested
+            done["needed"] = state.needed
+        if judgement is not None:
+            event = rob_mod.record_judgement(
+                repo,
+                study=study,
+                handle=by,
+                domain=domain,
+                judgement=judgement,
+                support=support,
+                source=source,
+                override_justification=justification,
+            )
+            done["event"] = event["id"]
+            done["judgement"] = judgement
+            done["suggested"] = event["body"].get("suggested")
+    except rob_mod.RobError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    _commit_domain_op(ctx, repo, op="rob", scope=study, summary=f"assessed {domain}", by=by)
+    if ctx.obj["json"]:
+        _print_json(done)
+        return
+    if done.get("suggested"):
+        out_console.print(f"the algorithm suggests: {done['suggested']}")
+    if done.get("needed"):
+        out_console.print(f"next signalling question: {done['needed']}")
+    if judgement is not None:
+        out_console.print(f"[green]recorded[/] {domain}: {judgement}")
+
+
+def _rob_reconcile(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    by: str | None,
+    target: str | None,
+    list_only: bool,
+    domain: str | None,
+    choose: str | None,
+    value: str | None,
+    rationale: str | None,
+) -> None:
+    try:
+        studies = (
+            [_resolve_study(repo, target)]
+            if target
+            else [
+                s
+                for s in sorted(studies_mod.study_map(repo).members)
+                if len(rob_mod.reviewer_handles(repo, s)) >= 2
+            ]
+        )
+        if domain is not None or choose is not None:
+            if not (domain and choose and len(studies) == 1):
+                err_console.print(
+                    "[red]error:[/] --domain and --choose need one study and each other"
+                )
+                raise typer.Exit(EXIT_USAGE)
+            event = rob_mod.resolve(
+                repo,
+                study=studies[0],
+                reconciler=_need_by(by),
+                domain=domain,
+                choice=choose,
+                rationale=rationale or "",
+                other_judgement=value,
+            )
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="rob-reconcile",
+                scope=studies[0],
+                summary=f"reconciled {domain}",
+                by=by or "",
+            )
+            if ctx.obj["json"]:
+                _print_json({"event": event["id"], "domain": domain, "choice": choose})
+            else:
+                out_console.print(f"[green]reconciled[/] {domain}: {choose}")
+            return
+        comparisons = {s: rob_mod.compare(repo, s) for s in studies}
+    except rob_mod.RobError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if list_only or ctx.obj["json"]:
+        payload = [
+            {
+                "study": s,
+                "items": [
+                    {
+                        "domain": i.domain,
+                        "agree": i.agree,
+                        "resolved": i.resolved,
+                        "values": i.candidates,
+                    }
+                    for i in items
+                ],
+            }
+            for s, items in comparisons.items()
+        ]
+        if ctx.obj["json"]:
+            _print_json({"studies": payload})
+        else:
+            for s, items in comparisons.items():
+                for i in items:
+                    if not i.agree:
+                        shown = "  |  ".join(f"{h}: {v}" for h, v in i.candidates.items())
+                        out_console.print(f"  {s} {i.domain}: {shown}")
+        return
+
+    reconciler = _need_by(by)
+    resolved = 0
+    quit_all = False
+    for s, items in comparisons.items():
+        out_console.print(f"\n{s}")
+        for current in items:
+            if current.resolved:
+                continue
+            shown = "  |  ".join(f"{h}: {v}" for h, v in current.candidates.items())
+            out_console.print(f"  {current.domain} ({current.label}): {shown}")
+            handles = list(current.candidates)
+            choice = "agreement" if current.agree else "skip"
+            why = ""
+            if current.agree:
+                if not typer.confirm("    Both agree. Accept?", default=True):
+                    continue
+                why = "Both reviewers reached the same judgement."
+            else:
+                options = [*handles, "other", "skip", "quit"]
+                choice = typer.prompt(f"    Choose ({'/'.join(options)})", default="skip").strip()
+                if choice == "quit":
+                    quit_all = True
+                    break
+                if choice == "skip":
+                    continue
+            other = typer.prompt("    Judgement").strip() if choice == "other" else None
+            if not current.agree:
+                why = typer.prompt("    Rationale").strip()
+            try:
+                rob_mod.resolve(
+                    repo,
+                    study=s,
+                    reconciler=reconciler,
+                    domain=current.domain,
+                    choice=choice,
+                    rationale=why,
+                    other_judgement=other,
+                )
+            except rob_mod.RobError as exc:
+                out_console.print(f"    [red]{exc}[/]")
+                continue
+            resolved += 1
+        if quit_all:
+            break
+    if resolved:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="rob-reconcile",
+            scope=None,
+            summary=f"reconciled {resolved} domain(s)",
+            by=reconciler,
+        )
+    out_console.print(f"[green]done[/] -- {resolved} domain(s) reconciled")
+
+
+@app.command("rob")
+def rob_command(
+    ctx: typer.Context,
+    target: str | None = typer.Argument(None, help="`init`, or a study id (a prefix will do)"),
+    by: str | None = typer.Option(None, "--by", help="Actor handle assessing"),
+    instrument: str = typer.Option(
+        "rob2", "--instrument", help="With init: " + ", ".join(rob_mod.BUILTIN_IDS)
+    ),
+    overwrite: bool = typer.Option(False, "--overwrite", help="With init: replace the instrument"),
+    list_only: bool = typer.Option(False, "--list", help="Show the assessments and exit"),
+    reconcile: bool = typer.Option(False, "--reconcile", help="Reconcile dual assessments"),
+    domain: str | None = typer.Option(None, "--domain", help="A domain id, or overall"),
+    answers: list[str] | None = _ANSWER_OPTION,
+    judgement: str | None = typer.Option(None, "--judgement", help="The judgement for --domain"),
+    support: str = typer.Option("", "--support", help="Supporting quote or note"),
+    source: str | None = typer.Option(None, "--source", help="Source locator (page, section)"),
+    justification: str | None = typer.Option(
+        None, "--override-justification", help="Why this differs from the suggestion"
+    ),
+    choose: str | None = typer.Option(
+        None, "--choose", help="With --reconcile: a reviewer's handle, agreement, other"
+    ),
+    value: str | None = typer.Option(None, "--value", help="With --choose other: the judgement"),
+    rationale: str | None = typer.Option(None, "--rationale", help="Why this choice"),
+) -> None:
+    """Risk-of-bias assessment: openspec:risk-of-bias.
+
+    `strata rob init --instrument rob2|rob2-adhering|robins-i|nos-cohort|nos-case-control` copies
+    a built-in instrument into rob/instrument.yaml. `strata rob <study>` walks the domains: the
+    signalling questions the RoB 2 algorithm needs, its suggested judgement, and your judgement
+    (an override of the suggestion needs a justification).
+
+    Example: strata rob std_3kq8v1r0zx2m4a7b --by ethan --domain D1 --answer 1.1=Y \\
+        --answer 1.2=Y --answer 1.3=N --judgement low --support "Central randomisation"
+    """
+    repo = _resolve_repo(ctx)
+    try:
+        if target == "init":
+            built = rob_mod.init_instrument(repo, instrument, overwrite=overwrite)
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="rob-init",
+                scope=None,
+                summary=f"set up {built.name}",
+                by=by or "strata",
+            )
+            if ctx.obj["json"]:
+                _print_json({"instrument": built.name, "domains": [d["id"] for d in built.domains]})
+            else:
+                out_console.print(f"[green]created[/] rob/instrument.yaml ({built.name})")
+            return
+        if reconcile:
+            _rob_reconcile(
+                ctx,
+                repo,
+                by=by,
+                target=target,
+                list_only=list_only,
+                domain=domain,
+                choose=choose,
+                value=value,
+                rationale=rationale,
+            )
+            return
+        loaded = rob_mod.load_instrument(repo)
+        queue = (
+            [_resolve_study(repo, target)]
+            if target
+            else sorted(studies_mod.study_map(repo).members)
+        )
+        if domain is not None:
+            if len(queue) != 1 or target is None:
+                err_console.print("[red]error:[/] --domain needs one study")
+                raise typer.Exit(EXIT_USAGE)
+            _rob_script(
+                ctx,
+                repo,
+                study=queue[0],
+                by=_need_by(by),
+                domain=domain,
+                answers=answers or [],
+                judgement=judgement,
+                support=support,
+                source=source,
+                justification=justification,
+            )
+            return
+        if list_only or ctx.obj["json"]:
+            listing = [_rob_domain_listing(repo, by, s) for s in queue]
+            if ctx.obj["json"]:
+                _print_json({"instrument": loaded.name, "studies": listing})
+            else:
+                records = records_mod.index_by_id(records_mod.read_records(repo))
+                for entry in listing:
+                    out_console.print(_study_heading(repo, entry["study"], records).splitlines()[0])
+                    judged = {d["domain"]: d["judgement"] or "-" for d in entry["domains"]}
+                    out_console.print("    " + "  ".join(f"{k}:{v}" for k, v in judged.items()))
+            return
+        reviewer = _need_by(by)
+        records = records_mod.index_by_id(records_mod.read_records(repo))
+        touched = 0
+        for index, study in enumerate(queue, start=1):
+            out_console.print(f"\n[{index}/{len(queue)}] {_study_heading(repo, study, records)}")
+            go_on = True
+            for spec in loaded.domains:
+                go_on = _rob_prompt_domain(repo, study, reviewer, spec)
+                if not go_on:
+                    break
+                touched += 1
+            if go_on:
+                assessment = rob_mod.read_assessment(rob_mod.working_path(repo, reviewer, study))
+                suggested = rob_mod.overall_suggestion(loaded, assessment)
+                out_console.print("\n  Overall")
+                if suggested:
+                    out_console.print(f"    suggested overall: {suggested}")
+                go_on = _rob_prompt_judgement(
+                    repo, study, reviewer, "overall", loaded.overall_judgements or None, suggested
+                )
+            if not go_on:
+                break
+        if touched:
+            _commit_domain_op(
+                ctx,
+                repo,
+                op="rob",
+                scope=None,
+                summary=f"assessed {touched} domain(s)",
+                by=reviewer,
+            )
+        out_console.print(f"[green]done[/] -- {touched} domain(s) assessed")
+    except rob_mod.RobError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
 
 
 @app.command("audit")

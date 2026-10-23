@@ -304,3 +304,13 @@ fieldset.criteria-list {
     flex-direction: column;
   }
 }
+
+/* Extraction and risk-of-bias screens */
+.field-table input[type="text"], .field-table select { width: 100%; box-sizing: border-box; }
+.field-meta { display: block; font-size: 0.85em; color: var(--muted, #555); }
+.field-help { display: block; font-size: 0.85em; }
+tr.missing th, tr.missing td { background: rgba(255, 193, 7, 0.12); }
+.missing-note { color: #8a5a00; }
+.effect-preview { font-size: 1.1em; }
+.rob-domain, .reconcile-item, .warning-row { margin: 1.5em 0; }
+.record-title { font-weight: 600; }

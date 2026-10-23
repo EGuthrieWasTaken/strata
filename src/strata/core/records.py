@@ -9,6 +9,7 @@ byte-wise; new records land in hash order rather than at the end).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -166,7 +167,9 @@ def resolve_id_prefix(repo: Repo, prefix: str) -> str:
     return matches[0]
 
 
-def record_field_resolver(record: dict[str, Any]) -> FieldResolver:
+def record_field_resolver(
+    record: dict[str, Any], *, study_fields: Mapping[str, Any] | None = None
+) -> FieldResolver:
     """A `strata.core.filters.FieldResolver` over the M1 subset of
     openspec:filter-language's "Available fields" table -- the fields a bare
     bibliographic record actually has data for at this milestone.
@@ -178,9 +181,15 @@ def record_field_resolver(record: dict[str, Any]) -> FieldResolver:
     which is what "how was this record found" most naturally means; a
     query that needs *any* source's via/search isn't expressible with this
     resolver, a known limitation of treating a spec-scalar field this way.
+
+    `study_fields` carries the record's study-level risk-of-bias moderators (`rob_overall`,
+    `rob.<domain>`); a study without that judgement resolves to `None`. Without it those fields
+    stay "not available yet".
     """
 
     def resolve(field: str) -> Any:
+        if study_fields is not None and (field == "rob_overall" or field.startswith("rob.")):
+            return study_fields.get(field)
         if field == "id":
             return record.get("id")
         if field == "doi":

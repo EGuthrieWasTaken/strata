@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Extract {{ citation }}{% endblock %}
+{% block content %}
+<h1>Extract &mdash; {{ citation }}</h1>
+<p class="record-title">{{ title }}</p>
+<p class="field-meta"><code>{{ study }}</code></p>
+{% if dual %}
+<p class="notice">Dual extraction: you are working into your own record.
+  <a href="/extract/{{ study }}/reconcile">Reconcile &rarr;</a></p>
+{% endif %}
+
+{% if open_warnings %}
+<section aria-labelledby="warnings-h">
+  <h2 id="warnings-h">Data-quality warnings</h2>
+  {% for w in open_warnings %}
+  <form method="post" action="/extract/{{ study }}" class="warning-row">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <input type="hidden" name="action" value="ack">
+    <input type="hidden" name="effect" value="{{ w.key }}">
+    <input type="hidden" name="code" value="{{ w.code }}">
+    <input type="hidden" name="rationale" value="Acknowledged a data-quality warning.">
+    <p class="notice"><strong>{{ w.code }}</strong> {{ w.message }}</p>
+    <label>Why is this acceptable? <input type="text" name="note" required></label>
+    <button type="submit" class="btn">Acknowledge</button>
+  </form>
+  {% endfor %}
+</section>
+{% endif %}
+
+<h2>Fields</h2>
+<form method="post" action="/extract/{{ study }}" id="extract-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="action" value="save">
+  <p class="field-help">Leave a field blank to keep it. Type <kbd>NR</kbd> if the paper does not report it.
+    Press <kbd>@</kbd> in a value to jump to its source locator.</p>
+  <table class="stage-table field-table">
+    <thead>
+      <tr>
+        <th scope="col">Field</th>
+        <th scope="col">Value</th>
+        <th scope="col">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in fields %}
+      <tr{% if f.missing and f.required %} class="missing"{% endif %}>
+        <th scope="row">
+          <label for="field-{{ f.name }}">{{ f.label }}{% if f.required %} <abbr title="required">*</abbr>{% endif %}</label>
+          <span class="field-meta">{{ f.type }}{% if f.unit %} in {{ f.unit }}{% endif %}</span>
+          {% if f.help %}<span class="field-help">{{ f.help }}</span>{% endif %}
+        </th>
+        <td>
+          {% if f.type == "categorical" %}
+          <select name="field:{{ f.name }}" id="field-{{ f.name }}">
+            <option value="">{{ f.current or "(not set)" }}</option>
+            {% for level in f.levels %}<option value="{{ level }}">{{ level }}</option>{% endfor %}
+            <option value="NR">NR (not reported)</option>
+          </select>
+          {% else %}
+          <input type="text" name="field:{{ f.name }}" id="field-{{ f.name }}" autocomplete="off"
+                 placeholder="{{ f.current or '' }}" data-source-input="source-{{ f.name }}">
+          {% endif %}
+          {% if f.current %}<span class="field-meta">now: {{ f.current }}</span>{% endif %}
+        </td>
+        <td>
+          <input type="text" name="source:{{ f.name }}" id="source-{{ f.name }}" autocomplete="off"
+                 placeholder="{{ f.source or 'p. 4, Table 2' }}"
+                 aria-label="Source locator for {{ f.label }}">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <label class="note-field">
+    Why? {% if rationale_required %}(required){% endif %}
+    <textarea name="rationale" {% if rationale_required %}required minlength="12"{% endif %}></textarea>
+  </label>
+  <button type="submit" class="btn">Save fields</button>
+</form>
+
+<h2>Effects</h2>
+{% if effects %}
+<table class="stage-table">
+  <thead>
+    <tr><th scope="col">Outcome</th><th scope="col">Timepoint</th><th scope="col">Design</th><th scope="col">Effect size</th></tr>
+  </thead>
+  <tbody>
+    {% for e in effects %}
+    <tr>
+      <th scope="row">{{ e.outcome }}</th>
+      <td>{{ e.timepoint }}</td>
+      <td>{{ e.design }}</td>
+      <td>{% if e.yi %}{{ e.measure }} = {{ e.yi }} (SE {{ e.se }}){% else %}&mdash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="done-note">No effects entered yet.</p>
+{% endif %}
+
+<h3>Add an effect</h3>
+<form method="get" action="/extract/{{ study }}" id="effect-preview">
+  <label>Design
+    <select name="design">
+      <option value="">(choose)</option>
+      {% for name in designs %}<option value="{{ name }}"{% if name == design %} selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Outcome
+    {% if outcomes %}
+    <select name="outcome">
+      {% for o in outcomes %}<option value="{{ o }}"{% if o == outcome %} selected{% endif %}>{{ o }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <input type="text" name="outcome" value="{{ outcome }}">
+    {% endif %}
+  </label>
+  <label>Timepoint <input type="text" name="timepoint" value="{{ timepoint }}"></label>
+  {% if design %}
+  {% for name in designs[design] %}
+  <label>{{ name }} <input type="text" name="in:{{ name }}" value="{{ inputs[name] }}" inputmode="decimal" autocomplete="off"></label>
+  {% endfor %}
+  {% endif %}
+  <button type="submit" class="btn">{{ "Preview effect size" if design else "Choose design" }}</button>
+</form>
+
+{% if preview %}
+<p class="effect-preview" role="status">
+  {% if preview.computed %}<strong>{{ preview.computed }}</strong>{% else %}Waiting for more inputs.{% endif %}
+</p>
+{% for w in preview.warnings %}
+<p class="notice"><strong>{{ w.code }}</strong> {{ w.message }}</p>
+{% endfor %}
+{% if preview.computed %}
+<form method="post" action="/extract/{{ study }}" id="effect-save">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="effect_design" value="{{ design }}">
+  <input type="hidden" name="effect_outcome" value="{{ outcome }}">
+  <input type="hidden" name="effect_timepoint" value="{{ timepoint }}">
+  {% for name, value in inputs.items() %}{% if value %}<input type="hidden" name="in:{{ name }}" value="{{ value }}">{% endif %}{% endfor %}
+  <label>Label <input type="text" name="effect_label"></label>
+  <label>Source <input type="text" name="effect_source" placeholder="Table 2"></label>
+  <label class="note-field">
+    Why? {% if rationale_required %}(required){% endif %}
+    <textarea name="rationale" {% if rationale_required %}required minlength="12"{% endif %}></textarea>
+  </label>
+  <button type="submit" class="btn">Save effect</button>
+</form>
+{% endif %}
+{% endif %}
+<p><a href="/extract">&larr; All studies</a></p>
+{% endblock %}
