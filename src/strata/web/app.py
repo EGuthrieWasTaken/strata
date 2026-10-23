@@ -160,7 +160,9 @@ def create_app(
                     samesite="strict",
                     path="/",
                 )
-            response.headers["Content-Security-Policy"] = _CSP
+            # A route may set a stricter policy of its own (the generated plots, which carry an
+            # inline stylesheet for light and dark mode).
+            response.headers.setdefault("Content-Security-Policy", _CSP)
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["X-Frame-Options"] = "DENY"
             response.headers["Referrer-Policy"] = "no-referrer"
@@ -170,10 +172,12 @@ def create_app(
 
     app.mount("/static", StaticFiles(directory=_static_dir()), name="static")
 
+    from strata.web.analysis_routes import router as analysis_router
     from strata.web.extraction_routes import router as extraction_router
     from strata.web.routes import router
 
     app.include_router(router)
     app.include_router(extraction_router)
+    app.include_router(analysis_router)
 
     return app

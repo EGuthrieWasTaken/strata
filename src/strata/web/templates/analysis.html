@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}{{ spec.title }}{% endblock %}
+{% block content %}
+<h1>{{ spec.title }}</h1>
+<p class="field-meta">Analysis <code>{{ id }}</code> &middot; {{ spec.label }} &middot; effect measure {{ spec.measure }}</p>
+
+{% if not spec.preregistered %}
+<p class="notice"><strong>Exploratory analysis.</strong> This analysis is not marked preregistered; report it as exploratory.</p>
+{% endif %}
+
+{% if state != "fresh" %}
+<p class="notice" role="status">{{ state_text }}{% if state != "missing" %} Run <code>strata analyze {{ id }}</code> to refresh them.{% else %} Run <code>strata analyze {{ id }}</code>.{% endif %}</p>
+{% endif %}
+
+{% if warnings %}
+<section aria-labelledby="warnings-h">
+  <h2 id="warnings-h">Guardrail warnings</h2>
+  <ul class="warning-list">
+    {% for w in warnings %}
+    <li class="warning-row">
+      <strong>{{ w.code }}</strong>{% if w.message %}: {{ w.message }}{% endif %}
+      {% if w.forced %}<span class="missing-note">(computed with --force)</span>{% endif %}
+      {% if w.acknowledged %}<span class="done-note">(acknowledged)</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if estimates %}
+{% set pooled = estimates.pooled %}
+{% set first = pooled.coefficients[0] %}
+<section aria-labelledby="pooled-h">
+  <h2 id="pooled-h">Pooled estimate</h2>
+  <dl class="summary-grid">
+    <div><dt>Studies</dt><dd>{{ estimates.k_studies }}</dd></div>
+    <div><dt>Effects</dt><dd>{{ estimates.k_effects }}</dd></div>
+    <div><dt>{{ estimates.measure }}</dt><dd>{{ "%.3f"|format(first.estimate) }}</dd></div>
+    <div><dt>{{ (estimates.model.level * 100) | round | int }}% CI</dt><dd>{{ "%.3f"|format(first.ci_lb) }} to {{ "%.3f"|format(first.ci_ub) }}</dd></div>
+    {% if estimates.back_transformed %}
+    <div><dt>{{ estimates.back_transformed.scale }}</dt><dd>{{ "%.3f"|format(estimates.back_transformed.estimate) }} ({{ "%.3f"|format(estimates.back_transformed.ci_lb) }} to {{ "%.3f"|format(estimates.back_transformed.ci_ub) }})</dd></div>
+    {% endif %}
+  </dl>
+  <p class="field-meta">{{ estimates.model.type }}; tau&sup2; estimator {{ estimates.model.tau2_estimator }}; interval {{ estimates.model.ci_method }}.</p>
+
+  {% if pooled.coefficients | length > 1 %}
+  <table class="stage-table">
+    <caption>Meta-regression coefficients</caption>
+    <thead><tr><th scope="col">Term</th><th scope="col">Estimate</th><th scope="col">SE</th><th scope="col">95% CI</th><th scope="col">p</th></tr></thead>
+    <tbody>
+      {% for c in pooled.coefficients %}
+      <tr><th scope="row">{{ c.name }}</th><td>{{ "%.3f"|format(c.estimate) }}</td><td>{{ "%.3f"|format(c.se) }}</td><td>{{ "%.3f"|format(c.ci_lb) }} to {{ "%.3f"|format(c.ci_ub) }}</td><td>{{ "%.4f"|format(c.p) if c.p is not none else "n/a" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if pooled.heterogeneity %}
+  {% set h = pooled.heterogeneity %}
+  <h3>Heterogeneity</h3>
+  <p>tau = {{ "%.3f"|format(h.tau) }} (tau&sup2; = {{ "%.3f"|format(h.tau2) }}),
+     I&sup2; = {{ "%.1f"|format(h.I2) }}%, Q({{ h.Q_df }}) = {{ "%.2f"|format(h.Q) }}, p = {{ "%.4f"|format(h.Q_p) }}.</p>
+  {% endif %}
+  {% if pooled.prediction_interval %}
+  {% set pi = pooled.prediction_interval %}
+  <p>{% if pi.lb is not none %}95% prediction interval {{ "%.3f"|format(pi.lb) }} to {{ "%.3f"|format(pi.ub) }} ({{ pi.convention }}).
+     {% else %}No prediction interval: {{ pi.reason }}.{% endif %}</p>
+  {% endif %}
+</section>
+
+{% if estimates.publication_bias %}
+<section aria-labelledby="bias-h">
+  <h2 id="bias-h">Small-study effects</h2>
+  <ul>
+    {% for name in ["egger", "begg", "pet_peese", "trim_fill"] %}
+    {% if estimates.publication_bias.get(name) %}
+    <li>{{ estimates.publication_bias[name].interpretation }}
+      {% if estimates.publication_bias[name].forced_underpowered %}<span class="missing-note">(underpowered; computed with --force)</span>{% endif %}</li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+  <p class="field-meta">These are sensitivity analyses; none corrects for publication bias.</p>
+</section>
+{% endif %}
+
+{% if estimates.sweeps %}
+<section aria-labelledby="sweeps-h">
+  <h2 id="sweeps-h">Assumptions swept</h2>
+  {% for key, sweep in estimates.sweeps.items() %}
+  <table class="stage-table">
+    <caption>{{ sweep.note }}</caption>
+    <thead><tr><th scope="col">{{ "rho" if sweep["values"][0].rho is defined else "r" }}</th><th scope="col">Estimate</th><th scope="col">95% CI</th></tr></thead>
+    <tbody>
+      {% for v in sweep["values"] %}
+      <tr><th scope="row">{{ v.rho if v.rho is defined else v.r }}</th><td>{{ "%.3f"|format(v.estimate) }}</td><td>{{ "%.3f"|format(v.ci_lb) }} to {{ "%.3f"|format(v.ci_ub) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if estimates.sensitivity %}
+<section aria-labelledby="sens-h">
+  <h2 id="sens-h">Sensitivity analyses</h2>
+  {% for sid, s in estimates.sensitivity.items() %}
+  {% if s.type == "influence_diagnostics" %}
+  {% set flagged = s.results | selectattr("flags") | list %}
+  <h3>{{ sid }}: influence diagnostics</h3>
+  {% if flagged %}
+  <ul>{% for r in flagged %}<li>{{ r.label }}: {{ r.flags | join(", ") }}</li>{% endfor %}</ul>
+  {% else %}<p>No effect is flagged as influential.</p>{% endif %}
+  <p class="field-meta">{{ s.note }}</p>
+  {% else %}
+  <h3>{{ sid }}: {{ s.type | replace("_", " ") }}</h3>
+  <table class="stage-table">
+    <thead><tr><th scope="col">Step</th><th scope="col">Estimate</th><th scope="col">95% CI</th><th scope="col">I&sup2;</th></tr></thead>
+    <tbody>
+      {% for r in s.results %}
+      <tr><th scope="row">{{ r.label or r.subset or r.omitted }}</th><td>{{ "%.3f"|format(r.estimate) if r.estimate is not none else "n/a" }}</td><td>{% if r.ci_lb is not none %}{{ "%.3f"|format(r.ci_lb) }} to {{ "%.3f"|format(r.ci_ub) }}{% endif %}</td><td>{{ "%.1f"|format(r.I2) if r.I2 is not none else "" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if plots %}
+<section aria-labelledby="plots-h">
+  <h2 id="plots-h">Plots</h2>
+  {% for plot in plots %}
+  <figure class="plot-figure">
+    <img src="/analysis/{{ id }}/plots/{{ plot }}" alt="{{ plot[:-4] | capitalize }} plot of {{ estimates.k_studies }} studies, {{ estimates.measure }}">
+    <figcaption>{{ plot[:-4] | capitalize }} plot &middot; <a href="/analysis/{{ id }}/plots/{{ plot }}">open the SVG</a></figcaption>
+  </figure>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if study_rows %}
+<section aria-labelledby="studies-h">
+  <h2 id="studies-h">Values behind the plots</h2>
+  <table class="stage-table study-values">
+    <thead><tr>{% for h in study_headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for row in study_rows %}
+      <tr>{% for cell in row %}{% if loop.first %}<th scope="row">{{ cell }}</th>{% else %}<td>{{ cell }}</td>{% endif %}{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section aria-labelledby="repro-h">
+  <h2 id="repro-h">Reproducibility</h2>
+  <p class="field-meta">strata {{ run.strata_version }} &middot; engine {{ run.engine }} &middot; input digest <code>{{ run.input_digest }}</code>
+  {% if run.generated_from_commit %}&middot; produced at commit <code>{{ run.generated_from_commit }}</code>{% endif %}</p>
+  {% if forced %}<p class="missing-note">Guardrail bypasses recorded: {{ forced | join(", ") }}.</p>{% endif %}
+</section>
+{% endif %}
+
+<p><a href="/analysis">&larr; All analyses</a> &middot; <a href="/">Dashboard</a></p>
+{% endblock %}

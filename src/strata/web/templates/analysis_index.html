@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Analyses{% endblock %}
+{% block content %}
+<h1>Analyses</h1>
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Analysis</th>
+      <th scope="col">Results</th>
+      <th scope="col">Open</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in analyses %}
+    <tr>
+      <th scope="row">{{ a.title }}<br><span class="field-meta">{{ a.id }} &middot; {{ a.label }}</span></th>
+      <td>
+        {% if a.state == "fresh" %}<span class="done-note">current</span>
+        {% elif a.state == "missing" %}<span class="todo-note">not run yet</span>
+        {% else %}<span class="missing-note">{{ a.state }}</span>{% endif %}
+      </td>
+      <td><a href="/analysis/{{ a.id }}">View &rarr;</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No analyses yet. Add <code>analysis/&lt;id&gt;.yaml</code> and run <code>strata analyze</code>.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><a href="/">&larr; Back to dashboard</a></p>
+{% endblock %}

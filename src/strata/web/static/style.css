@@ -314,3 +314,9 @@ tr.missing th, tr.missing td { background: rgba(255, 193, 7, 0.12); }
 .effect-preview { font-size: 1.1em; }
 .rob-domain, .reconcile-item, .warning-row { margin: 1.5em 0; }
 .record-title { font-weight: 600; }
+
+/* Analysis screens */
+.plot-figure { margin: 1.5em 0; }
+.plot-figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--border); border-radius: 0.35rem; }
+.warning-list { padding-left: 1.2em; }
+.study-values { font-size: 0.9em; }

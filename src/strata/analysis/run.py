@@ -101,6 +101,7 @@ def run_record(
             "warnings": [
                 {
                     "code": w["code"],
+                    "message": w["message"],
                     "acknowledged": w["acknowledged"],
                     "forced": w["forced"],
                 }

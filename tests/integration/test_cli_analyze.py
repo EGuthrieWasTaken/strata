@@ -132,7 +132,9 @@ def test_force_bypasses_the_guardrail_and_records_it(tmp_path: Path) -> None:
     assert "forced" in out.output
     run = json.loads(repo.path("analysis", "results", "primary", "run.json").read_text())
     assert run["forced_bypasses"] == ["Egger's test"]
-    assert {"code": "k-lt-10-bias-tests", "acknowledged": False, "forced": True} in run["warnings"]
+    flagged = next(w for w in run["warnings"] if w["code"] == "k-lt-10-bias-tests")
+    assert flagged["forced"] and not flagged["acknowledged"]
+    assert "underpowered" in flagged["message"]
 
 
 def test_acknowledging_a_warning_is_recorded(tmp_path: Path) -> None:
