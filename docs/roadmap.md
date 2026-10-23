@@ -197,7 +197,7 @@ established or lost.
 
 ---
 
-## M5 — Reporting *(planned: `add-prisma-reporting`)*
+## M5 — Reporting *(implemented; `add-prisma-reporting` stays open for two items — see [`m5-plan.md`](m5-plan.md))*
 
 **Scope**: PRISMA flow diagram and count reconciliation; checklist generation;
 Methods/Results/characteristics/amendments prose; manuscript export via pandoc;

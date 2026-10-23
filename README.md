@@ -37,8 +37,8 @@ rather have quietly rewritten.
 ## Status
 
 **M0 (substrate), M1 ("literature in"), M2 ("screening and staleness"), and
-M3 ("full text and extraction") are complete, and M4 ("analysis") is
-implemented apart from one open test-suite item (below).** The
+M3 ("full text and extraction") are complete, and M4 ("analysis") and M5
+("reporting") are implemented apart from the open items named below.** The
 pull-request gate, the repository format's core (event log, canonical
 serialisation, identity and normalisation, the fold), and
 `init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
@@ -107,9 +107,33 @@ say when committed results are stale. One item is open: the Hedges & Olkin
 worked example could not be reproduced because its tables were not available;
 see [`docs/m4-plan.md`](docs/m4-plan.md).
 
+M5 turns the repository into the reporting a review owes its readers. Every
+PRISMA 2020 count is derived from the event log with its reconciliation
+identities asserted (`derived/counts.json`; a count that does not close is
+`E_COUNT_RECONCILE`, naming the identity), and `strata prisma` draws the flow
+diagram from them in SVG, PDF, PNG or JSON (including the input shape of the
+`PRISMA2020` R package), in one column or with the records found by other
+methods in a second, watermarked DRAFT while screening is unfinished or any
+decision is stale. `strata report checklist` fills in the 27-item checklist where
+the repository knows the answer, says where it holds the material, and names what
+only the author can write (certainty of evidence and the discussion among them).
+`strata report methods|results|characteristics|amendments|rob|manuscript`
+drafts those sections from the repository under strict rules (marked with the
+commit, numbers only from the results, no causal or significance language, the
+caveat of every guardrail that fired, and never a Discussion or Conclusion);
+the amendments section reports each change to the eligibility criteria after
+screening began with what it invalidated and what became of it. `strata export
+bibliography` lists the included, excluded-at-full-text, screened or
+not-retrieved records as BibTeX, CSL-JSON or RIS, and `strata export package`
+builds the supplement PRISMA item 27 asks for with no full text in it. Two items
+are open: the checklist wording has not been compared with the official
+template, and a methodologist has not yet read the generated Methods; see
+[`docs/m5-plan.md`](docs/m5-plan.md).
+
 See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m1-plan.md`](docs/m1-plan.md) / [`docs/m2-plan.md`](docs/m2-plan.md) /
-[`docs/m3-plan.md`](docs/m3-plan.md) / [`docs/m4-plan.md`](docs/m4-plan.md) for
+[`docs/m3-plan.md`](docs/m3-plan.md) / [`docs/m4-plan.md`](docs/m4-plan.md) /
+[`docs/m5-plan.md`](docs/m5-plan.md) for
 the sub-objective-by-sub-objective status of each milestone, including what is
 deliberately partial.
 

@@ -7,6 +7,28 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M5: reporting** (OpenSpec change `add-prisma-reporting`, in flight until its two open
+  items close). `derived/counts.json` holds every PRISMA 2020 count, derived from the
+  import manifests, records, decisions, retrievals and study grouping and partitioned by
+  where each record was found, with the reconciliation identities asserted
+  (`E_COUNT_RECONCILE` in `strata verify` and before any report). `strata prisma` draws
+  the flow diagram (SVG, PDF, PNG, JSON with the `PRISMA2020` R package input; one or two
+  columns; reasons beyond six collapsed with the full table beside it; a DRAFT watermark
+  and `--allow-stale` while decisions are stale) and `/prisma` shows it live. `strata
+  report checklist [--status]` writes the 27-item checklist as auto-filled, auto-located
+  or author, with item 24c generated from the criteria-change events (what each
+  amendment invalidated and what became of it) and funding and competing-interest
+  statements read from new `[project.funding]` and `[project.competing_interests]`
+  tables. `strata report methods|results|characteristics|amendments|rob|manuscript`
+  drafts those sections (and a risk-of-bias table and traffic-light plot) under the
+  rules for generated prose, with pandoc export to docx, LaTeX and HTML; a Discussion or
+  Conclusion is refused. `strata export bibliography --set included|excluded-at-fulltext|
+  all-screened|not-retrieved` (BibTeX, CSL-JSON, RIS) and `strata export package` (no
+  full text, a required data licence, deterministic bytes). New tests: P11 over random
+  review histories, E2E-03 through to the package, E2E-01's generated amendment and
+  reconciled counts, golden flow diagrams. Open: the checklist wording is not yet compared
+  with the official template, and the generated Methods have not had a methodologist's
+  review. See `docs/m5-plan.md`.
 - **M4: analysis** (OpenSpec change `add-meta-analysis`, in flight until its last
   test-suite item closes). `strata analyze [<id>] [--all] [--check]` runs the
   versioned `analysis/<id>.yaml` specifications and writes
