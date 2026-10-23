@@ -78,14 +78,16 @@ def test_a_different_hash_seed_gives_the_same_bytes(tmp_path: Path) -> None:
         "from strata.analysis import engine, plots, rows, spec as sp\n"
         "from tests.unit._m4 import meta_repo, write_spec\n"
         "repo = meta_repo(Path(sys.argv[1]))\n"
-        "write_spec(repo, plots=['forest', 'funnel', 'baujat', 'bubble'], publication_bias=['egger', 'trim_fill'],\n"
+        "write_spec(repo, plots=['forest', 'funnel', 'baujat', 'bubble'],\n"
+        "  publication_bias=['egger', 'trim_fill'],\n"
         "  moderators=[{'name': 'dose', 'type': 'continuous'}],\n"
         "  model={'type': 'random-effects', 'tau2_estimator': 'REML', 'ci_method': 'wald'})\n"
         "spec = sp.load_spec(repo, 'primary')\n"
         "result = engine.run_analysis(spec, rows.build_rows(repo, spec), force=True)\n"
         "import hashlib\n"
         "for n in ['forest', 'funnel', 'baujat', 'bubble']:\n"
-        "    print(n, hashlib.sha256(plots.render(plots.BUILDERS[n](spec, result), 'svg')).hexdigest())\n"
+        "    svg = plots.render(plots.BUILDERS[n](spec, result), 'svg')\n"
+        "    print(n, hashlib.sha256(svg).hexdigest())\n"
     )
     root = str(Path(__file__).resolve().parents[2])
     outputs = []
