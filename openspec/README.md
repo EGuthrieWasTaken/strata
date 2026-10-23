@@ -114,9 +114,10 @@ review (`openspec:repository-format#format-versioning`).
 
 A few requirements in `specs/` are ahead of the code:
 
-- `strata sync`, `strata migrate`, `strata moderators`, `strata note`, and
-  `strata gc --imports` (`collaboration-sync`, `repository-format`, `cli`,
-  `repository-verification`). `strata sync` is scheduled first in M5.1.
+- `strata migrate`, `strata moderators`, `strata note`, and
+  `strata gc --imports` (`repository-format`, `cli`, `repository-verification`).
+  `strata sync` (`collaboration-sync`) is built; its rebase strategy and editor
+  option are only lightly covered (see `docs/m5-1-plan.md`).
 - EndNote XML, Excel, and PRISMA-style citation-list parsers
   (`literature-import`; deferred in M1, tracked in
   `add-distribution-and-adoption`).

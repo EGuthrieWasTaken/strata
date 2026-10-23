@@ -7,6 +7,18 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M5.1: `strata sync`** (capability `collaboration-sync`). One command to share a review through
+  a git remote: it refuses a dirty tree, fetches with the 2/4/8/16-second retry, fast-forwards or
+  merges, puts merged event files back in canonical order and re-links their hash chains (writing
+  a `relink` event), regenerates the derived views, verifies, and restores the repository
+  untouched with nothing pushed if verification fails; then it pushes (up to three rounds when
+  someone pushed meanwhile) and says what changed in terms of people and decisions. Dual
+  screening never conflicts; a criterion reworded by two people is shown as `mine` and `theirs`
+  and settled with `--resolve mine|theirs`, a prompt or an editor. `strata merge-regenerate` and
+  `strata merge-records` are the git merge drivers `init` and `doctor --fix` install; the records
+  driver merges field by field and its decisions become `record-amend` events. A clone without
+  the drivers still syncs. E2E-02 now runs two CLI-driven collaborators through repeated syncs.
+  Partial: the rebase strategy and the editor option are lightly tested; see `docs/m5-1-plan.md`.
 - **M5: reporting** (OpenSpec change `add-prisma-reporting`, in flight until its two open
   items close). `derived/counts.json` holds every PRISMA 2020 count, derived from the
   import manifests, records, decisions, retrievals and study grouping and partitioned by

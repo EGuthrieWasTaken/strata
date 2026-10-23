@@ -234,7 +234,7 @@ and open question Q11, now decided.
 | Topology | `strata` runs | Repository | Status |
 |---|---|---|---|
 | Solo | Locally (native or container) | Local, optionally pushed for backup | works today |
-| Local stacks, shared remote | On each collaborator's machine | Shared git remote | works today with plain git; `strata sync` makes it one command |
+| Local stacks, shared remote | On each collaborator's machine | Shared git remote | `strata sync` is one command (built in M5.1; see [`m5-1-plan.md`](m5-1-plan.md)) |
 | Hosted instance | On a server the team runs, from the container image | Instance working copy synced with the shared remote | `add-hosted-team-deployment` |
 
 The topologies interoperate: hosted and local collaborators can work on the same
@@ -244,9 +244,9 @@ files in the same repository format.
 **Sequencing.** This milestone does not block M3–M5, and its first two pieces
 can start immediately:
 
-1. **`strata sync`** — already specified (`openspec:collaboration-sync`) but not
-   yet implemented; it is the shared-remote workflow and the engine of the
-   hosted sync loop.
+1. **`strata sync`** — *built*: the shared-remote workflow
+   (`openspec:collaboration-sync`) and the engine of the hosted sync loop; see
+   [`m5-1-plan.md`](m5-1-plan.md) for what it does and what is deliberately partial.
 2. **Container image** (`add-container-image`) — one image that runs every
    `strata` command and the local web UI against a mounted repository, with
    host-supplied git credentials, a public-URL setting for header validation, a
