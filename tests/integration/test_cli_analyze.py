@@ -15,7 +15,9 @@ from strata.core.ids import report_id
 from strata.core.repo import Repo
 from strata.core.verify import verify_repository
 from strata.extract import records as rec_mod
+from strata.protocol import criteria as criteria_mod
 from strata.protocol import retrieval
+from strata.protocol import screening as screening_mod
 from tests.unit._m3 import add_records, decide, rec
 from tests.unit._m4 import MEANS, meta_repo, write_spec
 from tests.unit.test_extract_records import study
@@ -178,11 +180,26 @@ def test_status_and_verify_report_a_stale_analysis(tmp_path: Path) -> None:
 def test_screening_does_not_rerun_analyses(tmp_path: Path) -> None:
     repo = _review(tmp_path)
     _cli(repo, "analyze", "primary")
-    results = repo.path("analysis", "results", "primary", "run.json")
-    before = results.read_bytes()
-    decide(repo, "title-abstract", [rec(1)], decision="include")
+    results = repo.path("analysis", "results", "primary")
+    before = {p.name: p.read_bytes() for p in results.iterdir() if p.is_file()}
+    criterion = criteria_mod.add_criterion(
+        repo, kind="exclusion", label="Case reports", definition="Single-patient reports",
+        applies_at=["full-text"], actor="ethan", rationale="Excluding case reports.",
+    )  # fmt: skip
+    for actor in ("ethan", "sam"):
+        screening_mod.record_screen_decision(
+            repo, stage="full-text", record_id=rec(1), decision="exclude", actor=actor,
+            cited=[criterion["id"]],
+        )  # fmt: skip
     _commit_all(repo)
-    assert results.read_bytes() == before
+    assert {p.name: p.read_bytes() for p in results.iterdir() if p.is_file()} == before
+    status = _json(repo, "status")
+    assert status["analyses"][0]["state"] == "stale-data"
+    # The new criterion also made earlier decisions stale, which comes before re-analysis.
+    assert status["next_action"] == "strata rescreen"
+    _cli(repo, "analyze", "primary")
+    assert _json(repo, "status")["analyses"][0]["state"] == "fresh"
+    assert json.loads((results / "estimates.json").read_text())["k_studies"] == 11
 
 
 # --- strata diff -------------------------------------------------------------------------------
