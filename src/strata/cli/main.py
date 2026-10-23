@@ -29,6 +29,9 @@ from strata.analysis import plots as analysis_plots
 from strata.analysis import rows as analysis_rows
 from strata.analysis import run as analysis_run
 from strata.analysis import spec as analysis_mod_spec
+from strata.ci import amendment as ci_amendment_mod
+from strata.ci import comment as ci_comment_mod
+from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
@@ -117,12 +120,18 @@ criteria_app = typer.Typer(
 export_app = typer.Typer(
     name="export", help="Export data for analysis elsewhere.", no_args_is_help=True
 )
+ci_app = typer.Typer(
+    name="ci",
+    help="Helpers the review-repository CI workflow uses.",
+    no_args_is_help=True,
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
 app.add_typer(export_app, name="export")
+app.add_typer(ci_app, name="ci")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -295,8 +304,24 @@ def init(
     actor_handle: str | None = typer.Option(None, "--actor", help="Your actor handle"),
     actor_name: str | None = typer.Option(None, "--actor-name"),
     actor_email: str | None = typer.Option(None, "--actor-email"),
+    ci: bool = typer.Option(
+        False, "--ci", help="Also install the GitHub Actions workflow that checks pull requests"
+    ),
+    ci_ref: str | None = typer.Option(
+        None, "--ci-ref", help="With --ci: the strata tag, branch or commit the checks run from"
+    ),
+    methodologist: str | None = typer.Option(
+        None,
+        "--methodologist",
+        help="With --ci: GitHub login asked to review a change to the criteria",
+    ),
 ) -> None:
-    """Create a repository: layout, strata.toml, .gitattributes, hooks, merge drivers, commit."""
+    """Create a repository: layout, strata.toml, .gitattributes, hooks, merge drivers, commit.
+
+    With --ci the repository also gets .github/workflows/strata.yml, which runs `strata verify`,
+    comments what a pull request does to the review, and labels changes to the criteria
+    (openspec:review-repository-ci).
+    """
     interactive = sys.stdin.isatty()
     if title is None:
         if interactive:
@@ -313,6 +338,19 @@ def init(
     if actor_name is None:
         actor_name = typer.prompt("Your name") if interactive else actor_handle
 
+    if (ci_ref or methodologist) and not ci:
+        err_console.print("[red]error:[/] --ci-ref and --methodologist only apply with --ci")
+        raise typer.Exit(EXIT_USAGE)
+    extra_files = (
+        {
+            ci_workflows.CALLER_PATH: ci_workflows.caller_workflow(
+                ref=ci_ref, methodologist=methodologist
+            )
+        }
+        if ci
+        else None
+    )
+
     root = Path(path).resolve()
     try:
         init_mod.init_repository(
@@ -322,6 +360,7 @@ def init(
             actor_name=actor_name,
             actor_email=actor_email,
             remote=remote,
+            extra_files=extra_files,
         )
     except init_mod.InitError as exc:
         err_console.print(f"[red]error:[/] {exc}")
@@ -3741,6 +3780,73 @@ def report_command(
         _print_json({"section": name, "written": written})
         return
     out_console.print(f"[green]wrote[/] {', '.join(written)}")
+
+
+@ci_app.command("amendment")
+def ci_amendment(
+    ctx: typer.Context,
+    base: str = typer.Option(..., "--base", help="The commit the change is made against"),
+    head: str = typer.Option("HEAD", "--head", help="The commit with the change"),
+) -> None:
+    """Did the change between two commits edit the review criteria? (JSON)
+
+    Compares `protocol/criteria.yaml` as data, so reformatting is not an amendment. The CI
+    workflow labels such a pull request `protocol-amendment`.
+
+    Example: strata ci amendment --base origin/main --head HEAD
+    """
+    repo = _resolve_repo(ctx)
+    try:
+        found = ci_amendment_mod.detect(repo.root, base, head)
+    except gitio.GitError as exc:
+        err_console.print(f"[red]error:[/] {exc.stderr.strip() or exc}")
+        raise typer.Exit(EXIT_GENERIC) from None
+    _print_json(found.to_dict())
+
+
+@ci_app.command("comment")
+def ci_comment(
+    base: str = typer.Argument(..., help="`strata --json status` at the base (`null` if none)"),
+    head: str = typer.Argument(..., help="`strata --json status` at the head"),
+    amendment: str | None = typer.Option(
+        None, "--amendment", help="The JSON `strata ci amendment` printed"
+    ),
+    methodologist: str | None = typer.Option(
+        None, "--methodologist", help="Who is asked to review a change to the criteria"
+    ),
+) -> None:
+    """Write the pull-request comment (Markdown) from two status documents.
+
+    Example: strata ci comment base.json head.json --amendment amendment.json
+    """
+    try:
+        before = json_mod.loads(Path(base).read_text(encoding="utf-8"))
+        after = json_mod.loads(Path(head).read_text(encoding="utf-8"))
+        found = None
+        if amendment is not None:
+            raw = json_mod.loads(Path(amendment).read_text(encoding="utf-8"))
+            found = ci_amendment_mod.Amendment(
+                changed=bool(raw["changed"]),
+                version_before=raw.get("version_before"),
+                version_after=raw.get("version_after"),
+                added=list(raw.get("added", [])),
+                changed_criteria=dict(raw.get("changed_criteria", {})),
+                retired=list(raw.get("retired", [])),
+            )
+    except (OSError, ValueError, KeyError) as exc:
+        err_console.print(f"[red]error:[/] cannot read the status documents: {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if not isinstance(after, dict):
+        err_console.print("[red]error:[/] the head status is not a status document")
+        raise typer.Exit(EXIT_USAGE)
+    sys.stdout.write(
+        ci_comment_mod.render(
+            before if isinstance(before, dict) else None,
+            after,
+            amendment=found,
+            methodologist=methodologist,
+        )
+    )
 
 
 @app.command("sync")

@@ -127,6 +127,8 @@ def test_compute_status_reports_conflicts_and_stale(tmp_path: Path) -> None:
     tiab = next(s for s in status.stages if s.stage == "title-abstract")
     assert tiab.conflicts == 1
     assert tiab.stale == 1  # record 2's include is now stale (criterion-added)
+    # the pull-request comment reads these two: record 2 is the one resolved, included, stale paper
+    assert tiab.included == 1 and tiab.stale_included == 1
     assert status.next_action == "strata adjudicate"  # conflicts outrank stale
 
 

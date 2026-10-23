@@ -1,0 +1,112 @@
+name: Strata review CI
+
+# openspec:review-repository-ci. A reusable workflow for review repositories (not for this
+# repository's own CI, which is ci.yml): call it from a review repository with
+# `strata init --ci`, or by hand:
+#
+#   jobs:
+#     strata:
+#       permissions: { contents: read, pull-requests: write }
+#       uses: EGuthrieWasTaken/strata/.github/workflows/review-ci.yml@<tag>
+#       with: { strata-ref: <tag>, methodologist: some-login }
+#
+# Built on `strata verify`, `strata status --json` and the committed criteria file only. The
+# trigger is the caller's `pull_request`, never `pull_request_target`: a fork's pull request runs
+# with a read-only token and no secrets, so for those the comment, label and review request are
+# skipped and the verify check still runs.
+on:
+  workflow_call:
+    inputs:
+      strata-ref:
+        description: Tag, branch or commit of the strata repository to install the CLI from.
+        type: string
+        required: true
+      methodologist:
+        description: GitHub login (or org/team) to ask to review a change to the criteria.
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  STRATA_REF: ${{ inputs.strata-ref }}
+
+jobs:
+  verify:
+    name: strata verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install strata
+        run: uv tool install "git+https://github.com/EGuthrieWasTaken/strata@${STRATA_REF}"
+      - name: strata verify
+        run: strata verify
+
+  pool-impact:
+    name: pool impact
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      METHODOLOGIST: ${{ inputs.methodologist }}
+      CAN_WRITE: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install strata
+        run: uv tool install "git+https://github.com/EGuthrieWasTaken/strata@${STRATA_REF}"
+      - name: Compare the review before and after
+        run: |
+          out="$RUNNER_TEMP/strata-ci"
+          mkdir -p "$out"
+          strata --json status > "$out/head.json"
+          if git cat-file -e "$BASE_SHA:strata.toml" 2>/dev/null; then
+            git worktree add --detach "$out/base" "$BASE_SHA"
+            strata --json -C "$out/base" status > "$out/base.json"
+          else
+            echo null > "$out/base.json"
+          fi
+          strata ci amendment --base "$BASE_SHA" --head HEAD > "$out/amendment.json"
+          args=(--amendment "$out/amendment.json")
+          if [ -n "$METHODOLOGIST" ]; then args+=(--methodologist "$METHODOLOGIST"); fi
+          strata ci comment "$out/base.json" "$out/head.json" "${args[@]}" > "$out/comment.md"
+          cat "$out/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "AMENDED=$(jq -r .changed "$out/amendment.json")" >> "$GITHUB_ENV"
+          echo "OUT=$out" >> "$GITHUB_ENV"
+      - name: Post the comment
+        if: env.CAN_WRITE == 'true'
+        run: |
+          marker='<!-- strata-review-ci -->'
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" -F "body=@${OUT}/comment.md"
+          else
+            gh pr comment "$PR" --body-file "${OUT}/comment.md"
+          fi
+      - name: Label a change to the criteria and ask the methodologist
+        if: env.CAN_WRITE == 'true'
+        run: |
+          if [ "$AMENDED" = "true" ]; then
+            gh label create protocol-amendment --color D93F0B \
+              --description "Changes the review criteria" 2>/dev/null || true
+            gh pr edit "$PR" --add-label protocol-amendment
+            if [ -n "$METHODOLOGIST" ]; then
+              gh pr edit "$PR" --add-reviewer "$METHODOLOGIST" \
+                || echo "::warning::could not request a review from $METHODOLOGIST"
+            fi
+          else
+            gh pr edit "$PR" --remove-label protocol-amendment 2>/dev/null || true
+          fi

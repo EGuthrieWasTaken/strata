@@ -302,7 +302,8 @@ review repository.
   `strata` owns the decisions.
 - The reusable **review-repository CI workflow** and `strata verify` action
   (`add-review-repository-ci`), so review teams get pre-merge assurance for
-  their data. Depends only on M0, so it may land earlier.
+  their data. Depends only on M0, so it may land earlier. *Written and tested
+  locally; not yet run on GitHub — see [`m6-plan.md`](m6-plan.md).*
 - Translations.
 
 ---

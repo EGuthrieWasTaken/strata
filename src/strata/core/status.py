@@ -42,6 +42,8 @@ class StageStatus:
     partial: int
     conflicts: int
     stale: int
+    included: int = 0  # of the resolved, how many are included (the rest were excluded)
+    stale_included: int = 0  # of the stale decisions, how many are `include` decisions
 
 
 @dataclass
@@ -143,6 +145,8 @@ def _compute_stage_status(
             partial=partial,
             conflicts=conflicts,
             stale=stale,
+            included=len(included),
+            stale_included=sum(1 for r in included if stage in stale_by_record.get(r, ())),
         ),
         included,
     )

@@ -134,7 +134,8 @@ See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m1-plan.md`](docs/m1-plan.md) / [`docs/m2-plan.md`](docs/m2-plan.md) /
 [`docs/m3-plan.md`](docs/m3-plan.md) / [`docs/m4-plan.md`](docs/m4-plan.md) /
 [`docs/m5-plan.md`](docs/m5-plan.md) /
-[`docs/m5-1-plan.md`](docs/m5-1-plan.md) for
+[`docs/m5-1-plan.md`](docs/m5-1-plan.md) /
+[`docs/m6-plan.md`](docs/m6-plan.md) for
 the sub-objective-by-sub-objective status of each milestone, including what is
 deliberately partial.
 

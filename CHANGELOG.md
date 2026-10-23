@@ -7,6 +7,15 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
+  init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata
+  verify`, comments what the change does to the review (records entering and leaving, decisions invalidated,
+  conflicts opened) and labels a change to the criteria `protocol-amendment` with a review request to the
+  methodologist. It calls the reusable workflow `.github/workflows/review-ci.yml`; `actions/verify` is a
+  composite action that installs `strata` from its own checkout and runs `strata verify`. New helper
+  commands `strata ci amendment` and `strata ci comment`; `strata status --json` gained `included` and
+  `stale_included` per stage. Written and tested locally (the workflow's shell steps run against a fake
+  `gh`); not yet run on GitHub and no release tag exists yet. See `docs/m6-plan.md`.
 - **M5.1: `strata sync`** (capability `collaboration-sync`). One command to share a review through
   a git remote: it refuses a dirty tree, fetches with the 2/4/8/16-second retry, fast-forwards or
   merges, puts merged event files back in canonical order and re-links their hash chains (writing
