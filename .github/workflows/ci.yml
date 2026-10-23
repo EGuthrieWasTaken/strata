@@ -95,7 +95,7 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
-      - run: uv run pytest -q -n auto --junit-xml=pytest-report.xml
+      - run: uv run pytest -q -n auto --durations=25 --junit-xml=pytest-report.xml
         env:
           PYTHONHASHSEED: random
       - name: Upload pytest report
@@ -170,8 +170,10 @@ jobs:
     # that (confirmed via the job log: "1017 passed... in 1507.84s
     # (0:25:07)" followed immediately by the cancellation, not a test
     # failure). Raised with real headroom this time instead of the same
-    # too-tight-by-a-few-minutes mistake.
-    timeout-minutes: 35
+    # too-tight-by-a-few-minutes mistake. The M3-M6 suite (2,300+ tests) took 34 minutes without
+    # instrumentation on a four-core runner and was cancelled at 35 with it, so the budget is
+    # now the same as the matrix legs'.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -186,7 +188,7 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
-      - run: uv run pytest -q -n auto --cov=strata --cov-report=xml --cov-report=term-missing
+      - run: uv run pytest -q -n auto --durations=25 --cov=strata --cov-report=xml --cov-report=term-missing
       - name: Enforce global coverage floors (openspec:test-suite#test-levels-and-coverage-floors)
         run: uv run coverage report --fail-under=90
       - name: Diff coverage against base branch (openspec:test-suite#diff-coverage)

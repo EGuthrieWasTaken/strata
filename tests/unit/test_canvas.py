@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 import xml.etree.ElementTree as ET
 
@@ -105,6 +106,25 @@ def test_element_ids_are_content_derived_unique_and_stable() -> None:
     other.add(cv.Circle(150, 70, 5, "accent2"))
     circle_id = re.search(r'id="(circle-[0-9a-f]{8})"', other.render_svg())
     assert circle_id is not None and circle_id.group(1) in ids
+
+
+def test_a_last_bit_difference_in_a_coordinate_does_not_change_the_ids() -> None:
+    """The ids are part of the golden bytes, and a coordinate that differs in its last bit between
+    platforms prints the same: the id follows what is drawn, not the raw float."""
+    nudged = math.nextafter(150.0, 151.0)
+    assert nudged != 150.0
+
+    def drawing(x: float) -> str:
+        c = cv.Canvas(200, 100, "t", "d")
+        c.add(
+            cv.Circle(x, 70, 5),
+            cv.Polygon(((x, 1.0), (10.0, 20.0), (30.0, x)), "accent"),
+            cv.Text(x, 10, "a", bold=True),
+        )
+        return c.render_svg()
+
+    assert drawing(150.0) == drawing(nudged)
+    assert drawing(150.0) != drawing(150.5)
 
 
 def test_identical_shapes_get_distinct_ids() -> None:

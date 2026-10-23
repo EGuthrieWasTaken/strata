@@ -2,58 +2,58 @@
 <title id="strata-title">Funnel plot: Effect of spaced practice on recall</title>
 <desc id="strata-desc">Contour-enhanced funnel plot of 12 effects (SMD); the vertical line is the pooled estimate and the shaded regions mark p &lt; .10, .05 and .01 around no effect.</desc>
 <style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
-<rect id="rect-c62fa5b3" class="f-surface" x="0" y="0" width="560" height="440"/>
-<text id="text-273a868f" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Funnel plot: Effect of spaced practice on recall</text>
-<polygon id="polygon-66d5c988" class="f-tint1" points="124,50 210.95,380 530,380 530,50"/>
-<polygon id="polygon-c07b6495" class="f-tint1" points="124,50 70,380 70,380 70,50"/>
-<polygon id="polygon-8edd196c" class="f-tint2" points="124,50 227.6,380 530,380 530,50"/>
-<polygon id="polygon-4c1fb6b9" class="f-tint2" points="124,50 70,380 70,380 70,50"/>
-<polygon id="polygon-c0c691e3" class="f-tint3" points="124,50 260.16,380 530,380 530,50"/>
-<polygon id="polygon-a9d5b25c" class="f-tint3" points="124,50 70,380 70,380 70,50"/>
-<polygon id="polygon-2dce8e14" class="s-ink" fill="none" points="300,50 196.39,380 403.61,380"/>
-<line id="line-0eec0df4" class="s-accent2" x1="300" y1="50" x2="300" y2="380" stroke-width="1.5"/>
-<line id="line-5a980a08" class="s-muted" x1="124" y1="50" x2="124" y2="380" stroke-width="1" stroke-dasharray="4 3"/>
-<circle id="circle-53fe9d88" class="f-accent" cx="360.46" cy="330.8" r="3.5"/>
-<circle id="circle-4ca246d2" class="s-ink" fill="none" cx="360.46" cy="330.8" r="3.5"/>
-<circle id="circle-5eb65dab" class="f-accent" cx="163.42" cy="294.61" r="3.5"/>
-<circle id="circle-f747b118" class="s-ink" fill="none" cx="163.42" cy="294.61" r="3.5"/>
-<circle id="circle-f884ea81" class="f-accent" cx="297.54" cy="307.78" r="3.5"/>
-<circle id="circle-0a84a2d1" class="s-ink" fill="none" cx="297.54" cy="307.78" r="3.5"/>
-<circle id="circle-eded0820" class="f-accent" cx="447.53" cy="343.02" r="3.5"/>
-<circle id="circle-f54f8fb4" class="s-ink" fill="none" cx="447.53" cy="343.02" r="3.5"/>
-<circle id="circle-1668a968" class="f-accent" cx="218.72" cy="288.26" r="3.5"/>
-<circle id="circle-82d0bc1b" class="s-ink" fill="none" cx="218.72" cy="288.26" r="3.5"/>
-<circle id="circle-1f6b1195" class="f-accent" cx="400.37" cy="320.99" r="3.5"/>
-<circle id="circle-952cbea8" class="s-ink" fill="none" cx="400.37" cy="320.99" r="3.5"/>
-<circle id="circle-7a29e6ba" class="f-accent" cx="266.17" cy="288.04" r="3.5"/>
-<circle id="circle-5b4b0e43" class="s-ink" fill="none" cx="266.17" cy="288.04" r="3.5"/>
-<circle id="circle-db1c9b51" class="f-accent" cx="519.05" cy="350" r="3.5"/>
-<circle id="circle-3626712f" class="s-ink" fill="none" cx="519.05" cy="350" r="3.5"/>
-<circle id="circle-925cfb48" class="f-accent" cx="187.22" cy="272.94" r="3.5"/>
-<circle id="circle-c0a3079e" class="s-ink" fill="none" cx="187.22" cy="272.94" r="3.5"/>
-<circle id="circle-aacac0d8" class="f-accent" cx="337.44" cy="292.04" r="3.5"/>
-<circle id="circle-73c36690" class="s-ink" fill="none" cx="337.44" cy="292.04" r="3.5"/>
-<circle id="circle-e7212fbd" class="f-accent" cx="242.6" cy="272.87" r="3.5"/>
-<circle id="circle-2cbdb6f5" class="s-ink" fill="none" cx="242.6" cy="272.87" r="3.5"/>
-<circle id="circle-59b70ff3" class="f-accent" cx="384.99" cy="297.04" r="3.5"/>
-<circle id="circle-30deabbf" class="s-ink" fill="none" cx="384.99" cy="297.04" r="3.5"/>
-<line id="line-fe860f4a" class="s-ink" x1="70" y1="380" x2="530" y2="380" stroke-width="1"/>
-<line id="line-6e7fde34" class="s-ink" x1="70" y1="50" x2="70" y2="380" stroke-width="1"/>
-<line id="line-65711b27" class="s-ink" x1="124" y1="380" x2="124" y2="384" stroke-width="1"/>
-<text id="text-ad3f101c" class="f-muted" x="124" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
-<line id="line-3ab98c2e" class="s-ink" x1="280.11" y1="380" x2="280.11" y2="384" stroke-width="1"/>
-<text id="text-57843c44" class="f-muted" x="280.11" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">1</text>
-<line id="line-22d6b95f" class="s-ink" x1="436.22" y1="380" x2="436.22" y2="384" stroke-width="1"/>
-<text id="text-2ba7238d" class="f-muted" x="436.22" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">2</text>
-<line id="line-526268ed" class="s-ink" x1="66" y1="50" x2="70" y2="50" stroke-width="1"/>
-<text id="text-15f54de8" class="f-muted" x="62" y="53" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0</text>
-<line id="line-4c8ef767" class="s-ink" x1="66" y1="147.46" x2="70" y2="147.46" stroke-width="1"/>
-<text id="text-c98e21d6" class="f-muted" x="62" y="150.46" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.1</text>
-<line id="line-92d1139d" class="s-ink" x1="66" y1="244.91" x2="70" y2="244.91" stroke-width="1"/>
-<text id="text-90a70c6a" class="f-muted" x="62" y="247.91" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.2</text>
-<line id="line-7a2bb442" class="s-ink" x1="66" y1="342.37" x2="70" y2="342.37" stroke-width="1"/>
-<text id="text-88ddab6d" class="f-muted" x="62" y="345.37" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.3</text>
-<text id="text-47c21f2b" class="f-ink" x="300" y="420" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle">SMD</text>
-<text id="text-261e50b2" class="f-ink" x="18" y="215" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 18 215)">Standard error</text>
-<text id="text-b6ac4d40" class="f-muted" x="70" y="434" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">Shaded regions: p &lt; .10, p &lt; .05, p &lt; .01 (light to dark); contours 0.1, 0.05, 0.01.</text>
+<rect id="rect-252f7085" class="f-surface" x="0" y="0" width="560" height="440"/>
+<text id="text-3ce3904e" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Funnel plot: Effect of spaced practice on recall</text>
+<polygon id="polygon-fab547fd" class="f-tint1" points="124,50 210.95,380 530,380 530,50"/>
+<polygon id="polygon-f803ad7f" class="f-tint1" points="124,50 70,380 70,380 70,50"/>
+<polygon id="polygon-71c6ff2c" class="f-tint2" points="124,50 227.6,380 530,380 530,50"/>
+<polygon id="polygon-7f40a774" class="f-tint2" points="124,50 70,380 70,380 70,50"/>
+<polygon id="polygon-30f3898e" class="f-tint3" points="124,50 260.16,380 530,380 530,50"/>
+<polygon id="polygon-39f23d64" class="f-tint3" points="124,50 70,380 70,380 70,50"/>
+<polygon id="polygon-5e7d3c8f" class="s-ink" fill="none" points="300,50 196.39,380 403.61,380"/>
+<line id="line-919e0c3b" class="s-accent2" x1="300" y1="50" x2="300" y2="380" stroke-width="1.5"/>
+<line id="line-e7982792" class="s-muted" x1="124" y1="50" x2="124" y2="380" stroke-width="1" stroke-dasharray="4 3"/>
+<circle id="circle-22e04b8f" class="f-accent" cx="360.46" cy="330.8" r="3.5"/>
+<circle id="circle-19bffef9" class="s-ink" fill="none" cx="360.46" cy="330.8" r="3.5"/>
+<circle id="circle-07e7c3b3" class="f-accent" cx="163.42" cy="294.61" r="3.5"/>
+<circle id="circle-005d8887" class="s-ink" fill="none" cx="163.42" cy="294.61" r="3.5"/>
+<circle id="circle-dcef6133" class="f-accent" cx="297.54" cy="307.78" r="3.5"/>
+<circle id="circle-1d2641c6" class="s-ink" fill="none" cx="297.54" cy="307.78" r="3.5"/>
+<circle id="circle-ce61597d" class="f-accent" cx="447.53" cy="343.02" r="3.5"/>
+<circle id="circle-9e392717" class="s-ink" fill="none" cx="447.53" cy="343.02" r="3.5"/>
+<circle id="circle-f2b04c2e" class="f-accent" cx="218.72" cy="288.26" r="3.5"/>
+<circle id="circle-dfe0047e" class="s-ink" fill="none" cx="218.72" cy="288.26" r="3.5"/>
+<circle id="circle-ddc1c8e1" class="f-accent" cx="400.37" cy="320.99" r="3.5"/>
+<circle id="circle-49349999" class="s-ink" fill="none" cx="400.37" cy="320.99" r="3.5"/>
+<circle id="circle-898f71a9" class="f-accent" cx="266.17" cy="288.04" r="3.5"/>
+<circle id="circle-92c92475" class="s-ink" fill="none" cx="266.17" cy="288.04" r="3.5"/>
+<circle id="circle-c0843abb" class="f-accent" cx="519.05" cy="350" r="3.5"/>
+<circle id="circle-fdf645ff" class="s-ink" fill="none" cx="519.05" cy="350" r="3.5"/>
+<circle id="circle-68ac0a14" class="f-accent" cx="187.22" cy="272.94" r="3.5"/>
+<circle id="circle-eb3c29a8" class="s-ink" fill="none" cx="187.22" cy="272.94" r="3.5"/>
+<circle id="circle-75716161" class="f-accent" cx="337.44" cy="292.04" r="3.5"/>
+<circle id="circle-971be81f" class="s-ink" fill="none" cx="337.44" cy="292.04" r="3.5"/>
+<circle id="circle-409d612e" class="f-accent" cx="242.6" cy="272.87" r="3.5"/>
+<circle id="circle-2dd07ea8" class="s-ink" fill="none" cx="242.6" cy="272.87" r="3.5"/>
+<circle id="circle-bc5e669f" class="f-accent" cx="384.99" cy="297.04" r="3.5"/>
+<circle id="circle-3aca7994" class="s-ink" fill="none" cx="384.99" cy="297.04" r="3.5"/>
+<line id="line-c55d660f" class="s-ink" x1="70" y1="380" x2="530" y2="380" stroke-width="1"/>
+<line id="line-cdcf86f6" class="s-ink" x1="70" y1="50" x2="70" y2="380" stroke-width="1"/>
+<line id="line-2cf903b8" class="s-ink" x1="124" y1="380" x2="124" y2="384" stroke-width="1"/>
+<text id="text-5f5aaf98" class="f-muted" x="124" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
+<line id="line-f2e36314" class="s-ink" x1="280.11" y1="380" x2="280.11" y2="384" stroke-width="1"/>
+<text id="text-47cf18d3" class="f-muted" x="280.11" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">1</text>
+<line id="line-01076278" class="s-ink" x1="436.22" y1="380" x2="436.22" y2="384" stroke-width="1"/>
+<text id="text-43f0f196" class="f-muted" x="436.22" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">2</text>
+<line id="line-e9f1f449" class="s-ink" x1="66" y1="50" x2="70" y2="50" stroke-width="1"/>
+<text id="text-8bf65d0d" class="f-muted" x="62" y="53" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0</text>
+<line id="line-85656b1e" class="s-ink" x1="66" y1="147.46" x2="70" y2="147.46" stroke-width="1"/>
+<text id="text-cd8f7510" class="f-muted" x="62" y="150.46" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.1</text>
+<line id="line-16c5bc65" class="s-ink" x1="66" y1="244.91" x2="70" y2="244.91" stroke-width="1"/>
+<text id="text-6502745f" class="f-muted" x="62" y="247.91" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.2</text>
+<line id="line-ba0e51c1" class="s-ink" x1="66" y1="342.37" x2="70" y2="342.37" stroke-width="1"/>
+<text id="text-98c87203" class="f-muted" x="62" y="345.37" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.3</text>
+<text id="text-b04174ea" class="f-ink" x="300" y="420" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle">SMD</text>
+<text id="text-71d33e0c" class="f-ink" x="18" y="215" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 18 215)">Standard error</text>
+<text id="text-e7878d46" class="f-muted" x="70" y="434" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">Shaded regions: p &lt; .10, p &lt; .05, p &lt; .01 (light to dark); contours 0.1, 0.05, 0.01.</text>
 </svg>

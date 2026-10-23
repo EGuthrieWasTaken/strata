@@ -2,51 +2,51 @@
 <title id="strata-title">Baujat plot: Effect of spaced practice on recall</title>
 <desc id="strata-desc">Baujat plot of 12 effects: contribution to heterogeneity (x) against influence on the pooled estimate (y).</desc>
 <style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
-<rect id="rect-1653759a" class="f-surface" x="0" y="0" width="520" height="420"/>
-<text id="text-14a54414" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Baujat plot: Effect of spaced practice on recall</text>
-<line id="line-5b0ede7a" class="s-ink" x1="70" y1="360" x2="490" y2="360" stroke-width="1"/>
-<line id="line-5a026c6f" class="s-ink" x1="70" y1="50" x2="70" y2="360" stroke-width="1"/>
-<line id="line-d77b5b48" class="s-ink" x1="70" y1="360" x2="70" y2="364" stroke-width="1"/>
-<text id="text-3bf47e1f" class="f-muted" x="70" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
-<line id="line-1aa396da" class="s-ink" x1="164.34" y1="360" x2="164.34" y2="364" stroke-width="1"/>
-<text id="text-f538bb20" class="f-muted" x="164.34" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">5</text>
-<line id="line-b9825c95" class="s-ink" x1="258.69" y1="360" x2="258.69" y2="364" stroke-width="1"/>
-<text id="text-aed5be1e" class="f-muted" x="258.69" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">10</text>
-<line id="line-bc8d17e5" class="s-ink" x1="353.03" y1="360" x2="353.03" y2="364" stroke-width="1"/>
-<text id="text-44f3eec8" class="f-muted" x="353.03" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">15</text>
-<line id="line-19242fdb" class="s-ink" x1="447.37" y1="360" x2="447.37" y2="364" stroke-width="1"/>
-<text id="text-22d5e4ed" class="f-muted" x="447.37" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">20</text>
-<line id="line-8d2f14e7" class="s-ink" x1="66" y1="360" x2="70" y2="360" stroke-width="1"/>
-<text id="text-2454576d" class="f-muted" x="62" y="363" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0</text>
-<line id="line-66651479" class="s-ink" x1="66" y1="248.02" x2="70" y2="248.02" stroke-width="1"/>
-<text id="text-195109c6" class="f-muted" x="62" y="251.02" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.5</text>
-<line id="line-82ccda19" class="s-ink" x1="66" y1="136.04" x2="70" y2="136.04" stroke-width="1"/>
-<text id="text-e96e7e53" class="f-muted" x="62" y="139.04" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">1</text>
-<polygon id="polygon-a3d26a1b" class="f-accent" points="100.93,328.71 105.93,337.71 95.93,337.71"/>
-<text id="text-9f91e547" class="f-ink" x="107.93" y="329.71" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">1</text>
-<polygon id="polygon-2d434caf" class="f-accent" points="308.97,81.1 313.97,90.1 303.97,90.1"/>
-<text id="text-f945bbff" class="f-ink" x="315.97" y="82.1" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">2</text>
-<polygon id="polygon-7e9536b8" class="f-accent" points="70.31,354.68 75.31,363.68 65.31,363.68"/>
-<text id="text-3a9beb06" class="f-ink" x="77.31" y="355.68" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">3</text>
-<polygon id="polygon-0c5e56c0" class="f-accent" points="249.22,215.93 254.22,224.93 244.22,224.93"/>
-<text id="text-22de6226" class="f-ink" x="256.22" y="216.93" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">4</text>
-<polygon id="polygon-0be3e0eb" class="f-accent" points="161.71,243.63 166.71,252.63 156.71,252.63"/>
-<text id="text-cc8b36be" class="f-ink" x="168.71" y="244.63" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">5</text>
-<polygon id="polygon-f5d11873" class="f-accent" points="165.19,267.67 170.19,276.67 160.19,276.67"/>
-<text id="text-3feb667d" class="f-ink" x="172.19" y="268.67" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">6</text>
-<polygon id="polygon-98ab5f2d" class="f-accent" points="87.47,333.74 92.47,342.74 82.47,342.74"/>
-<text id="text-1c3f25b4" class="f-ink" x="94.47" y="334.74" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">7</text>
-<polygon id="polygon-02789440" class="f-accent" points="451.82,73.18 456.82,82.18 446.82,82.18"/>
-<text id="text-65af9399" class="f-ink" x="458.82" y="74.18" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">8</text>
-<polygon id="polygon-16f9452c" class="f-accent" points="267.86,76.53 272.86,85.53 262.86,85.53"/>
-<text id="text-4bbd651f" class="f-ink" x="274.86" y="77.53" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">9</text>
-<polygon id="polygon-206fe9d3" class="f-accent" points="85,337.41 90,346.41 80,346.41"/>
-<text id="text-0db88881" class="f-ink" x="92" y="338.41" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">10</text>
-<polygon id="polygon-bb9140d0" class="f-accent" points="123.76,279.28 128.76,288.28 118.76,288.28"/>
-<text id="text-ef516664" class="f-ink" x="130.76" y="280.28" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">11</text>
-<polygon id="polygon-c9497a91" class="f-accent" points="151.26,263.86 156.26,272.86 146.26,272.86"/>
-<text id="text-dcb3a1ba" class="f-ink" x="158.26" y="264.86" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">12</text>
-<text id="text-4a2c8e40" class="f-ink" x="280" y="400" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle">Contribution to overall heterogeneity</text>
-<text id="text-1b589f70" class="f-ink" x="18" y="205" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 18 205)">Influence on the pooled estimate</text>
-<text id="text-1ca15a07" class="f-muted" x="70" y="414" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">Numbers are the rows of studies.tsv.</text>
+<rect id="rect-fc692f25" class="f-surface" x="0" y="0" width="520" height="420"/>
+<text id="text-f3ac4c3b" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Baujat plot: Effect of spaced practice on recall</text>
+<line id="line-d865c2c6" class="s-ink" x1="70" y1="360" x2="490" y2="360" stroke-width="1"/>
+<line id="line-d4b6bdf2" class="s-ink" x1="70" y1="50" x2="70" y2="360" stroke-width="1"/>
+<line id="line-1f274d63" class="s-ink" x1="70" y1="360" x2="70" y2="364" stroke-width="1"/>
+<text id="text-00b7d7f3" class="f-muted" x="70" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
+<line id="line-3faffb75" class="s-ink" x1="164.34" y1="360" x2="164.34" y2="364" stroke-width="1"/>
+<text id="text-e0a28ca6" class="f-muted" x="164.34" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">5</text>
+<line id="line-2c43d9d1" class="s-ink" x1="258.69" y1="360" x2="258.69" y2="364" stroke-width="1"/>
+<text id="text-388f57b4" class="f-muted" x="258.69" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">10</text>
+<line id="line-80fdf8d1" class="s-ink" x1="353.03" y1="360" x2="353.03" y2="364" stroke-width="1"/>
+<text id="text-b9377ab1" class="f-muted" x="353.03" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">15</text>
+<line id="line-4ec48af4" class="s-ink" x1="447.37" y1="360" x2="447.37" y2="364" stroke-width="1"/>
+<text id="text-c9578b75" class="f-muted" x="447.37" y="376" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">20</text>
+<line id="line-5f2d2806" class="s-ink" x1="66" y1="360" x2="70" y2="360" stroke-width="1"/>
+<text id="text-e1d44029" class="f-muted" x="62" y="363" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0</text>
+<line id="line-d32ebb73" class="s-ink" x1="66" y1="248.02" x2="70" y2="248.02" stroke-width="1"/>
+<text id="text-b5d4a870" class="f-muted" x="62" y="251.02" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.5</text>
+<line id="line-701568cc" class="s-ink" x1="66" y1="136.04" x2="70" y2="136.04" stroke-width="1"/>
+<text id="text-bc39434e" class="f-muted" x="62" y="139.04" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">1</text>
+<polygon id="polygon-8c55a92f" class="f-accent" points="100.93,328.71 105.93,337.71 95.93,337.71"/>
+<text id="text-e87de786" class="f-ink" x="107.93" y="329.71" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">1</text>
+<polygon id="polygon-ba31546b" class="f-accent" points="308.97,81.1 313.97,90.1 303.97,90.1"/>
+<text id="text-ebeab1cc" class="f-ink" x="315.97" y="82.1" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">2</text>
+<polygon id="polygon-722127b2" class="f-accent" points="70.31,354.68 75.31,363.68 65.31,363.68"/>
+<text id="text-56386af9" class="f-ink" x="77.31" y="355.68" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">3</text>
+<polygon id="polygon-c4e49bd5" class="f-accent" points="249.22,215.93 254.22,224.93 244.22,224.93"/>
+<text id="text-928a2f43" class="f-ink" x="256.22" y="216.93" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">4</text>
+<polygon id="polygon-fb7d7e0a" class="f-accent" points="161.71,243.63 166.71,252.63 156.71,252.63"/>
+<text id="text-f6d20fa8" class="f-ink" x="168.71" y="244.63" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">5</text>
+<polygon id="polygon-f45f3b47" class="f-accent" points="165.19,267.67 170.19,276.67 160.19,276.67"/>
+<text id="text-06813ecb" class="f-ink" x="172.19" y="268.67" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">6</text>
+<polygon id="polygon-3f3c7f86" class="f-accent" points="87.47,333.74 92.47,342.74 82.47,342.74"/>
+<text id="text-5f8d36ed" class="f-ink" x="94.47" y="334.74" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">7</text>
+<polygon id="polygon-3bc515a5" class="f-accent" points="451.82,73.18 456.82,82.18 446.82,82.18"/>
+<text id="text-87b214aa" class="f-ink" x="458.82" y="74.18" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">8</text>
+<polygon id="polygon-4ed4fe61" class="f-accent" points="267.86,76.53 272.86,85.53 262.86,85.53"/>
+<text id="text-1bbe9499" class="f-ink" x="274.86" y="77.53" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">9</text>
+<polygon id="polygon-3ce71212" class="f-accent" points="85,337.41 90,346.41 80,346.41"/>
+<text id="text-0966be9b" class="f-ink" x="92" y="338.41" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">10</text>
+<polygon id="polygon-2a5b4b73" class="f-accent" points="123.76,279.28 128.76,288.28 118.76,288.28"/>
+<text id="text-072f38f0" class="f-ink" x="130.76" y="280.28" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">11</text>
+<polygon id="polygon-a008b847" class="f-accent" points="151.26,263.86 156.26,272.86 146.26,272.86"/>
+<text id="text-2d318d2b" class="f-ink" x="158.26" y="264.86" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">12</text>
+<text id="text-4ff79653" class="f-ink" x="280" y="400" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle">Contribution to overall heterogeneity</text>
+<text id="text-8cdd0e4b" class="f-ink" x="18" y="205" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 18 205)">Influence on the pooled estimate</text>
+<text id="text-e96476cf" class="f-muted" x="70" y="414" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">Numbers are the rows of studies.tsv.</text>
 </svg>

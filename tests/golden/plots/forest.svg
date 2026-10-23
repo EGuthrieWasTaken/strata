@@ -2,96 +2,96 @@
 <title id="strata-title">Forest plot: Effect of spaced practice on recall</title>
 <desc id="strata-desc">Forest plot of 12 effects (SMD) with the pooled estimate 1.13.</desc>
 <style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
-<rect id="rect-3a76c05d" class="f-surface" x="0" y="0" width="760" height="436"/>
-<text id="text-efa7fdb4" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Forest plot: Effect of spaced practice on recall</text>
-<text id="text-f4203829" class="f-muted" x="10" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Study</text>
-<text id="text-8d9a4470" class="f-muted" x="270" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">n</text>
-<text id="text-0f4d15bc" class="f-muted" x="532" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">SMD [CI]</text>
-<text id="text-d5a868e3" class="f-muted" x="750" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">Weight</text>
-<text id="text-55bd489d" class="f-ink" x="10" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author1 (2001) [recall 1 week]</text>
-<text id="text-a8a7d989" class="f-muted" x="270" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">62</text>
-<line id="line-939c5afd" class="s-ink" x1="380.52" y1="66" x2="447.48" y2="66" stroke-width="1"/>
-<rect id="rect-5dde22d9" class="f-accent" x="407.14" y="59.15" width="13.71" height="13.71"/>
-<text id="text-d2289ae3" class="f-ink" x="532" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.51 [0.95, 2.08]</text>
-<text id="text-df8e24b9" class="f-muted" x="750" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.1%</text>
-<text id="text-7b3a5495" class="f-ink" x="10" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author2 (2002) [recall 1 week]</text>
-<text id="text-7cdef969" class="f-muted" x="270" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">64</text>
-<line id="line-7921242e" class="s-ink" x1="310" y1="86" x2="368.33" y2="86" stroke-width="1"/>
-<rect id="rect-b270425d" class="f-accent" x="332.22" y="79.05" width="13.9" height="13.9"/>
-<text id="text-db3086d5" class="f-ink" x="532" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.25 [-0.24, 0.74]</text>
-<text id="text-307a6841" class="f-muted" x="750" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
-<text id="text-d6afcbf0" class="f-ink" x="10" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author3 (2003) [recall 1 week]</text>
-<text id="text-176c903d" class="f-muted" x="270" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">66</text>
-<line id="line-06738d04" class="s-ink" x1="359.36" y1="106" x2="420.84" y2="106" stroke-width="1"/>
-<rect id="rect-8853e5a9" class="f-accent" x="383.19" y="99.09" width="13.83" height="13.83"/>
-<text id="text-c862d33b" class="f-ink" x="532" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.11 [0.59, 1.63]</text>
-<text id="text-d9333f67" class="f-muted" x="750" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.3%</text>
-<text id="text-84adcc4e" class="f-ink" x="10" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author4 (2004) [recall 1 week]</text>
-<text id="text-53010b10" class="f-muted" x="270" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">68</text>
-<line id="line-ad531e22" class="s-ink" x1="412.13" y1="126" x2="482.01" y2="126" stroke-width="1"/>
-<rect id="rect-b084c40c" class="f-accent" x="440.25" y="119.18" width="13.64" height="13.64"/>
-<text id="text-2c800593" class="f-ink" x="532" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">2.07 [1.48, 2.66]</text>
-<text id="text-4780dd21" class="f-muted" x="750" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.0%</text>
-<text id="text-8151f6f3" class="f-ink" x="10" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author5 (2005) [recall 1 week]</text>
-<text id="text-67d517ea" class="f-muted" x="270" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">70</text>
-<line id="line-b0d1ad01" class="s-ink" x1="331.76" y1="146" x2="388.58" y2="146" stroke-width="1"/>
-<rect id="rect-049c292e" class="f-accent" x="353.21" y="139.04" width="13.93" height="13.93"/>
-<text id="text-7c040890" class="f-ink" x="532" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.61 [0.13, 1.09]</text>
-<text id="text-a754f391" class="f-muted" x="750" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.5%</text>
-<text id="text-d506fa6d" class="f-ink" x="10" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author6 (2006) [recall 1 week]</text>
-<text id="text-1047bbd2" class="f-muted" x="270" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">72</text>
-<line id="line-dd90441d" class="s-ink" x1="396.84" y1="166" x2="461.47" y2="166" stroke-width="1"/>
-<rect id="rect-c19d429e" class="f-accent" x="422.28" y="159.12" width="13.76" height="13.76"/>
-<text id="text-9558660a" class="f-ink" x="532" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.77 [1.23, 2.32]</text>
-<text id="text-29ca8cb7" class="f-muted" x="750" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.2%</text>
-<text id="text-78ee9523" class="f-ink" x="10" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author7 (2007) [recall 1 week]</text>
-<text id="text-19ce880d" class="f-muted" x="270" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">74</text>
-<line id="line-b8e17066" class="s-ink" x1="349.81" y1="186" x2="406.57" y2="186" stroke-width="1"/>
-<rect id="rect-f0e13427" class="f-accent" x="371.23" y="179.04" width="13.93" height="13.93"/>
-<text id="text-27ce5f97" class="f-ink" x="532" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.91 [0.43, 1.39]</text>
-<text id="text-6d230c46" class="f-muted" x="750" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.5%</text>
-<text id="text-44dfedbb" class="f-ink" x="10" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author8 (2008) [recall 1 week]</text>
-<text id="text-f41cdf38" class="f-muted" x="270" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">76</text>
-<line id="line-ab6efb2f" class="s-ink" x1="438.46" y1="206" x2="510" y2="206" stroke-width="1"/>
-<rect id="rect-51272698" class="f-accent" x="467.43" y="199.2" width="13.6" height="13.6"/>
-<text id="text-1e3be02f" class="f-ink" x="532" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">2.53 [1.93, 3.13]</text>
-<text id="text-8b9cc8e4" class="f-muted" x="750" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">7.9%</text>
-<text id="text-6ce60ebd" class="f-ink" x="10" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author9 (2009) [recall 1 week]</text>
-<text id="text-446f2281" class="f-muted" x="270" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">78</text>
-<line id="line-60c420eb" class="s-ink" x1="321.62" y1="226" x2="374.79" y2="226" stroke-width="1"/>
-<rect id="rect-3d2b8e51" class="f-accent" x="341.21" y="219" width="14" height="14"/>
-<text id="text-e9d8e1ad" class="f-ink" x="532" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.40 [-0.04, 0.85]</text>
-<text id="text-073be8ff" class="f-muted" x="750" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.6%</text>
-<text id="text-91217fd1" class="f-ink" x="10" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author10 (2010) [recall 1 week]</text>
-<text id="text-56d70c55" class="f-muted" x="270" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">80</text>
-<line id="line-c113bf0c" class="s-ink" x1="376.39" y1="246" x2="434.12" y2="246" stroke-width="1"/>
-<rect id="rect-3fd2e516" class="f-accent" x="398.3" y="239.05" width="13.91" height="13.91"/>
-<text id="text-5fc8bbcb" class="f-ink" x="532" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.37 [0.88, 1.85]</text>
-<text id="text-f1c952b1" class="f-muted" x="750" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
-<text id="text-1c70fc5b" class="f-ink" x="10" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author11 (2011) [recall 1 week]</text>
-<text id="text-e470bb04" class="f-muted" x="270" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">82</text>
-<line id="line-406c9aa8" class="s-ink" x1="342.66" y1="266" x2="395.81" y2="266" stroke-width="1"/>
-<rect id="rect-0e59bc4d" class="f-accent" x="362.24" y="259" width="14" height="14"/>
-<text id="text-b055a70c" class="f-ink" x="532" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.76 [0.31, 1.21]</text>
-<text id="text-72bf606f" class="f-muted" x="750" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.6%</text>
-<text id="text-58c74237" class="f-ink" x="10" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author12 (2012) [recall 1 week]</text>
-<text id="text-4f722219" class="f-muted" x="270" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">84</text>
-<line id="line-0ee1495c" class="s-ink" x1="393.86" y1="286" x2="452.77" y2="286" stroke-width="1"/>
-<rect id="rect-4ebd740f" class="f-accent" x="416.37" y="279.06" width="13.88" height="13.88"/>
-<text id="text-a8f0fa3e" class="f-ink" x="532" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.67 [1.18, 2.17]</text>
-<text id="text-1a8553b6" class="f-muted" x="750" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
-<text id="text-7ef9bea7" class="f-ink" x="10" y="320" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Pooled</text>
-<polygon id="polygon-705680fc" class="f-accent2" points="339.33,316 391.04,309 442.74,316 391.04,323"/>
-<text id="text-d030fe15" class="f-ink" x="532" y="320" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">1.13 [0.26, 2.00]</text>
-<line id="line-7d702906" class="s-ink" x1="300" y1="340" x2="520" y2="340" stroke-width="1"/>
-<line id="line-a148f579" class="s-ink" x1="324.19" y1="340" x2="324.19" y2="344" stroke-width="1"/>
-<text id="text-08411a56" class="f-muted" x="324.19" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
-<line id="line-1623ae1a" class="s-ink" x1="383.48" y1="340" x2="383.48" y2="344" stroke-width="1"/>
-<text id="text-a65fa1c3" class="f-muted" x="383.48" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">1</text>
-<line id="line-5d2ff64e" class="s-ink" x1="442.77" y1="340" x2="442.77" y2="344" stroke-width="1"/>
-<text id="text-1659b5d3" class="f-muted" x="442.77" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">2</text>
-<line id="line-7f617385" class="s-ink" x1="502.06" y1="340" x2="502.06" y2="344" stroke-width="1"/>
-<text id="text-1942bd6d" class="f-muted" x="502.06" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">3</text>
-<line id="line-6fd2d72f" class="s-muted" x1="324.19" y1="56" x2="324.19" y2="340" stroke-width="1" stroke-dasharray="4 3"/>
-<text id="text-2c5f9ee1" class="f-muted" x="10" y="378" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">k = 12; tau = 0.671; I2 = 86.3%; Q(10) = 72.79, p = &lt;0.001</text>
+<rect id="rect-cdc997bc" class="f-surface" x="0" y="0" width="760" height="436"/>
+<text id="text-80bcba08" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Forest plot: Effect of spaced practice on recall</text>
+<text id="text-36280480" class="f-muted" x="10" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Study</text>
+<text id="text-ac1c915a" class="f-muted" x="270" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">n</text>
+<text id="text-ccebcf42" class="f-muted" x="532" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">SMD [CI]</text>
+<text id="text-74b922ce" class="f-muted" x="750" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">Weight</text>
+<text id="text-b6db4c3d" class="f-ink" x="10" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author1 (2001) [recall 1 week]</text>
+<text id="text-4729a581" class="f-muted" x="270" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">62</text>
+<line id="line-c06e0dd4" class="s-ink" x1="380.52" y1="66" x2="447.48" y2="66" stroke-width="1"/>
+<rect id="rect-4bab6a1f" class="f-accent" x="407.14" y="59.15" width="13.71" height="13.71"/>
+<text id="text-292dae8c" class="f-ink" x="532" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.51 [0.95, 2.08]</text>
+<text id="text-57b17a33" class="f-muted" x="750" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.1%</text>
+<text id="text-02288aca" class="f-ink" x="10" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author2 (2002) [recall 1 week]</text>
+<text id="text-67f1db7c" class="f-muted" x="270" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">64</text>
+<line id="line-0a5e40c0" class="s-ink" x1="310" y1="86" x2="368.33" y2="86" stroke-width="1"/>
+<rect id="rect-4b3834d4" class="f-accent" x="332.22" y="79.05" width="13.9" height="13.9"/>
+<text id="text-a9ac454a" class="f-ink" x="532" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.25 [-0.24, 0.74]</text>
+<text id="text-aaf7874e" class="f-muted" x="750" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
+<text id="text-c36e4995" class="f-ink" x="10" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author3 (2003) [recall 1 week]</text>
+<text id="text-e4b6fe9f" class="f-muted" x="270" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">66</text>
+<line id="line-11af6258" class="s-ink" x1="359.36" y1="106" x2="420.84" y2="106" stroke-width="1"/>
+<rect id="rect-d8ceae48" class="f-accent" x="383.19" y="99.09" width="13.83" height="13.83"/>
+<text id="text-c6f49647" class="f-ink" x="532" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.11 [0.59, 1.63]</text>
+<text id="text-ca57b5b3" class="f-muted" x="750" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.3%</text>
+<text id="text-07813508" class="f-ink" x="10" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author4 (2004) [recall 1 week]</text>
+<text id="text-c3f161cf" class="f-muted" x="270" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">68</text>
+<line id="line-261ee0dc" class="s-ink" x1="412.13" y1="126" x2="482.01" y2="126" stroke-width="1"/>
+<rect id="rect-d60e609e" class="f-accent" x="440.25" y="119.18" width="13.64" height="13.64"/>
+<text id="text-a603e975" class="f-ink" x="532" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">2.07 [1.48, 2.66]</text>
+<text id="text-a98d41dd" class="f-muted" x="750" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.0%</text>
+<text id="text-7fcfbf0e" class="f-ink" x="10" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author5 (2005) [recall 1 week]</text>
+<text id="text-073c62c6" class="f-muted" x="270" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">70</text>
+<line id="line-2ffc4299" class="s-ink" x1="331.76" y1="146" x2="388.58" y2="146" stroke-width="1"/>
+<rect id="rect-1aac4dbd" class="f-accent" x="353.21" y="139.04" width="13.93" height="13.93"/>
+<text id="text-07621d7a" class="f-ink" x="532" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.61 [0.13, 1.09]</text>
+<text id="text-6aaf0f45" class="f-muted" x="750" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.5%</text>
+<text id="text-251fd77b" class="f-ink" x="10" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author6 (2006) [recall 1 week]</text>
+<text id="text-7f8d3f11" class="f-muted" x="270" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">72</text>
+<line id="line-e81ae31f" class="s-ink" x1="396.84" y1="166" x2="461.47" y2="166" stroke-width="1"/>
+<rect id="rect-0dbeb6eb" class="f-accent" x="422.28" y="159.12" width="13.76" height="13.76"/>
+<text id="text-d64a6a2f" class="f-ink" x="532" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.77 [1.23, 2.32]</text>
+<text id="text-c40e63d8" class="f-muted" x="750" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.2%</text>
+<text id="text-87742532" class="f-ink" x="10" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author7 (2007) [recall 1 week]</text>
+<text id="text-008db339" class="f-muted" x="270" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">74</text>
+<line id="line-1fabefd5" class="s-ink" x1="349.81" y1="186" x2="406.57" y2="186" stroke-width="1"/>
+<rect id="rect-e5bb19af" class="f-accent" x="371.23" y="179.04" width="13.93" height="13.93"/>
+<text id="text-c0cb477f" class="f-ink" x="532" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.91 [0.43, 1.39]</text>
+<text id="text-93f4e0f4" class="f-muted" x="750" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.5%</text>
+<text id="text-1ed052fa" class="f-ink" x="10" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author8 (2008) [recall 1 week]</text>
+<text id="text-cb677f1c" class="f-muted" x="270" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">76</text>
+<line id="line-11081479" class="s-ink" x1="438.46" y1="206" x2="510" y2="206" stroke-width="1"/>
+<rect id="rect-81eddf56" class="f-accent" x="467.43" y="199.2" width="13.6" height="13.6"/>
+<text id="text-6baf9bab" class="f-ink" x="532" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">2.53 [1.93, 3.13]</text>
+<text id="text-65270f09" class="f-muted" x="750" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">7.9%</text>
+<text id="text-27f8c8cd" class="f-ink" x="10" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author9 (2009) [recall 1 week]</text>
+<text id="text-ff6f2e78" class="f-muted" x="270" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">78</text>
+<line id="line-d60c6af8" class="s-ink" x1="321.62" y1="226" x2="374.79" y2="226" stroke-width="1"/>
+<rect id="rect-8c5f0f70" class="f-accent" x="341.21" y="219" width="14" height="14"/>
+<text id="text-bea7e73e" class="f-ink" x="532" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.40 [-0.04, 0.85]</text>
+<text id="text-749af513" class="f-muted" x="750" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.6%</text>
+<text id="text-7ead81b6" class="f-ink" x="10" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author10 (2010) [recall 1 week]</text>
+<text id="text-d5ea8406" class="f-muted" x="270" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">80</text>
+<line id="line-8795b6ad" class="s-ink" x1="376.39" y1="246" x2="434.12" y2="246" stroke-width="1"/>
+<rect id="rect-a718879e" class="f-accent" x="398.3" y="239.05" width="13.91" height="13.91"/>
+<text id="text-2291f044" class="f-ink" x="532" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.37 [0.88, 1.85]</text>
+<text id="text-8ebcf0de" class="f-muted" x="750" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
+<text id="text-29677f4c" class="f-ink" x="10" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author11 (2011) [recall 1 week]</text>
+<text id="text-7280cf9f" class="f-muted" x="270" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">82</text>
+<line id="line-b3eb09c0" class="s-ink" x1="342.66" y1="266" x2="395.81" y2="266" stroke-width="1"/>
+<rect id="rect-0403f833" class="f-accent" x="362.24" y="259" width="14" height="14"/>
+<text id="text-69921fa3" class="f-ink" x="532" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.76 [0.31, 1.21]</text>
+<text id="text-bcc66651" class="f-muted" x="750" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.6%</text>
+<text id="text-c703ad36" class="f-ink" x="10" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Author12 (2012) [recall 1 week]</text>
+<text id="text-493a7d77" class="f-muted" x="270" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">84</text>
+<line id="line-cb94a789" class="s-ink" x1="393.86" y1="286" x2="452.77" y2="286" stroke-width="1"/>
+<rect id="rect-58b55b6a" class="f-accent" x="416.37" y="279.06" width="13.88" height="13.88"/>
+<text id="text-974bd2fc" class="f-ink" x="532" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.67 [1.18, 2.17]</text>
+<text id="text-67c4325d" class="f-muted" x="750" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
+<text id="text-8c235fef" class="f-ink" x="10" y="320" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Pooled</text>
+<polygon id="polygon-4668dfc7" class="f-accent2" points="339.33,316 391.04,309 442.74,316 391.04,323"/>
+<text id="text-cf13426f" class="f-ink" x="532" y="320" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">1.13 [0.26, 2.00]</text>
+<line id="line-007437b1" class="s-ink" x1="300" y1="340" x2="520" y2="340" stroke-width="1"/>
+<line id="line-9a710e38" class="s-ink" x1="324.19" y1="340" x2="324.19" y2="344" stroke-width="1"/>
+<text id="text-b80f9964" class="f-muted" x="324.19" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0</text>
+<line id="line-a75746aa" class="s-ink" x1="383.48" y1="340" x2="383.48" y2="344" stroke-width="1"/>
+<text id="text-7f68aa34" class="f-muted" x="383.48" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">1</text>
+<line id="line-c7f6092f" class="s-ink" x1="442.77" y1="340" x2="442.77" y2="344" stroke-width="1"/>
+<text id="text-bc5ef017" class="f-muted" x="442.77" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">2</text>
+<line id="line-f9d232da" class="s-ink" x1="502.06" y1="340" x2="502.06" y2="344" stroke-width="1"/>
+<text id="text-37bd0ceb" class="f-muted" x="502.06" y="356" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">3</text>
+<line id="line-ec67d99a" class="s-muted" x1="324.19" y1="56" x2="324.19" y2="340" stroke-width="1" stroke-dasharray="4 3"/>
+<text id="text-80c72aa4" class="f-muted" x="10" y="378" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">k = 12; tau = 0.671; I2 = 86.3%; Q(10) = 72.79, p = &lt;0.001</text>
 </svg>

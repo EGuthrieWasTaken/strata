@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from xml.sax.saxutils import escape
 
 CLASSES = (
@@ -85,6 +85,19 @@ def fmt(value: float) -> str:
     return "0" if text in ("-0", "") else text
 
 
+def _canonical(value: object) -> object:
+    """A shape's identity as it is drawn: numbers at the precision `fmt` prints, so a last-bit
+    difference in a computed coordinate (a different libm or FMA on another platform) cannot
+    change the element id of an otherwise identical drawing."""
+    if is_dataclass(value) and not isinstance(value, type):
+        return (type(value).__name__, *(_canonical(getattr(value, f.name)) for f in fields(value)))
+    if isinstance(value, tuple):
+        return tuple(_canonical(item) for item in value)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return fmt(value)
+    return value
+
+
 def _hex(color: str) -> tuple[float, float, float]:
     return tuple(int(color[i : i + 2], 16) / 255 for i in (1, 3, 5))  # type: ignore[return-value]
 
@@ -116,7 +129,7 @@ class Canvas:
         used: dict[str, int] = {}
 
         def element_id(tag: str, key: object) -> str:
-            digest = hashlib.sha256(repr(key).encode("utf-8")).hexdigest()[:8]
+            digest = hashlib.sha256(repr(_canonical(key)).encode("utf-8")).hexdigest()[:8]
             base = f"{tag}-{digest}"
             used[base] = used.get(base, 0) + 1
             return base if used[base] == 1 else f"{base}-{used[base]}"
