@@ -51,6 +51,12 @@
         "assignment": { "type": "object" }
       }
     },
+    "extraction": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string", "enum": ["single", "dual"] }
+      }
+    },
     "dedup": {
       "type": "object",
       "properties": {

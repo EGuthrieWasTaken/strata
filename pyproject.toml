@@ -63,8 +63,8 @@ mypy_path = "src"
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-# No type stubs published for this library.
-module = ["rispy", "rispy.*"]
+# No type stubs published for these libraries.
+module = ["rispy", "rispy.*", "scipy", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
