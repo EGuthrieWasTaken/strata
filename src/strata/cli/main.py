@@ -37,9 +37,11 @@ from strata.core import ids as ids_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
+from strata.core import merge as merge_mod
 from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
+from strata.core import sync as sync_mod
 from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
@@ -3739,6 +3741,180 @@ def report_command(
         _print_json({"section": name, "written": written})
         return
     out_console.print(f"[green]wrote[/] {', '.join(written)}")
+
+
+@app.command("sync")
+def sync_command(
+    ctx: typer.Context,
+    by: str | None = typer.Option(
+        None, "--by", help="The actor syncing (default: the first active actor)"
+    ),
+    resolve: str | None = typer.Option(
+        None, "--resolve", help="Settle every conflicting file the same way: mine | theirs"
+    ),
+    no_push: bool = typer.Option(
+        False, "--no-push", help="Fetch, merge and verify, but do not push"
+    ),
+) -> None:
+    """Fetch, merge, verify and push: the one verb for sharing a review.
+
+    See openspec:collaboration-sync. A dirty working tree is refused. Merged event files are put in
+    order and re-linked, the derived views are regenerated, and the result is verified: if that
+    fails, your repository is restored exactly and nothing is pushed. Two people editing the same
+    criterion or file is shown as mine and theirs; settle it with `--resolve mine|theirs`, answer
+    the prompts, or open an editor.
+
+    Example: strata sync
+    """
+    repo = _resolve_repo(ctx)
+    if resolve not in (None, "mine", "theirs"):
+        err_console.print("[red]error:[/] --resolve must be mine or theirs")
+        raise typer.Exit(EXIT_USAGE)
+    actor = by or _acting_handle(repo)
+
+    def ask(conflict: sync_mod.Conflict) -> str | None:
+        if resolve:
+            return resolve
+        out_console.print(f"\n[bold]{conflict.path}[/] was edited differently by two people:")
+        for line in conflict.summary or ["(the two versions differ)"]:
+            out_console.print(f"  {line}")
+        try:
+            choice = typer.prompt("Keep [m]ine, keep [t]heirs, or open an [e]ditor?", default="")
+        except (typer.Abort, EOFError):
+            return None
+        return {"m": "mine", "t": "theirs", "e": "editor"}.get(choice.strip().lower()[:1])
+
+    steps: list[str] = []
+
+    def log(message: str) -> None:
+        steps.append(message)
+        if not ctx.obj["json"]:
+            out_console.print(f"  {message} ...")
+
+    try:
+        report = sync_mod.sync(repo, actor=actor, push=not no_push, resolver=ask, log=log)
+    except sync_mod.ConflictError as exc:
+        err_console.print(f"[red]conflict:[/] {exc}")
+        for conflict in exc.conflicts:
+            err_console.print(f"  [bold]{conflict.path}[/]")
+            for line in conflict.summary:
+                err_console.print(f"    {line}")
+        err_console.print(
+            "Nothing changed. Run `strata sync --resolve mine` or `--resolve theirs`."
+        )
+        raise typer.Exit(EXIT_CONFLICT) from None
+    except sync_mod.VerifyFailedError as exc:
+        err_console.print(f"[red]refused:[/] {exc}")
+        for issue in exc.issues[:20]:
+            err_console.print(f"  {issue}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    except sync_mod.SyncError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_GENERIC) from None
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "status": report.status,
+                "pushed": report.pushed,
+                "incoming_commits": report.incoming_commits,
+                "incoming_authors": report.incoming_authors,
+                "screened": {f"{a}/{s}": dict(c) for (a, s), c in sorted(report.screened.items())},
+                "other_events": report.other_events,
+                "relinked": [r.file for r in report.relinked],
+                "auto_resolutions": report.auto_resolutions,
+                "resolved_conflicts": report.resolved_conflicts,
+                "new_conflicts": report.new_conflicts,
+                "totals_before": report.totals_before,
+                "totals_after": report.totals_after,
+            }
+        )
+        return
+    _print_sync_report(report)
+
+
+def _print_sync_report(report: sync_mod.SyncReport) -> None:
+    if report.incoming_commits:
+        who = ", ".join(f"{n} from {a}" for a, n in sorted(report.incoming_authors.items()))
+        out_console.print(
+            f"\n  Incoming: {report.incoming_commits} change(s)" + (f" ({who})" if who else "")
+        )
+    else:
+        out_console.print("\n  Nothing incoming")
+    out_console.print("  What changed:")
+    shown = False
+    for (actor, stage), decisions in sorted(report.screened.items()):
+        total = sum(decisions.values())
+        split = ", ".join(f"{n} {d}" for d, n in sorted(decisions.items()))
+        out_console.print(f"    {actor} screened {total} record(s) at {stage} ({split})")
+        shown = True
+    for name, n in sorted(report.other_events.items()):
+        out_console.print(f"    {n} {name} event(s)")
+        shown = True
+    for key, after in report.totals_after.items():
+        before = report.totals_before.get(key, after)
+        if before != after:
+            out_console.print(f"    {key}: {before} -> {after}")
+            shown = True
+    if report.new_conflicts:
+        out_console.print(
+            f"    [yellow]{report.new_conflicts} new screening conflict(s)[/]"
+            "   run `strata adjudicate`"
+        )
+        shown = True
+    for relink in report.relinked:
+        out_console.print(
+            f"    put {relink.file} in order ({relink.lines_reordered} line(s) moved, "
+            f"{relink.duplicates_dropped} duplicate(s) dropped) and re-linked it"
+        )
+        shown = True
+    for note in report.auto_resolutions:
+        out_console.print(
+            f"    [yellow]decided automatically:[/] {note['record']} {note['field']} "
+            f"({note['reason']})"
+        )
+        shown = True
+    for path, choice in report.resolved_conflicts:
+        out_console.print(f"    kept {choice} for {path}")
+        shown = True
+    if not shown:
+        out_console.print("    nothing in the review itself")
+    out_console.print("  " + ("Pushed" if report.pushed else "Not pushed"))
+
+
+@app.command("merge-regenerate", hidden=True)
+def merge_regenerate_command(
+    base: str = typer.Argument(...),
+    ours: str = typer.Argument(...),
+    theirs: str = typer.Argument(...),
+    path: str = typer.Argument(""),
+) -> None:
+    """Merge driver for derived files: discard both sides; they are regenerated after the merge."""
+    merge_mod.merge_regenerate()
+
+
+@app.command("merge-records", hidden=True)
+def merge_records_command(
+    base: str = typer.Argument(...),
+    ours: str = typer.Argument(...),
+    theirs: str = typer.Argument(...),
+    path: str = typer.Argument(""),
+) -> None:
+    """Merge driver for records/records.ndjson: a three-way merge keyed by record id."""
+    root = Path.cwd()
+    try:
+        trust = [
+            str(t).lower()
+            for t in manifest_mod.load_manifest_doc(root).get("dedup", {}).get("source_trust", [])
+        ]
+    except (OSError, ValueError):
+        trust = []
+    merge_mod.merge_records_files(
+        Path(base),
+        Path(ours),
+        Path(theirs),
+        trust=trust,
+        notes=root.joinpath(*merge_mod.NOTES_PATH),
+    )
 
 
 @app.command("audit")
