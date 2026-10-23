@@ -10,6 +10,11 @@ image="${1:?usage: container_smoke.sh IMAGE}"
 work="$(mktemp -d)"
 name="strata-smoke-$$"
 cleanup() {
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        echo "--- container log (exit status $status) ---" >&2
+        docker logs "$name" >&2 2>&1 || true
+    fi
     docker rm -f "$name" >/dev/null 2>&1 || true
     rm -rf "$work"
 }
@@ -37,7 +42,17 @@ for _ in $(seq 1 60); do
     if curl -fsS http://127.0.0.1:8765/healthz >"$work/health.json" 2>/dev/null; then break; fi
     sleep 0.5
 done
-[ "$(cat "$work/health.json")" = '{"status":"ok"}' ]
-docker logs "$name" 2>&1 | grep -q 'http://localhost:8765/?token='
-[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/)" = "403" ]  # no session
+logs="$(docker logs "$name" 2>&1)"
+[ "$(cat "$work/health.json")" = '{"status":"ok"}' ] || { echo "unexpected /healthz body" >&2; echo "$logs" >&2; exit 1; }
+# the tokenised URL a browser outside the container uses (the console may wrap the line)
+token_url="$(printf '%s' "$logs" | tr -d '\n ' | grep -o 'http://localhost:8765/?token=[A-Za-z0-9_-]*' | head -n 1)"
+[ -n "$token_url" ] || { echo "the announced URL is missing from the log:" >&2; echo "$logs" >&2; exit 1; }
+# Host and Origin are checked against the public URL (http://localhost:8765), so say that is what
+# the browser sent: without a session the server refuses, with the token it serves the dashboard.
+code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: localhost:8765' http://127.0.0.1:8765/)"
+[ "$code" = "403" ] || { echo "expected 403 without a session, got $code" >&2; exit 1; }
+curl -fsS -H 'Host: localhost:8765' "http://127.0.0.1:8765/?token=${token_url##*token=}" | grep -q "Smoke test" \
+    || { echo "the dashboard did not load with the token" >&2; exit 1; }
+# a request that names any other host is a DNS-rebinding attempt and is refused
+[ "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: attacker.example:8765' http://127.0.0.1:8765/)" = "400" ]
 echo "container smoke test passed"
