@@ -15,7 +15,7 @@ import pytest
 
 from strata.extract import export as ex
 from strata.extract import records as rec_mod
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 from tests.unit.test_extract_records import MEANS, _review, study
 
 

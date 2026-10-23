@@ -30,7 +30,7 @@ from strata.extract import quality
 from strata.extract import schema as schema_mod
 from strata.extract import units as units_mod
 from strata.protocol import studies as studies_mod
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 
 _ACK_SUBJECT = "quality-ack"
 _RECORD_KEY_ORDER = (

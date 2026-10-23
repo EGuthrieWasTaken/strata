@@ -1,13 +1,11 @@
 """Effect sizes and their variances from extracted inputs (openspec:effect-sizes).
 
-Pure: plain numbers in, numbers out, no repository
-(openspec:architecture#statistics-know-nothing-of-the-repository). Group 1 is the
+A port of the parts of `metafor::escalc()` strata needs. Pure: plain numbers in, numbers out, no
+repository (openspec:architecture#statistics-know-nothing-of-the-repository). Group 1 is the
 treatment/experimental group, group 2 the control; every log is natural. Each result names the
 convention and any conversion that produced it, so the number can be reproduced elsewhere
-(`metafor::escalc` with `vtype="LS"` for the standardised mean difference).
-
-M3 uses these to show an effect size while it is being entered; M4 builds the pooling models on
-top of them.
+(`vtype="LS"` for the standardised mean difference). Checked against committed `metafor` fixtures
+(`tests/statistical`); this is one of the 100%-branch-coverage modules.
 """
 
 from __future__ import annotations
@@ -50,15 +48,14 @@ def _finite(name: str, value: float) -> None:
 def hedges_j(df: float) -> tuple[float, str]:
     """Small-sample correction `J` and which form was used.
 
-    The exact gamma form `Γ(df/2) / (sqrt(df/2) * Γ((df-1)/2))` is used when `df < 10`, the
-    approximation `1 - 3/(4*df - 1)` otherwise (openspec:effect-sizes#standardised-mean-difference).
+    The exact gamma form `Γ(df/2) / (sqrt(df/2) * Γ((df-1)/2))` is required below 10 degrees of
+    freedom and permitted above; strata always uses it, as `metafor` does, so results agree to
+    machine precision (openspec:effect-sizes#standardised-mean-difference). The form is reported.
     """
     if not (math.isfinite(df) and df > 1):
         raise EffectSizeError(f"degrees of freedom must exceed 1 for a bias correction, got {df!r}")
-    if df < 10:
-        j = math.exp(special.gammaln(df / 2) - special.gammaln((df - 1) / 2)) / math.sqrt(df / 2)
-        return j, "exact"
-    return 1 - 3 / (4 * df - 1), "approximate"
+    j = math.exp(special.gammaln(df / 2) - special.gammaln((df - 1) / 2)) / math.sqrt(df / 2)
+    return j, "exact"
 
 
 def smd_from_d(
@@ -163,6 +160,114 @@ def zcor(r: float, n: float) -> EffectSize:
             f"n must exceed 3 for Fisher's z (the variance is 1/(n-3)), got {n!r}"
         )
     return EffectSize("ZCOR", math.atanh(r), 1 / (n - 3), {"transformation": "Fisher z"})
+
+
+def _count_and_size(name: str, events: float, n: float) -> None:
+    if not (math.isfinite(events) and events >= 0):
+        raise EffectSizeError(f"{name} must be zero or positive, got {events!r}")
+    _positive("n", n)
+    if events > n:
+        raise EffectSizeError("an event count cannot exceed the sample size")
+
+
+def logit_proportion(events: float, n: float) -> EffectSize:
+    """Logit of a proportion (`metafor` "PLO"): `yi = log(p/(1-p))`, `vi = 1/(n p) + 1/(n (1-p))`.
+
+    A proportion of 0 or 1 is undefined on the logit scale, so 0.5 is added to the events and
+    non-events (and recorded) exactly when either is zero.
+    """
+    _count_and_size("events", events, n)
+    x, size = events, n
+    details: dict[str, Any] = {"transformation": "logit"}
+    if events == 0 or events == n:
+        x, size = events + 0.5, n + 1
+        details["continuity_correction"] = 0.5
+    p = x / size
+    return EffectSize("PLO", math.log(p / (1 - p)), 1 / (size * p) + 1 / (size * (1 - p)), details)
+
+
+def freeman_tukey_proportion(events: float, n: float) -> EffectSize:
+    """Freeman-Tukey double-arcsine transformation of a proportion (`metafor` "PFT"):
+    `yi = asin(sqrt(x/(n+1))) + asin(sqrt((x+1)/(n+1)))`, `vi = 1/(n + 0.5)`.
+
+    Back-transforming it is unstable when study sizes differ widely; see
+    `freeman_tukey_warning` (openspec:effect-sizes#correlations-hazard-ratios-and-proportions).
+    """
+    _count_and_size("events", events, n)
+    yi = _ft_sum(events, n)
+    return EffectSize("PFT", yi, 1 / (n + 0.5), {"transformation": "Freeman-Tukey double arcsine"})
+
+
+FREEMAN_TUKEY_RATIO_LIMIT = 10
+
+
+def freeman_tukey_warning(sizes: list[float]) -> str | None:
+    """A warning when the largest study is more than ten times the smallest, where the
+    back-transformation of pooled Freeman-Tukey values is unreliable (Schwarzer et al. 2019)."""
+    positive = [n for n in sizes if n > 0]
+    ratio = max(positive) / min(positive) if len(positive) >= 2 else 1.0
+    if ratio > FREEMAN_TUKEY_RATIO_LIMIT:
+        return (
+            f"freeman-tukey:back-transformation-instability:ratio={ratio:.1f}: "
+            "study sizes differ by more than a factor of 10, so the back-transformed proportion "
+            "can be unreliable; prefer the logit transformation"
+        )
+    return None
+
+
+def inverse_freeman_tukey(y: float, n: float) -> float:
+    """Miller's (1978) back-transformation of a pooled Freeman-Tukey value, with `n` the harmonic
+    mean of the study sizes (`metafor::transf.ipft`, whose argument is half of `y`)."""
+    _finite("y", y)
+    _positive("n", n)
+    if y >= _ft_sum(n, n):
+        return 1.0
+    if y <= _ft_sum(0, n):
+        return 0.0
+    s = math.sin(y)
+    inner = 1 - (s + (s - 1 / s) / n) ** 2
+    return 0.5 * (1 - math.copysign(1, math.cos(y)) * math.sqrt(max(0.0, inner)))
+
+
+def _ft_sum(events: float, n: float) -> float:
+    return math.asin(math.sqrt(events / (n + 1))) + math.asin(math.sqrt((events + 1) / (n + 1)))
+
+
+def back_transform(measure: str, value: float) -> float:
+    """Return a pooled value on its reported scale: tanh for ZCOR, exp for log ratios, the inverse
+    logit for PLO; other measures are unchanged. The transformation is named in the output."""
+    _finite("value", value)
+    if measure == "ZCOR":
+        return math.tanh(value)
+    if measure in ("logOR", "logRR", "logHR"):
+        return math.exp(value)
+    if measure == "PLO":
+        return 1 / (1 + math.exp(-value))
+    return value
+
+
+LOG_OR_TO_D = math.sqrt(3) / math.pi
+
+
+def d_from_log_or(log_or: float, vi: float) -> EffectSize:
+    """Chinn (2000): `d = logOR * sqrt(3)/pi`, with the variance scaled to match. Opt-in per effect
+    and flagged `converted_from: "logOR"`; the result is an uncorrected `d`, not Hedges' g."""
+    _finite("log_or", log_or)
+    _positive("vi", vi)
+    return EffectSize(
+        "SMD", log_or * LOG_OR_TO_D, vi * LOG_OR_TO_D**2,
+        {"derived_from": "logOR", "converted_from": "logOR", "j_form": "none", "opt_in": True},
+    )  # fmt: skip
+
+
+def log_or_from_d(d: float, vi: float) -> EffectSize:
+    """The inverse of `d_from_log_or`: `logOR = d * pi/sqrt(3)`, flagged `converted_from: "SMD"`."""
+    _finite("d", d)
+    _positive("vi", vi)
+    return EffectSize(
+        "logOR", d / LOG_OR_TO_D, vi / LOG_OR_TO_D**2,
+        {"derived_from": "SMD", "converted_from": "SMD", "opt_in": True},
+    )  # fmt: skip
 
 
 def log_hazard_ratio(hr: float, ci_lo: float, ci_hi: float, level: float = 0.95) -> EffectSize:

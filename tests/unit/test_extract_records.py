@@ -14,7 +14,7 @@ from strata.extract import effects as effects_mod
 from strata.extract import records as rec_mod
 from strata.extract import schema as schema_mod
 from strata.extract import units as units_mod
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 from tests.unit._m3 import add_records, decide, init_review, rpt
 
 FORM: dict[str, Any] = {

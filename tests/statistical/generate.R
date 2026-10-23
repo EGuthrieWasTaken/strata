@@ -332,3 +332,59 @@ dependence$konstantopoulos_three_level <- list(
   cr2 = cr2_summary(robust(mv3, cluster = kons$district, clubSandwich = TRUE))
 )
 write_fixture("dependence", dependence)
+
+# ---- effect sizes (escalc) ----------------------------------------------------------------------------------
+
+nor <- dat.normand1999
+nw <- dat.nielweise2007
+mol <- dat.molloy2014
+pri <- dat.pritz1997
+cols <- function(df, ...) lapply(list(...), function(n) arr(df[[n]]))
+smd_rows <- escalc(measure = "SMD", m1i = m1i, sd1i = sd1i, n1i = n1i, m2i = m2i, sd2i = sd2i, n2i = n2i, data = nor, vtype = "LS")
+md_rows <- escalc(measure = "MD", m1i = m1i, sd1i = sd1i, n1i = n1i, m2i = m2i, sd2i = sd2i, n2i = n2i, data = nor)
+# add = 1/2, to = "only0": 0.5 added to all four cells of a study with any zero cell (strata's rule),
+# and a study with zero events in both arms is kept here (strata excludes it from ratio analyses itself).
+or_rows <- escalc(measure = "OR", ai = ai, n1i = n1i, ci = ci, n2i = n2i, data = nw, add = 1/2, to = "only0", drop00 = FALSE)
+rr_rows <- escalc(measure = "RR", ai = ai, n1i = n1i, ci = ci, n2i = n2i, data = nw, add = 1/2, to = "only0", drop00 = FALSE)
+# strata corrects zero cells for OR and RR only (a risk difference needs no correction), so add = 0 here.
+rd_rows <- escalc(measure = "RD", ai = ai, n1i = n1i, ci = ci, n2i = n2i, data = nw, add = 0)
+zcor_rows <- escalc(measure = "ZCOR", ri = ri, ni = ni, data = mol)
+plo_rows <- escalc(measure = "PLO", xi = xi, ni = ni, data = pri, add = 1/2, to = "only0")
+# metafor's PFT is half of the Freeman-Tukey double arcsine sum (variance 1/(4n+2)); the specification
+# (and strata) use the full sum with variance 1/(n+0.5), i.e. twice the value and four times the variance.
+pft_rows <- escalc(measure = "PFT", xi = xi, ni = ni, data = pri)
+smcr_in <- data.frame(m1i = c(12.5, 10, 8, 20), m2i = c(10, 9, 8.5, 15), sd1i = c(3, 2.5, 4, 6), ni = c(25, 40, 6, 12), ri = c(0.5, 0.7, 0.3, 0.9))
+smcr_rows <- escalc(measure = "SMCR", m1i = m1i, m2i = m2i, sd1i = sd1i, ni = ni, ri = ri, data = smcr_in)
+
+# Conversions to d, written out from the formulas in the specification (metafor has no such function):
+# t -> d, F(1, df) -> d, r -> d, p-value -> t -> d; all then corrected to Hedges' g.
+g_from_d <- function(d, n1, n2) {
+  df <- n1 + n2 - 2
+  j <- exp(lgamma(df / 2) - log(sqrt(df / 2)) - lgamma((df - 1) / 2))
+  g <- j * d
+  list(yi = g, vi = 1 / n1 + 1 / n2 + g^2 / (2 * (n1 + n2)))
+}
+conv <- list(
+  t = c(list(t = 2.5, n1 = 30, n2 = 30), g_from_d(2.5 * sqrt(1 / 30 + 1 / 30), 30, 30)),
+  F = c(list(F = 6.25, n1 = 30, n2 = 30, direction = -1), g_from_d(-sqrt(6.25) * sqrt(1 / 30 + 1 / 30), 30, 30)),
+  r = c(list(r = 0.3, n = 80), g_from_d(2 * 0.3 / sqrt(1 - 0.3^2), 40, 40)),
+  p = c(list(p = 0.03, n1 = 25, n2 = 28, direction = 1), g_from_d(qt(1 - 0.03 / 2, 25 + 28 - 2) * sqrt(1 / 25 + 1 / 28), 25, 28))
+)
+hr <- list(hr = 0.75, ci_lo = 0.6, ci_hi = 0.94, level = 0.95,
+           yi = log(0.75), se = (log(0.94) - log(0.6)) / (2 * qnorm(0.975)))
+write_fixture("escalc", list(
+  smd = list(inputs = cols(nor, "m1i", "sd1i", "n1i", "m2i", "sd2i", "n2i"), yi = arr(smd_rows$yi), vi = arr(smd_rows$vi)),
+  md = list(inputs = cols(nor, "m1i", "sd1i", "n1i", "m2i", "sd2i", "n2i"), yi = arr(md_rows$yi), vi = arr(md_rows$vi)),
+  or = list(inputs = cols(nw, "ai", "n1i", "ci", "n2i"), yi = arr(or_rows$yi), vi = arr(or_rows$vi)),
+  rr = list(inputs = cols(nw, "ai", "n1i", "ci", "n2i"), yi = arr(rr_rows$yi), vi = arr(rr_rows$vi)),
+  rd = list(inputs = cols(nw, "ai", "n1i", "ci", "n2i"), yi = arr(rd_rows$yi), vi = arr(rd_rows$vi)),
+  zcor = list(inputs = cols(mol, "ri", "ni"), yi = arr(zcor_rows$yi), vi = arr(zcor_rows$vi)),
+  plo = list(inputs = cols(pri, "xi", "ni"), yi = arr(plo_rows$yi), vi = arr(plo_rows$vi)),
+  pft = list(inputs = cols(pri, "xi", "ni"), yi = arr(2 * pft_rows$yi), vi = arr(4 * pft_rows$vi)),
+  smcr = list(inputs = cols(smcr_in, "m1i", "m2i", "sd1i", "ni", "ri"), yi = arr(smcr_rows$yi), vi = arr(smcr_rows$vi)),
+  # Miller's back-transformation on the full-sum scale: metafor's transf.ipft takes the halved value.
+  ipft = list(y = arr(2 * c(0.5, 0.8, 1.0, 1.2, 1.4)), n = arr(c(20, 50, 100, 30, 12)),
+              p = arr(transf.ipft(c(0.5, 0.8, 1.0, 1.2, 1.4), c(20, 50, 100, 30, 12)))),
+  conversions = conv,
+  hazard_ratio = hr
+))

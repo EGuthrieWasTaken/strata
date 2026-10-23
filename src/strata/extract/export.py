@@ -28,7 +28,7 @@ from strata.extract import effects as effects_mod
 from strata.extract import records as rec_mod
 from strata.extract import schema as schema_mod
 from strata.protocol import studies as studies_mod
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 
 FORMATS = ("csv", "tsv", "xlsx", "rds", "json")
 _HEAD = ("study_id", "effect_id", "outcome", "design", "timepoint", "label", "measure", "yi", "vi")

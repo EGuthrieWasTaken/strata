@@ -48,7 +48,7 @@ Everything in [`m1-plan.md`](m1-plan.md) and [`m2-plan.md`](m2-plan.md) still ap
   last stage and were not excluded at an earlier one, so a title/abstract reversal takes a study out
   of the review and leaves its extraction as an `E_ORPHAN_EXTRACTION` (kept, never deleted).
 - **Pure core, thin edges.** `core/fold.py` gained the retrieval and study folds (pure, covered by
-  the property tests P1/P2/P9). `stats/effect_sizes.py` is pure numbers. `extract/*` does file IO
+  the property tests P1/P2/P9). `stats/escalc.py` is pure numbers. `extract/*` does file IO
   and event writing; `cli/main.py` and `web/extraction_routes.py` only marshal arguments.
 - **Event bodies are validated twice**: by the event schema (`allOf` per event type) and by the
   function that writes them, before anything touches disk.

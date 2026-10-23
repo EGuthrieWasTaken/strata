@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 
 
 def test_hedges_j_uses_the_exact_gamma_form_below_ten_df() -> None:
@@ -16,10 +16,10 @@ def test_hedges_j_uses_the_exact_gamma_form_below_ten_df() -> None:
     assert j == pytest.approx(0.8686, abs=1e-4)
 
 
-def test_hedges_j_approximates_from_ten_df() -> None:
+def test_hedges_j_is_exact_for_every_df_and_close_to_the_textbook_approximation() -> None:
     j, form = es.hedges_j(98)
-    assert form == "approximate"
-    assert j == pytest.approx(1 - 3 / (4 * 98 - 1))
+    assert form == "exact"  # strata always uses the gamma form, as metafor does
+    assert j == pytest.approx(1 - 3 / (4 * 98 - 1), abs=1e-5)
 
 
 @pytest.mark.parametrize("df", [1, 0.5, 0, -3, math.nan, math.inf])
@@ -36,7 +36,7 @@ def test_smd_matches_a_worked_example() -> None:
     assert result.yi == pytest.approx(0.5924, abs=1e-4)
     assert result.vi == pytest.approx(1 / 50 + 1 / 50 + result.yi**2 / 200)
     assert result.details["variance_convention"] == "LS"
-    assert result.details["j_form"] == "approximate"
+    assert result.details["j_form"] == "exact"
     assert result.se == pytest.approx(math.sqrt(result.vi))
 
 
@@ -156,8 +156,8 @@ def test_log_hazard_ratio_recovers_the_se_from_the_interval() -> None:
 def test_standardised_mean_change_needs_and_records_the_correlation() -> None:
     """m_pre 10, m_post 12, SD_pre 4, n 20, r .5: J = .96, yi = .48, vi = .05 + .00576."""
     result = es.smcr(10, 4, 12, 20, 0.5)
-    assert result.yi == pytest.approx(0.48)
-    assert result.vi == pytest.approx(0.05576)
+    assert result.yi == pytest.approx(0.48, abs=1e-3)
+    assert result.vi == pytest.approx(0.05576, abs=1e-4)
     assert result.details["assumed_correlation"] == 0.5
     for r in (1, -1, 2, math.nan):
         with pytest.raises(es.EffectSizeError):
@@ -172,7 +172,7 @@ def test_effect_from_a_t_statistic() -> None:
     d = 2.5 * math.sqrt(2 / 30)
     assert result.details["derived_from"] == "t"
     assert result.details["d"] == pytest.approx(d)
-    assert result.yi == pytest.approx(d * (1 - 3 / (4 * 58 - 1)))
+    assert result.yi == pytest.approx(d * (1 - 3 / (4 * 58 - 1)), abs=1e-5)
 
 
 def test_effect_from_an_f_statistic_takes_its_sign_from_the_direction() -> None:
@@ -234,3 +234,81 @@ def test_sd_recovery() -> None:
     ):
         with pytest.raises(es.EffectSizeError):
             call()
+
+
+# --- proportions -----------------------------------------------------------------------------
+
+
+def test_logit_proportion_and_its_continuity_correction() -> None:
+    plain = es.logit_proportion(5, 20)
+    assert plain.measure == "PLO"
+    assert plain.yi == pytest.approx(math.log(0.25 / 0.75))
+    assert plain.vi == pytest.approx(1 / (20 * 0.25) + 1 / (20 * 0.75))
+    assert "continuity_correction" not in plain.details
+    for events in (0, 20):
+        corrected = es.logit_proportion(events, 20)
+        assert corrected.details["continuity_correction"] == 0.5
+        assert math.isfinite(corrected.yi) and corrected.vi > 0
+
+
+def test_freeman_tukey_proportion() -> None:
+    result = es.freeman_tukey_proportion(5, 20)
+    assert result.measure == "PFT"
+    assert result.yi == pytest.approx(math.asin(math.sqrt(5 / 21)) + math.asin(math.sqrt(6 / 21)))
+    assert result.vi == pytest.approx(1 / 20.5)
+
+
+def test_proportion_inputs_are_validated() -> None:
+    for call in (
+        lambda: es.logit_proportion(-1, 10),
+        lambda: es.logit_proportion(11, 10),
+        lambda: es.freeman_tukey_proportion(1, 0),
+        lambda: es.freeman_tukey_proportion(float("nan"), 10),
+    ):
+        with pytest.raises(es.EffectSizeError):
+            call()
+
+
+def test_freeman_tukey_warns_when_study_sizes_differ_tenfold() -> None:
+    """openspec scenario: study sizes 20 and 400 -> a back-transformation instability warning."""
+    warning = es.freeman_tukey_warning([20, 400])
+    assert warning is not None and "instab" in warning and "logit" in warning
+    assert es.freeman_tukey_warning([20, 150]) is None
+    assert es.freeman_tukey_warning([20]) is None
+    assert es.freeman_tukey_warning([]) is None
+
+
+def test_the_freeman_tukey_back_transformation_edges() -> None:
+    assert es.inverse_freeman_tukey(0.0, 20) == 0.0  # at or below the value for no events
+    assert es.inverse_freeman_tukey(math.pi, 20) == 1.0  # at or above the value for all events
+    assert es.inverse_freeman_tukey(math.pi / 2, 20) == pytest.approx(0.5, abs=0.05)
+    roundtrip = es.inverse_freeman_tukey(es.freeman_tukey_proportion(30, 100).yi, 100)
+    assert roundtrip == pytest.approx(0.3, abs=0.01)
+    with pytest.raises(es.EffectSizeError):
+        es.inverse_freeman_tukey(float("inf"), 20)
+    with pytest.raises(es.EffectSizeError):
+        es.inverse_freeman_tukey(1.0, 0)
+
+
+def test_back_transformations_name_the_scale_they_return_to() -> None:
+    assert es.back_transform("ZCOR", math.atanh(0.4)) == pytest.approx(0.4)
+    assert es.back_transform("logOR", math.log(2.5)) == pytest.approx(2.5)
+    assert es.back_transform("logRR", 0.0) == 1.0 and es.back_transform("logHR", 0.0) == 1.0
+    assert es.back_transform("PLO", 0.0) == 0.5
+    assert es.back_transform("SMD", 0.3) == 0.3  # unchanged
+    with pytest.raises(es.EffectSizeError):
+        es.back_transform("SMD", float("nan"))
+
+
+def test_d_and_log_odds_ratio_convert_as_opt_in_flagged_effects() -> None:
+    d = es.d_from_log_or(math.log(2), 0.1)
+    assert d.yi == pytest.approx(math.log(2) * math.sqrt(3) / math.pi)
+    assert d.vi == pytest.approx(0.1 * 3 / math.pi**2)
+    assert d.details["converted_from"] == "logOR" and d.details["opt_in"] is True
+    back = es.log_or_from_d(d.yi, d.vi)
+    assert back.yi == pytest.approx(math.log(2)) and back.vi == pytest.approx(0.1)
+    assert back.details["converted_from"] == "SMD"
+    with pytest.raises(es.EffectSizeError):
+        es.d_from_log_or(0.5, 0.0)
+    with pytest.raises(es.EffectSizeError):
+        es.log_or_from_d(float("inf"), 0.1)

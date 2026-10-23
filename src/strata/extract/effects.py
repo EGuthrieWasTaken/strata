@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from strata.extract import quality
-from strata.stats import effect_sizes as es
+from strata.stats import escalc as es
 
 Inputs = Mapping[str, Any]
 
