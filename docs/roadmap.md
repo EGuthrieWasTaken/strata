@@ -170,7 +170,7 @@ set, and reconciliation event coverage.
 
 ---
 
-## M4 — Analysis *(planned: `add-meta-analysis`)*
+## M4 — Analysis *(implemented; `add-meta-analysis` stays open for one worked example — see [`m4-plan.md`](m4-plan.md))*
 
 **Scope**: `stats` in full — effect-size computation and conversion, pooling
 models, all `tau^2` estimators, Knapp–Hartung, heterogeneity, prediction

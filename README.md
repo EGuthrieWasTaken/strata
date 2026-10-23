@@ -37,7 +37,8 @@ rather have quietly rewritten.
 ## Status
 
 **M0 (substrate), M1 ("literature in"), M2 ("screening and staleness"), and
-M3 ("full text and extraction") are complete.** The
+M3 ("full text and extraction") are complete, and M4 ("analysis") is
+implemented apart from one open test-suite item (below).** The
 pull-request gate, the repository format's core (event log, canonical
 serialisation, identity and normalisation, the fold), and
 `init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
@@ -82,11 +83,35 @@ extraction — reconciles two reviewers field by field with a recorded rationale
 `strata rob` records risk of bias (RoB 2 with algorithmic suggestions and
 recorded overrides, ROBINS-I, Newcastle-Ottawa, or your own instrument), and
 `strata export effects` writes one row per effect for `metafor::rma()` or any
-other tool. All of it is also in the web UI. Analysis (M4) is not built yet; see
-[the roadmap](docs/roadmap.md) for what comes next, and
+other tool. All of it is also in the web UI.
+
+M4 pools the extracted effects. An analysis is a versioned file,
+`analysis/<id>.yaml`, and `strata analyze` turns it into committed results
+(`estimates.json`, `studies.tsv`, a plain-language `summary.md`, deterministic
+SVG forest, funnel, Baujat and bubble plots, and a `run.json` that records the
+exact inputs) — never as a side effect of another command. The native engine
+covers the standardised mean difference, mean difference, log odds and risk
+ratios, risk difference, Fisher's z, log hazard ratios, proportions and pre-post
+change; common-effect and random-effects models with eight `tau^2` estimators,
+Knapp–Hartung intervals, prediction intervals and meta-regression; effects that
+share a study handled by aggregation, a multilevel model or cluster-robust
+errors; small-study tests, trim-and-fill and PET-PEESE as labelled sensitivity
+analyses; and leave-one-out, influence and cumulative analyses. Every estimator
+is compared with `metafor` (and `clubSandwich`) to 1e-8 on committed fixtures,
+and a model that cannot be computed correctly is absent rather than
+approximated. Fourteen named guardrails (for example, publication-bias tests
+with fewer than ten studies are blocked unless you pass `--force`) are recorded
+in `run.json`. `strata diff v1-protocol..HEAD` shows a pooled estimate moving
+when a protocol change moves the pool, and `strata status` and `strata verify`
+say when committed results are stale. One item is open: the Hedges & Olkin
+worked example could not be reproduced because its tables were not available;
+see [`docs/m4-plan.md`](docs/m4-plan.md).
+
+See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m1-plan.md`](docs/m1-plan.md) / [`docs/m2-plan.md`](docs/m2-plan.md) /
-[`docs/m3-plan.md`](docs/m3-plan.md) for the sub-objective-by-sub-objective
-status of each milestone, including what is deliberately partial.
+[`docs/m3-plan.md`](docs/m3-plan.md) / [`docs/m4-plan.md`](docs/m4-plan.md) for
+the sub-objective-by-sub-objective status of each milestone, including what is
+deliberately partial.
 
 ## Installing
 

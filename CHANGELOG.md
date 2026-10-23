@@ -7,6 +7,32 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M4: analysis** (OpenSpec change `add-meta-analysis`, in flight until its last
+  test-suite item closes). `strata analyze [<id>] [--all] [--check]` runs the
+  versioned `analysis/<id>.yaml` specifications and writes
+  `analysis/results/<id>/` (`estimates.json`, `studies.tsv`, `summary.md`, plots,
+  and `run.json` with an `input_digest` that distinguishes stale data from a
+  changed tool). The native `stats` package computes effect sizes with
+  conversions from t, F, r, chi-square and p; common-effect and random-effects
+  models with eight `tau^2` estimators, Knapp–Hartung with `metafor`'s ad hoc
+  truncation, Q / I² / H² with a Q-profile interval, prediction intervals and
+  meta-regression; aggregation, a multilevel working model and CR2 cluster-robust
+  inference for dependent effects; Egger, Peters, Harbord, Begg, trim-and-fill
+  and PET-PEESE; and leave-one-out, influence diagnostics and cumulative
+  analyses. All of it is compared with committed `metafor` / `clubSandwich`
+  fixtures (`tests/statistical`, 1e-8 relative), the Borenstein, BCG, Raudenbush
+  and Niel-Weise examples, property tests (P12 among them) and every numerical
+  edge case. Plots (forest, funnel, Baujat, bubble) are deterministic SVG and
+  PDF drawn without a plotting library and compared byte for byte with committed
+  files. Fourteen named guardrails are recorded in `run.json`; the underpowered
+  bias-test guardrail blocks (exit code 8) unless `--force` is given. New:
+  `strata diff <ref>..<ref>` (criteria, records, pools, included studies and each
+  committed pooled estimate), analyses in `strata status` and `strata verify`,
+  the `/analysis` and `/analysis/<id>` web screens, a `single-group-proportion`
+  extraction design, and a nightly `metafor-live` job that installs R and fails
+  when a regenerated number drifts. Open: the Hedges & Olkin worked example;
+  macOS and Windows byte-identity and the nightly job have not yet run on
+  GitHub. See `docs/m4-plan.md`.
 - **M3: full text and extraction** (archived OpenSpec change
   `add-full-text-and-extraction`; four new capability specs —
   `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias`).

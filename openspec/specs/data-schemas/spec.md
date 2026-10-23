@@ -29,8 +29,8 @@ disagrees with it, the shipped schema is a bug to be fixed.
 (`id`, `title`, `slug`, `created`, optional `registry`, and a data `license`),
 an `[[actors]]` array (`handle`, `name`, `email`, optional `orcid`, `role` of
 `lead | screener | extractor | adjudicator | observer | inactive`), and the
-`[screening]`, `[screening.assignment]`, `[dedup]`, `[git]`, `[enrichment]`, and
-`[analysis]` tables. It MUST enforce:
+`[screening]`, `[screening.assignment]`, `[extraction]`, `[dedup]`, `[git]`,
+`[enrichment]`, and `[analysis]` tables. It MUST enforce:
 
 - `actors[].handle` matches `^[a-z0-9][a-z0-9-]{0,31}$` and is unique.
 - An actor who has authored an event MUST NOT be removed; they are set to
@@ -39,6 +39,8 @@ an `[[actors]]` array (`handle`, `name`, `email`, optional `orcid`, `role` of
   configuration error (`E_CONFIG`).
 - `enrichment.enabled = true` with an empty `contact_email` is a configuration
   error.
+- `extraction.mode`, when present, is `single` or `dual`; it defaults to
+  `single`, and risk-of-bias assessments follow the same mode.
 
 #### Scenario: Invalid actor handle
 
@@ -55,6 +57,11 @@ an `[[actors]]` array (`handle`, `name`, `email`, optional `orcid`, `role` of
 
 - **WHEN** `mode = "dual"` and `"title-abstract" = ["ethan"]`
 - **THEN** configuration validation fails with `E_CONFIG`
+
+#### Scenario: Unknown extraction mode
+
+- **WHEN** `strata.toml` sets `[extraction] mode = "triple"`
+- **THEN** loading the manifest fails with `E_SCHEMA`
 
 ### Requirement: Record schema is CSL-JSON plus a namespaced extension
 

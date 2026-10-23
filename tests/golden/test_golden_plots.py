@@ -1,5 +1,5 @@
 """Golden plots: the analysis plots are byte-identical across runs, hash seeds and platforms
-(openspec:analysis-plots#deterministic-output, openspec:test-suite).
+(openspec:analysis-plots#deterministic-accessible-plots, openspec:test-suite).
 
 Each plot of a fixed analysis is compared byte for byte with a committed file in
 `tests/golden/plots/`. CI runs the suite on Linux, macOS and Windows, so a plot that differed by
