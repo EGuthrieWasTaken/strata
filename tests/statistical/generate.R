@@ -274,3 +274,61 @@ for (nm in names(diag_sets)) {
   diagnostics[[nm]] <- case
 }
 write_fixture("diagnostics", diagnostics)
+
+# ---- dependent effect sizes ----------------------------------------------------------------------------------
+# Assink & Wibbelink (2016) delinquency data: 100 effects in 17 studies. Konstantopoulos (2011): 56 studies
+# in 11 districts (a classic three-level example).
+
+suppressMessages(library(clubSandwich))
+assink <- dat.assink2016
+kons <- dat.konstantopoulos2011
+mv_control <- list(optimizer = "nlminb", rel.tol = 1e-11, iter.max = 1000, eval.max = 2000)
+
+cr2_summary <- function(rob) {
+  list(beta = arr(rob$beta), se = arr(rob$se), tval = arr(rob$zval), df = arr(rob$dfs), pval = arr(rob$pval),
+       ci_lb = arr(rob$ci.lb), ci_ub = arr(rob$ci.ub))
+}
+
+dependence <- list()
+
+# Aggregation within study (Borenstein et al. 2009): the unweighted mean of a study's effects with the
+# variance of that mean under compound symmetry with correlation rho. aggregate.escalc() does this when
+# told not to weight (weighted = FALSE) and given struct = "CS".
+dat <- escalc(measure = "GEN", yi = yi, vi = vi, data = assink)
+agg <- list()
+for (rho in c(0.2, 0.5, 0.8)) {
+  a <- aggregate(dat, cluster = dat$study, struct = "CS", rho = rho, weighted = FALSE)
+  agg[[as.character(rho)]] <- list(study = arr(a$study), yi = arr(a$yi), vi = arr(a$vi))
+}
+dependence$assink_aggregate <- list(study = arr(assink$study), yi = arr(assink$yi), vi = arr(assink$vi), results = agg)
+
+# Cluster-robust inference (CR2 with Satterthwaite degrees of freedom) around the ordinary random-effects
+# model, i.e. with independent working errors.
+re <- rma(yi, vi, data = assink, method = "REML", control = tight)
+dependence$assink_re_cr2 <- list(
+  yi = arr(assink$yi), vi = arr(assink$vi), study = arr(assink$study),
+  tau2 = re$tau2, fit = cr2_summary(robust(re, cluster = assink$study, clubSandwich = TRUE))
+)
+
+# The correlated-and-hierarchical-effects (CHE) working model: sampling errors correlated at rho within a
+# study, a random effect for the study and one for each effect, fitted by REML; then CR2 on top.
+che <- list()
+for (rho in c(0.2, 0.5, 0.8)) {
+  V <- vcalc(vi, cluster = study, obs = esid, rho = rho, data = assink)
+  mv <- rma.mv(yi, V, random = ~ 1 | study / esid, data = assink, method = "REML", control = mv_control)
+  che[[as.character(rho)]] <- list(
+    sigma2 = arr(mv$sigma2), beta = arr(mv$beta), se = arr(mv$se), ll = as.numeric(logLik(mv)),
+    cr2 = cr2_summary(robust(mv, cluster = assink$study, clubSandwich = TRUE))
+  )
+}
+dependence$assink_che <- list(yi = arr(assink$yi), vi = arr(assink$vi), study = arr(assink$study),
+                              esid = arr(assink$esid), results = che)
+
+# Three-level model: studies within districts, independent sampling errors.
+mv3 <- rma.mv(yi, vi, random = ~ 1 | district / study, data = kons, method = "REML", control = mv_control)
+dependence$konstantopoulos_three_level <- list(
+  yi = arr(kons$yi), vi = arr(kons$vi), district = arr(kons$district), study = arr(kons$study),
+  sigma2 = arr(mv3$sigma2), beta = arr(mv3$beta), se = arr(mv3$se), ll = as.numeric(logLik(mv3)),
+  cr2 = cr2_summary(robust(mv3, cluster = kons$district, clubSandwich = TRUE))
+)
+write_fixture("dependence", dependence)
