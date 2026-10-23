@@ -363,6 +363,25 @@ def test_origin_scenario_exact_stale_set_and_rescreen(tmp_path: Path) -> None:
     assert pool_tsv.count("\texclude\t") == excluded_count
     assert len(canonical_final) == len(canonical_ids)
 
+    # The amendment text and the flow diagram are generated from the same history (M5): the
+    # paragraph names the criterion and counts exactly what it invalidated and what became of it,
+    # and the counts behind the diagram close.
+    amendment = _run(["-C", str(root), "report", "amendments", "--out", "-"]).output
+    assert "EXC-07" in amendment and "was added" in amendment
+    assert f"made {len(canonical_ids)} screening decision(s) stale" in amendment
+    assert (
+        f"{len(canonical_ids)} have been screened again, of which {excluded_count} ended excluded"
+        in amendment
+    )
+    assert "still await" not in amendment
+    _run(["--why", "Drawing the flow diagram.", "-C", str(root), "prisma"])
+    counts = json.loads((root / "derived" / "counts.json").read_text(encoding="utf-8"))
+    assert counts["reconciled"] is True and counts["stale_decisions"] == 0
+    assert counts["totals"]["records_screened"] == len(canonical_ids)
+    assert counts["totals"]["reports_sought"] == kept_count
+    assert counts["totals"]["records_excluded_tiab"] == excluded_count
+    assert (root / "reports" / "prisma.svg").is_file()
+
     report = verify_repository(repo)
     assert report.ok, report.issues
     assert not gitio.is_dirty(root)
