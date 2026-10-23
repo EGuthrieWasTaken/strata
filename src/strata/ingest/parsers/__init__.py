@@ -45,6 +45,9 @@ class RejectedRow:
 class ParseResult:
     records: list[dict[str, Any]] = field(default_factory=list)
     rejected: list[RejectedRow] = field(default_factory=list)
+    # The fields were inferred, not read (a formatted citation list): the pipeline flags every
+    # record so that deduplication leaves them for a person.
+    best_effort: bool = False
 
 
 def decode_bytes(raw: bytes) -> tuple[str, str]:

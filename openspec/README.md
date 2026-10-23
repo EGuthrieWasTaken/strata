@@ -118,9 +118,9 @@ A few requirements in `specs/` are ahead of the code:
   `strata gc --imports` (`repository-format`, `cli`, `repository-verification`).
   `strata sync` (`collaboration-sync`) is built; its rebase strategy and editor
   option are only lightly covered (see `docs/m5-1-plan.md`).
-- EndNote XML, Excel, and PRISMA-style citation-list parsers
-  (`literature-import`; deferred in M1, tracked in
-  `add-distribution-and-adoption`).
+- The Covidence, Rayyan and EPPI-Reviewer migration imports
+  (`add-distribution-and-adoption`). EndNote XML, Excel and PRISMA-style citation-list parsers
+  were built in M6 (the citation-list parser is best effort, by design).
 - Opt-in enrichment is implemented for Unpaywall open-access links only
   (`strata retrieve`, with `.strata/network.log`); the other providers
   (`privacy-and-security`) are not.

@@ -7,6 +7,15 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M6: more import formats** (task 2.4 of OpenSpec change `add-distribution-and-adoption`). `strata
+  import` reads EndNote XML (`.xml`; unescaped `&` and HTML entities repaired, one bad record set aside
+  rather than losing the file, DOCTYPE and entity declarations refused), Excel workbooks (`.xlsx`, first
+  sheet or `--sheet NAME|N`, read with the standard library only, never evaluating a formula, with caps on
+  file size, unpacked size, rows, columns and cell length) and plain-text citation lists (`.txt`;
+  Vancouver and APA layouts, best effort: records are flagged `best-effort-parse` and deduplication leaves
+  them for a person). Golden fixtures, unit, integration and fuzz tests; the fuzzing found four ways a
+  corrupt workbook could escape as the wrong exception, all fixed. Not built: the Covidence, Rayyan and
+  EPPI-Reviewer migration imports.
 - **M5.1: container image** (OpenSpec change `add-container-image`, in flight). A multi-stage `Dockerfile`
   (locked dependencies, `git`, non-root uid 10001, `safe.directory = *` in the system git config, a
   `/healthz` health check), `.dockerignore`, an entrypoint that makes `serve` container-ready (all

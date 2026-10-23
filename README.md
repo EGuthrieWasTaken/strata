@@ -44,7 +44,7 @@ serialisation, identity and normalisation, the fold), and
 `init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
 implemented and tested. Recording searches (`strata search add`/`list`) and
 importing literature (`strata import`, with CSL-JSON/RIS/BibTeX/PubMed-MEDLINE/
-CSV-TSV parsers and detection profiles for six major database platforms) both
+EndNote-XML/Excel/CSV-TSV/plain-text citation-list parsers and detection profiles for six major database platforms) both
 work end to end, including idempotent re-import and full provenance, and hold
 up against a `hypothesis`-driven fuzz corpus. Deduplication (`strata dedup`)
 is implemented end to end: blocking, scoring, thresholds, auto-merge, an

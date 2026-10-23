@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml><records>
+<record>
+<database name="Spacing.enl" path="C:\Users\reviewer\Spacing.enl">Spacing.enl</database>
+<source-app name="EndNote" version="20.0">EndNote</source-app>
+<rec-number>1</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors><authors>
+<author><style face="normal" font="default" size="100%">Cepeda, Nicholas J.</style></author>
+<author><style face="normal" font="default" size="100%">Vul, Edward</style></author>
+<author><style face="normal" font="default" size="100%">Rohrer, Doug</style></author>
+</authors></contributors>
+<titles>
+<title><style face="normal" font="default" size="100%">Spacing effects in learning: A temporal ridgeline of optimal retention</style></title>
+<secondary-title><style face="normal" font="default" size="100%">Psychol Sci</style></secondary-title>
+</titles>
+<periodical><full-title><style face="normal" font="default" size="100%">Psychological Science</style></full-title></periodical>
+<pages><style face="normal" font="default" size="100%">1095-1102</style></pages>
+<volume><style face="normal" font="default" size="100%">19</style></volume>
+<number><style face="normal" font="default" size="100%">11</style></number>
+<dates><year><style face="normal" font="default" size="100%">2008</style></year></dates>
+<abstract><style face="normal" font="default" size="100%">We tested the effects of spacing on retention across several experiments.</style></abstract>
+<keywords><keyword><style face="normal" font="default" size="100%">spacing</style></keyword><keyword><style face="normal" font="default" size="100%">learning</style></keyword></keywords>
+<urls><related-urls><url><style face="normal" font="default" size="100%">https://doi.org/10.1111/j.1467-9280.2008.02209.x</style></url></related-urls></urls>
+<electronic-resource-num><style face="normal" font="default" size="100%">10.1111/j.1467-9280.2008.02209.x</style></electronic-resource-num>
+<language><style face="normal" font="default" size="100%">English</style></language>
+</record>
+<record>
+<rec-number>2</rec-number>
+<ref-type name="Book">6</ref-type>
+<contributors><authors>
+<author><style face="normal" font="default" size="100%">World Health Organization</style></author>
+</authors></contributors>
+<titles><title><style face="normal" font="default" size="100%">Guidelines for the Study of Retention</style></title></titles>
+<dates><year><style face="normal" font="default" size="100%">1990</style></year></dates>
+</record>
+<record>
+<rec-number>3</rec-number>
+<ref-type name="Conference Proceedings">10</ref-type>
+<contributors><authors>
+<author><style face="normal" font="default" size="100%">Roediger, Henry L.</style></author>
+</authors></contributors>
+<titles>
+<title><style face="normal" font="default" size="100%">Retrieval practice at scale</style></title>
+<secondary-title><style face="normal" font="default" size="100%">Proceedings of the Cognitive Science Society</style></secondary-title>
+</titles>
+<dates><year><style face="normal" font="default" size="100%">2012</style></year></dates>
+</record>
+</records></xml>

@@ -784,7 +784,15 @@ def import_command(
     via: str | None = typer.Option(
         None, "--via", help="citation-searching | website | organisation | registry | contact"
     ),
-    fmt: str | None = typer.Option(None, "--format", help="Override automatic format detection"),
+    fmt: str | None = typer.Option(
+        None,
+        "--format",
+        help="Override format detection: csl-json | ris | bibtex | medline | endnote-xml | "
+        "csv | tsv | xlsx | citation-list",
+    ),
+    sheet: str | None = typer.Option(
+        None, "--sheet", help="For .xlsx: the sheet name or position (default: the first sheet)"
+    ),
     map_option: str | None = typer.Option(
         None,
         "--map",
@@ -816,6 +824,7 @@ def import_command(
                 via=via,
                 fmt=fmt,
                 mapping=mapping,
+                sheet=sheet,
                 dry_run=dry_run,
             )
         except pipeline_mod.ImportPipelineError as exc:

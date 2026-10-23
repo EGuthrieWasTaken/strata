@@ -88,7 +88,8 @@
               "retracted",
               "preprint",
               "non-english",
-              "id-unstable"
+              "id-unstable",
+              "best-effort-parse"
             ]
           }
         }

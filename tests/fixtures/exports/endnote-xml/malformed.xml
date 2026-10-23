@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml><records>
+<record>
+<rec-number>1</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<contributors><authors><author><style>Smith &amp; Jones, A.</style></author><author><style>M&uuml;ller, Hans</style></author></authors></contributors>
+<titles><title><style>Salt & pepper: an unescaped ampersand in a title</style></title></titles>
+<dates><year><style>2015</style></year></dates>
+<abstract><style>Caf&eacute; effects on recall, with an HTML entity.</style></abstract>
+</record>
+<record>
+<rec-number>2</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<titles><title><style>A record cut off before it closes
+</record>
+<record>
+<rec-number>3</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<titles><title><style></style></title></titles>
+<dates><year><style>2001</style></year></dates>
+</record>
+<record>
+<rec-number>4</rec-number>
+<ref-type name="Journal Article">17</ref-type>
+<titles><title><style>A valid record after the bad ones</style></title></titles>
+<dates><year><style>2019</style></year></dates>
+<electronic-resource-num><style>10.1000/after.bad</style></electronic-resource-num>
+</record>
+</records></xml>

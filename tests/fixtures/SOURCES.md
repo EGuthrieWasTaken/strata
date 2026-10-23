@@ -35,6 +35,13 @@ export.
   `TI  - ` convention). `malformed.nbib`'s line endings were converted to CRLF
   with a small script (not checked in) after being written, for the same
   reason as the RIS encoding fixtures above.
+- `endnote-xml/clean.xml`, `endnote-xml/malformed.xml` -- EndNote XML, hand-written in the layout
+  EndNote exports (`<records><record>` with `<style>`-nested values); `malformed.xml` has an unescaped
+  `&`, an HTML named entity, a record that never closes, a record with an empty title, and a valid
+  record after them. Abstracts are invented text.
+- `citation-list/mixed.txt` -- a numbered plain-text reference list in Vancouver and APA layouts plus
+  one line that is not a reference (rejected). The references are real published papers' bibliographic
+  facts; nothing else in the file is copied from anywhere.
 - `csv/scopus-clean.csv`, `csv/wos-clean.csv`, `csv/scopus-malformed.csv` --
   CSV, hand-written with header rows matching the Scopus and Web of Science
   detection profiles in `strata.ingest.profiles` (see that module's own

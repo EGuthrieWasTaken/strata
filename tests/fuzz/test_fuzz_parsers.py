@@ -30,16 +30,20 @@ from pathlib import Path
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from tests.unit._xlsx import build_xlsx
 
 from strata.ingest.parsers import (
     ParseResult,
     bibtex,
+    citation_list,
     csl_json,
     csv_tsv,
     decode_bytes,
+    endnote_xml,
     medline,
     normalise_newlines,
     ris,
+    xlsx,
 )
 
 _FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "exports"
@@ -127,3 +131,32 @@ def test_fuzz_csv_never_raises(raw: bytes) -> None:
     except csv_tsv.ColumnMappingError:
         return  # a controlled, documented rejection of the mapping itself
     assert isinstance(result, ParseResult)
+
+
+@_SETTINGS
+@given(_mutated_bytes(_seed_corpus(_FIXTURES_DIR / "endnote-xml")))
+def test_fuzz_endnote_xml_never_raises(raw: bytes) -> None:
+    _assert_survives(endnote_xml.parse, raw)
+
+
+@_SETTINGS
+@given(_mutated_bytes(_seed_corpus(_FIXTURES_DIR / "citation-list")))
+def test_fuzz_citation_list_never_raises(raw: bytes) -> None:
+    _assert_survives(citation_list.parse, raw)
+
+
+_XLSX_SEEDS = [
+    build_xlsx({"Export": [["Title", "Authors"], ["A title", "Smith, J."], ["B", None]]}),
+    build_xlsx({"S": [["x", 1, 2.5, True]]}, inline=True),
+]
+
+
+@_SETTINGS
+@given(_mutated_bytes(_XLSX_SEEDS))
+def test_fuzz_xlsx_only_ever_refuses_cleanly(raw: bytes) -> None:
+    """A damaged workbook is read or refused with `XlsxError`; nothing else may escape."""
+    try:
+        _name, rows = xlsx.read_rows(raw)
+    except xlsx.XlsxError:
+        return
+    assert isinstance(rows, list)

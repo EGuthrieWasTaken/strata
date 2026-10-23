@@ -98,6 +98,12 @@ class DedupOutcome:
     blocking_warnings: list[str] = field(default_factory=list)
 
 
+def _needs_a_person(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """A record whose fields were inferred (a plain-text citation list) is never merged
+    automatically, however well it scores (openspec:literature-import#supported-import-formats)."""
+    return any("best-effort-parse" in r.get("strata", {}).get("flags", []) for r in (a, b))
+
+
 def _is_doi_conflict(result: PairScore, review_threshold: float) -> bool:
     """openspec:deduplication#scoring: a DOI-vetoed pair scoring high on everything else is
     `doi-conflict`, not discarded."""
@@ -215,7 +221,11 @@ def _compute_dedup(
         result = score_pair(record_a, record_b)
         doi_conflict = _is_doi_conflict(result, review_threshold)
 
-        if result.score >= auto_threshold and not doi_conflict:
+        if (
+            result.score >= auto_threshold
+            and not doi_conflict
+            and not _needs_a_person(record_a, record_b)
+        ):
             canonical, absorbed = choose_canonical(record_a, record_b, trust)
             merged = _merge_record(canonical, absorbed, source_trust=trust)
             pending_events.append(
@@ -231,7 +241,7 @@ def _compute_dedup(
             absorbed_records.append(_with_canonical_flag(absorbed, canonical=False))
             auto_merged.append((canonical["id"], absorbed["id"]))
             judged.add(pair_key)
-        elif result.score >= review_threshold or doi_conflict:
+        elif result.score >= review_threshold or doi_conflict or result.score >= auto_threshold:
             candidate = ReviewCandidate(
                 record_a=a_id, record_b=b_id, result=result, doi_conflict=doi_conflict
             )
