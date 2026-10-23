@@ -438,6 +438,16 @@ def _verify_rob(repo: Repo, report: VerifyReport) -> None:
             )
 
 
+def _verify_counts(repo: Repo, report: VerifyReport) -> None:
+    """The PRISMA counts close (openspec:prisma-reporting#counts-and-reconciliation-identities)."""
+    from strata.report import counts as counts_mod
+
+    for identity in counts_mod.compute(repo).failures:
+        report.add(
+            "E_COUNT_RECONCILE", f"the counts do not close: {identity}", path="derived/counts.json"
+        )
+
+
 def _verify_analyses(repo: Repo, report: VerifyReport) -> None:
     """Every analysis specification parses, and committed results are not silently out of date:
     stale because the data changed, or because the tool did (openspec:analysis-specification)."""
@@ -492,5 +502,6 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
         )
         _verify_extraction(repo, report)
         _verify_rob(repo, report)
+        _verify_counts(repo, report)
         _verify_analyses(repo, report)
     return report

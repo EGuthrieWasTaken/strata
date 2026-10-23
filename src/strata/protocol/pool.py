@@ -4,8 +4,8 @@ openspec:derived-views#conflicts-view (`conflicts.tsv`).
 `derived/stale.tsv` and `derived/irr.json` are computed in
 `protocol.rescreen`/`protocol.irr` respectively, since their logic is
 tightly coupled to staleness/IRR computation that belongs there.
-`regenerate_all` is the one call site that regenerates all four screening
-derived views together, so a mutating CLI command never has to remember
+`regenerate_all` is the one call site that regenerates the screening derived views
+(and `counts.json`) together, so a mutating CLI command never has to remember
 which subset its change could affect.
 """
 
@@ -164,3 +164,7 @@ def regenerate_all(repo: Repo) -> None:
     regenerate_conflicts_tsv(repo)
     rescreen_mod.regenerate_stale_tsv(repo)
     irr_mod.regenerate_irr_json(repo)
+    # Imported here: the counts read modules that import this one.
+    from strata.report import counts as counts_mod
+
+    counts_mod.regenerate_counts_json(repo)
