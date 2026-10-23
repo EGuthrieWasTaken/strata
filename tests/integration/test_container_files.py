@@ -280,4 +280,3 @@ def test_the_base_image_is_pinned_by_digest_in_both_stages() -> None:
     from_lines = re.findall(r"^FROM\s+(\S+)", _dockerfile(), flags=re.MULTILINE)
     assert len(from_lines) == 2 and from_lines[0] == from_lines[1]
     assert re.fullmatch(r"python:3\.12-slim@sha256:[0-9a-f]{64}", from_lines[0])
-
