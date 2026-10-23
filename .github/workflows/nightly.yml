@@ -105,10 +105,23 @@ jobs:
           uv pip install --python cold-install-env -e .
           uv run --python cold-install-env strata --help
 
+  # openspec:container-image: the image builds from scratch and runs the same smoke test as the
+  # pull-request job, so a base-image or dependency change that breaks it is caught overnight.
+  cold-install-container:
+    name: cold-install-container
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the image without cache and run the smoke test
+        run: |
+          docker build --no-cache --pull --tag strata:nightly .
+          scripts/container_smoke.sh strata:nightly
+
   open-issue-on-failure:
     name: open-issue-on-failure
     if: failure()
-    needs: [metafor-live, fuzz, benchmark-50k, audit, cold-install]
+    needs: [metafor-live, fuzz, benchmark-50k, audit, cold-install, cold-install-container]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

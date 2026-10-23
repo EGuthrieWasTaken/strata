@@ -147,9 +147,22 @@ def _print_json(value: object) -> None:
     out_console.print(json_mod.dumps(value), soft_wrap=True, markup=False, highlight=False)
 
 
+def _print_version_and_exit(value: bool) -> None:
+    if value:
+        out_console.print(f"strata {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
+    show_version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_print_version_and_exit,
+        is_eager=True,
+        help="Show the version and exit",
+    ),
     directory: str | None = typer.Option(None, "-C", help="Run as if started in <path>"),
     json_output: bool = typer.Option(False, "--json", help="Machine-readable output on stdout"),
     quiet: bool = typer.Option(False, "-q"),
@@ -4142,7 +4155,17 @@ def serve_command(
         "127.0.0.1", "--host", help="Bind address; a non-loopback host requires --token"
     ),
     token: str | None = typer.Option(
-        None, "--token", help="Fixed session token (required with a non-loopback --host)"
+        None,
+        "--token",
+        envvar="STRATA_TOKEN",
+        help="Fixed session token (required with a non-loopback --host); or STRATA_TOKEN",
+    ),
+    public_url: str | None = typer.Option(
+        None,
+        "--public-url",
+        envvar="STRATA_PUBLIC_URL",
+        help="The URL a browser uses to reach this server (a published port or a proxy); "
+        "Host and Origin are then validated against it",
     ),
     actor: str | None = typer.Option(
         None, "--actor", help="Screen as this actor; required if more than one is configured"
@@ -4162,7 +4185,8 @@ def serve_command(
     try:
         resolved_actor = web_server_mod.resolve_actor(repo, actor)
         session_token = web_server_mod.resolve_token(host, token)
-    except web_server_mod.ServeConfigError as exc:
+        parsed_public = web_security.parse_public_url(public_url) if public_url else None
+    except (web_server_mod.ServeConfigError, ValueError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
 
@@ -4180,6 +4204,7 @@ def serve_command(
         port=resolved_port,
         session_token=session_token,
         inactivity_timeout=inactivity_timeout,
+        public_url=parsed_public,
     )
     url = web_server_mod.opened_url(params)
     out_console.print(f"[green]strata serve[/] listening on {url}  (actor: {resolved_actor})")

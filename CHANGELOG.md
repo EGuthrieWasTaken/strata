@@ -7,6 +7,17 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M5.1: container image** (OpenSpec change `add-container-image`, in flight). A multi-stage `Dockerfile`
+  (locked dependencies, `git`, non-root uid 10001, `safe.directory = *` in the system git config, a
+  `/healthz` health check), `.dockerignore`, an entrypoint that makes `serve` container-ready (all
+  interfaces, a generated token, a localhost public URL, no browser), `compose.yaml`, CI `container` jobs
+  on amd64 and arm64 with hadolint, a smoke test (`scripts/container_smoke.sh`) and a native-versus-image
+  determinism comparison, GHCR publishing with an SBOM and provenance on release tags, and a nightly
+  from-scratch build. `strata serve` gained `--public-url` / `STRATA_PUBLIC_URL` (Host and Origin are
+  validated against it; DNS-rebinding protection stays), `STRATA_TOKEN`, and an unauthenticated
+  `GET /healthz`; `strata --version` now exists. **The image has not been built or run** (no container
+  runtime in the build environment), the base image is not pinned by digest, and cosign signing is not
+  done. See `docs/container.md`.
 - **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
   init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata
   verify`, comments what the change does to the review (records entering and leaving, decisions invalidated,

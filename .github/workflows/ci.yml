@@ -194,6 +194,67 @@ jobs:
             --compare-branch="origin/${{ github.base_ref }}" \
             --fail-under=95
 
+  # openspec:container-image#image-ci: build the image on both architectures (natively, one
+  # runner each, so no emulation and no third-party build action) and smoke-test it. Only when
+  # something the image is made of changed; a skipped job satisfies `gate`.
+  container-changes:
+    name: container-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(Dockerfile|\.dockerignore|compose\.yaml|pyproject\.toml|uv\.lock|docker/|scripts/container_smoke\.sh|src/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  container:
+    name: container (${{ matrix.arch }})
+    needs: [container-changes]
+    if: needs.container-changes.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Lint the Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 < Dockerfile
+      - name: Build the image
+        run: docker build --tag strata:ci .
+      - name: Smoke test --version, git, init, verify, status and serve with /healthz
+        run: scripts/container_smoke.sh strata:ci
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: The determinism fixture is byte-identical natively and in the image
+        run: |
+          mkdir out
+          PYTHONHASHSEED=1 uv run python scripts/determinism_check.py out/native.txt
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/scripts":/scripts:ro -v "$PWD/out":/out \
+            --entrypoint python strata:ci /scripts/determinism_check.py /out/container.txt
+          diff -u out/native.txt out/container.txt
+
   # `docs` (specification integrity) lives in its own workflow, docs.yml, per
   # openspec:ci-gate#ci-files -- `needs:` cannot cross workflow files, so it
   # is not a dependency of `gate` below; branch protection requires it directly
@@ -257,7 +318,7 @@ jobs:
   gate:
     name: gate
     if: always()
-    needs: [lint, test-fast, test, statistical, determinism, coverage]
+    needs: [lint, test-fast, test, statistical, determinism, coverage, container]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

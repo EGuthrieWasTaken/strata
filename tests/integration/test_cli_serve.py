@@ -187,3 +187,71 @@ def test_serve_prints_a_warning_when_binding_beyond_loopback(tmp_path: Path) -> 
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=10)
+
+
+# --- openspec:cli#serve-behind-a-public-url ------------------------------------------------------
+
+
+def test_an_invalid_public_url_is_a_usage_error_naming_the_scheme(tmp_path: Path) -> None:
+    from strata.cli.main import EXIT_USAGE
+
+    root = _init(tmp_path)
+    for bad in ("localhost", "localhost:8765", "ftp://example.org"):
+        result = runner.invoke(app, ["-C", str(root), "serve", "--public-url", bad, "--port", "0"])
+        assert result.exit_code == EXIT_USAGE, (bad, result.output)
+        assert "scheme" in result.output.lower() or "host" in result.output.lower()
+    from_env = runner.invoke(
+        app, ["-C", str(root), "serve", "--port", "0"], env={"STRATA_PUBLIC_URL": "localhost"}
+    )
+    assert from_env.exit_code == EXIT_USAGE and "scheme" in from_env.output.lower()
+
+
+def _get(url: str, host: str | None = None) -> tuple[int, str]:
+    import urllib.error
+
+    request = urllib.request.Request(url, headers={"Host": host} if host else {})
+    try:
+        with urllib.request.urlopen(request, timeout=2) as response:
+            return response.status, response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8")
+
+
+def test_serve_behind_a_public_url_announces_it_and_validates_against_it(tmp_path: Path) -> None:
+    from strata.web.server import pick_ephemeral_port
+
+    root = _init(tmp_path)
+    port = pick_ephemeral_port("127.0.0.1")
+    env = {**os.environ, "PYTHONUNBUFFERED": "1", "STRATA_TOKEN": "token-from-the-environment"}
+    proc = subprocess.Popen(
+        [
+            sys.executable, "-m", "strata.cli.main", "-C", str(root), "serve",
+            "--host", "0.0.0.0", "--port", str(port), "--no-browser", "--inactivity-timeout", "30",
+            "--public-url", f"http://localhost:{port}",
+        ],  # fmt: skip
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, env=env,
+    )  # fmt: skip
+    try:
+        url = _wait_for_url(proc, time.monotonic() + 15.0)
+        # the announced URL is the one a browser outside the container uses, with the token
+        assert url == f"http://localhost:{port}/?token=token-from-the-environment"
+        reach = f"http://127.0.0.1:{port}"
+        for _ in range(50):
+            try:
+                assert _get(f"{reach}/healthz")[0] == 200
+                break
+            except OSError:
+                time.sleep(0.2)
+        status, body = _get(f"{reach}/healthz", host="10.1.2.3:9999")
+        assert status == 200 and '"ok"' in body  # an orchestrator's probe, any Host
+        status, body = _get(f"{reach}/?token=token-from-the-environment", host=f"localhost:{port}")
+        assert status == 200 and "Serve Test" in body
+        status, body = _get(
+            f"{reach}/?token=token-from-the-environment", host=f"attacker.example:{port}"
+        )
+        assert status == 400
+        status, _ = _get(f"{reach}/?token=token-from-the-environment")  # Host: 127.0.0.1:<port>
+        assert status == 400  # the bind-derived names are not accepted once a public URL is given
+    finally:
+        proc.kill()
+        proc.wait(timeout=10)

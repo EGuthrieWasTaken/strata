@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -27,6 +27,7 @@ from strata.web.security import (
     MUTATING_METHODS,
     SESSION_COOKIE_NAME,
     InactivityClock,
+    PublicUrl,
     allowed_hosts,
     is_host_allowed,
     is_origin_allowed,
@@ -71,17 +72,27 @@ class AppState:
         host: str,
         port: int,
         inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+        public_url: PublicUrl | None = None,
     ) -> None:
         self.repo_root = repo_root
         self.actor = actor
         self.session_token = session_token
         self.host = host
         self.port = port
-        self.allowed_hosts = allowed_hosts(host, port)
+        self.public_url = public_url
+        self.allowed_hosts = allowed_hosts(host, port, public_url)
         self.clock = InactivityClock(inactivity_timeout)
 
     def open_repo(self) -> Repo:
         return open_repo(self.repo_root)
+
+
+def _health_response(state: AppState) -> JSONResponse:
+    try:
+        state.open_repo()
+    except Exception:  # noqa: BLE001 - any failure to read the repository is "not healthy"
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+    return JSONResponse({"status": "ok"})
 
 
 def create_app(
@@ -92,6 +103,7 @@ def create_app(
     host: str = "127.0.0.1",
     port: int = 8000,
     inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+    public_url: PublicUrl | None = None,
 ) -> FastAPI:
     state = AppState(
         repo_root=repo_root,
@@ -100,6 +112,7 @@ def create_app(
         host=host,
         port=port,
         inactivity_timeout=inactivity_timeout,
+        public_url=public_url,
     )
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -111,9 +124,16 @@ def create_app(
         async def dispatch(self, request: Request, call_next: Any) -> Any:
             s: AppState = request.app.state.strata
 
+            # openspec:web-ui#health-endpoint: a liveness probe needs no session and no matching
+            # Host (an orchestrator calls the container by whatever address it has), and it must
+            # not count as activity or it would keep an idle server alive forever. It reveals
+            # only whether the repository can be read.
+            if request.url.path == "/healthz" and request.method in ("GET", "HEAD"):
+                return _health_response(s)
+
             if not is_host_allowed(request.headers.get("host"), s.allowed_hosts):
                 return PlainTextResponse("invalid Host header", status_code=400)
-            if not is_origin_allowed(request.headers.get("origin"), s.host, s.port):
+            if not is_origin_allowed(request.headers.get("origin"), s.host, s.port, s.public_url):
                 return PlainTextResponse("invalid Origin header", status_code=400)
 
             if s.clock.is_expired():

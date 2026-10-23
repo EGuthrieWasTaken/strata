@@ -16,7 +16,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from strata.core.repo import Repo
-from strata.web.security import DEFAULT_INACTIVITY_TIMEOUT_SECONDS, generate_token
+from strata.web.security import (
+    DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+    PublicUrl,
+    generate_token,
+)
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
@@ -87,10 +91,14 @@ class ServeParams:
     port: int
     session_token: str
     inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS
+    public_url: PublicUrl | None = None
 
 
 def opened_url(params: ServeParams) -> str:
-    return f"http://{params.host}:{params.port}/?token={params.session_token}"
+    """The tokenised URL to open: the public URL when one was given (what a browser outside a
+    container actually uses), else the address the server bound to."""
+    base = params.public_url.origin if params.public_url else f"http://{params.host}:{params.port}"
+    return f"{base}/?token={params.session_token}"
 
 
 async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
@@ -112,6 +120,7 @@ async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
         host=params.host,
         port=params.port,
         inactivity_timeout=params.inactivity_timeout,
+        public_url=params.public_url,
     )
     clock = app.state.strata.clock
 

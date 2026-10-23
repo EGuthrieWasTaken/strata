@@ -133,3 +133,17 @@ def test_opened_url() -> None:
         inactivity_timeout=DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
     )
     assert opened_url(params) == "http://127.0.0.1:8123/?token=abc123"
+
+
+def test_opened_url_uses_the_public_url_when_given() -> None:
+    from strata.web.security import parse_public_url
+
+    params = ServeParams(
+        repo_root=Path("/tmp/review"),
+        actor="ethan",
+        host="0.0.0.0",  # noqa: S104 - the bind address in a container
+        port=8765,
+        session_token="abc123",
+        public_url=parse_public_url("https://strata.example.edu/"),
+    )
+    assert opened_url(params) == "https://strata.example.edu/?token=abc123"

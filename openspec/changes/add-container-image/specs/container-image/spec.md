@@ -29,7 +29,8 @@ SBOM like every other release artefact.
 
 ### Requirement: Runs against a mounted repository
 
-The image's entrypoint MUST be `strata` with `/review` as the working directory,
+The image's entrypoint MUST run `strata` with the given arguments (through a thin wrapper
+that changes nothing but the defaults of `serve`) and `/review` MUST be the working directory,
 so `docker run -v <repo>:/review <image> <command>` runs `<command>` against the
 mounted repository. The container MUST run as a non-root user by default, MUST
 work under an arbitrary `--user` uid/gid so files it writes are owned by the host

@@ -1,0 +1,25 @@
+# The local web UI in a container (openspec:container-image). From a review repository:
+#
+#   STRATA_ACTOR=you docker compose up
+#
+# and open the URL it prints (it ends in ?token=...). The port is published to this machine's
+# loopback only. Files the UI writes belong to you, not to root: set UID and GID if your shell
+# does not export them (`export UID GID=$(id -g)`).
+services:
+  strata:
+    build: .
+    # After the first release: image: ghcr.io/eguthriewastaken/strata:<version>
+    user: "${UID:-1000}:${GID:-1000}"
+    command: ["serve", "--actor", "${STRATA_ACTOR:?set STRATA_ACTOR to your actor handle}"]
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - "${REVIEW_DIR:-.}:/review"
+    environment:
+      # A fixed token (keep it out of version control); leave unset for a new one on every start.
+      STRATA_TOKEN: "${STRATA_TOKEN:-}"
+      # Git identity for the commits strata makes.
+      GIT_AUTHOR_NAME: "${GIT_AUTHOR_NAME:-}"
+      GIT_AUTHOR_EMAIL: "${GIT_AUTHOR_EMAIL:-}"
+      GIT_COMMITTER_NAME: "${GIT_AUTHOR_NAME:-}"
+      GIT_COMMITTER_EMAIL: "${GIT_AUTHOR_EMAIL:-}"

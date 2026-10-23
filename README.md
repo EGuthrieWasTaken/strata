@@ -164,6 +164,14 @@ strata --help
 (Every example below assumes the latter; swap in `uv run strata` if you're
 running from a checkout instead.)
 
+Or, without installing Python at all, in a container (see
+[`docs/container.md`](docs/container.md); no image is published yet, so build it from the checkout
+with `docker build -t strata .`):
+
+```
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/review strata status
+```
+
 ## Getting started
 
 Every mutating command records *why*, not just *what* — via `--why`, a

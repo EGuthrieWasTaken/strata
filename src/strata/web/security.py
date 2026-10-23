@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import secrets
 import time
+from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 SESSION_COOKIE_NAME = "strata_session"
 CSRF_FIELD_NAME = "csrf_token"
@@ -39,8 +41,55 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def allowed_hosts(host: str, port: int) -> frozenset[str]:
+@dataclass(frozen=True)
+class PublicUrl:
+    """The URL a browser uses to reach the server (`--public-url`), as the `Host` and `Origin`
+    header values it will send: browsers leave a scheme's default port out of both."""
+
+    scheme: str
+    hostname: str
+    port: int | None  # None when the URL leaves the default port implicit
+
+    @property
+    def host_header(self) -> str:
+        return self.hostname if self.port is None else f"{self.hostname}:{self.port}"
+
+    @property
+    def origin(self) -> str:
+        return f"{self.scheme}://{self.host_header}"
+
+
+def parse_public_url(raw: str) -> PublicUrl:
+    """Parse `--public-url`; `ValueError` says what is wrong
+    (openspec:web-ui#configurable-public-url).
+
+    Only the scheme, host and port matter to header validation, so a path is accepted (a hosted
+    instance may live under one) but ignored.
+    """
+    text = raw.strip()
+    parts = urlsplit(text)
+    if parts.scheme not in ("http", "https"):
+        raise ValueError(
+            f"{raw!r} needs a scheme: use an absolute http:// or https:// URL, "
+            "for example http://localhost:8765"
+        )
+    if not parts.hostname:
+        raise ValueError(f"{raw!r} has no host name")
+    try:
+        port = parts.port
+    except ValueError:
+        raise ValueError(f"{raw!r} has an invalid port") from None
+    if port == {"http": 80, "https": 443}[parts.scheme]:
+        port = None
+    hostname = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
+    return PublicUrl(parts.scheme, hostname, port)
+
+
+def allowed_hosts(host: str, port: int, public_url: PublicUrl | None = None) -> frozenset[str]:
     """`Host` header values this server accepts, given the address it bound to.
+
+    With a public URL the answer is exactly that URL's host: the address the server bound to is
+    not what a browser sends when a port is published or a proxy sits in front.
 
     Includes both the bind address and, for the common `127.0.0.1` case,
     `localhost` too -- a browser opening either name against the same
@@ -48,6 +97,8 @@ def allowed_hosts(host: str, port: int) -> frozenset[str]:
     would just be a usability trap, not a real security boundary (both
     resolve to the same loopback interface).
     """
+    if public_url is not None:
+        return frozenset({public_url.host_header})
     names = {host}
     if host in ("127.0.0.1", "localhost"):
         names |= {"127.0.0.1", "localhost"}
@@ -58,12 +109,16 @@ def is_host_allowed(host_header: str | None, allowed: frozenset[str]) -> bool:
     return host_header is not None and host_header in allowed
 
 
-def is_origin_allowed(origin_header: str | None, host: str, port: int) -> bool:
+def is_origin_allowed(
+    origin_header: str | None, host: str, port: int, public_url: PublicUrl | None = None
+) -> bool:
     """No `Origin` header (a same-origin navigation/form submit, or a
     non-browser client) is allowed through; a *present* header MUST name
-    this exact server."""
+    this exact server (or, given one, the public URL)."""
     if origin_header is None:
         return True
+    if public_url is not None:
+        return origin_header == public_url.origin
     expected = {f"http://{name}" for name in (host, "localhost" if host == "127.0.0.1" else host)}
     expected = {f"{e}:{port}" for e in expected}
     return origin_header in expected
