@@ -23,6 +23,12 @@ import typer
 from rich.console import Console
 
 from strata import __version__, gitio
+from strata.analysis import engine as analysis_engine
+from strata.analysis import guardrails as analysis_guardrails
+from strata.analysis import plots as analysis_plots
+from strata.analysis import rows as analysis_rows
+from strata.analysis import run as analysis_run
+from strata.analysis import spec as analysis_mod_spec
 from strata.core import actor as actor_mod
 from strata.core import doctor as doctor_mod
 from strata.core import filters as filters_mod
@@ -57,6 +63,8 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.stats import models as models_mod
+from strata.stats import robust as robust_mod
 from strata.web import security as web_security
 from strata.web import server as web_server_mod
 
@@ -787,7 +795,9 @@ def _commit_domain_op(
 ) -> None:
     if ctx.obj["no_commit"]:
         return
-    candidates = ("records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob")
+    candidates = (
+        "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
+    )  # fmt: skip
     paths = [p for p in candidates if repo.path(*p.split("/")).exists()]
     if not gitio.has_changes(repo.root, paths):
         return  # e.g. a form re-created identically: nothing to record
@@ -3225,6 +3235,149 @@ def rob_command(
     except rob_mod.RobError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+
+
+# --- analysis ------------------------------------------------------------------------------
+
+
+_ACK_OPTION_ANALYZE = typer.Option(None, "--ack", help="Acknowledge a named warning; repeatable")
+
+
+def _analysis_targets(repo: Repo, analysis_id: str | None, run_all: bool) -> list[str]:
+    available = analysis_mod_spec.list_analyses(repo)
+    if run_all:
+        return available
+    if analysis_id:
+        return [analysis_id]
+    if len(available) == 1:
+        return available
+    listing = ", ".join(available) or "none yet (create analysis/<id>.yaml)"
+    err_console.print(f"[red]error:[/] name an analysis or use --all; available: {listing}")
+    raise typer.Exit(EXIT_USAGE)
+
+
+def _analysis_summary(outcome: Any) -> dict[str, Any]:
+    estimates = outcome.result.estimates
+    first = estimates["pooled"]["coefficients"][0]
+    return {
+        "analysis": outcome.spec.id,
+        "label": outcome.spec.label,
+        "measure": outcome.spec.measure,
+        "k_studies": estimates["k_studies"],
+        "k_effects": estimates["k_effects"],
+        "estimate": first["estimate"],
+        "ci_lb": first["ci_lb"],
+        "ci_ub": first["ci_ub"],
+        "warnings": outcome.result.warnings,
+        "forced_bypasses": outcome.run["forced_bypasses"],
+        "files": outcome.written,
+    }
+
+
+@app.command("analyze")
+def analyze_command(
+    ctx: typer.Context,
+    analysis_id: str | None = typer.Argument(None, help="An analysis id (analysis/<id>.yaml)"),
+    run_all: bool = typer.Option(False, "--all", help="Run every analysis specification"),
+    check: bool = typer.Option(
+        False, "--check", help="Validate specifications and report guardrails without computing"
+    ),
+    force: bool = typer.Option(False, "--force", help="Bypass blocking guardrails (recorded)"),
+    ack: list[str] | None = _ACK_OPTION_ANALYZE,
+    plot_format: str = typer.Option("svg", "--plot-format", help="svg | pdf | png"),
+) -> None:
+    """Run analysis specifications and write analysis/results/<id>/.
+
+    See openspec:analysis-specification.
+
+    Results are written, and committed, only when you run this command. `--check` validates the
+    specifications and reports guardrails without computing anything. A blocking guardrail exits
+    with code 8 unless `--force` is given; the bypass is recorded in run.json.
+
+    Example: strata analyze primary --ack exploratory
+    """
+    repo = _resolve_repo(ctx)
+    targets = _analysis_targets(repo, analysis_id, run_all)
+    unknown = sorted(set(ack or []) - set(analysis_guardrails.CODES))
+    if unknown:
+        err_console.print(
+            f"[red]error:[/] unknown warning(s) {', '.join(unknown)}; "
+            f"known: {', '.join(analysis_guardrails.CODES)}"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    summaries: list[dict[str, Any]] = []
+    try:
+        for target in targets:
+            if check:
+                spec = analysis_mod_spec.load_spec(repo, target)
+                selection = analysis_rows.build_rows(repo, spec)
+                warnings = analysis_engine.check_analysis(spec, selection, ack or [])
+                summaries.append(
+                    {
+                        "analysis": target,
+                        "label": spec.label,
+                        "effects": len(selection.rows),
+                        "candidates": selection.candidates,
+                        "excluded": {k: len(v) for k, v in selection.excluded.items()},
+                        "warnings": warnings,
+                    }
+                )
+                continue
+            outcome = analysis_run.run_analysis(
+                repo, target, force=force, acknowledged=ack or [], plot_format=plot_format
+            )
+            summaries.append(_analysis_summary(outcome))
+    except analysis_guardrails.BlockingGuardrail as exc:
+        err_console.print(f"[red]blocked ({exc.code}):[/] {exc.message}")
+        raise typer.Exit(EXIT_GUARDRAIL) from None
+    except (
+        analysis_mod_spec.AnalysisSpecError,
+        analysis_engine.AnalysisError,
+        analysis_rows.RowError,
+        analysis_plots.PlotError,
+        models_mod.ModelError,
+        robust_mod.DependenceError,
+    ) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+    if not check and summaries:
+        _commit_domain_op(
+            ctx,
+            repo,
+            op="analyze",
+            scope=None,
+            summary="ran " + ", ".join(s["analysis"] for s in summaries),
+            by=_acting_handle(repo),
+        )
+    if ctx.obj["json"]:
+        _print_json({"checked" if check else "ran": summaries})
+        return
+    for item in summaries:
+        if check:
+            out_console.print(
+                f"{item['analysis']} ({item['label']}): {item['effects']} of "
+                f"{item['candidates']} effects selected"
+            )
+        else:
+            out_console.print(
+                f"[green]{item['analysis']}[/] ({item['label']}): {item['measure']} "
+                f"{item['estimate']:.3f} [{item['ci_lb']:.3f}, {item['ci_ub']:.3f}], "
+                f"{item['k_studies']} studies, {item['k_effects']} effects"
+            )
+        for warning in item["warnings"]:
+            if not warning["acknowledged"]:
+                out_console.print(f"  [yellow]{warning['code']}[/]: {warning['message']}")
+        for bypass in item.get("forced_bypasses", []):
+            out_console.print(f"  [yellow]forced:[/] {bypass} (recorded in run.json)")
+
+
+def _acting_handle(repo: Repo) -> str:
+    """The handle recorded as the actor of an analysis run: the first active actor."""
+    for actor in repo.config.get("actors", []):
+        if actor.get("role") != "inactive":
+            return str(actor["handle"])
+    return "strata"
 
 
 @app.command("audit")

@@ -72,7 +72,15 @@ def smd_from_d(
         "SMD",
         g,
         vi,
-        {"variance_convention": "LS", "j_form": form, "d": d, "j": j, **(details or {})},
+        {
+            "variance_convention": "LS",
+            "j_form": form,
+            "d": d,
+            "j": j,
+            "n1": n1,
+            "n2": n2,
+            **(details or {}),
+        },
     )
 
 

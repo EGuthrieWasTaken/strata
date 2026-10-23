@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "analysis/<id>.yaml: a declarative meta-analysis (openspec:analysis-specification#analysis-specification-file)",
+  "type": "object",
+  "required": ["id", "title", "effect_size"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "title": { "type": "string", "minLength": 1 },
+    "preregistered": { "type": "boolean", "default": false },
+    "effect_size": {
+      "type": "object",
+      "required": ["measure"],
+      "additionalProperties": false,
+      "properties": {
+        "measure": { "enum": ["SMD", "MD", "logOR", "logRR", "RD", "ZCOR", "PLO", "PFT", "logHR", "SMCR"] },
+        "correction": { "enum": ["hedges", "none"], "default": "hedges" },
+        "direction": { "enum": ["higher-is-better", "lower-is-better"], "default": "higher-is-better" }
+      }
+    },
+    "include": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stage": { "enum": ["included"], "default": "included" },
+        "filter": { "type": "string" }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["random-effects", "common-effect", "fixed-effect"], "default": "random-effects" },
+        "tau2_estimator": { "enum": ["DL", "HE", "HS", "SJ", "ML", "REML", "EB", "PM"], "default": "REML" },
+        "ci_method": { "enum": ["knapp-hartung", "wald"], "default": "knapp-hartung" },
+        "level": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1, "default": 0.95 }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handling": { "enum": ["none", "aggregate", "cluster-robust", "multilevel"] },
+        "cluster": { "type": "string", "default": "study_id" },
+        "rho": { "type": "number", "minimum": 0, "exclusiveMaximum": 1 },
+        "small_sample_correction": { "enum": ["CR2"], "default": "CR2" }
+      }
+    },
+    "moderators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["continuous", "categorical"] },
+          "centering": { "enum": ["mean", "none"] },
+          "reference": { "type": "string" }
+        }
+      }
+    },
+    "heterogeneity": {
+      "type": "array",
+      "items": { "enum": ["Q", "I2", "tau2", "H2", "prediction_interval"] },
+      "uniqueItems": true
+    },
+    "publication_bias": {
+      "type": "array",
+      "items": { "enum": ["funnel", "egger", "begg", "trim_fill", "pet_peese"] },
+      "uniqueItems": true
+    },
+    "sensitivity": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+          "type": { "enum": ["leave_one_out", "influence_diagnostics", "cumulative", "subset"] },
+          "filter": { "type": "string" },
+          "order": { "type": "string" }
+        }
+      }
+    },
+    "plots": {
+      "type": "array",
+      "items": { "enum": ["forest", "funnel", "baujat", "bubble"] },
+      "uniqueItems": true
+    },
+    "seed": { "type": "integer", "minimum": 0 }
+  }
+}
