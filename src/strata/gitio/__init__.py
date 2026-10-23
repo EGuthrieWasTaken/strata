@@ -144,3 +144,23 @@ def export_tree(path: Path, commit: str, dest: Path) -> None:
         )
     with tarfile.open(fileobj=io.BytesIO(archived.stdout)) as tar:
         tar.extractall(dest, filter="data")
+
+
+def commits_adding(path: Path, needle: str, pathspecs: list[str]) -> list[str]:
+    """Commits that introduced `needle` under `pathspecs`, oldest first (`git log -S`).
+
+    A needle that is not a string git can search for as given (it starts with `-`) is refused.
+    """
+    if not needle or needle.startswith("-"):
+        return []
+    result = run(
+        ["log", "--reverse", "--format=%H", f"-S{needle}", "--", *pathspecs], cwd=path, check=False
+    )
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def commit_message(path: Path, commit: str) -> str:
+    """The full message of `commit`."""
+    return run(["log", "-1", "--format=%B", commit], cwd=path).stdout.strip()
