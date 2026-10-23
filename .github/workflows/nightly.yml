@@ -25,14 +25,16 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
-      - name: Regenerate statistical fixtures against current metafor
+      - name: Install R with the current metafor, clubSandwich and mvtnorm
         run: |
-          if [ -f tests/statistical/generate.R ]; then
-            Rscript tests/statistical/generate.R
-            git diff --exit-code tests/statistical/fixtures
-          else
-            echo "no metafor fixtures yet (native stats engine lands in M4)"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends r-base-core
+          sudo Rscript -e 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest")); install.packages(c("metafor", "clubSandwich", "mvtnorm"))'
+          Rscript -e 'suppressMessages(library(metafor)); cat("metafor", as.character(packageVersion("metafor")), "\n")'
+      - name: Regenerate statistical fixtures against current metafor
+        run: STRATA_FIXTURE_DIR="$RUNNER_TEMP/fresh-fixtures" Rscript tests/statistical/generate.R
+      - name: Fail when a regenerated number drifts from the committed fixture
+        run: uv run python tests/statistical/compare_fixtures.py tests/statistical/fixtures "$RUNNER_TEMP/fresh-fixtures"
 
   fuzz:
     name: fuzz

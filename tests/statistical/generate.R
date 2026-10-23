@@ -3,9 +3,9 @@
 #   Rscript tests/statistical/generate.R
 #
 # The Python suite compares the native engine with these files and needs no R. The nightly
-# `metafor-live` job runs this script again and fails on any drift (`git diff --exit-code`), so the
-# files carry no timestamps and no version strings, and every number is written with 17 significant
-# digits. Where strata deliberately differs from metafor's default, the call here pins the matching
+# `metafor-live` job runs this script again into a scratch directory and fails when any number
+# differs from the committed file by more than the suite's own tolerance, so the files carry no
+# timestamps and no version strings, and every number is written with 17 significant digits. Where strata deliberately differs from metafor's default, the call here pins the matching
 # option and says why.
 
 suppressMessages(library(metafor))
@@ -50,9 +50,12 @@ tojson <- function(x, indent = 0) {
   v <- vapply(as.numeric(x), num, "")
   if (length(x) == 1) v else paste0("[", paste(v, collapse = ", "), "]")
 }
+# STRATA_FIXTURE_DIR redirects the output (the nightly job regenerates into a scratch directory and
+# compares it with the committed files, tolerantly, using tests/statistical/compare_fixtures.py).
+fixture_dir <- Sys.getenv("STRATA_FIXTURE_DIR", "tests/statistical/fixtures")
 write_fixture <- function(name, obj) {
-  dir.create("tests/statistical/fixtures", showWarnings = FALSE, recursive = TRUE)
-  writeLines(tojson(obj), file.path("tests/statistical/fixtures", paste0(name, ".json")))
+  dir.create(fixture_dir, showWarnings = FALSE, recursive = TRUE)
+  writeLines(tojson(obj), file.path(fixture_dir, paste0(name, ".json")))
 }
 arr <- function(x) as.list(as.numeric(x))   # force a JSON array even for length 1
 
