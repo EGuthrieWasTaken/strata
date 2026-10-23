@@ -56,9 +56,22 @@ def all_study_events(repo: Repo) -> list[dict[str, Any]]:
 
 
 def included_reports(repo: Repo) -> list[str]:
-    """Reports of included studies: records that resolved to `include` at the last stage."""
-    stage = screening_mod.configured_stages(repo)[-1]
-    return [report_id(r) for r in screening_mod.included_record_ids(repo, stage)]
+    """Reports of included studies: records that resolved to `include` at the last stage and
+    were not excluded at an earlier one.
+
+    A title/abstract reversal to exclude must take the study out of the review even though its
+    full-text `include` is retained in the log; anything already extracted for it becomes an
+    orphan, kept (openspec:staleness#staleness-cascades-across-stages-without-deleting-work).
+    """
+    stages = screening_mod.configured_stages(repo)
+    included = set(screening_mod.included_record_ids(repo, stages[-1]))
+    for stage in stages[:-1]:
+        included -= {
+            record_id
+            for record_id, state in screening_mod.stage_states(repo, stage).items()
+            if state.status == "exclude"
+        }
+    return [report_id(r) for r in sorted(included)]
 
 
 def study_map(repo: Repo, *, reports: list[str] | None = None) -> StudyMap:

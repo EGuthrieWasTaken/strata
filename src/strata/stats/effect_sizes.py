@@ -1,9 +1,10 @@
 """Effect sizes and their variances from extracted inputs (openspec:effect-sizes).
 
-Pure: plain numbers in, numbers out, no repository (openspec:architecture#statistics-know-nothing-
-of-the-repository). Group 1 is the treatment/experimental group, group 2 the control; every log is
-natural. Each result names the convention and any conversion that produced it, so the number can
-be reproduced elsewhere (`metafor::escalc` with `vtype="LS"` for the standardised mean difference).
+Pure: plain numbers in, numbers out, no repository
+(openspec:architecture#statistics-know-nothing-of-the-repository). Group 1 is the
+treatment/experimental group, group 2 the control; every log is natural. Each result names the
+convention and any conversion that produced it, so the number can be reproduced elsewhere
+(`metafor::escalc` with `vtype="LS"` for the standardised mean difference).
 
 M3 uses these to show an effect size while it is being entered; M4 builds the pooling models on
 top of them.
@@ -198,8 +199,8 @@ def smcr(m_pre: float, sd_pre: float, m_post: float, n: float, r: float) -> Effe
     )
 
 
-# --- conversions between reported statistics (openspec:effect-sizes#conversions-between-
-# reported-statistics). Each records where the number came from. ---------------------------------
+# --- conversions between reported statistics. Each records where the number came from
+# (openspec:effect-sizes#conversions-between-reported-statistics). ------------------------------
 
 
 def _signed(direction: float | str) -> int:

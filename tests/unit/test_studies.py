@@ -10,6 +10,8 @@ import pytest
 from strata.core.ids import singleton_study_id
 from strata.core.verify import verify_repository
 from strata.protocol import studies
+from strata.protocol.criteria import add_criterion
+from strata.protocol.screening import record_screen_decision
 from tests.unit._m3 import add_records, decide, init_review, record, rpt
 
 
@@ -30,6 +32,30 @@ def test_every_included_report_is_a_study_of_one_until_grouped(tmp_path: Path) -
     current = studies.study_map(repo)
     assert len(current.members) == 3
     assert current.studies_of[rpt(2)] == (singleton_study_id(rpt(2)),)
+
+
+def test_a_report_excluded_at_an_earlier_stage_is_no_longer_studied(tmp_path: Path) -> None:
+    """E2E-06: reversing a title/abstract include orphans the downstream work, deleting none."""
+    repo = init_review(tmp_path)
+    ids = add_records(repo, 3)
+    decide(repo, "title-abstract", ids)
+    decide(repo, "full-text", ids)
+    assert studies.included_reports(repo) == [rpt(1), rpt(2), rpt(3)]
+    add_criterion(
+        repo, kind="exclusion", label="Not empirical", definition="Not an empirical study.",
+        applies_at=["title-abstract"], actor="ethan", rationale="Setting the criteria for tests.",
+        criterion_id="EXC-01",
+    )  # fmt: skip
+    for actor in ("ethan", "sam"):
+        record_screen_decision(
+            repo, stage="title-abstract", record_id=ids[1], decision="exclude", actor=actor,  # type: ignore[arg-type]
+            cited=["EXC-01"],
+        )  # fmt: skip
+    assert studies.included_reports(repo) == [rpt(1), rpt(3)]
+    assert set(studies.study_map(repo).members) == {
+        singleton_study_id(rpt(1)),
+        singleton_study_id(rpt(3)),
+    }
 
 
 def test_only_reports_included_at_the_last_stage_are_studied(tmp_path: Path) -> None:

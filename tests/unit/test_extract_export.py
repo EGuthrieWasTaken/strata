@@ -221,3 +221,19 @@ def test_the_csv_loads_in_metafor_rma(tmp_path: Path) -> None:
         ["Rscript", "-e", script, str(path)], capture_output=True, text=True, check=True
     )
     assert result.stdout.split() == ["2", "2"]
+
+
+@pytest.mark.skipif(shutil.which("Rscript") is None, reason="R is not installed")
+def test_the_rds_loads_in_r_as_a_data_frame_with_the_same_values(tmp_path: Path) -> None:
+    path = tmp_path / "effects.rds"
+    path.write_bytes(ex.render(_sample(), "rds"))
+    script = (
+        "d <- readRDS(commandArgs(TRUE)[1]); stopifnot(is.data.frame(d));"
+        "cat(names(d), '\\n'); cat(d$yi[1], d$n[1], as.character(d$ok[1]), d$study_id[1], '\\n')"
+    )
+    result = subprocess.run(
+        ["Rscript", "-e", script, str(path)], capture_output=True, text=True, check=True
+    )
+    first, second = result.stdout.splitlines()
+    assert first.split() == ["study_id", "yi", "n", "ok", "note"]
+    assert second.split() == ["0.5", "74", "TRUE", "std_a"]

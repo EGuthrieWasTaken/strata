@@ -1,10 +1,10 @@
 """The extraction coding form, `extraction/schema.yaml`
 (openspec:data-extraction#extraction-schema).
 
-The form is declarative configuration a human edits (openspec:repository-format#authoritative-
-versus-derived-files); `strata extract init` drafts it from the protocol's declared moderators and
-outcomes. Changing the form bumps its `version`; adding a required field makes existing
-extractions *incomplete* for that field, never invalid
+The form is declarative configuration a human edits
+(openspec:repository-format#authoritative-versus-derived-files); `strata extract init` drafts it
+from the protocol's declared moderators and outcomes. Changing the form bumps its `version`;
+adding a required field makes existing extractions *incomplete* for that field, never invalid
 (openspec:data-extraction#schema-changes-make-extractions-incomplete-not-stale).
 """
 

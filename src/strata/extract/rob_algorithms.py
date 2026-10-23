@@ -13,7 +13,7 @@ transcriptions of the Cochrane algorithms (the `robbR` R package and the RoB 2 w
 aashnapandyapsych), which agree on all 82,125 answer combinations of Domains 1-5 (the effect of
 assignment). The primary Cochrane tables could not be fetched when this was written, so the test
 suite pins these results (`tests/unit/test_rob_algorithms.py`) and the document
-`docs/rob-instruments.md` lists the one cell worth checking against the official guidance before
+`docs/rob-instruments.md` lists the rules worth checking against the official guidance before
 a release.
 """
 
