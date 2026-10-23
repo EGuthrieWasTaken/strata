@@ -42,6 +42,6 @@ EPPI-Reviewer imports (2.1-2.3) do not exist yet.
 - 3.2 (documentation set) stays open: `docs/statistics.md` (the statistical methods reference with formulae
   and sources) and `CONTRIBUTING.md` (including how to add a parser) now exist. Still to write: a
   quickstart for a first review in 30 minutes (the README's Getting started is the start of one), the "I have
-  never used git" guide, the methods-text cookbook, a repository format reference for users (the format is
-  specified in `openspec/specs/repository-format`), and a recovery guide.
+  never used git" guide, the methods-text cookbook, and a repository format reference for users (the format
+  is specified in `openspec/specs/repository-format`). `docs/recovery.md` (the recovery guide) now exists too.
 
