@@ -13,7 +13,8 @@ from typer.testing import CliRunner
 
 from strata import gitio
 from strata.cli.main import EXIT_OK, EXIT_USAGE, EXIT_VALIDATION, app
-from strata.core.repo import Repo
+from strata.core.repo import Repo, open_repo
+from strata.protocol import pool as pool_mod
 from strata.report import sections
 from tests.unit._m5 import finished_review, full_review
 
@@ -36,6 +37,10 @@ def _commit_all(repo: Repo) -> None:
 @pytest.fixture
 def review(tmp_path: Path) -> Repo:
     repo, _ = full_review(tmp_path)
+    # The builders write through the service functions, as a script would; the CLI regenerates the
+    # derived views (counts.json among them) after every command that changes a count, so a
+    # repository built by commands has them current. Do the same, then commit a clean tree.
+    pool_mod.regenerate_all(open_repo(repo.root))
     _commit_all(repo)
     return repo
 
