@@ -40,6 +40,7 @@ class Facts:
     repo: Repo
     project: dict[str, Any]
     commit: str | None
+    dirty: bool
     remote: str | None
     criteria: list[dict[str, Any]]
     criteria_version: int
@@ -116,6 +117,7 @@ def collect(repo: Repo) -> Facts:
         repo=repo,
         project=dict(repo.config.get("project", {})),
         commit=commit,
+        dirty=commit is not None and gitio.is_dirty(repo.root),
         remote=gitio.get_config(repo.root, "remote.origin.url"),
         criteria=criteria_mod.list_criteria(repo),
         criteria_version=int(criteria_mod.read_criteria_doc(repo).get("version", 0)),

@@ -625,7 +625,11 @@ def _cell(text: str) -> str:
 def render(facts: Facts) -> str:
     items = build(facts)
     summary = status(items)
-    commit = facts.commit or "uncommitted state"
+    commit = (
+        f"{facts.commit[:10]} plus uncommitted changes"
+        if facts.commit and facts.dirty
+        else (facts.commit or "uncommitted state")
+    )
     lines = [
         "# PRISMA 2020 checklist",
         "",

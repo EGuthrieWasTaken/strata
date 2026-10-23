@@ -82,11 +82,7 @@ def test_selection_and_collection_describe_the_process(tmp_path: Path) -> None:
         "Cohen's kappa" in items["8"].content
         and "4 duplicate record(s) removed" in items["8"].content
     )
-    assert (
-        "One reviewer (ethan)" in items["9"].content
-        and "obtaining or confirming data" in items["9"].content.replace("\n", " ")
-        or "investigators" in items["9"].content
-    )
+    assert "One reviewer (ethan)" in items["9"].content and "investigators" in items["9"].content
     assert items["11"].status == cl.AUTO_FILLED and "RoB 2" in items["11"].content
 
 
