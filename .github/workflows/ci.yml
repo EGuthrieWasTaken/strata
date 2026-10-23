@@ -80,8 +80,11 @@ jobs:
     # not failing on assertions); Windows's own ~24-25min baseline at
     # that same factor needs real headroom above 30, not another
     # incremental bump -- raised generously rather than repeating the
-    # same too-tight-by-a-few-minutes mistake `coverage` just hit.
-    timeout-minutes: 60
+    # same too-tight-by-a-few-minutes mistake `coverage` just hit. The M3-M6 suite (2,300+ tests,
+    # mostly CLI and git-backed integration tests) takes 35-45 minutes on Linux and macOS and
+    # 50-60 on Windows on a four-core runner, so a 60-minute budget cancelled two legs seconds
+    # before the end; 90 leaves room for a slow runner.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -172,8 +175,8 @@ jobs:
     # failure). Raised with real headroom this time instead of the same
     # too-tight-by-a-few-minutes mistake. The M3-M6 suite (2,300+ tests) took 34 minutes without
     # instrumentation on a four-core runner and was cancelled at 35 with it, so the budget is
-    # now the same as the matrix legs'.
-    timeout-minutes: 60
+    # now the same as the matrix legs' (the instrumented run took 54 minutes, so 60 was too tight).
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
