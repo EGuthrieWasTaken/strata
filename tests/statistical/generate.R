@@ -197,17 +197,22 @@ for (nm in names(bias_sets)) {
   res <- rma(d$yi, d$vi, method = "REML", control = tight)
   k <- length(d$yi)
   case <- list(yi = arr(d$yi), vi = arr(d$vi))
+  if (!is.null(d$ai)) case[c("ai", "n1i", "ci", "n2i")] <- list(arr(d$ai), arr(d$n1i), arr(d$ci), arr(d$n2i))
   # Egger's regression test, in metafor's weighted-regression form (the slope on sei is Egger's intercept).
   case$egger <- wls_summary(d$yi, sqrt(d$vi), 1 / d$vi)
   # Begg and Mazumdar's rank correlation (Kendall's tau between standardised effects and variances).
-  rk <- ranktest(res)
+  rk <- suppressWarnings(ranktest(res))
   case$begg <- list(tau = unname(rk$tau), pval = rk$pval)
   # Trim-and-fill, the three estimators; fitted with the random-effects REML model, as strata does.
   tf <- list()
   for (est in c("L0", "R0", "Q0")) {
-    t <- trimfill(res, estimator = est)
+    t <- tryCatch(suppressWarnings(trimfill(res, estimator = est)), error = function(e) NULL)
+    if (is.null(t)) { message("trimfill ", est, " failed on ", nm); next }   # not part of the fixture
     filled <- which(t$fill)
-    tf[[est]] <- list(k0 = t$k0, side = t$side, beta = arr(t$beta), se = arr(t$se), tau2 = t$tau2,
+    # trimfill() re-pools the completed data with metafor's default convergence threshold (1e-5), so the
+    # pooled estimate is recomputed here on the same completed data with tight control.
+    fin <- rma(c(d$yi, t$yi[filled]), c(d$vi, t$vi[filled]), method = "REML", control = tight)
+    tf[[est]] <- list(k0 = t$k0, side = t$side, beta = arr(fin$beta), se = arr(fin$se), tau2 = fin$tau2,
                       yi_filled = arr(t$yi[filled]), vi_filled = arr(t$vi[filled]))
   }
   case$trimfill <- tf
@@ -216,7 +221,7 @@ for (nm in names(bias_sets)) {
   case$pet <- wls_summary(d$yi, sqrt(d$vi), 1 / d$vi)
   case$peese <- wls_summary(d$yi, d$vi, 1 / d$vi)
   if (!is.null(d$ai)) {
-    a <- d$ai; n1 <- d$n1i; cc <- d$ci; n2 <- d$n2i
+    a <- as.numeric(d$ai); n1 <- as.numeric(d$n1i); cc <- as.numeric(d$ci); n2 <- as.numeric(d$n2i)
     n <- n1 + n2; m1 <- a + cc; m0 <- n - m1
     # Peters et al. (2006): ln(OR) on 1/n, weights m1*m0/n. metafor does not provide this test.
     case$peters <- wls_summary(d$yi, 1 / n, m1 * m0 / n)
