@@ -64,10 +64,12 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.report import bibliography as bibliography_mod
 from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
 from strata.report import facts as facts_mod
 from strata.report import flow as flow_mod
+from strata.report import package as package_mod
 from strata.report import sections as sections_mod
 from strata.stats import models as models_mod
 from strata.stats import robust as robust_mod
@@ -2262,6 +2264,64 @@ def export_effects_command(
             out_console.print(f"[green]{message}[/]")
     else:
         sys.stdout.write(payload.decode("utf-8"))
+
+
+@export_app.command("bibliography")
+def export_bibliography_command(
+    ctx: typer.Context,
+    fmt: str = typer.Option("csl", "--format", help="bibtex | csl | ris"),
+    set_name: str = typer.Option(
+        "included", "--set", help="included | excluded-at-fulltext | all-screened | not-retrieved"
+    ),
+    out: str | None = typer.Option(None, "--out", help="Write here instead of standard output"),
+) -> None:
+    """A bibliography of one set of records: openspec:manuscript-generation#bibliography-export.
+
+    CSL-JSON feeds pandoc directly (`pandoc --citeproc --bibliography=included.json`); the
+    `excluded-at-fulltext` set is the appendix of studies excluded at full-text screening.
+
+    Example: strata export bibliography --format ris --set excluded-at-fulltext --out excluded.ris
+    """
+    repo = _resolve_repo(ctx)
+    try:
+        text = bibliography_mod.render(repo, fmt=fmt, set_name=set_name)
+    except bibliography_mod.BibliographyError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    count = len(bibliography_mod.record_ids(repo, set_name))
+    if out:
+        Path(out).write_text(text, encoding="utf-8", newline="\n")
+        if ctx.obj["json"]:
+            _print_json({"records": count, "set": set_name, "format": fmt, "path": out})
+        else:
+            out_console.print(f"[green]wrote {count} record(s) to {out}[/]")
+    else:
+        sys.stdout.write(text)
+
+
+@export_app.command("package")
+def export_package_command(
+    ctx: typer.Context,
+    out: str = typer.Option(..., "--out", help="The archive to write (a .zip)"),
+) -> None:
+    """The reproducibility package for PRISMA item 27: search strategies, criteria and their
+    history, the decision log, extraction data, analysis specifications and results, the data
+    licence, and a README naming the commit. It contains no full texts.
+
+    Example: strata export package --out supplement.zip
+    """
+    repo = _resolve_repo(ctx)
+    try:
+        payload = package_mod.build(repo)
+    except package_mod.PackageError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    Path(out).write_bytes(payload)
+    count = len(package_mod.members(repo)) + 2
+    if ctx.obj["json"]:
+        _print_json({"path": out, "files": count})
+    else:
+        out_console.print(f"[green]wrote {count} file(s) to {out}[/]")
 
 
 @export_app.command("provenance")
