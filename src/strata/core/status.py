@@ -55,6 +55,15 @@ class ExtractionStatus:
 
 
 @dataclass
+class AnalysisStatus:
+    """One analysis specification and whether its committed results are current."""
+
+    id: str
+    label: str
+    state: str  # missing | fresh | stale-data | stale-tool
+
+
+@dataclass
 class StatusReport:
     title: str
     slug: str
@@ -69,6 +78,7 @@ class StatusReport:
     next_action: str | None = None
     retrieval: retrieval_mod.RetrievalCounts | None = None
     extraction: ExtractionStatus | None = None
+    analyses: list[AnalysisStatus] = field(default_factory=list)
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -142,6 +152,7 @@ def _next_action(
     stages: list[StageStatus],
     retrieval: retrieval_mod.RetrievalCounts | None = None,
     extraction: ExtractionStatus | None = None,
+    analyses: list[AnalysisStatus] | None = None,
 ) -> str | None:
     if any(s.conflicts for s in stages):
         return "strata adjudicate"
@@ -158,7 +169,24 @@ def _next_action(
             return "strata extract --reconcile"
         if extraction.missing:
             return "strata extract --missing"
+    if analyses and any(a.state in ("missing", "stale-data", "stale-tool") for a in analyses):
+        return "strata analyze --all"
     return None
+
+
+def _analysis_statuses(repo: Repo) -> list[AnalysisStatus]:
+    from strata.analysis import run as analysis_run
+    from strata.analysis import spec as analysis_spec
+
+    found = []
+    for analysis_id in analysis_spec.list_analyses(repo):
+        try:
+            label = analysis_spec.load_spec(repo, analysis_id).label
+            state = analysis_run.results_state(repo, analysis_id)
+        except ValueError:
+            label, state = "invalid", "invalid"
+        found.append(AnalysisStatus(analysis_id, label, state))
+    return found
 
 
 def _extraction_status(repo: Repo) -> ExtractionStatus | None:
@@ -202,6 +230,7 @@ def compute_status(repo: Repo) -> StatusReport:
     )
 
     extraction = _extraction_status(repo)
+    analyses = _analysis_statuses(repo)
 
     return StatusReport(
         title=project.get("title", "(untitled)"),
@@ -214,7 +243,8 @@ def compute_status(repo: Repo) -> StatusReport:
         search_count=len(list_searches(repo)),
         pending_searches=pending_search_ids(repo),
         stages=stages,
-        next_action=_next_action(stages, retrieval, extraction),
+        next_action=_next_action(stages, retrieval, extraction, analyses),
         retrieval=retrieval,
         extraction=extraction,
+        analyses=analyses,
     )

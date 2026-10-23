@@ -30,6 +30,7 @@ from strata.analysis import rows as analysis_rows
 from strata.analysis import run as analysis_run
 from strata.analysis import spec as analysis_mod_spec
 from strata.core import actor as actor_mod
+from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
 from strata.core import filters as filters_mod
 from strata.core import ids as ids_mod
@@ -459,6 +460,15 @@ def status(ctx: typer.Context) -> None:
             )
         elif e.missing:
             out_console.print("  strata extract --missing")
+    if s.analyses:
+        out_console.print("\n[bold]ANALYSES[/]")
+        for a in s.analyses:
+            note = {
+                "stale-data": "[yellow]stale: its data changed[/]  strata analyze " + a.id,
+                "stale-tool": "[yellow]stale: the tool changed[/]  strata analyze " + a.id,
+                "missing": "not run yet  strata analyze " + a.id,
+            }.get(a.state, a.state)
+            out_console.print(f"  {a.id} ({a.label})  {note}")
     if s.next_action:
         out_console.print(f"\n[bold]NEXT[/]  {s.next_action}")
 
@@ -475,6 +485,69 @@ def log_command(
     commits = logcmd_mod.domain_log(repo, criteria_only=criteria, stage=stage, actor=actor)
     for c in commits:
         out_console.print(f"{c.sha[:10]}  {c.subject}")
+
+
+def _fmt_estimate(summary: dict[str, Any] | None) -> str:
+    if summary is None or summary.get("estimate") is None:
+        return "n/a"
+    scale = summary.get("scale") or ""
+    text = f"{scale} = {summary['estimate']:.2f}"
+    if summary.get("ci_lb") is not None:
+        text += f" [{summary['ci_lb']:.2f}, {summary['ci_ub']:.2f}]"
+    return text
+
+
+@app.command("diff")
+def diff_command(
+    ctx: typer.Context,
+    revisions: str = typer.Argument(..., metavar="<ref>..<ref>", help="e.g. v1-protocol..HEAD"),
+) -> None:
+    """Domain-level diff: criteria, records, pools, included studies and pooled estimates."""
+    repo = _resolve_repo(ctx)
+    try:
+        base, head = diffcmd_mod.parse_range(revisions)
+        result = diffcmd_mod.diff_refs(repo, base, head)
+    except diffcmd_mod.DiffError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if ctx.obj["json"]:
+        _print_json(result.to_json())
+        return
+    v1, v2 = result.criteria_versions
+    counts = result.criteria_deltas
+    parts = [f"{n} {name}" for name, n in counts.items() if n]
+    out_console.print(
+        f"[bold]Criteria:[/]  v{v1} -> v{v2}" + (f"  ({', '.join(parts)})" if parts else "")
+    )
+    (i1, i2), (d1, d2) = result.records_identified, result.duplicates
+    out_console.print(
+        f"[bold]Records:[/]   {i1} -> {i2}  ({i2 - i1:+d} identified, {d2 - d1:+d} duplicates)"
+    )
+    for pool in result.pools:
+        out_console.print(
+            f"[bold]Pool:[/]      {pool.before} -> {pool.after} at {pool.stage}  "
+            f"(+{pool.entered} entered, -{pool.left} left)"
+        )
+    out_console.print(f"[bold]Included:[/]  {result.studies[0]} -> {result.studies[1]} studies")
+    for change in result.analyses:
+        old, new = change.before, change.after
+        if change.status == "unchanged":
+            out_console.print(f"[bold]{change.analysis}:[/]  unchanged  {_fmt_estimate(new)}")
+        elif change.status == "added":
+            out_console.print(f"[bold]{change.analysis}:[/]  new  {_fmt_estimate(new)}")
+        elif change.status == "removed":
+            out_console.print(f"[bold]{change.analysis}:[/]  removed (was {_fmt_estimate(old)})")
+        else:
+            assert old is not None and new is not None
+            out_console.print(
+                f"[bold]{change.analysis}:[/]  {_fmt_estimate(old)} -> {_fmt_estimate(new)}"
+            )
+            i2a, i2b = old.get("I2"), new.get("I2")
+            het = f"I2 = {i2a:.0f}% -> {i2b:.0f}%,  " if i2a is not None and i2b is not None else ""
+            out_console.print(
+                f"{' ' * (len(change.analysis) + 2)}  {het}"
+                f"k = {old.get('k_studies')} -> {new.get('k_studies')}"
+            )
 
 
 def _commit_manifest_op(

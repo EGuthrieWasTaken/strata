@@ -9,7 +9,9 @@ swappable.
 
 from __future__ import annotations
 
+import io
 import subprocess
+import tarfile
 from pathlib import Path
 
 GIT_TIMEOUT_SECONDS = 60
@@ -116,3 +118,29 @@ def log(path: Path, *, max_count: int | None = None, fmt: str = "%H") -> list[st
     if result.returncode != 0:
         return []
     return [line for line in result.stdout.splitlines() if line]
+
+
+def resolve_commit(path: Path, ref: str) -> str:
+    """The full commit id `ref` names; a ref starting with `-` is refused, never given to git."""
+    if ref.startswith("-"):
+        raise GitError(["rev-parse", ref], 128, f"not a valid revision: {ref}")
+    result = run(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=path, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise GitError(["rev-parse", ref], 128, f"unknown revision: {ref}")
+    return result.stdout.strip()
+
+
+def export_tree(path: Path, commit: str, dest: Path) -> None:
+    """Write the files of `commit` into `dest` without touching the working tree or the index."""
+    archived = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=path,
+        capture_output=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+    )
+    if archived.returncode != 0:
+        raise GitError(
+            ["archive", commit], archived.returncode, archived.stderr.decode("utf-8", "replace")
+        )
+    with tarfile.open(fileobj=io.BytesIO(archived.stdout)) as tar:
+        tar.extractall(dest, filter="data")

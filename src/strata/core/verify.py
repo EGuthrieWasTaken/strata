@@ -438,6 +438,43 @@ def _verify_rob(repo: Repo, report: VerifyReport) -> None:
             )
 
 
+def _verify_analyses(repo: Repo, report: VerifyReport) -> None:
+    """Every analysis specification parses, and committed results are not silently out of date:
+    stale because the data changed, or because the tool did (openspec:analysis-specification)."""
+    from strata.analysis import rows as analysis_rows
+    from strata.analysis import run as analysis_run
+    from strata.analysis import spec as analysis_spec
+
+    for analysis_id in analysis_spec.list_analyses(repo):
+        path = f"analysis/{analysis_id}.yaml"
+        try:
+            analysis_spec.load_spec(repo, analysis_id)
+        except (analysis_spec.AnalysisSpecError, YAMLError) as exc:
+            report.add("E_SCHEMA", str(exc), path=path)
+            continue
+        try:
+            state = analysis_run.results_state(repo, analysis_id)
+        except (analysis_rows.RowError, ValueError) as exc:
+            report.add(
+                "W_ANALYSIS_UNCHECKED",
+                f"cannot check {analysis_id}: {exc}",
+                path=path,
+                severity="warning",
+            )
+            continue
+        reason = {
+            "stale-data": "stale because its data changed (strata analyze to refresh)",
+            "stale-tool": "stale because the tool changed (strata analyze to refresh)",
+        }.get(state)
+        if reason:
+            report.add(
+                "W_ANALYSIS_STALE",
+                f"analysis {analysis_id} is {reason}",
+                path=f"analysis/results/{analysis_id}/run.json",
+                severity="warning",
+            )
+
+
 def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     report = VerifyReport()
     _verify_manifest(repo, report)
@@ -455,4 +492,5 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
         )
         _verify_extraction(repo, report)
         _verify_rob(repo, report)
+        _verify_analyses(repo, report)
     return report
