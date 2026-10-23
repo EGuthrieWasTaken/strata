@@ -15,7 +15,8 @@ pieces the [roadmap](roadmap.md) lists, `strata sync`, is built here.
 | Conflict presentation | human-authored files shown as `mine` / `theirs` (criteria summarised by id and field); `--resolve mine\|theirs`, an interactive prompt, or an editor | done, editor path untested |
 | Event normalisation | after a divergent merge, changed event files are put in `(ts, id)` order, duplicate ids dropped, `seq` renumbered, `prev`/digest chain re-linked, and a `relink` event written under `events/relink/<actor>.ndjson` | done |
 | E2E-02 | two clones screen concurrently through the CLI and `strata sync` repeatedly, with no manual conflict step, ending at one head with identical events and derived views | done |
-| Container image, hosted instance | `add-container-image`, `add-hosted-team-deployment` | not started |
+| Container image | `add-container-image`: `Dockerfile`, entrypoint, `compose.yaml`, `serve --public-url` / `STRATA_TOKEN` / `GET /healthz`, `strata --version`, CI/release/nightly jobs | written and tested without a container runtime; **never built or run**, base image not pinned by digest, no cosign signing; see [`container.md`](container.md) and the notes in the change's `tasks.md` |
+| Hosted instance | `add-hosted-team-deployment` | not started |
 
 ## Conventions that emerged
 

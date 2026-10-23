@@ -247,7 +247,9 @@ can start immediately:
 1. **`strata sync`** — *built*: the shared-remote workflow
    (`openspec:collaboration-sync`) and the engine of the hosted sync loop; see
    [`m5-1-plan.md`](m5-1-plan.md) for what it does and what is deliberately partial.
-2. **Container image** (`add-container-image`) — one image that runs every
+2. **Container image** (`add-container-image`) — *written and tested without a
+   container runtime; the image has not been built or run, see
+   [`container.md`](container.md)*. One image that runs every
    `strata` command and the local web UI against a mounted repository, with
    host-supplied git credentials, a public-URL setting for header validation, a
    health endpoint, multi-architecture builds published to GHCR, and
