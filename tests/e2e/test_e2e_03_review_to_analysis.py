@@ -1,10 +1,9 @@
-"""E2E-03 (up to the analysis step): import, screen, retrieve, group, extract twice, reconcile,
-assess risk of bias, and export an analysis-ready dataset -- all through the CLI.
+"""E2E-03, full review to publication: import, screen, retrieve, group, extract twice, reconcile,
+assess risk of bias, export an analysis-ready dataset, analyse it, draw the PRISMA flow diagram,
+generate the checklist and the manuscript sections, and package the reproducibility supplement --
+all through the CLI.
 
-openspec:test-suite#end-to-end-scenarios names E2E-03 "Full review to publication". M3 delivers
-everything up to the analysis step (docs/roadmap.md, M3 acceptance); the analysis, PRISMA diagram,
-characteristics table, manuscript export and reproducibility package belong to M4/M5 and are not
-asserted here.
+openspec:test-suite#end-to-end-scenarios names E2E-03 "Full review to publication".
 
 The review: three records, two of which report the same trial (a study of two reports), screened
 independently by two reviewers at both stages; every report is retrieved; the two reviewers extract
@@ -17,6 +16,9 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
+import shutil
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +34,7 @@ from strata.core.verify import verify_repository
 from strata.extract import records as extraction_records
 from strata.extract import rob
 from strata.protocol import studies as studies_mod
+from strata.report import sections as sections_mod
 
 runner = CliRunner()
 WHY = "Recording this step of the end-to-end review."
@@ -85,7 +88,7 @@ def _json(root: Path, *args: str) -> Any:
 
 
 @pytest.mark.req("E2E-03")
-def test_a_review_runs_from_import_to_an_analysis_ready_dataset(tmp_path: Path) -> None:
+def test_a_review_runs_from_import_to_publication(tmp_path: Path) -> None:
     root = tmp_path / "review"
     _run(None, "init", str(root), "--title", "E2E-03", "--actor", "ethan", "--actor-name", "Ethan")
     _run(root, "actor", "add", "sam", "Sam")
@@ -231,6 +234,81 @@ def test_a_review_runs_from_import_to_an_analysis_ready_dataset(tmp_path: Path) 
     assert by_study[other]["n_total"] == "80" and by_study[trial]["field_design"] == "rct"
     assert out.read_bytes() == _rerun_export(root, tmp_path / "again.csv")  # deterministic
 
+    # --- analysis ---------------------------------------------------------------------------------
+    root.joinpath("analysis").mkdir(exist_ok=True)
+    root.joinpath("analysis", "primary.yaml").write_text(
+        dump_yaml_str(
+            {
+                "id": "primary", "title": "Spaced practice and recall", "preregistered": True,
+                "effect_size": {"measure": "SMD"},
+                "model": {"type": "random-effects", "tau2_estimator": "REML", "ci_method": "wald"},
+                "plots": ["forest"],
+            }
+        ),
+        encoding="utf-8",
+    )  # fmt: skip
+    _run(root, "analyze", "primary")
+    estimates = json.loads(
+        root.joinpath("analysis", "results", "primary", "estimates.json").read_text()
+    )
+    assert estimates["k_studies"] == 2
+    codes = {
+        w["code"]
+        for w in json.loads(
+            root.joinpath("analysis", "results", "primary", "run.json").read_text()
+        )["warnings"]
+    }
+    assert {"k-lt-3", "k-lt-5"} <= codes  # two studies: the guardrails say so, and it is recorded
+
+    # --- the PRISMA flow diagram: the registry-found records are the other-methods column ---
+    _run(root, "prisma", "--columns", "both")
+    diagram = root.joinpath("reports", "prisma.svg").read_text(encoding="utf-8")
+    words = " ".join(re.findall(r">([^<]+)</text>", diagram))
+    assert "Identification of studies via other methods" in words and "Registries (n = 3)" in words
+    assert (
+        "Studies included in review (n = 2)" in words
+        and "Reports of included studies (n = 3)" in words
+    )
+    assert "DRAFT" not in diagram
+    counts = json.loads(root.joinpath("derived", "counts.json").read_text())
+    assert counts["reconciled"] is True and counts["complete"] is True
+    assert counts["totals"]["identified"] == 3 and counts["studies_included"] == 2
+
+    # --- checklist, characteristics and the manuscript ---
+    _run(root, "report", "checklist")
+    status = _json(root, "report", "checklist", "--status")
+    assert status["items"] == 42 and "22" in status["needs_author"]
+    checklist = root.joinpath("reports", "prisma-checklist.md").read_text(encoding="utf-8")
+    assert "CC BY 4.0" in checklist and "24c" in checklist
+    for section in ("methods", "results", "characteristics", "amendments", "rob"):
+        _run(root, "report", section)
+    characteristics = root.joinpath("reports", "characteristics.md").read_text(encoding="utf-8")
+    assert characteristics.count("\n| ") == 3 and "Cepeda" in characteristics
+    _run(root, "report", "manuscript")
+    manuscript = root.joinpath("reports", "manuscript.md").read_text(encoding="utf-8")
+    assert "the pooled standardised mean difference was" in manuscript
+    assert "Discussion" not in manuscript and "Conclusion" not in manuscript
+    assert sections_mod.violations(manuscript) == []
+    if shutil.which("pandoc"):
+        _run(root, "report", "manuscript", "--format", "docx")
+        assert root.joinpath("reports", "manuscript.docx").read_bytes()[:2] == b"PK"
+    _run(root, "report", "discussion", code=2)
+
+    # --- the bibliography and the reproducibility package ---
+    included = json.loads(_run(root, "export", "bibliography", "--set", "included").output)
+    assert len(included) == 3
+    root.joinpath("fulltext").mkdir(exist_ok=True)
+    root.joinpath("fulltext", "cepeda-2008.pdf").write_bytes(b"%PDF-1.4 a full text")
+    _run(root, "config", "project.license", "CC-BY-4.0")
+    supplement = tmp_path / "supplement.zip"
+    _run(root, "export", "package", "--out", str(supplement))
+    archive = zipfile.ZipFile(supplement)
+    assert not [n for n in archive.namelist() if n.lower().endswith(".pdf")]
+    assert "analysis/results/primary/estimates.json" in archive.namelist()
+    assert gitio.current_commit(root) in archive.read("README.md").decode()
+    gitio.add_all(root)
+    gitio.commit(root, "test: licence\n\nStrata-Op: config\nStrata-Actor: ethan")
+
     # --- the whole repository is consistent and clean ------------------------------------------
     report = verify_repository(open_repo(root))
     assert report.ok, report.issues
@@ -240,7 +318,7 @@ def test_a_review_runs_from_import_to_an_analysis_ready_dataset(tmp_path: Path) 
     assert final["extraction"]["complete"] == final["extraction"]["studies"] == 2
     assert final["next_action"] is None
     log = "\n".join(gitio.log(root, fmt="%s"))
-    for op in ("retrieve", "studies", "extract", "reconcile", "rob"):
+    for op in ("retrieve", "studies", "extract", "reconcile", "rob", "analyze", "prisma", "report"):
         assert op in log
 
 

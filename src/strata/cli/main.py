@@ -794,6 +794,8 @@ def import_command(
                     f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
                 )
 
+        if not dry_run:
+            counts_mod.regenerate_counts_json(repo)  # the identified and duplicate counts moved
         if dry_run or ctx.obj["no_commit"]:
             continue
 
@@ -805,7 +807,7 @@ def import_command(
             body=rationale,
             trailers={"Op": "import", "Import": outcome.import_id, "Actor": by},
         )
-        gitio.add(repo.root, ["imports", "records", "events"])
+        gitio.add(repo.root, ["imports", "records", "events", "derived"])
         gitio.commit(repo.root, commit_obj.message())
 
     if ctx.obj["json"]:
@@ -863,6 +865,10 @@ def _render_review_pair(
     return "\n".join(lines)
 
 
+# Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
+_COUNT_NEUTRAL_OPS = frozenset({"extract", "reconcile", "rob", "analyze", "prisma", "report"})
+
+
 def _commit_domain_op(
     ctx: typer.Context,
     repo: Repo,
@@ -873,6 +879,8 @@ def _commit_domain_op(
     by: str,
     extra_trailers: dict[str, str] | None = None,
 ) -> None:
+    if op not in _COUNT_NEUTRAL_OPS:
+        counts_mod.regenerate_counts_json(repo)  # whatever this changed, the counts follow it
     if ctx.obj["no_commit"]:
         return
     candidates = (
@@ -3553,6 +3561,7 @@ def prisma_command(
         err_console.print(f"[red]error:[/] --format {fmt} is binary; give --out FILE")
         raise typer.Exit(EXIT_USAGE)
     counts = counts_mod.compute(repo)
+    counts_mod.regenerate_counts_json(repo, counts)
     try:
         counts_mod.require_reconciled(counts)
         flow_mod.require_final(counts, allow_stale=allow_stale)
@@ -3655,6 +3664,7 @@ def report_command(
         err_console.print("[red]error:[/] --status applies to the checklist only")
         raise typer.Exit(EXIT_USAGE)
     facts = facts_mod.collect(repo)
+    counts_mod.regenerate_counts_json(repo, facts.counts)
     if name != "amendments":
         try:
             counts_mod.require_reconciled(facts.counts)
