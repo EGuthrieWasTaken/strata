@@ -93,6 +93,7 @@ class Fit:
     qm_p: float | None = None
     r2: float | None = None
     iterations: int | None = None
+    s2w: float = 1.0  # the Knapp-Hartung variance inflation applied to `vb` (1 for Wald)
     conventions: dict[str, Any] = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
 
@@ -513,6 +514,7 @@ def random_effects(
     vb = fit.vb
     truncated: bool | None = None
     df: int | None = None
+    s2w = 1.0
     if ci_method == "knapp-hartung":
         df = k - p
         s2w = 0.0 if fit.rss <= np.finfo(float).eps else fit.rss / df
@@ -569,6 +571,7 @@ def random_effects(
         qm_p=qm_p,
         r2=r2,
         iterations=iterations,
+        s2w=float(s2w),
         conventions=conventions,
         warnings=tuple(warnings),
     )

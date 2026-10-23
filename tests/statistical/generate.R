@@ -252,8 +252,8 @@ for (nm in names(diag_sets)) {
     l1 <- leave1out(res, control = tight)
     # Cumulative meta-analysis in the order given (here: by year, ties in input order).
     o <- order(d$year, seq_along(d$year))
-    cu <- cumul(res, order = o, control = tight)
-    qe_i2 <- function(Q, k) ifelse(k > 1, pmax(0, 100 * (Q - (k - 1)) / Q), 0)
+    cu <- cumul(res, order = d$year, control = tight)
+    qe_i2 <- function(Q, df) if (df > 0) pmax(0, 100 * (Q - df) / Q) else rep(0, length(Q))
     case$fits[[tst]] <- list(
       influence = list(
         rstudent = arr(inf$inf$rstudent), dffits = arr(inf$inf$dffits), cook_d = arr(inf$inf$cook.d),
@@ -262,7 +262,7 @@ for (nm in names(diag_sets)) {
       ),
       leave_one_out = list(
         estimate = arr(l1$estimate), se = arr(l1$se), ci_lb = arr(l1$ci.lb), ci_ub = arr(l1$ci.ub),
-        tau2 = arr(l1$tau2), Q = arr(l1$Q), I2 = arr(qe_i2(l1$Q, length(d$yi)))
+        tau2 = arr(l1$tau2), Q = arr(l1$Q), I2 = arr(qe_i2(l1$Q, length(d$yi) - 2))
       ),
       cumulative = list(
         order = arr(o),
