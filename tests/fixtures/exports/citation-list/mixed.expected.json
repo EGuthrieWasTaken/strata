@@ -1,0 +1,102 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "type": "article-journal",
+      "DOI": "10.1111/j.1467-9280.2008.02209.x",
+      "author": [
+        {
+          "family": "Cepeda",
+          "given": "NJ"
+        },
+        {
+          "family": "Vul",
+          "given": "E"
+        },
+        {
+          "family": "Rohrer",
+          "given": "D"
+        },
+        {
+          "family": "Wixted",
+          "given": "JT"
+        },
+        {
+          "family": "Pashler",
+          "given": "H"
+        }
+      ],
+      "title": "Spacing effects in learning: a temporal ridgeline of optimal retention",
+      "issued": {
+        "date-parts": [
+          [
+            2008
+          ]
+        ]
+      },
+      "container-title": "Psychol Sci",
+      "volume": "19",
+      "issue": "11",
+      "page": "1095-1102"
+    },
+    {
+      "type": "article-journal",
+      "PMID": "16507066",
+      "author": [
+        {
+          "family": "Roediger",
+          "given": "HL"
+        },
+        {
+          "family": "Karpicke",
+          "given": "JD"
+        }
+      ],
+      "title": "Test-enhanced learning: taking memory tests improves long-term retention",
+      "issued": {
+        "date-parts": [
+          [
+            2006
+          ]
+        ]
+      },
+      "container-title": "Psychol Sci",
+      "volume": "17",
+      "issue": "3",
+      "page": "249-255"
+    },
+    {
+      "type": "article-journal",
+      "DOI": "10.1111/j.1467-9280.2008.02127.x",
+      "author": [
+        {
+          "family": "Kornell",
+          "given": "N."
+        },
+        {
+          "family": "Bjork",
+          "given": "R. A."
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2008
+          ]
+        ]
+      },
+      "title": "Learning concepts and categories: Is spacing the enemy of induction?",
+      "container-title": "Psychological Science",
+      "volume": "19",
+      "issue": "6",
+      "page": "585-592"
+    }
+  ],
+  "rejected": [
+    {
+      "line": 4,
+      "raw": "See the supplementary appendix for the full list of included studies.",
+      "error": "not a recognisable reference layout"
+    }
+  ]
+}

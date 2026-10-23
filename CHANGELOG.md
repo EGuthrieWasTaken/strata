@@ -7,6 +7,127 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M6: more import formats** (task 2.4 of OpenSpec change `add-distribution-and-adoption`). `strata
+  import` reads EndNote XML (`.xml`; unescaped `&` and HTML entities repaired, one bad record set aside
+  rather than losing the file, DOCTYPE and entity declarations refused), Excel workbooks (`.xlsx`, first
+  sheet or `--sheet NAME|N`, read with the standard library only, never evaluating a formula, with caps on
+  file size, unpacked size, rows, columns and cell length) and plain-text citation lists (`.txt`;
+  Vancouver and APA layouts, best effort: records are flagged `best-effort-parse` and deduplication leaves
+  them for a person). Golden fixtures, unit, integration and fuzz tests; the fuzzing found four ways a
+  corrupt workbook could escape as the wrong exception, all fixed. Not built: the Covidence, Rayyan and
+  EPPI-Reviewer migration imports.
+- **M5.1: container image** (OpenSpec change `add-container-image`, in flight). A multi-stage `Dockerfile`
+  (locked dependencies, `git`, non-root uid 10001, `safe.directory = *` in the system git config, a
+  `/healthz` health check), `.dockerignore`, an entrypoint that makes `serve` container-ready (all
+  interfaces, a generated token, a localhost public URL, no browser), `compose.yaml`, CI `container` jobs
+  on amd64 and arm64 with hadolint, a smoke test (`scripts/container_smoke.sh`) and a native-versus-image
+  determinism comparison, GHCR publishing with an SBOM and provenance on release tags, and a nightly
+  from-scratch build. `strata serve` gained `--public-url` / `STRATA_PUBLIC_URL` (Host and Origin are
+  validated against it; DNS-rebinding protection stays), `STRATA_TOKEN`, and an unauthenticated
+  `GET /healthz`; `strata --version` now exists. **The image has not been built or run** (no container
+  runtime in the build environment; CI built and smoke-tested it on amd64 and arm64 on the first run), the
+  base image is pinned by digest, and cosign signing is not done. `.github/workflows/container.yml` builds both architectures, publishes them to GHCR and smoke-tests
+  what was published. See `docs/container.md`.
+- **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
+  init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata
+  verify`, comments what the change does to the review (records entering and leaving, decisions invalidated,
+  conflicts opened) and labels a change to the criteria `protocol-amendment` with a review request to the
+  methodologist. It calls the reusable workflow `.github/workflows/review-ci.yml`; `actions/verify` is a
+  composite action that installs `strata` from its own checkout and runs `strata verify`. New helper
+  commands `strata ci amendment` and `strata ci comment`; `strata status --json` gained `included` and
+  `stale_included` per stage. Written and tested locally (the workflow's shell steps run against a fake
+  `gh`); not yet run on GitHub and no release tag exists yet. See `docs/m6-plan.md`.
+- **M5.1: `strata sync`** (capability `collaboration-sync`). One command to share a review through
+  a git remote: it refuses a dirty tree, fetches with the 2/4/8/16-second retry, fast-forwards or
+  merges, puts merged event files back in canonical order and re-links their hash chains (writing
+  a `relink` event), regenerates the derived views, verifies, and restores the repository
+  untouched with nothing pushed if verification fails; then it pushes (up to three rounds when
+  someone pushed meanwhile) and says what changed in terms of people and decisions. Dual
+  screening never conflicts; a criterion reworded by two people is shown as `mine` and `theirs`
+  and settled with `--resolve mine|theirs`, a prompt or an editor. `strata merge-regenerate` and
+  `strata merge-records` are the git merge drivers `init` and `doctor --fix` install; the records
+  driver merges field by field and its decisions become `record-amend` events. A clone without
+  the drivers still syncs. E2E-02 now runs two CLI-driven collaborators through repeated syncs.
+  Partial: the rebase strategy and the editor option are lightly tested; see `docs/m5-1-plan.md`.
+- **M5: reporting** (OpenSpec change `add-prisma-reporting`, in flight until its two open
+  items close). `derived/counts.json` holds every PRISMA 2020 count, derived from the
+  import manifests, records, decisions, retrievals and study grouping and partitioned by
+  where each record was found, with the reconciliation identities asserted
+  (`E_COUNT_RECONCILE` in `strata verify` and before any report). `strata prisma` draws
+  the flow diagram (SVG, PDF, PNG, JSON with the `PRISMA2020` R package input; one or two
+  columns; reasons beyond six collapsed with the full table beside it; a DRAFT watermark
+  and `--allow-stale` while decisions are stale) and `/prisma` shows it live. `strata
+  report checklist [--status]` writes the 27-item checklist as auto-filled, auto-located
+  or author, with item 24c generated from the criteria-change events (what each
+  amendment invalidated and what became of it) and funding and competing-interest
+  statements read from new `[project.funding]` and `[project.competing_interests]`
+  tables. `strata report methods|results|characteristics|amendments|rob|manuscript`
+  drafts those sections (and a risk-of-bias table and traffic-light plot) under the
+  rules for generated prose, with pandoc export to docx, LaTeX and HTML; a Discussion or
+  Conclusion is refused. `strata export bibliography --set included|excluded-at-fulltext|
+  all-screened|not-retrieved` (BibTeX, CSL-JSON, RIS) and `strata export package` (no
+  full text, a required data licence, deterministic bytes). New tests: P11 over random
+  review histories, E2E-03 through to the package, E2E-01's generated amendment and
+  reconciled counts, golden flow diagrams. The checklist wording is Table 1 of the
+  PRISMA 2020 statement word for word, pinned by a fixture parsed from the article. Open:
+  the generated Methods have not had a methodologist's review. See `docs/m5-plan.md`.
+- **M4: analysis** (OpenSpec change `add-meta-analysis`, in flight until its last
+  test-suite item closes). `strata analyze [<id>] [--all] [--check]` runs the
+  versioned `analysis/<id>.yaml` specifications and writes
+  `analysis/results/<id>/` (`estimates.json`, `studies.tsv`, `summary.md`, plots,
+  and `run.json` with an `input_digest` that distinguishes stale data from a
+  changed tool). The native `stats` package computes effect sizes with
+  conversions from t, F, r, chi-square and p; common-effect and random-effects
+  models with eight `tau^2` estimators, Knapp–Hartung with `metafor`'s ad hoc
+  truncation, Q / I² / H² with a Q-profile interval, prediction intervals and
+  meta-regression; aggregation, a multilevel working model and CR2 cluster-robust
+  inference for dependent effects; Egger, Peters, Harbord, Begg, trim-and-fill
+  and PET-PEESE; and leave-one-out, influence diagnostics and cumulative
+  analyses. All of it is compared with committed `metafor` / `clubSandwich`
+  fixtures (`tests/statistical`, 1e-8 relative), the Borenstein, BCG, Raudenbush
+  and Niel-Weise examples, property tests (P12 among them) and every numerical
+  edge case. Plots (forest, funnel, Baujat, bubble) are deterministic SVG and
+  PDF drawn without a plotting library and compared byte for byte with committed
+  files. Fourteen named guardrails are recorded in `run.json`; the underpowered
+  bias-test guardrail blocks (exit code 8) unless `--force` is given. New:
+  `strata diff <ref>..<ref>` (criteria, records, pools, included studies and each
+  committed pooled estimate), analyses in `strata status` and `strata verify`,
+  the `/analysis` and `/analysis/<id>` web screens, a `single-group-proportion`
+  extraction design, and a nightly `metafor-live` job that installs R and fails
+  when a regenerated number drifts. Open: the Hedges & Olkin worked example;
+  macOS and Windows byte-identity and the nightly job have not yet run on
+  GitHub. See `docs/m4-plan.md`.
+- **M3: full text and extraction** (archived OpenSpec change
+  `add-full-text-and-extraction`; four new capability specs —
+  `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias`).
+  `strata retrieve` works the retrieval queue and writes `retrieval` events and
+  the committed `fulltext/manifest.ndjson` (documents identified by identifier
+  and version, never by file hash; a fixed vocabulary of not-retrieved reasons;
+  opt-in Unpaywall links, never a download). `strata studies` groups reports into
+  studies and splits multi-study reports, with suggestions from shared
+  registrations, authors and samples, follow-up wording and mutual citation.
+  `strata extract` (`init`, forms with `value @ source` locators, `--missing`,
+  scripted `--set` / `--effect`, `--reconcile`) with unit conversion (time, mass,
+  length, dose, project extensions, `E_UNIT`), effect entry for every reported
+  form (means with SD/SE/CI, 2x2 tables, correlations, test statistics,
+  p-value only, pre-post, pre-computed) following `metafor`'s conventions with
+  the size shown as you type, six data-quality guards with auditable
+  acknowledgements, and dual extraction with field-by-field reconciliation.
+  `strata rob` with RoB 2 algorithmic suggestions and recorded overrides,
+  ROBINS-I, Newcastle-Ottawa, and custom instruments; judgements are available as
+  `rob_overall` / `rob.<domain>` in filters and exports. `strata export effects`
+  (csv, tsv, json, xlsx, rds) and `strata export provenance`. `strata verify`
+  enforces `E_ORPHAN_EXTRACTION`, `E_MISSING_EXTRACTION`, `E_UNIT` and
+  `E_EFFECT_INPUTS`; `strata status` lists studies with missing values. Web
+  screens `/extract`, `/extract/<study>`, `/extract/<study>/reconcile`, `/rob/<study>`.
+  New tests include E2E-03 (to the analysis step), the extraction half of E2E-06,
+  and loading the export into real `metafor`. See `docs/m3-plan.md` and
+  `docs/rob-instruments.md` for what is partial (RoB 2 has not been compared with
+  Cochrane's own tables; no official question wording is bundled).
+- A study excluded at an earlier screening stage is no longer an included study,
+  so a title/abstract reversal leaves its extraction as an orphan rather than live.
+- Domain commands no longer fail on an empty commit when nothing changed.
+
 - The specification now lives entirely in [OpenSpec](openspec/README.md):
   29 capability specs under `openspec/specs/` (M0–M2.1), each with a
   `spec.md` of requirements and WHEN/THEN scenarios and a `design.md` of

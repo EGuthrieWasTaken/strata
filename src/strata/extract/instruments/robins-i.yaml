@@ -1,0 +1,20 @@
+instrument: ROBINS-I
+id: robins-i
+version: "2016"
+applies_to:
+  - cohort
+  - case-control
+  - non-randomised
+source: https://www.riskofbias.info/welcome/home/current-version-of-robins-i
+licence_note: ROBINS-I is a published tool with its own terms; its question wording is not bundled (see docs/rob-instruments.md). It defines no domain algorithm, so every domain judgement is the reviewer's own.
+domains:
+  - {id: D1, label: Bias due to confounding, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D2, label: Bias in selection of participants into the study, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D3, label: Bias in classification of interventions, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D4, label: Bias due to deviations from intended interventions, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D5, label: Bias due to missing data, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D6, label: Bias in measurement of outcomes, judgements: [low, moderate, serious, critical, no-information]}
+  - {id: D7, label: Bias in selection of the reported result, judgements: [low, moderate, serious, critical, no-information]}
+overall:
+  algorithm: worst-domain
+  judgements: [low, moderate, serious, critical]

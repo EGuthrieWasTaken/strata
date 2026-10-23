@@ -19,9 +19,15 @@ from typing import Any
 from strata import gitio
 from strata.core import records as records_mod
 from strata.core.canon import load_yaml_str
+from strata.core.ids import report_id
 from strata.core.repo import Repo
+from strata.extract import reconcile as reconcile_mod
+from strata.extract import records as extraction_records_mod
+from strata.extract import schema as extraction_schema_mod
 from strata.protocol import rescreen as rescreen_mod
+from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
+from strata.protocol import studies as studies_mod
 from strata.protocol.searches import list_searches, pending_search_ids
 
 _RESOLVED_STATUSES = frozenset({"include", "exclude"})
@@ -36,6 +42,27 @@ class StageStatus:
     partial: int
     conflicts: int
     stale: int
+    included: int = 0  # of the resolved, how many are included (the rest were excluded)
+    stale_included: int = 0  # of the stale decisions, how many are `include` decisions
+
+
+@dataclass
+class ExtractionStatus:
+    """Where extraction stands: the included studies and what each still lacks."""
+
+    studies: int
+    complete: int
+    missing: dict[str, list[str]]
+    reconcile: int = 0  # studies with unresolved differences between dual reviewers
+
+
+@dataclass
+class AnalysisStatus:
+    """One analysis specification and whether its committed results are current."""
+
+    id: str
+    label: str
+    state: str  # missing | fresh | stale-data | stale-tool
 
 
 @dataclass
@@ -51,6 +78,9 @@ class StatusReport:
     pending_searches: list[str]
     stages: list[StageStatus] = field(default_factory=list)
     next_action: str | None = None
+    retrieval: retrieval_mod.RetrievalCounts | None = None
+    extraction: ExtractionStatus | None = None
+    analyses: list[AnalysisStatus] = field(default_factory=list)
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -71,7 +101,7 @@ def _read_criteria_version(repo: Repo) -> int:
 
 def _compute_stage_status(
     repo: Repo, stage: str, canonical_ids: list[str], stale_by_record: dict[str, set[str]]
-) -> StageStatus:
+) -> tuple[StageStatus, list[str]]:
     events = screening_mod.all_screen_events(repo, stage)
     events_by_record: dict[str, list[dict[str, Any]]] = {}
     for event in events:
@@ -83,6 +113,7 @@ def _compute_stage_status(
     assign_events = screening_mod.all_assign_events(repo)
 
     resolved = unscreened = partial = conflicts = stale = 0
+    included: list[str] = []
     for record_id in canonical_ids:
         state = screening_mod.resolve_record_state(
             repo,
@@ -94,6 +125,8 @@ def _compute_stage_status(
         )
         if state.status in _RESOLVED_STATUSES:
             resolved += 1
+            if state.status == "include":
+                included.append(record_id)
         elif state.status == "unscreened":
             unscreened += 1
         elif state.status == "partial":
@@ -103,26 +136,78 @@ def _compute_stage_status(
         if stage in stale_by_record.get(record_id, ()):
             stale += 1
 
-    return StageStatus(
-        stage=stage,
-        total=len(canonical_ids),
-        resolved=resolved,
-        unscreened=unscreened,
-        partial=partial,
-        conflicts=conflicts,
-        stale=stale,
+    return (
+        StageStatus(
+            stage=stage,
+            total=len(canonical_ids),
+            resolved=resolved,
+            unscreened=unscreened,
+            partial=partial,
+            conflicts=conflicts,
+            stale=stale,
+            included=len(included),
+            stale_included=sum(1 for r in included if stage in stale_by_record.get(r, ())),
+        ),
+        included,
     )
 
 
-def _next_action(stages: list[StageStatus]) -> str | None:
+def _next_action(
+    stages: list[StageStatus],
+    retrieval: retrieval_mod.RetrievalCounts | None = None,
+    extraction: ExtractionStatus | None = None,
+    analyses: list[AnalysisStatus] | None = None,
+) -> str | None:
     if any(s.conflicts for s in stages):
         return "strata adjudicate"
     if any(s.stale for s in stages):
         return "strata rescreen"
-    for s in stages:
+    for index, s in enumerate(stages):
+        # Reports have to be obtained before the stage that assesses them can be worked.
+        if index > 0 and retrieval is not None and retrieval.outstanding:
+            return "strata retrieve"
         if s.unscreened or s.partial:
             return f"strata screen {s.stage}"
+    if extraction is not None:
+        if extraction.reconcile:
+            return "strata extract --reconcile"
+        if extraction.missing:
+            return "strata extract --missing"
+    if analyses and any(a.state in ("missing", "stale-data", "stale-tool") for a in analyses):
+        return "strata analyze --all"
     return None
+
+
+def _analysis_statuses(repo: Repo) -> list[AnalysisStatus]:
+    from strata.analysis import run as analysis_run
+    from strata.analysis import spec as analysis_spec
+
+    found = []
+    for analysis_id in analysis_spec.list_analyses(repo):
+        try:
+            label = analysis_spec.load_spec(repo, analysis_id).label
+            state = analysis_run.results_state(repo, analysis_id)
+        except ValueError:
+            label, state = "invalid", "invalid"
+        found.append(AnalysisStatus(analysis_id, label, state))
+    return found
+
+
+def _extraction_status(repo: Repo) -> ExtractionStatus | None:
+    """`None` until a coding form exists and there is an included study to code."""
+    if not extraction_schema_mod.schema_exists(repo):
+        return None
+    try:
+        missing = extraction_records_mod.studies_missing(repo)
+    except extraction_schema_mod.ExtractionSchemaError:
+        return None
+    studies = len(studies_mod.study_map(repo).members)
+    if not studies:
+        return None
+    unresolved = 0
+    if extraction_records_mod.extraction_mode(repo) == "dual":
+        unresolved = sum(1 for c in reconcile_mod.all_comparisons(repo) if c.unresolved)
+    return ExtractionStatus(studies, studies - len(missing), missing, unresolved)
 
 
 def compute_status(repo: Repo) -> StatusReport:
@@ -139,10 +224,17 @@ def compute_status(repo: Repo) -> StatusReport:
     for stale in rescreen_mod.compute_stale_records(repo):
         stale_by_record.setdefault(stale.record_id, set()).add(stale.stage)
 
-    stages = [
+    computed = [
         _compute_stage_status(repo, stage, canonical_ids, stale_by_record)
         for stage in screening_mod.configured_stages(repo)
     ]
+    stages = [stage_status for stage_status, _included in computed]
+    retrieval = retrieval_mod.retrieval_counts(
+        repo, sought=[report_id(r) for r in computed[0][1]] if computed else []
+    )
+
+    extraction = _extraction_status(repo)
+    analyses = _analysis_statuses(repo)
 
     return StatusReport(
         title=project.get("title", "(untitled)"),
@@ -155,5 +247,8 @@ def compute_status(repo: Repo) -> StatusReport:
         search_count=len(list_searches(repo)),
         pending_searches=pending_search_ids(repo),
         stages=stages,
-        next_action=_next_action(stages),
+        next_action=_next_action(stages, retrieval, extraction, analyses),
+        retrieval=retrieval,
+        extraction=extraction,
+        analyses=analyses,
     )

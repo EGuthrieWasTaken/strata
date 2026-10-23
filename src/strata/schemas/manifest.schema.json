@@ -18,7 +18,34 @@
         "slug": { "type": "string" },
         "created": { "type": "string" },
         "registry": { "type": "object" },
-        "license": { "type": "string" }
+        "license": { "type": "string" },
+        "funding": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "role_of_funders": { "type": "string" }
+          }
+        },
+        "competing_interests": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "statement": { "type": "string" },
+            "declarations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["author", "statement"],
+                "additionalProperties": false,
+                "properties": {
+                  "author": { "type": "string", "minLength": 1 },
+                  "statement": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "actors": {
@@ -49,6 +76,12 @@
         "blind_metadata": { "type": "boolean" },
         "require_exclusion_reason": { "type": "boolean" },
         "assignment": { "type": "object" }
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string", "enum": ["single", "dual"] }
       }
     },
     "dedup": {

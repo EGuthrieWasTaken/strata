@@ -18,8 +18,10 @@ import pytest
 
 from strata.ingest.parsers import ParseResult, decode_bytes, normalise_newlines
 from strata.ingest.parsers import bibtex as bibtex_parser
+from strata.ingest.parsers import citation_list as citation_list_parser
 from strata.ingest.parsers import csl_json as csl_json_parser
 from strata.ingest.parsers import csv_tsv as csv_tsv_parser
+from strata.ingest.parsers import endnote_xml as endnote_xml_parser
 from strata.ingest.parsers import medline as medline_parser
 from strata.ingest.parsers import ris as ris_parser
 from strata.ingest.profiles import detect_profile
@@ -31,6 +33,8 @@ PARSERS = {
     "ris": ris_parser.parse,
     "bibtex": bibtex_parser.parse,
     "medline": medline_parser.parse,
+    "endnote-xml": endnote_xml_parser.parse,
+    "citation-list": citation_list_parser.parse,
 }
 
 
@@ -53,6 +57,7 @@ def _load_expected(format_dir: str, filename: str) -> Any:
         ("ris", "clean.ris"),
         ("bibtex", "clean.bib"),
         ("medline", "clean.nbib"),
+        ("endnote-xml", "clean.xml"),
     ],
 )
 def test_clean_fixture_matches_expected_records(format_dir: str, clean_file: str) -> None:
@@ -71,6 +76,8 @@ def test_clean_fixture_matches_expected_records(format_dir: str, clean_file: str
         ("ris", "malformed-cp1252.ris"),
         ("bibtex", "malformed.bib"),
         ("medline", "malformed.nbib"),
+        ("endnote-xml", "malformed.xml"),
+        ("citation-list", "mixed.txt"),
     ],
 )
 def test_malformed_fixture_matches_expected(format_dir: str, malformed_file: str) -> None:
@@ -175,3 +182,20 @@ def test_csl_json_whole_document_failure_has_no_recovery() -> None:
     assert result.records == []
     assert len(result.rejected) == 1
     assert result.rejected[0].line is not None
+
+
+def test_endnote_xml_malformed_fixture_isolates_bad_records() -> None:
+    result, _ = _parse_fixture("endnote-xml", "malformed.xml")
+    titles = [r["title"] for r in result.records]
+    assert titles == [
+        "Salt & pepper: an unescaped ampersand in a title",
+        "A valid record after the bad ones",
+    ]
+    assert [r.line for r in result.rejected] == [11, 16]
+    assert result.records[0]["abstract"].startswith("Café")  # an HTML entity, unescaped
+
+
+def test_citation_list_flags_its_records_as_best_effort() -> None:
+    result, _ = _parse_fixture("citation-list", "mixed.txt")
+    assert result.best_effort is True and len(result.records) == 3
+    assert [r.line for r in result.rejected] == [4]

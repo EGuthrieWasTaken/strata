@@ -1,0 +1,74 @@
+# Recovery guide
+
+When something looks wrong, start by looking, not fixing. Everything `strata` records is in git, so
+nothing here needs a backup you do not already have: `git log` is the backup.
+
+```
+strata status          # where the review stands, and what to do next
+strata verify          # validates every file; exit code 4 when something is wrong, with the file and a code
+strata log             # the domain-level history (who did what, and why)
+git status             # anything uncommitted
+```
+
+## What is authoritative
+
+The events under `events/`, `strata.toml`, `protocol/`, `records/`, `imports/` and `analysis/*.yaml` are the
+record. Everything under `derived/`, `reports/` and `analysis/results/` is regenerated from them: do not
+repair those by hand, regenerate them with the command that produces them (`strata analyze`, `strata prisma`,
+`strata report …`; `strata sync` regenerates `derived/` after a merge). Never edit an event file: it is a hash
+chain, and a hand edit is exactly what `E_CHAIN` exists to catch.
+
+## "My screening session was interrupted"
+
+Decisions are appended to the event log and flushed as you make them; the commit is made when the session
+ends. If the process died (a crash, a closed terminal, a dead battery) every decision you saw accepted is on
+disk, uncommitted. Start `strata screen` again: it resumes with those records already done, and the commit
+comes at the end of that session. `git diff` shows exactly what is waiting to be committed.
+
+## `strata verify` says…
+
+| Code | What it means | Usual cause and what to do |
+|---|---|---|
+| `E_SCHEMA` | a file does not match its JSON Schema | a hand edit, or a file from a newer `strata`. `git diff <path>` shows the change; `git checkout -- <path>` puts back the last committed version |
+| `E_CHAIN` | an event file's hash chain is broken | a hand edit, or a merge done with plain `git` of a file two clones both appended to. If you have not pushed, `git reset --hard ORIG_HEAD` undoes the merge and `strata sync` redoes it properly (it puts the file back in order and re-links it, recording a `relink` event). If you have, restore the file from before the edit with `git checkout <good-commit> -- <path>` and add what was lost again |
+| `E_DANGLING_REF` | an event names a record, criterion, actor, study or stage that does not exist | a file was deleted or an actor removed by hand; restore it from git |
+| `E_ALIAS_CYCLE` | duplicate merges refer back to each other | `strata dedup --undo CANONICAL ABSORBED` reverses one merge |
+| `E_CRITERION_REUSE` | a criterion id was reused after being retired | add the criterion under a new id; retired ids are never reused |
+| `E_EXCLUSION_NO_CRITERION` | an exclusion cites no criterion while `screening.require_exclusion_reason` is on | record the decision again, citing a criterion |
+| `E_CRITERION_STAGE` | a decision cites a criterion that does not apply at that stage | record it again with a criterion that does, or change where the criterion applies (`strata criteria edit`, with its direction) |
+| `E_ORPHAN_EXTRACTION` | extraction data exists for a study that is not included | the study was excluded after extraction; the data is kept, not deleted. Re-include the study, or leave the warning |
+| `E_MISSING_EXTRACTION` | an included study has no consensus extraction | a warning until you analyse: `strata extract --missing` |
+| `E_COUNT_RECONCILE` | the PRISMA counts do not add up | records that no import manifest accounts for (hand-written records) or a hand-edited `derived/counts.json`; the message names the identity that fails. Every `strata` command that changes a count regenerates the file, so `strata prisma` rewrites it |
+| `E_UNIT`, `E_EFFECT_INPUTS` | an extracted value has a unit the schema does not accept, or an effect lacks the fields its design needs | `strata extract` the study again |
+
+## "I made a wrong decision"
+
+The log is append-only, so a wrong decision is corrected by a new one, and both stay in the history:
+screen the record again (`strata screen`), settle a disagreement with `strata adjudicate`, correct a record's
+metadata with `strata fix`, reverse a duplicate merge with `strata dedup --undo CANONICAL ABSORBED`, change a
+criterion with its direction so `strata rescreen` shows what is now stale. Reverting a commit with `git
+revert` is available, but it removes the events without a record of why; use it for a change that never
+should have been made, not to correct a judgement.
+
+## Sharing went wrong (`strata sync`)
+
+| What you see | What it means |
+|---|---|
+| "there are uncommitted changes" | something is half-done in the working tree. `git status` shows it; every `strata` command commits its own work, so this usually means a hand edit or an interrupted session (finish it, as above) |
+| "the merged repository does not verify, so nothing was pushed" | your repository was restored exactly as it was and the problems the merge would have caused are listed; nothing reached the remote. Send the list to whoever pushed last |
+| a conflict shown as `mine` and `theirs` | two people edited the same criterion or settings file. Choose with the prompt, or `strata sync --resolve mine` / `--resolve theirs` |
+| "failed after 5 attempts (network)" | the remote could not be reached (it retries after 2, 4, 8 and 16 seconds). Nothing was lost; run `strata sync` again when you are online |
+| "the remote kept changing while syncing" | others pushed three times during one sync; run it again |
+
+## The tooling around git
+
+`strata doctor` checks the git version, `core.hooksPath`, the versioned hooks and the two merge drivers; `strata
+doctor --fix` installs what is missing. A clone made with plain `git clone` has no merge drivers until you run
+it (`strata clone` does it for you, and `strata sync` still works without them, settling the files the drivers
+would have).
+
+## Starting again from the remote
+
+If a working copy is beyond repair and the remote is good: clone it afresh with `strata clone <url>` (it
+installs the drivers and hooks and runs `strata verify`), and bring across anything you had not pushed from the
+old copy by `git diff`/`git format-patch` of its unpushed commits.

@@ -236,26 +236,31 @@ def _compute_stale(
     actor: str | None,
     extra_changes: Sequence[CriterionChange] = (),
     version_override: int | None = None,
+    as_of: tuple[str, str] | None = None,
 ) -> list[StaleRecord]:
     """Shared implementation behind `compute_stale_records` (`actor=None`,
     the aggregate resolved-record view), `rescreen_queue` (`actor=
     <handle>`, that reviewer's own opinion -- see `_effective_opinion`),
     and `preview_criterion_change_impact` (`extra_changes`/
     `version_override`, a hypothetical change layered on top of the real
-    ones, for a non-mutating "what would this do" preview)."""
+    ones, for a non-mutating "what would this do" preview). `as_of` (an event's `(ts, id)`
+    order key) replays history: only decisions made before it, and only criterion changes up to
+    `version_override`, count, which is how a past amendment's own impact is measured."""
     current_version = (
         version_override
         if version_override is not None
         else int(criteria_mod.read_criteria_doc(repo)["version"])
     )
     changes = [*_criterion_changes(repo), *extra_changes]
+    if as_of is not None:
+        changes = [c for c in changes if c.to_version <= current_version]
     canonical_ids = sorted(
         r["id"]
         for r in records_mod.read_records(repo)
         if r.get("strata", {}).get("canonical", True)
     )
     assign_events = screening_mod.all_assign_events(repo)
-    manual_marks = _manual_stale_marks(repo)
+    manual_marks = {} if as_of is not None else _manual_stale_marks(repo)
 
     stale_stage_records: dict[str, set[str]] = {stage: set() for stage in _STAGE_ORDER}
     results: list[StaleRecord] = []
@@ -265,10 +270,14 @@ def _compute_stale(
         if stage not in configured:
             continue
         all_events = screening_mod.all_screen_events(repo, stage)
+        if as_of is not None:
+            all_events = [e for e in all_events if _order_key(e) < as_of]
         events_by_record: dict[str, list[dict[str, Any]]] = {}
         for event in all_events:
             events_by_record.setdefault(event["body"]["record"], []).append(event)
         adjudicate_events = screening_mod.all_adjudicate_events(repo, stage)
+        if as_of is not None:
+            adjudicate_events = [e for e in adjudicate_events if _order_key(e) < as_of]
         adjudicate_by_record: dict[str, list[dict[str, Any]]] = {}
         for event in adjudicate_events:
             adjudicate_by_record.setdefault(event["body"]["record"], []).append(event)
@@ -333,6 +342,12 @@ def compute_stale_records(repo: Repo) -> list[StaleRecord]:
     specific native reason always wins when both would apply.
     """
     return _compute_stale(repo, actor=None)
+
+
+def stale_records_as_of(repo: Repo, *, before: dict[str, Any], version: int) -> list[StaleRecord]:
+    """The decisions that were stale once the criteria stood at `version`, counting only those
+    made before the event `before` (ordered by timestamp, then id, as the fold orders events)."""
+    return _compute_stale(repo, actor=None, version_override=version, as_of=_order_key(before))
 
 
 def stale_records_for_stage(repo: Repo, stage: str) -> list[StaleRecord]:

@@ -9,7 +9,9 @@ swappable.
 
 from __future__ import annotations
 
+import io
 import subprocess
+import tarfile
 from pathlib import Path
 
 GIT_TIMEOUT_SECONDS = 60
@@ -38,7 +40,8 @@ def run(
         timeout=timeout,
     )
     if check and result.returncode != 0:
-        raise GitError(args, result.returncode, result.stderr)
+        # `git commit` says "nothing to commit" on stdout, so a failure can have an empty stderr.
+        raise GitError(args, result.returncode, result.stderr.strip() or result.stdout)
     return result
 
 
@@ -65,8 +68,19 @@ def add_all(path: Path) -> None:
     run(["add", "-A"], cwd=path)
 
 
+def has_staged_changes(path: Path) -> bool:
+    """Whether the index differs from HEAD, i.e. whether a commit would record anything."""
+    return run(["diff", "--cached", "--quiet"], cwd=path, check=False).returncode == 1
+
+
 def is_dirty(path: Path) -> bool:
     result = run(["status", "--porcelain"], cwd=path)
+    return bool(result.stdout.strip())
+
+
+def has_changes(path: Path, pathspecs: list[str]) -> bool:
+    """Whether any of `pathspecs` is modified, staged, or untracked."""
+    result = run(["status", "--porcelain", "--", *pathspecs], cwd=path)
     return bool(result.stdout.strip())
 
 
@@ -110,3 +124,49 @@ def log(path: Path, *, max_count: int | None = None, fmt: str = "%H") -> list[st
     if result.returncode != 0:
         return []
     return [line for line in result.stdout.splitlines() if line]
+
+
+def resolve_commit(path: Path, ref: str) -> str:
+    """The full commit id `ref` names; a ref starting with `-` is refused, never given to git."""
+    if ref.startswith("-"):
+        raise GitError(["rev-parse", ref], 128, f"not a valid revision: {ref}")
+    result = run(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=path, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise GitError(["rev-parse", ref], 128, f"unknown revision: {ref}")
+    return result.stdout.strip()
+
+
+def export_tree(path: Path, commit: str, dest: Path) -> None:
+    """Write the files of `commit` into `dest` without touching the working tree or the index."""
+    archived = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=path,
+        capture_output=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+    )
+    if archived.returncode != 0:
+        raise GitError(
+            ["archive", commit], archived.returncode, archived.stderr.decode("utf-8", "replace")
+        )
+    with tarfile.open(fileobj=io.BytesIO(archived.stdout)) as tar:
+        tar.extractall(dest, filter="data")
+
+
+def commits_adding(path: Path, needle: str, pathspecs: list[str]) -> list[str]:
+    """Commits that introduced `needle` under `pathspecs`, oldest first (`git log -S`).
+
+    A needle that is not a string git can search for as given (it starts with `-`) is refused.
+    """
+    if not needle or needle.startswith("-"):
+        return []
+    result = run(
+        ["log", "--reverse", "--format=%H", f"-S{needle}", "--", *pathspecs], cwd=path, check=False
+    )
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def commit_message(path: Path, commit: str) -> str:
+    """The full message of `commit`."""
+    return run(["log", "-1", "--format=%B", commit], cwd=path).stdout.strip()

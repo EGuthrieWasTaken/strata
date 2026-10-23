@@ -1,0 +1,13 @@
+instrument: Newcastle-Ottawa Scale (case-control studies)
+id: nos-case-control
+version: "case-control"
+applies_to:
+  - case-control
+source: https://www.ohri.ca/programs/clinical_epidemiology/oxford.asp
+licence_note: The Newcastle-Ottawa Scale is free to use with citation; item wording is not bundled (see docs/rob-instruments.md). A domain's judgement is the number of stars awarded and the overall is the total.
+domains:
+  - {id: selection, label: Selection (up to 4 stars), judgements: ["0", "1", "2", "3", "4"]}
+  - {id: comparability, label: Comparability (up to 2 stars), judgements: ["0", "1", "2"]}
+  - {id: exposure, label: Exposure (up to 3 stars), judgements: ["0", "1", "2", "3"]}
+overall:
+  algorithm: sum

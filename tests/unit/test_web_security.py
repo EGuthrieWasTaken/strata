@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 from strata.web.security import (
     InactivityClock,
     allowed_hosts,
     generate_token,
     is_host_allowed,
     is_origin_allowed,
+    parse_public_url,
 )
 
 
@@ -81,3 +84,59 @@ def test_inactivity_clock_uses_real_clock_when_now_omitted() -> None:
     assert not clock.is_expired()
     clock.touch()
     assert not clock.is_expired()
+
+
+# --- openspec:web-ui#configurable-public-url ---------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("raw", "host_header", "origin"),
+    [
+        ("http://localhost:8765", "localhost:8765", "http://localhost:8765"),
+        ("https://strata.example.edu", "strata.example.edu", "https://strata.example.edu"),
+        ("https://strata.example.edu:443/", "strata.example.edu", "https://strata.example.edu"),
+        ("http://strata.example.edu:80", "strata.example.edu", "http://strata.example.edu"),
+        ("https://strata.example.edu:8443", "strata.example.edu:8443", "https://strata.example.edu:8443"),
+        ("http://[::1]:8765", "[::1]:8765", "http://[::1]:8765"),
+        ("https://strata.example.edu/team/reviews", "strata.example.edu", "https://strata.example.edu"),
+    ],
+)  # fmt: skip
+def test_parse_public_url_gives_the_host_and_origin_a_browser_sends(
+    raw: str, host_header: str, origin: str
+) -> None:
+    parsed = parse_public_url(raw)
+    assert parsed.host_header == host_header
+    assert parsed.origin == origin
+
+
+@pytest.mark.parametrize(
+    "raw", ["localhost", "localhost:8765", "ftp://example.org", "//example.org", "http://", "", "http://x:99999"]
+)  # fmt: skip
+def test_parse_public_url_rejects_anything_that_is_not_an_absolute_http_url(raw: str) -> None:
+    with pytest.raises(ValueError, match="scheme|host|port"):
+        parse_public_url(raw)
+
+
+def test_the_scheme_hint_names_the_fix() -> None:
+    with pytest.raises(ValueError, match=r"http://localhost:8765"):
+        parse_public_url("localhost")
+
+
+def test_a_public_url_replaces_the_bind_address_for_host_validation() -> None:
+    public = parse_public_url("http://localhost:8765")
+    allowed = allowed_hosts("0.0.0.0", 8765, public)  # noqa: S104 - the bind address in a container
+    assert allowed == frozenset({"localhost:8765"})
+    assert is_host_allowed("localhost:8765", allowed)
+    assert not is_host_allowed("attacker.example:8765", allowed)
+    # exactly that host, not the loopback aliases the bind-derived list would add
+    assert not is_host_allowed("127.0.0.1:8765", allowed)
+
+
+def test_a_public_url_replaces_the_bind_address_for_origin_validation() -> None:
+    public = parse_public_url("https://strata.example.edu")
+    assert is_origin_allowed("https://strata.example.edu", "0.0.0.0", 8765, public)  # noqa: S104
+    assert is_origin_allowed(None, "0.0.0.0", 8765, public)  # noqa: S104
+    assert not is_origin_allowed("http://strata.example.edu", "0.0.0.0", 8765, public)  # noqa: S104
+    assert not is_origin_allowed("https://attacker.example", "0.0.0.0", 8765, public)  # noqa: S104
+    # without a public URL nothing changes
+    assert is_origin_allowed("http://127.0.0.1:8000", "127.0.0.1", 8000)

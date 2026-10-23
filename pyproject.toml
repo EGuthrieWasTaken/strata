@@ -46,6 +46,7 @@ dev = [
     "diff-cover>=9.1",
     "types-jsonschema>=4.21",
     "httpx2>=2.13.1",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.ruff]
@@ -59,12 +60,21 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+# Lets the numpy override below skip numpy's .pyi stubs too (they are otherwise always followed).
+follow_imports_for_stubs = true
 mypy_path = "src"
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-# No type stubs published for this library.
-module = ["rispy", "rispy.*"]
+# No type stubs published for these libraries.
+module = ["rispy", "rispy.*", "scipy", "scipy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# numpy's stubs use Python 3.12 syntax, which mypy rejects when checking as 3.11 (the oldest
+# supported version): treat numpy as untyped rather than raise the checked version.
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

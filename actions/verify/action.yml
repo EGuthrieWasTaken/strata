@@ -1,0 +1,25 @@
+name: strata verify
+description: >-
+  Install strata from this repository at the ref the action is used at, and run `strata verify`
+  on a review repository: schemas, hash chains, dangling references, derived-view drift and count
+  reconciliation. The step fails on any violation. (openspec:review-repository-ci)
+
+inputs:
+  path:
+    description: The review repository, relative to the workspace.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+    - name: Install strata
+      shell: bash
+      run: |
+        uv tool install "$GITHUB_ACTION_PATH/../.."
+        echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
+    - name: strata verify
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: strata verify

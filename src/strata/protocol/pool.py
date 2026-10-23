@@ -4,20 +4,19 @@ openspec:derived-views#conflicts-view (`conflicts.tsv`).
 `derived/stale.tsv` and `derived/irr.json` are computed in
 `protocol.rescreen`/`protocol.irr` respectively, since their logic is
 tightly coupled to staleness/IRR computation that belongs there.
-`regenerate_all` is the one call site that regenerates all four screening
-derived views together, so a mutating CLI command never has to remember
+`regenerate_all` is the one call site that regenerates the screening derived views
+(and `counts.json`) together, so a mutating CLI command never has to remember
 which subset its change could affect.
 """
 
 from __future__ import annotations
-
-from typing import Any
 
 from strata.core import records as records_mod
 from strata.core.fold import ScreeningState
 from strata.core.repo import Repo
 from strata.protocol import irr as irr_mod
 from strata.protocol import rescreen as rescreen_mod
+from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 
 _POOL_HEADER = (
@@ -50,29 +49,7 @@ def _canonical_ids(repo: Repo) -> list[str]:
 
 
 def _stage_states(repo: Repo, stage: str, canonical_ids: list[str]) -> dict[str, ScreeningState]:
-    if stage not in screening_mod.configured_stages(repo):
-        return {}
-    events = screening_mod.all_screen_events(repo, stage)
-    events_by_record: dict[str, list[dict[str, Any]]] = {}
-    for event in events:
-        events_by_record.setdefault(event["body"]["record"], []).append(event)
-    adjudications = screening_mod.all_adjudicate_events(repo, stage)
-    adjudicate_by_record: dict[str, list[dict[str, Any]]] = {}
-    for event in adjudications:
-        adjudicate_by_record.setdefault(event["body"]["record"], []).append(event)
-    assign_events = screening_mod.all_assign_events(repo)
-
-    return {
-        record_id: screening_mod.resolve_record_state(
-            repo,
-            stage,
-            record_id,
-            screen_events=events_by_record.get(record_id, []),
-            assign_events=assign_events,
-            adjudicate_events=adjudicate_by_record.get(record_id, []),
-        )
-        for record_id in canonical_ids
-    }
+    return screening_mod.stage_states(repo, stage, canonical_ids)
 
 
 def _stale_stages_by_record(repo: Repo) -> dict[str, set[str]]:
@@ -93,12 +70,17 @@ def regenerate_pool_tsv(repo: Repo) -> str:
     tiab_states = _stage_states(repo, "title-abstract", canonical_ids)
     ft_states = _stage_states(repo, "full-text", canonical_ids)
     stale_stages = _stale_stages_by_record(repo)
+    # openspec:full-text-retrieval#not-retrieved-reasons: a report that could not be obtained
+    # has the full-text state `not-retrieved` (unless a decision was recorded regardless).
+    not_retrieved = retrieval_mod.not_retrieved_record_ids(repo)
 
     rows = []
     for record_id in canonical_ids:
         record = records[record_id]
         tiab = tiab_states[record_id].status if record_id in tiab_states else "unscreened"
         fulltext = ft_states[record_id].status if record_id in ft_states else "unscreened"
+        if fulltext == "unscreened" and record_id in not_retrieved:
+            fulltext = "not-retrieved"
         marks = [
             _STAGE_COLUMN[s]
             for s in ("title-abstract", "full-text")
@@ -182,3 +164,7 @@ def regenerate_all(repo: Repo) -> None:
     regenerate_conflicts_tsv(repo)
     rescreen_mod.regenerate_stale_tsv(repo)
     irr_mod.regenerate_irr_json(repo)
+    # Imported here: the counts read modules that import this one.
+    from strata.report import counts as counts_mod
+
+    counts_mod.regenerate_counts_json(repo)

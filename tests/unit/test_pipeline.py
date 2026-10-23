@@ -291,7 +291,7 @@ def test_detect_format_unrecognisable_txt_raises(tmp_path: Path) -> None:
 
 
 def test_detect_format_unsupported_extension_raises(tmp_path: Path) -> None:
-    path = _write(tmp_path, "e.xlsx", "n/a")
+    path = _write(tmp_path, "e.docx", "n/a")
     with pytest.raises(ImportPipelineError, match="unsupported file extension"):
         detect_format(path, "n/a")
 
@@ -313,7 +313,7 @@ def test_import_file_explicit_format_not_in_parser_table_raises(tmp_path: Path) 
     search_id = _with_search(repo)
     source = _write(tmp_path, "e.json", _CLEAN_CSL)
     with pytest.raises(ImportPipelineError, match="unsupported format"):
-        import_file(repo, source, imported_by="ethan", search_id=search_id, fmt="endnote-xml")
+        import_file(repo, source, imported_by="ethan", search_id=search_id, fmt="not-a-format")
 
 
 def test_import_file_invalid_doi_left_unchanged(tmp_path: Path) -> None:

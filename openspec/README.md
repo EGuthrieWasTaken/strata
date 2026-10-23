@@ -81,6 +81,10 @@ review (`openspec:repository-format#format-versioning`).
 | [staleness](specs/staleness/spec.md) | The staleness rules, causes, cascade, re-screening, audit |
 | [screening](specs/screening/spec.md) | Stages, dual screening and blinding, the screening surface, IRR |
 | [adjudication](specs/adjudication/spec.md) | Resolving conflicts |
+| [full-text-retrieval](specs/full-text-retrieval/spec.md) | The retrieval queue, the manifest of documents by identifier and version, not-retrieved reasons, opt-in open-access links |
+| [study-grouping](specs/study-grouping/spec.md) | Reports into studies, splitting multi-study reports, suggestions that are never applied |
+| [data-extraction](specs/data-extraction/spec.md) | The coding form, units, effect entry, data-quality guards, dual extraction and reconciliation, effect export |
+| [risk-of-bias](specs/risk-of-bias/spec.md) | RoB 2 suggestions with recorded overrides, ROBINS-I, Newcastle-Ottawa, custom instruments, filters |
 | [cli](specs/cli/spec.md) | Global options, exit codes, commands, status, errors |
 | [filter-language](specs/filter-language/spec.md) | The `--filter` expression language |
 | [web-ui](specs/web-ui/spec.md) | `strata serve`: screens, screening surface, criteria editor, accessibility, security |
@@ -98,7 +102,6 @@ review (`openspec:repository-format#format-versioning`).
 
 | Change | Milestone |
 |---|---|
-| `add-full-text-and-extraction` | M3 |
 | `add-meta-analysis` | M4 |
 | `add-prisma-reporting` | M5 (`1.0.0`) |
 | `add-container-image` | M5.1 (can land any time) |
@@ -111,14 +114,16 @@ review (`openspec:repository-format#format-versioning`).
 
 A few requirements in `specs/` are ahead of the code:
 
-- `strata sync`, `strata migrate`, `strata diff`, `strata moderators`,
-  `strata note`, and `strata gc --imports` (`collaboration-sync`,
-  `repository-format`, `provenance-queries`, `cli`,
-  `repository-verification`). `strata sync` is scheduled first in M5.1.
-- EndNote XML, Excel, and PRISMA-style citation-list parsers
-  (`literature-import`; deferred in M1, tracked in
-  `add-distribution-and-adoption`).
-- Opt-in enrichment and its `.strata/network.log` (`privacy-and-security`).
+- `strata migrate`, `strata moderators`, `strata note`, and
+  `strata gc --imports` (`repository-format`, `cli`, `repository-verification`).
+  `strata sync` (`collaboration-sync`) is built; its rebase strategy and editor
+  option are only lightly covered (see `docs/m5-1-plan.md`).
+- The Covidence, Rayyan and EPPI-Reviewer migration imports
+  (`add-distribution-and-adoption`). EndNote XML, Excel and PRISMA-style citation-list parsers
+  were built in M6 (the citation-list parser is best effort, by design).
+- Opt-in enrichment is implemented for Unpaywall open-access links only
+  (`strata retrieve`, with `.strata/network.log`); the other providers
+  (`privacy-and-security`) are not.
 - The batched-commit policy's 200-decision and 15-minute triggers
   (`git-integration`; sessions currently commit when they end).
 - Crash logs under `.strata/crash-<timestamp>.log` (`cli`).

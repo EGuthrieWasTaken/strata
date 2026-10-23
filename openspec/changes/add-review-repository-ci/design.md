@@ -31,6 +31,22 @@ review.
   legitimate methodological event; the workflow labels it `protocol-amendment`
   and requests the methodologist's review instead of failing.
 
+- **A thin caller, a reusable workflow, and one pinned ref.** `strata init --ci` writes
+  `.github/workflows/strata.yml`, which only calls the reusable workflow in the `strata`
+  repository and passes the same ref for installing the CLI, so a review repository decides which
+  version of the checks it trusts. The `strata verify` action installs `strata` from its own
+  checkout (`$GITHUB_ACTION_PATH/../..`), so the action and the CLI cannot drift apart.
+- **`pull_request`, never `pull_request_target`.** Fork code must not get a write token or secrets,
+  so for fork pull requests the comment and label are skipped and only the verify check runs.
+- **The comment reads `status --json` only.** Records entering and leaving come from the pool size,
+  decisions invalidated from the rise in stale decisions, and "papers that could leave the pool"
+  from the stale decisions that are `include` decisions (`stale_included`, added to each stage in
+  `status --json`; an additive change to the contract). What re-screening will decide is not
+  known before it happens, so the comment says "could".
+- **The shell steps are tested.** The workflow's `run:` steps are executed in the test suite against
+  a fake `gh`, and the file is checked with actionlint when changed; neither replaces a run on a
+  real runner.
+
 ## Risks / Trade-offs
 
 - The pull-request comment exposes pool-level counts to anyone who can read the

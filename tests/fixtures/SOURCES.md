@@ -35,6 +35,13 @@ export.
   `TI  - ` convention). `malformed.nbib`'s line endings were converted to CRLF
   with a small script (not checked in) after being written, for the same
   reason as the RIS encoding fixtures above.
+- `endnote-xml/clean.xml`, `endnote-xml/malformed.xml` -- EndNote XML, hand-written in the layout
+  EndNote exports (`<records><record>` with `<style>`-nested values); `malformed.xml` has an unescaped
+  `&`, an HTML named entity, a record that never closes, a record with an empty title, and a valid
+  record after them. Abstracts are invented text.
+- `citation-list/mixed.txt` -- a numbered plain-text reference list in Vancouver and APA layouts plus
+  one line that is not a reference (rejected). The references are real published papers' bibliographic
+  facts; nothing else in the file is copied from anywhere.
 - `csv/scopus-clean.csv`, `csv/wos-clean.csv`, `csv/scopus-malformed.csv` --
   CSV, hand-written with header rows matching the Scopus and Web of Science
   detection profiles in `strata.ingest.profiles` (see that module's own
@@ -95,3 +102,12 @@ ClinicalTrials.gov, EndNote, Google Scholar), which belong to the EndNote XML
 and Excel parsers of sub-objective 3 (not yet implemented) or would need a
 real export to verify the EBSCOhost/ProQuest/Dimensions/Google-Scholar-PoP CSV
 profiles in `strata.ingest.profiles` against.
+
+## `tests/fixtures/prisma2020/`
+
+- `checklist.json` -- the 42 items and sub-items of Table 1 of Page MJ, McKenzie JE, Bossuyt PM, et al. *The PRISMA
+  2020 statement: an updated guideline for reporting systematic reviews.* BMJ 2021;372:n71
+  (https://doi.org/10.1136/bmj.n71), licensed CC BY 4.0, parsed from the article's text (a PDF supplied by the project
+  lead) with the page watermark removed and a line-break hyphen joined (`meta-regression`). It pins the wording in
+  `strata.report.checklist`.
+

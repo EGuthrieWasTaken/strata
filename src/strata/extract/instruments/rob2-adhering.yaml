@@ -1,0 +1,56 @@
+instrument: RoB 2 (effect of adhering)
+id: rob2-adhering
+version: "2019-08-22"
+applies_to:
+  - rct
+source: https://www.riskofbias.info/welcome/rob-2-0-tool
+licence_note: Cochrane's RoB 2 materials are CC BY-NC-ND 4.0; the question wording is not bundled (see docs/rob-instruments.md). Add `text` to a question to show it.
+domains:
+  - id: D1
+    label: Randomisation process
+    judgements: [low, some-concerns, high]
+    algorithm: rob2-d1
+    signalling_questions:
+      - {id: "1.1", topic: Allocation sequence random, options: [Y, PY, PN, N, NI]}
+      - {id: "1.2", topic: Allocation sequence concealed, options: [Y, PY, PN, N, NI]}
+      - {id: "1.3", topic: Baseline imbalance suggests a problem, options: [Y, PY, PN, N, NI]}
+  - id: D2
+    label: Deviations from intended interventions (effect of adhering)
+    judgements: [low, some-concerns, high]
+    algorithm: rob2-d2-adhering
+    signalling_questions:
+      - {id: "2.1", topic: Participants aware of assignment, options: [Y, PY, PN, N, NI]}
+      - {id: "2.2", topic: Carers and personnel aware of assignment, options: [Y, PY, PN, N, NI]}
+      - {id: "2.3", topic: Non-protocol interventions balanced between groups, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "2.4", topic: Failures in implementing the intervention, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "2.5", topic: Non-adherence that affected the outcome, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "2.6", topic: Analysis appropriate for the effect of adhering, options: [Y, PY, PN, N, NI]}
+  - id: D3
+    label: Missing outcome data
+    judgements: [low, some-concerns, high]
+    algorithm: rob2-d3
+    signalling_questions:
+      - {id: "3.1", topic: Data for all or nearly all participants, options: [Y, PY, PN, N, NI]}
+      - {id: "3.2", topic: Evidence the result is not biased by missing data, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "3.3", topic: Missingness could depend on the true value, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "3.4", topic: Missingness likely depends on the true value, options: [NA, Y, PY, PN, N, NI]}
+  - id: D4
+    label: Measurement of the outcome
+    judgements: [low, some-concerns, high]
+    algorithm: rob2-d4
+    signalling_questions:
+      - {id: "4.1", topic: Outcome measurement inappropriate, options: [Y, PY, PN, N, NI]}
+      - {id: "4.2", topic: Measurement differed between groups, options: [Y, PY, PN, N, NI]}
+      - {id: "4.3", topic: Assessors aware of the intervention received, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "4.4", topic: Assessment could be influenced by that knowledge, options: [NA, Y, PY, PN, N, NI]}
+      - {id: "4.5", topic: Assessment likely influenced by that knowledge, options: [NA, Y, PY, PN, N, NI]}
+  - id: D5
+    label: Selection of the reported result
+    judgements: [low, some-concerns, high]
+    algorithm: rob2-d5
+    signalling_questions:
+      - {id: "5.1", topic: Analysed per a pre-specified plan, options: [Y, PY, PN, N, NI]}
+      - {id: "5.2", topic: Selected from multiple outcome measurements, options: [Y, PY, PN, N, NI]}
+      - {id: "5.3", topic: Selected from multiple analyses, options: [Y, PY, PN, N, NI]}
+overall:
+  algorithm: worst-domain

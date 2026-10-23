@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ "Extraction" if kind == "extract" else "Risk of bias" }}{% endblock %}
+{% block content %}
+<h1>{{ "Extraction" if kind == "extract" else "Risk of bias" }}</h1>
+<table class="stage-table">
+  <thead>
+    <tr>
+      <th scope="col">Study</th>
+      <th scope="col">Status</th>
+      <th scope="col">Open</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in studies %}
+    <tr>
+      <th scope="row">{{ s.citation }}<br><span class="field-meta">{{ s.title }}</span></th>
+      <td>
+        {% if s.missing %}
+        <span class="missing-note">missing: {{ s.missing | join(", ") }}</span>
+        {% else %}
+        <span class="done-note">complete</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="/{{ kind }}/{{ s.id }}">{{ "Extract" if kind == "extract" else "Assess" }} &rarr;</a>
+        {% if kind == "extract" %}
+        <a href="/extract/{{ s.id }}/reconcile">Reconcile &rarr;</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3">No included studies yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><a href="/">&larr; Back to dashboard</a></p>
+{% endblock %}

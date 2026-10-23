@@ -1,0 +1,285 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1247 485] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 6304 >>
+stream
+1 1 1 rg
+0 0 1247 485 re f
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 59 457 Tm (Identification of studies via databases and registers) Tj ET
+1 1 1 rg
+59 328 250 96 re f
+0.1 0.1 0.1 RG
+59 328 250 96 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 67 406 Tm (Records identified from:) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 390 Tm (Databases \(n = 18\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 374 Tm (Registers \(n = 4\)) Tj ET
+1 1 1 rg
+343 328 286 96 re f
+0.1 0.1 0.1 RG
+343 328 286 96 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 351 406 Tm (Records removed before screening:) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 390 Tm (Duplicate records removed \(n = 3\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 374 Tm (Records marked as ineligible by automation) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 358 Tm (tools \(n = 0\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 342 Tm (Records removed for other reasons \(n = 0\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+309 376 m 343 376 l S
+[] 0 d
+0.1 0.1 0.1 rg
+343 376 m 336 379.5 l 336 372.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+184 328 m 184 298 l S
+[] 0 d
+0.1 0.1 0.1 rg
+184 298 m 180.5 305 l 187.5 305 l h f
+1 1 1 rg
+59 266 250 32 re f
+0.1 0.1 0.1 RG
+59 266 250 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 280 Tm (Records screened \(n = 19\)) Tj ET
+1 1 1 rg
+343 266 286 32 re f
+0.1 0.1 0.1 RG
+343 266 286 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 280 Tm (Records excluded \(n = 5\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+309 282 m 343 282 l S
+[] 0 d
+0.1 0.1 0.1 rg
+343 282 m 336 285.5 l 336 278.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+184 266 m 184 236 l S
+[] 0 d
+0.1 0.1 0.1 rg
+184 236 m 180.5 243 l 187.5 243 l h f
+1 1 1 rg
+59 204 250 32 re f
+0.1 0.1 0.1 RG
+59 204 250 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 218 Tm (Reports sought for retrieval \(n = 14\)) Tj ET
+1 1 1 rg
+343 204 286 32 re f
+0.1 0.1 0.1 RG
+343 204 286 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 218 Tm (Reports not retrieved \(n = 2\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+309 220 m 343 220 l S
+[] 0 d
+0.1 0.1 0.1 rg
+343 220 m 336 223.5 l 336 216.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+184 204 m 184 174 l S
+[] 0 d
+0.1 0.1 0.1 rg
+184 174 m 180.5 181 l 187.5 181 l h f
+1 1 1 rg
+59 110 250 64 re f
+0.1 0.1 0.1 RG
+59 110 250 64 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 156 Tm (Reports assessed for eligibility \(n = 12\)) Tj ET
+1 1 1 rg
+343 110 286 64 re f
+0.1 0.1 0.1 RG
+343 110 286 64 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 351 156 Tm (Reports excluded:) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 140 Tm (No comparison group \(n = 3\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 351 124 Tm (Not peer reviewed \(n = 1\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+309 142 m 343 142 l S
+[] 0 d
+0.1 0.1 0.1 rg
+343 142 m 336 145.5 l 336 138.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+184 110 m 184 80 l S
+[] 0 d
+0.1 0.1 0.1 rg
+184 80 m 180.5 87 l 187.5 87 l h f
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 663 457 Tm (Identification of studies via other methods) Tj ET
+1 1 1 rg
+663 328 250 96 re f
+0.1 0.1 0.1 RG
+663 328 250 96 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 671 406 Tm (Records identified from:) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 671 390 Tm (Citation searching \(n = 3\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 671 374 Tm (Websites \(n = 2\)) Tj ET
+1 1 1 rg
+947 328 286 96 re f
+0.1 0.1 0.1 RG
+947 328 286 96 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 955 406 Tm (Records removed before screening:) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 390 Tm (Duplicate records removed \(n = 1\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 374 Tm (Records marked as ineligible by automation) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 358 Tm (tools \(n = 0\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 342 Tm (Records removed for other reasons \(n = 0\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+913 376 m 947 376 l S
+[] 0 d
+0.1 0.1 0.1 rg
+947 376 m 940 379.5 l 940 372.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+788 328 m 788 298 l S
+[] 0 d
+0.1 0.1 0.1 rg
+788 298 m 784.5 305 l 791.5 305 l h f
+1 1 1 rg
+663 266 250 32 re f
+0.1 0.1 0.1 RG
+663 266 250 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 671 280 Tm (Records screened \(n = 4\)) Tj ET
+1 1 1 rg
+947 266 286 32 re f
+0.1 0.1 0.1 RG
+947 266 286 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 280 Tm (Records excluded \(n = 1\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+913 282 m 947 282 l S
+[] 0 d
+0.1 0.1 0.1 rg
+947 282 m 940 285.5 l 940 278.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+788 266 m 788 236 l S
+[] 0 d
+0.1 0.1 0.1 rg
+788 236 m 784.5 243 l 791.5 243 l h f
+1 1 1 rg
+663 204 250 32 re f
+0.1 0.1 0.1 RG
+663 204 250 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 671 218 Tm (Reports sought for retrieval \(n = 3\)) Tj ET
+1 1 1 rg
+947 204 286 32 re f
+0.1 0.1 0.1 RG
+947 204 286 32 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 955 218 Tm (Reports not retrieved \(n = 0\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+913 220 m 947 220 l S
+[] 0 d
+0.1 0.1 0.1 rg
+947 220 m 940 223.5 l 940 216.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+788 204 m 788 174 l S
+[] 0 d
+0.1 0.1 0.1 rg
+788 174 m 784.5 181 l 791.5 181 l h f
+1 1 1 rg
+663 110 250 64 re f
+0.1 0.1 0.1 RG
+663 110 250 64 re S
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 671 156 Tm (Reports assessed for eligibility \(n = 3\)) Tj ET
+1 1 1 rg
+947 110 286 64 re f
+0.1 0.1 0.1 RG
+947 110 286 64 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 955 156 Tm (Reports excluded:) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 12 Tf 1 0 0 1 955 140 Tm (\(none\)) Tj ET
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+913 142 m 947 142 l S
+[] 0 d
+0.1 0.1 0.1 rg
+947 142 m 940 145.5 l 940 138.5 l h f
+0.1 0.1 0.1 RG
+1.2 w [] 0 d
+788 110 m 788 80 l S
+[] 0 d
+0.1 0.1 0.1 rg
+788 80 m 784.5 87 l 791.5 87 l h f
+1 1 1 rg
+59 14 854 66 re f
+0.1 0.1 0.1 RG
+59 14 854 66 re S
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 1 0 0 1 67 62 Tm (Studies included in review \(n = 10\)) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 12 Tf 1 0 0 1 67 46 Tm (Reports of included studies \(n = 11\)) Tj ET
+0.8 0.89 0.95 rg
+14 328 24 96 re f
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 0 1 -1 0 30 376 Tm (Identification) Tj ET
+0.8 0.89 0.95 rg
+14 110 24 188 re f
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 0 1 -1 0 30 204 Tm (Screening) Tj ET
+0.8 0.89 0.95 rg
+14 14 24 66 re f
+0.1 0.1 0.1 rg
+BT /F2 12 Tf 0 1 -1 0 30 47 Tm (Included) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 8 Tf 1 0 0 1 489.5 3 Tm (PRISMA 2020 flow diagram, CC BY 4.0 \(Page et al., BMJ 2021;372:n71\)) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000252 00000 n 
+0000000349 00000 n 
+0000000451 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+6806
+%%EOF

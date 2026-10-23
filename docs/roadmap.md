@@ -12,7 +12,7 @@ change is archived into the specs and this page is updated.
 | M1 — Literature in | done | specs |
 | M2 — Screening and staleness | done (`0.1.0`) | specs |
 | M2.1 — Wiki and local MCP server | ongoing (MCP server done) | specs: `mcp-server`, `project-documentation` |
-| M3 — Full text and extraction | planned | `add-full-text-and-extraction` |
+| M3 — Full text and extraction | done | specs: `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias` |
 | M4 — Analysis | planned | `add-meta-analysis` |
 | M5 — Reporting (`1.0.0`) | planned | `add-prisma-reporting` |
 | M5.1 — Collaboration and hosting | planned; parts can start now | `add-container-image`, `add-hosted-team-deployment` |
@@ -150,7 +150,7 @@ decision.
 
 ---
 
-## M3 — Full text and extraction *(planned: `add-full-text-and-extraction`)*
+## M3 — Full text and extraction *(done)*
 
 **Scope**: retrieval queue and full-text manifest; study grouping; extraction
 schema, coding forms, units, dual extraction and reconciliation; data-quality
@@ -170,7 +170,7 @@ set, and reconciliation event coverage.
 
 ---
 
-## M4 — Analysis *(planned: `add-meta-analysis`)*
+## M4 — Analysis *(implemented; `add-meta-analysis` stays open for one worked example — see [`m4-plan.md`](m4-plan.md))*
 
 **Scope**: `stats` in full — effect-size computation and conversion, pooling
 models, all `tau^2` estimators, Knapp–Hartung, heterogeneity, prediction
@@ -197,7 +197,7 @@ established or lost.
 
 ---
 
-## M5 — Reporting *(planned: `add-prisma-reporting`)*
+## M5 — Reporting *(implemented; `add-prisma-reporting` stays open for two items — see [`m5-plan.md`](m5-plan.md))*
 
 **Scope**: PRISMA flow diagram and count reconciliation; checklist generation;
 Methods/Results/characteristics/amendments prose; manuscript export via pandoc;
@@ -234,7 +234,7 @@ and open question Q11, now decided.
 | Topology | `strata` runs | Repository | Status |
 |---|---|---|---|
 | Solo | Locally (native or container) | Local, optionally pushed for backup | works today |
-| Local stacks, shared remote | On each collaborator's machine | Shared git remote | works today with plain git; `strata sync` makes it one command |
+| Local stacks, shared remote | On each collaborator's machine | Shared git remote | `strata sync` is one command (built in M5.1; see [`m5-1-plan.md`](m5-1-plan.md)) |
 | Hosted instance | On a server the team runs, from the container image | Instance working copy synced with the shared remote | `add-hosted-team-deployment` |
 
 The topologies interoperate: hosted and local collaborators can work on the same
@@ -244,10 +244,12 @@ files in the same repository format.
 **Sequencing.** This milestone does not block M3–M5, and its first two pieces
 can start immediately:
 
-1. **`strata sync`** — already specified (`openspec:collaboration-sync`) but not
-   yet implemented; it is the shared-remote workflow and the engine of the
-   hosted sync loop.
-2. **Container image** (`add-container-image`) — one image that runs every
+1. **`strata sync`** — *built*: the shared-remote workflow
+   (`openspec:collaboration-sync`) and the engine of the hosted sync loop; see
+   [`m5-1-plan.md`](m5-1-plan.md) for what it does and what is deliberately partial.
+2. **Container image** (`add-container-image`) — *written and tested without a
+   container runtime; the image has not been built or run, see
+   [`container.md`](container.md)*. One image that runs every
    `strata` command and the local web UI against a mounted repository, with
    host-supplied git credentials, a public-URL setting for header validation, a
    health endpoint, multi-architecture builds published to GHCR, and
@@ -302,7 +304,8 @@ review repository.
   `strata` owns the decisions.
 - The reusable **review-repository CI workflow** and `strata verify` action
   (`add-review-repository-ci`), so review teams get pre-merge assurance for
-  their data. Depends only on M0, so it may land earlier.
+  their data. Depends only on M0, so it may land earlier. *Written and tested
+  locally; not yet run on GitHub — see [`m6-plan.md`](m6-plan.md).*
 - Translations.
 
 ---

@@ -48,3 +48,25 @@ def validate(name: str, instance: Any) -> None:
     ]
     if errors:
         raise SchemaValidationError(name, errors)
+
+
+def validate_event_body(ev: str, body: dict[str, Any]) -> None:
+    """Validate an event body against its per-type schema *before* anything is written.
+
+    The event schema constrains a body by its `ev` type, so this wraps the body in a placeholder
+    envelope and validates that. A body that would later fail `strata verify` is therefore
+    refused at the moment it would have been appended.
+    """
+    validate(
+        "event",
+        {
+            "ev": ev,
+            "id": "ev_" + "0" * 26,
+            "ts": "2026-01-01T00:00:00Z",
+            "actor": "placeholder",
+            "seq": 1,
+            "body": body,
+            "tool": "strata/validation",
+            "digest": "sha256:" + "0" * 64,
+        },
+    )

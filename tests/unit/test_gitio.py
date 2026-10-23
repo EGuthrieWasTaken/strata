@@ -42,6 +42,26 @@ def test_commit_with_allow_empty(tmp_path: Path) -> None:
     assert sha == gitio.current_commit(tmp_path)
 
 
+def test_has_staged_changes_follows_the_index(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1", encoding="utf-8")
+    assert gitio.has_staged_changes(tmp_path) is False  # untracked is not staged
+    gitio.add_all(tmp_path)
+    assert gitio.has_staged_changes(tmp_path) is True
+    gitio.commit(tmp_path, "first commit")
+    assert gitio.has_staged_changes(tmp_path) is False
+
+
+def test_a_failure_that_git_reports_on_stdout_still_carries_its_message(tmp_path: Path) -> None:
+    """`git commit` with nothing to commit says so on stdout and leaves stderr empty."""
+    _repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1", encoding="utf-8")
+    gitio.add_all(tmp_path)
+    gitio.commit(tmp_path, "first commit")
+    with pytest.raises(gitio.GitError, match="nothing to commit"):
+        gitio.commit(tmp_path, "second commit")
+
+
 def test_current_branch(tmp_path: Path) -> None:
     _repo(tmp_path)
     (tmp_path / "a.txt").write_text("1", encoding="utf-8")

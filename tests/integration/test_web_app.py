@@ -485,3 +485,81 @@ def test_screen_post_success_carries_the_skip_list_into_the_redirect(tmp_path: P
     )
     assert r.status_code == 303
     assert "skip=rec_0000000000000002" in r.headers["location"]
+
+
+# --- openspec:web-ui#configurable-public-url and #health-endpoint ----------------------------
+
+
+def _public_client(repo, public_url: str, base_url: str) -> TestClient:  # type: ignore[no-untyped-def]
+    from strata.web.security import parse_public_url
+
+    app = create_app(
+        repo_root=repo.root,
+        actor="ethan",
+        session_token=_TOKEN,
+        host="0.0.0.0",  # noqa: S104 - the bind address inside a container
+        port=8765,
+        public_url=parse_public_url(public_url),
+    )
+    return TestClient(app, base_url=base_url)
+
+
+def test_behind_a_published_port_the_public_host_is_accepted(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    client = _public_client(repo, "http://localhost:8765", "http://localhost:8765")
+    assert client.get(f"/?token={_TOKEN}").status_code == 200
+
+
+def test_dns_rebinding_is_still_refused_behind_a_public_url(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    attacker = _public_client(repo, "http://localhost:8765", "http://attacker.example:8765")
+    response = attacker.get(f"/?token={_TOKEN}")
+    assert response.status_code == 400 and "Host" in response.text
+    # nor does the bind address itself get in: only the public URL's host does
+    bound = _public_client(repo, "http://localhost:8765", "http://0.0.0.0:8765")  # noqa: S104
+    assert bound.get(f"/?token={_TOKEN}").status_code == 400
+
+
+def test_a_cross_origin_post_is_refused_behind_a_public_url(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    client = _public_client(repo, "https://strata.example.edu", "https://strata.example.edu")
+    ok = client.get(f"/?token={_TOKEN}", headers={"Origin": "https://strata.example.edu"})
+    assert ok.status_code == 200
+    bad = client.get(f"/?token={_TOKEN}", headers={"Origin": "https://attacker.example"})
+    assert bad.status_code == 400 and "Origin" in bad.text
+
+
+def test_healthz_needs_no_session_and_returns_no_repository_data(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [_record("rec_0000000000000001")])
+    client = _client(repo)
+    response = client.get("/healthz")  # no cookie, no token
+    assert response.status_code == 200 and response.json() == {"status": "ok"}
+    assert "Web Test Review" not in response.text and "rec_" not in response.text
+    assert client.head("/healthz").status_code == 200
+    # everything else still wants the session
+    assert client.get("/").status_code == 403
+
+
+def test_healthz_answers_whatever_host_the_probe_uses(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    client = _public_client(repo, "http://localhost:8765", "http://10.0.0.7:8765")
+    assert client.get("/healthz").status_code == 200  # an orchestrator calls by pod address
+
+
+def test_healthz_does_not_count_as_activity(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    app = create_app(
+        repo_root=repo.root, actor="ethan", session_token=_TOKEN, inactivity_timeout=60
+    )
+    client = TestClient(app, base_url="http://127.0.0.1:8000")
+    before = app.state.strata.clock.last_activity
+    assert client.get("/healthz").status_code == 200
+    assert app.state.strata.clock.last_activity == before
+
+
+def test_healthz_reports_unavailable_when_the_repository_cannot_be_read(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    client = _client(repo)
+    (repo.root / "strata.toml").unlink()
+    response = client.get("/healthz")
+    assert response.status_code == 503 and response.json() == {"status": "unavailable"}

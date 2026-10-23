@@ -1,0 +1,6 @@
+tests/golden/plots/* -text
+tests/golden/prisma/* -text
+# Scripts and the Dockerfile run on Linux (in CI and in the container): never CRLF.
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf

@@ -1,0 +1,10 @@
+# Everything the image does not need: the build context is the package, the lock file and the
+# entrypoint (openspec:container-image).
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!docker/entrypoint.sh
+**/__pycache__
+**/*.py[cod]

@@ -1,0 +1,255 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 760 436] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 5960 >>
+stream
+1 1 1 rg
+0 0 760 436 re f
+0.1 0.1 0.1 rg
+BT /F2 13 Tf 1 0 0 1 10 418 Tm (Forest plot: Effect of spaced practice on recall) Tj ET
+0.35 0.35 0.35 rg
+BT /F2 10 Tf 1 0 0 1 10 388 Tm (Study) Tj ET
+0.35 0.35 0.35 rg
+BT /F2 10 Tf 1 0 0 1 265 388 Tm (n) Tj ET
+0.35 0.35 0.35 rg
+BT /F2 10 Tf 1 0 0 1 532 388 Tm (SMD [CI]) Tj ET
+0.35 0.35 0.35 rg
+BT /F2 10 Tf 1 0 0 1 720 388 Tm (Weight) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 366 Tm (Author1 \(2001\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 366 Tm (62) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+380.52 370 m 447.48 370 l S
+[] 0 d
+0 0.45 0.7 rg
+407.14 363.15 13.71 13.71 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 366 Tm (1.51 [0.95, 2.08]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 366 Tm (8.1%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 346 Tm (Author2 \(2002\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 346 Tm (64) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+310 350 m 368.33 350 l S
+[] 0 d
+0 0.45 0.7 rg
+332.22 343.05 13.9 13.9 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 346 Tm (0.25 [-0.24, 0.74]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 346 Tm (8.4%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 326 Tm (Author3 \(2003\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 326 Tm (66) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+359.36 330 m 420.84 330 l S
+[] 0 d
+0 0.45 0.7 rg
+383.19 323.09 13.83 13.83 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 326 Tm (1.11 [0.59, 1.63]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 326 Tm (8.3%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 306 Tm (Author4 \(2004\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 306 Tm (68) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+412.13 310 m 482.01 310 l S
+[] 0 d
+0 0.45 0.7 rg
+440.25 303.18 13.64 13.64 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 306 Tm (2.07 [1.48, 2.66]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 306 Tm (8.0%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 286 Tm (Author5 \(2005\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 286 Tm (70) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+331.76 290 m 388.58 290 l S
+[] 0 d
+0 0.45 0.7 rg
+353.21 283.04 13.93 13.93 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 286 Tm (0.61 [0.13, 1.09]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 286 Tm (8.5%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 266 Tm (Author6 \(2006\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 266 Tm (72) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+396.84 270 m 461.47 270 l S
+[] 0 d
+0 0.45 0.7 rg
+422.28 263.12 13.76 13.76 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 266 Tm (1.77 [1.23, 2.32]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 266 Tm (8.2%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 246 Tm (Author7 \(2007\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 246 Tm (74) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+349.81 250 m 406.57 250 l S
+[] 0 d
+0 0.45 0.7 rg
+371.23 243.04 13.93 13.93 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 246 Tm (0.91 [0.43, 1.39]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 246 Tm (8.5%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 226 Tm (Author8 \(2008\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 226 Tm (76) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+438.46 230 m 510 230 l S
+[] 0 d
+0 0.45 0.7 rg
+467.43 223.2 13.6 13.6 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 226 Tm (2.53 [1.93, 3.13]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 226 Tm (7.9%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 206 Tm (Author9 \(2009\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 206 Tm (78) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+321.62 210 m 374.79 210 l S
+[] 0 d
+0 0.45 0.7 rg
+341.21 203 14 14 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 206 Tm (0.40 [-0.04, 0.85]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 206 Tm (8.6%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 186 Tm (Author10 \(2010\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 186 Tm (80) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+376.39 190 m 434.12 190 l S
+[] 0 d
+0 0.45 0.7 rg
+398.3 183.05 13.91 13.91 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 186 Tm (1.37 [0.88, 1.85]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 186 Tm (8.4%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 166 Tm (Author11 \(2011\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 166 Tm (82) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+342.66 170 m 395.81 170 l S
+[] 0 d
+0 0.45 0.7 rg
+362.24 163 14 14 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 166 Tm (0.76 [0.31, 1.21]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 166 Tm (8.6%) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 10 146 Tm (Author12 \(2012\) [recall 1 week]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 260 146 Tm (84) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+393.86 150 m 452.77 150 l S
+[] 0 d
+0 0.45 0.7 rg
+416.37 143.06 13.88 13.88 re f
+0.1 0.1 0.1 rg
+BT /F1 10 Tf 1 0 0 1 532 146 Tm (1.67 [1.18, 2.17]) Tj ET
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 730 146 Tm (8.4%) Tj ET
+0.1 0.1 0.1 rg
+BT /F2 10 Tf 1 0 0 1 10 116 Tm (Pooled) Tj ET
+0.84 0.37 0 rg
+339.33 120 m 391.04 127 l 442.74 120 l 391.04 113 l h f
+0.1 0.1 0.1 rg
+BT /F2 10 Tf 1 0 0 1 532 116 Tm (1.13 [0.26, 2.00]) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+300 96 m 520 96 l S
+[] 0 d
+0.1 0.1 0.1 RG
+1 w [] 0 d
+324.19 96 m 324.19 92 l S
+[] 0 d
+0.35 0.35 0.35 rg
+BT /F1 9 Tf 1 0 0 1 321.94 80 Tm (0) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+383.48 96 m 383.48 92 l S
+[] 0 d
+0.35 0.35 0.35 rg
+BT /F1 9 Tf 1 0 0 1 381.23 80 Tm (1) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+442.77 96 m 442.77 92 l S
+[] 0 d
+0.35 0.35 0.35 rg
+BT /F1 9 Tf 1 0 0 1 440.52 80 Tm (2) Tj ET
+0.1 0.1 0.1 RG
+1 w [] 0 d
+502.06 96 m 502.06 92 l S
+[] 0 d
+0.35 0.35 0.35 rg
+BT /F1 9 Tf 1 0 0 1 499.81 80 Tm (3) Tj ET
+0.35 0.35 0.35 RG
+1 w [4 3] 0 d
+324.19 380 m 324.19 96 l S
+[] 0 d
+0.35 0.35 0.35 rg
+BT /F1 10 Tf 1 0 0 1 10 58 Tm (k = 12; tau = 0.671; I2 = 86.3%; Q\(10\) = 72.79, p = <0.001) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000348 00000 n 
+0000000450 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+6461
+%%EOF

@@ -37,7 +37,7 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
       - name: Full suite must be green before a release is built
-        run: uv run pytest -q
+        run: uv run pytest -q -n auto
       - run: uv build
       - name: Generate a CycloneDX SBOM
         run: uvx --from cyclonedx-bom cyclonedx-py environment --output-format json --output-file sbom.json
@@ -70,3 +70,60 @@ jobs:
             --title "${{ github.ref_name }}" \
             --draft \
             --generate-notes
+
+  # openspec:container-image#published-multi-architecture-image. One image per architecture, built
+  # natively on its own runner and pushed with an SBOM and provenance attestation (BuildKit's own,
+  # no third-party action); the manifest job joins them under the version tag and `latest`.
+  # NOT done yet: cosign signing, for the same reason as the Sigstore note at the top of this file.
+  container:
+    name: container (${{ matrix.arch }})
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ARCH: ${{ matrix.arch }}
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and push the ${{ matrix.arch }} image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --name strata --driver docker-container --use
+          docker buildx build --platform "linux/${ARCH}" \
+            --tag "${image}:${REF_NAME#v}-${ARCH}" \
+            --sbom=true --provenance=mode=max --push .
+
+  container-manifest:
+    name: container manifest
+    needs: container
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - name: Publish the multi-architecture tags
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          version="${REF_NAME#v}"
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create \
+            --tag "${image}:${version}" --tag "${image}:latest" \
+            "${image}:${version}-amd64" "${image}:${version}-arm64"
+          docker buildx imagetools inspect "${image}:${version}"
+

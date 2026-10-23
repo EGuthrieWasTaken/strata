@@ -26,6 +26,9 @@
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "format": { "type": "string", "minLength": 1 },
     "encoding": { "type": "string", "minLength": 1 },
+    "sheet": {
+      "type": ["string", "null"]
+    },
     "column_mapping": { "type": ["object", "null"] },
     "rows_read": { "type": "integer", "minimum": 0 },
     "records_created": { "type": "integer", "minimum": 0 },

@@ -63,8 +63,15 @@ interesting parts are the edges: file ownership on bind mounts, git's
   the URL the browser will use (`http://localhost:8765`, or the hosted
   instance's `https://strata.example.edu`), and validation checks against it.
   This keeps the DNS-rebinding defence intact rather than disabling it.
+- **A thin entrypoint script, not a different CLI.** `docker/entrypoint.sh` passes every command to
+  `strata` unchanged; for `serve` only it supplies what a containerised server needs and a native one
+  does not: `--host 0.0.0.0`, `--no-browser`, a generated `STRATA_TOKEN` when none was given, and
+  `STRATA_PUBLIC_URL=http://localhost:<port>` when none was given. The tokens travel in the
+  environment, not on a command line another process could read (`--token` also reads `STRATA_TOKEN`).
 - **`/healthz` is unauthenticated and returns no repository data**, so container
-  orchestration can probe liveness without a session.
+  orchestration can probe liveness without a session. It is also exempt from `Host` validation (a
+  probe calls the container by whatever address it has) and does not count as activity, or a probe
+  would keep an otherwise idle server alive forever.
 - **Published to GHCR** as `ghcr.io/eguthriewastaken/strata:<version>` plus
   `:latest`, signed with cosign (keyless, via the release workflow's OIDC
   identity) and with an SBOM attached, matching the existing release

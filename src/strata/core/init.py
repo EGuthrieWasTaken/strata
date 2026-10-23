@@ -26,6 +26,7 @@ GITATTRIBUTES = """\
 events/**/*.ndjson     merge=union    -diff=nodiff
 records/records.ndjson merge=strata-records
 records/aliases.ndjson merge=union
+fulltext/manifest.ndjson merge=union
 derived/**             merge=strata-regenerate linguist-generated=true
 reports/**             merge=strata-regenerate linguist-generated=true
 analysis/results/**    merge=strata-regenerate linguist-generated=true
@@ -37,6 +38,7 @@ GITIGNORE = """\
 /fulltext/*
 !/fulltext/manifest.ndjson
 /.strata/cache/
+/.strata/network.log
 """
 
 MERGE_DRIVERS = {
@@ -127,6 +129,7 @@ def init_repository(
     actor_email: str | None = None,
     remote: str | None = None,
     slug: str | None = None,
+    extra_files: dict[str, str] | None = None,
 ) -> Path:
     if root.exists() and any(root.iterdir()):
         raise InitError(f"{root} is not empty")
@@ -156,6 +159,11 @@ def init_repository(
 
     (root / ".gitattributes").write_text(GITATTRIBUTES, encoding="utf-8")
     (root / ".gitignore").write_text(GITIGNORE, encoding="utf-8")
+
+    for relative, text in (extra_files or {}).items():  # e.g. the CI workflow from `init --ci`
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8", newline="\n")
 
     for name, script in HOOK_SCRIPTS.items():
         hook_path = root / HOOKS_DIR / name

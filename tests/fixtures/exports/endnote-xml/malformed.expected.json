@@ -1,0 +1,51 @@
+{
+  "encoding": "utf-8",
+  "records": [
+    {
+      "type": "article-journal",
+      "title": "Salt & pepper: an unescaped ampersand in a title",
+      "author": [
+        {
+          "family": "Smith & Jones",
+          "given": "A."
+        },
+        {
+          "family": "Müller",
+          "given": "Hans"
+        }
+      ],
+      "issued": {
+        "date-parts": [
+          [
+            2015
+          ]
+        ]
+      },
+      "abstract": "Café effects on recall, with an HTML entity."
+    },
+    {
+      "type": "article-journal",
+      "title": "A valid record after the bad ones",
+      "issued": {
+        "date-parts": [
+          [
+            2019
+          ]
+        ]
+      },
+      "DOI": "10.1000/after.bad"
+    }
+  ],
+  "rejected": [
+    {
+      "line": 11,
+      "raw": "<record>\n<rec-number>2</rec-number>\n<ref-type name=\"Journal Article\">17</ref-type>\n<titles><title><style>A record cut off before it closes\n</record>",
+      "error": "malformed XML: mismatched tag: line 5, column 2"
+    },
+    {
+      "line": 16,
+      "raw": "<record>\n<rec-number>3</rec-number>\n<ref-type name=\"Journal Article\">17</ref-type>\n<titles><title><style></style></title></titles>\n<dates><year><style>2001</style></year></dates>\n</record>",
+      "error": "missing or empty title"
+    }
+  ]
+}

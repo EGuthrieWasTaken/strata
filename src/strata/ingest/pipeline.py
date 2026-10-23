@@ -14,6 +14,7 @@ rather than silently repeating the import.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -35,14 +36,21 @@ from strata.core.repo import Repo
 from strata.core.validate import validate
 from strata.ingest.parsers import ParseResult, RejectedRow, decode_bytes, normalise_newlines
 from strata.ingest.parsers import bibtex as bibtex_parser
+from strata.ingest.parsers import citation_list as citation_list_parser
 from strata.ingest.parsers import csl_json as csl_json_parser
 from strata.ingest.parsers import csv_tsv as csv_tsv_parser
+from strata.ingest.parsers import endnote_xml as endnote_xml_parser
 from strata.ingest.parsers import medline as medline_parser
 from strata.ingest.parsers import ris as ris_parser
+from strata.ingest.parsers import xlsx as xlsx_parser
 from strata.ingest.profiles import detect_profile
 from strata.protocol import searches as searches_mod
 
 IMPORTS_DIR = ("imports",)
+
+# Set on every record from a parser that infers its fields (openspec:literature-import); the
+# deduplication pass leaves such a record for a person instead of merging it.
+BEST_EFFORT_FLAG = "best-effort-parse"
 
 VALID_VIA = frozenset({"citation-searching", "website", "organisation", "registry", "contact"})
 
@@ -51,6 +59,8 @@ _PARSERS = {
     "ris": ris_parser.parse,
     "bibtex": bibtex_parser.parse,
     "medline": medline_parser.parse,
+    "endnote-xml": endnote_xml_parser.parse,
+    "citation-list": citation_list_parser.parse,
 }
 
 # CSV/TSV are handled separately (see `_parse_csv_like`): they need a column
@@ -65,6 +75,8 @@ _EXTENSION_FORMATS = {
     ".nbib": "medline",
     ".csv": "csv",
     ".tsv": "tsv",
+    ".xml": "endnote-xml",
+    ".xlsx": "xlsx",
 }
 
 # `.txt` is ambiguous (RIS, MEDLINE, and PRISMA-text exports all use it, per
@@ -72,6 +84,7 @@ _EXTENSION_FORMATS = {
 # rather than mapped by extension.
 _MEDLINE_SNIFF_PREFIX = "PMID"
 _RIS_SNIFF_PREFIX = "TY"
+_NUMBERED_ENTRY_RE = re.compile(r"^(?:\[\d{1,5}\]|\d{1,5}[.)])\s+\S")
 
 
 class ImportPipelineError(ValueError):
@@ -135,10 +148,12 @@ def detect_format(path: Path, text: str) -> str:
                 return "medline"
             if stripped.startswith(_RIS_SNIFF_PREFIX):
                 return "ris"
+            if _NUMBERED_ENTRY_RE.match(stripped):
+                return "citation-list"
             break
         raise ImportPipelineError(
-            f"cannot determine the format of {path.name!r} from its contents "
-            "(PRISMA-style plain-text citation lists are not yet supported); pass --format"
+            f"cannot determine the format of {path.name!r} from its contents; "
+            "pass --format (ris, medline, or citation-list for a plain-text reference list)"
         )
     raise ImportPipelineError(f"unsupported file extension {ext!r}; pass --format explicitly")
 
@@ -203,6 +218,7 @@ def import_file(
     via: str | None = None,
     fmt: str | None = None,
     mapping: dict[str, str] | None = None,
+    sheet: str | None = None,
     dry_run: bool = False,
 ) -> ImportOutcome:
     source_path = Path(source_path)
@@ -240,17 +256,30 @@ def import_file(
             column_mapping=existing.get("column_mapping"),
         )
 
-    text, encoding = decode_bytes(raw)
-    text = normalise_newlines(text)
-    resolved_format = fmt or detect_format(source_path, text)
+    sheet_name: str | None = None
+    if fmt == "xlsx" or (fmt is None and source_path.suffix.lower() == ".xlsx"):
+        # A workbook is not text: read its sheet, then treat the sheet as the TSV export it is.
+        try:
+            sheet_name, rows = xlsx_parser.read_rows(raw, sheet)
+        except xlsx_parser.XlsxError as exc:
+            raise ImportPipelineError(f"{source_path.name}: {exc}") from None
+        text, encoding = xlsx_parser.rows_to_tsv(rows), "xlsx"
+        resolved_format, parse_format = "xlsx", "tsv"
+    else:
+        if sheet is not None:
+            raise ImportPipelineError("--sheet only applies to an .xlsx workbook")
+        text, encoding = decode_bytes(raw)
+        text = normalise_newlines(text)
+        resolved_format = fmt or detect_format(source_path, text)
+        parse_format = resolved_format
 
     resolved_mapping: dict[str, str] | None = None
     parsed: ParseResult
-    if resolved_format in _CSV_LIKE_DELIMITERS:
-        resolved_mapping = _resolve_csv_mapping(resolved_format, text, mapping)
+    if parse_format in _CSV_LIKE_DELIMITERS:
+        resolved_mapping = _resolve_csv_mapping(parse_format, text, mapping)
         try:
             parsed = csv_tsv_parser.parse(
-                text, delimiter=_CSV_LIKE_DELIMITERS[resolved_format], mapping=resolved_mapping
+                text, delimiter=_CSV_LIKE_DELIMITERS[parse_format], mapping=resolved_mapping
             )
         except csv_tsv_parser.ColumnMappingError as exc:
             raise ImportPipelineError(str(exc)) from None
@@ -302,6 +331,8 @@ def import_file(
 
         record["id"] = rid
         record["strata"] = {"canonical_key": key, "canonical": True, "sources": [source_entry]}
+        if parsed.best_effort:
+            record["strata"]["flags"] = [BEST_EFFORT_FLAG]
         by_id[rid] = record
         new_records.append((rid, raw_record))
 
@@ -339,6 +370,7 @@ def import_file(
         "format": resolved_format,
         "encoding": encoding,
         "column_mapping": resolved_mapping,
+        **({"sheet": sheet_name} if sheet_name is not None else {}),
         "rows_read": outcome.rows_read,
         "records_created": outcome.records_created,
         "rows_rejected": outcome.rows_rejected,

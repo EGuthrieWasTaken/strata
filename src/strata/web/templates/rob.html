@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Risk of bias {{ citation }}{% endblock %}
+{% block content %}
+<h1>Risk of bias &mdash; {{ citation }}</h1>
+<p class="record-title">{{ title }}</p>
+<p class="field-meta"><code>{{ study }}</code> &middot; {{ instrument }}</p>
+
+{% for d in domains %}
+<section class="rob-domain" aria-labelledby="dom-{{ d.id }}">
+  <h2 id="dom-{{ d.id }}">{{ d.id }}: {{ d.label }}</h2>
+  {% if d.questions %}
+  <form method="post" action="/rob/{{ study }}">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <input type="hidden" name="action" value="answers">
+    <input type="hidden" name="domain" value="{{ d.id }}">
+    <input type="hidden" name="commit_rationale" value="Recorded signalling answers.">
+    <table class="stage-table">
+      <tbody>
+        {% for q in d.questions %}
+        <tr{% if d.needed == q.id %} class="missing"{% endif %}>
+          <th scope="row"><label for="a-{{ q.id }}">{{ q.id }} {{ q.topic }}</label></th>
+          <td>
+            <select name="answer:{{ q.id }}" id="a-{{ q.id }}">
+              <option value="">{{ d.answers[q.id] if q.id in d.answers else "(unanswered)" }}</option>
+              {% for o in q.options %}<option value="{{ o }}">{{ o }}</option>{% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn">Save answers</button>
+  </form>
+  {% endif %}
+  {% if d.suggested %}<p class="notice">The algorithm suggests <strong>{{ d.suggested }}</strong>.</p>{% elif d.algorithm and d.needed %}<p class="field-meta">Next question: {{ d.needed }}</p>{% endif %}
+  <form method="post" action="/rob/{{ study }}">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <input type="hidden" name="action" value="judgement">
+    <input type="hidden" name="domain" value="{{ d.id }}">
+    <input type="hidden" name="commit_rationale" value="Recorded a risk-of-bias judgement.">
+    <label>Judgement
+      <select name="judgement" required>
+        {% for j in d.judgements %}<option value="{{ j }}"{% if (d.judgement or d.suggested) == j %} selected{% endif %}>{{ j }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="note-field">Support
+      <textarea name="support">{{ d.support }}</textarea>
+    </label>
+    <label>Source <input type="text" name="source" value="{{ d.source }}" placeholder="p. 3, Methods"></label>
+    {% if d.suggested %}
+    <label>Why override the suggestion? <input type="text" name="override_justification" value="{{ d.override }}"></label>
+    {% endif %}
+    <button type="submit" class="btn">Record judgement</button>
+  </form>
+  {% if d.judgement %}<p class="done-note">Recorded: {{ d.judgement }}</p>{% endif %}
+</section>
+{% endfor %}
+
+<section class="rob-domain" aria-labelledby="dom-overall">
+  <h2 id="dom-overall">Overall</h2>
+  {% if overall_suggested %}<p class="notice">Suggested overall: <strong>{{ overall_suggested }}</strong></p>{% endif %}
+  <form method="post" action="/rob/{{ study }}">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <input type="hidden" name="action" value="judgement">
+    <input type="hidden" name="domain" value="overall">
+    <input type="hidden" name="commit_rationale" value="Recorded an overall risk-of-bias judgement.">
+    {% if overall_choices %}
+    <label>Judgement
+      <select name="judgement" required>
+        {% for j in overall_choices %}<option value="{{ j }}"{% if (overall or overall_suggested) == j %} selected{% endif %}>{{ j }}</option>{% endfor %}
+      </select>
+    </label>
+    {% else %}
+    <label>Judgement <input type="text" name="judgement" value="{{ overall or overall_suggested or '' }}" required></label>
+    {% endif %}
+    <label class="note-field">Support <textarea name="support">{{ overall_support }}</textarea></label>
+    {% if overall_suggested %}
+    <label>Why override the suggestion? <input type="text" name="override_justification" value="{{ overall_override }}"></label>
+    {% endif %}
+    <button type="submit" class="btn">Record overall</button>
+  </form>
+  {% if overall %}<p class="done-note">Recorded: {{ overall }}</p>{% endif %}
+</section>
+<p><a href="/rob">&larr; All studies</a></p>
+{% endblock %}

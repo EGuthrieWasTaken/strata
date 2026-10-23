@@ -240,3 +240,96 @@ def test_title_abstract_reversal_orphans_full_text_without_deleting_it(tmp_path:
     report = verify_repository(repo)
     assert report.ok, report.issues
     assert not gitio.is_dirty(root)
+
+
+@pytest.mark.req("E2E-06")
+def test_title_abstract_reversal_orphans_an_extraction_without_deleting_it(tmp_path: Path) -> None:
+    """The extraction half of the scenario (M3): the study falls out of the included set, so
+    `strata verify` reports `E_ORPHAN_EXTRACTION`, and the extraction file and its events remain."""
+    from strata.core.events import read_events
+    from strata.protocol import studies as studies_mod
+
+    root = tmp_path / "review"
+    _run(
+        [
+            "init", str(root), "--title", "E2E-06 extraction", "--actor", "ethan",
+            "--actor-name", "Ethan",
+        ]
+    )  # fmt: skip
+    _run(
+        [
+            "-C", str(root), "--why", "Establishing the initial protocol criteria for this review.",
+            "criteria", "add", "--kind", "inclusion", "--label", "Empirical study",
+            "--definition", "Reports original empirical data.", "--applies-at", "title-abstract",
+            "--by", "ethan", "--id", "INC-01",
+        ]
+    )  # fmt: skip
+    export = tmp_path / "records.json"
+    export.write_text(_RECORDS, encoding="utf-8")
+    _run(
+        [
+            "--why", "Importing the search results for this review.", "-C", str(root), "import",
+            str(export), "--by", "ethan", "--via", "registry",
+        ]
+    )  # fmt: skip
+    for stage in ("title-abstract", "full-text"):
+        _run(
+            [
+                "--why",
+                "Screening for the review.",
+                "-C",
+                str(root),
+                "screen",
+                stage,
+                "--by",
+                "ethan",
+            ],
+            input="i\n\n",
+        )
+
+    # Extraction starts for the included study.
+    _run(
+        ["--why", "Drafting the coding form.", "-C", str(root), "extract", "init", "--by", "ethan"]
+    )
+    (study,) = studies_mod.study_map(open_repo(root)).members
+    _run(
+        [
+            "--why", "Extracting the first study.", "-C", str(root), "extract", study,
+            "--by", "ethan", "--set", "n_total=120 @ Table 1",
+        ]
+    )  # fmt: skip
+    extraction_file = root / "extraction" / "consensus" / f"{study}.yaml"
+    assert extraction_file.exists() and verify_repository(open_repo(root)).ok
+
+    # A new criterion; the reviewer reverses the title-abstract decision.
+    _run(
+        [
+            "-C", str(root), "--why", "Non-English reports were slipping through; excluding them.",
+            "criteria", "add", "--kind", "exclusion", "--label", "Not in English",
+            "--definition", "Publications not written in English.", "--applies-at",
+            "title-abstract", "--by", "ethan", "--id", "EXC-05",
+        ]
+    )  # fmt: skip
+    _run(
+        [
+            "--why",
+            "Re-screening the record made stale by the new language criterion.",
+            "-C",
+            str(root),
+            "rescreen",
+            "--stage",
+            "title-abstract",
+            "--by",
+            "ethan",
+        ],
+        input="e\n1\n",
+    )
+
+    repo = open_repo(root)
+    assert study not in studies_mod.study_map(repo).members  # no longer an included study
+    orphans = [i for i in verify_repository(repo).issues if i.code == "E_ORPHAN_EXTRACTION"]
+    assert [i.path for i in orphans] == [f"extraction/consensus/{study}.yaml"]
+    # Nothing was deleted: the extraction file and the event that recorded it are still there.
+    assert "120" in extraction_file.read_text(encoding="utf-8")
+    events = [e for p in (root / "events" / "extract").glob("*.ndjson") for e in read_events(p)]
+    assert [e["body"]["study"] for e in events] == [study]
