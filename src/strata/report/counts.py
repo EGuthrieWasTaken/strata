@@ -121,6 +121,7 @@ class Counts:
     totals: Funnel
     by_origin: dict[str, Funnel]
     exclusion_reasons: list[Reason]
+    exclusion_reasons_by_origin: dict[str, list[Reason]]
     not_retrieved_reasons: dict[str, int]
     studies_included: int
     reports_of_included_studies: int
@@ -154,6 +155,10 @@ class Counts:
             "totals": self.totals.to_dict(),
             "by_origin": {name: f.to_dict() for name, f in sorted(self.by_origin.items())},
             "exclusion_reasons": [asdict(r) for r in self.exclusion_reasons],
+            "exclusion_reasons_by_origin": {
+                name: [asdict(r) for r in reasons]
+                for name, reasons in sorted(self.exclusion_reasons_by_origin.items())
+            },
             "not_retrieved_reasons": dict(sorted(self.not_retrieved_reasons.items())),
             "studies_included": self.studies_included,
             "reports_of_included_studies": self.reports_of_included_studies,
@@ -292,6 +297,7 @@ def compute(repo: Repo) -> Counts:
     excluded_ft: Counter[str] = Counter()
     awaiting_ft: Counter[str] = Counter()
     reasons: Counter[str] = Counter()
+    reasons_by_origin: dict[str, Counter[str]] = {}
     if has_full_text:
         ft_states = screening_mod.stage_states(repo, stages[1], retrieved_ids)
         for record_id in retrieved_ids:
@@ -300,7 +306,9 @@ def compute(repo: Repo) -> Counts:
                 included_ids.append(record_id)
             elif state.status == "exclude":
                 excluded_ft[origins[record_id]] += 1
-                reasons[_primary_reason(state)] += 1
+                reason = _primary_reason(state)
+                reasons[reason] += 1
+                reasons_by_origin.setdefault(origins[record_id], Counter())[reason] += 1
             else:
                 awaiting_ft[origins[record_id]] += 1
     else:
@@ -334,15 +342,20 @@ def compute(repo: Repo) -> Counts:
 
     included_reports = [report_id(r) for r in included_ids]
     study_members = studies_mod.study_map(repo, reports=included_reports).members
-    reasons_list = [
-        Reason(reason_id, _reason_label(repo, reason_id), count)
-        for reason_id, count in sorted(reasons.items(), key=lambda kv: (-kv[1], kv[0]))
-    ]
+
+    def ordered(found: Counter[str]) -> list[Reason]:
+        return [
+            Reason(reason_id, _reason_label(repo, reason_id), count)
+            for reason_id, count in sorted(found.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+
+    reasons_list = ordered(reasons)
     counts = Counts(
         identification=box,
         totals=totals,
         by_origin=by_origin,
         exclusion_reasons=reasons_list,
+        exclusion_reasons_by_origin={n: ordered(c) for n, c in reasons_by_origin.items()},
         not_retrieved_reasons=dict(not_retrieved_reasons),
         studies_included=len(study_members),
         reports_of_included_studies=sum(len(v) for v in study_members.values()),

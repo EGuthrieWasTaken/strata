@@ -64,6 +64,8 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.report import counts as counts_mod
+from strata.report import flow as flow_mod
 from strata.stats import models as models_mod
 from strata.stats import robust as robust_mod
 from strata.web import security as web_security
@@ -870,6 +872,7 @@ def _commit_domain_op(
         return
     candidates = (
         "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
+        "reports",
     )  # fmt: skip
     paths = [p for p in candidates if repo.path(*p.split("/")).exists()]
     if not gitio.has_changes(repo.root, paths):
@@ -3451,6 +3454,86 @@ def _acting_handle(repo: Repo) -> str:
         if actor.get("role") != "inactive":
             return str(actor["handle"])
     return "strata"
+
+
+@app.command("prisma")
+def prisma_command(
+    ctx: typer.Context,
+    fmt: str = typer.Option("svg", "--format", help="svg | pdf | png | json"),
+    columns: str = typer.Option(
+        "one", "--columns", help="one | both (other methods in a second column)"
+    ),
+    allow_stale: bool = typer.Option(
+        False, "--allow-stale", help="Render a DRAFT even though decisions are stale"
+    ),
+    out: str | None = typer.Option(
+        None, "--out", help="Write here (`-` for standard output); default reports/prisma.<format>"
+    ),
+) -> None:
+    """The PRISMA 2020 flow diagram, drawn from the event log: openspec:prisma-reporting.
+
+    Every count is derived and every reconciliation identity is asserted first (a broken one is
+    E_COUNT_RECONCILE, exit code 4). While any decision is stale the command refuses (exit code 8)
+    unless `--allow-stale`; the diagram is then watermarked DRAFT, as it is whenever screening is
+    unfinished. The default output, reports/prisma.<format>, is committed.
+
+    Example: strata prisma --columns both --format svg
+    """
+    repo = _resolve_repo(ctx)
+    if fmt not in flow_mod.FORMATS:
+        err_console.print(f"[red]error:[/] --format must be one of {', '.join(flow_mod.FORMATS)}")
+        raise typer.Exit(EXIT_USAGE)
+    if columns not in flow_mod.COLUMNS:
+        err_console.print(f"[red]error:[/] --columns must be one of {', '.join(flow_mod.COLUMNS)}")
+        raise typer.Exit(EXIT_USAGE)
+    if fmt in ("pdf", "png") and out == "-":
+        err_console.print(f"[red]error:[/] --format {fmt} is binary; give --out FILE")
+        raise typer.Exit(EXIT_USAGE)
+    counts = counts_mod.compute(repo)
+    try:
+        counts_mod.require_reconciled(counts)
+        flow_mod.require_final(counts, allow_stale=allow_stale)
+        names = {str(s["id"]): str(s["database"]) for s in searches_mod.list_searches(repo)}
+        if fmt == "json":
+            document = flow_mod.flow_json(counts, names, columns=columns)
+            payload = (json_mod.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        else:
+            payload = flow_mod.render(counts, fmt=fmt, columns=columns)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    except flow_mod.StaleDecisionsError as exc:
+        err_console.print(f"[red]refused:[/] {exc}")
+        raise typer.Exit(EXIT_GUARDRAIL) from None
+    except flow_mod.FlowError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out == "-":
+        sys.stdout.write(payload.decode("utf-8"))
+        return
+    target = Path(out) if out else repo.path("reports", f"prisma.{fmt}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(payload)
+    written = [str(target)]
+    _, collapsed = flow_mod.collapse_reasons(counts.exclusion_reasons)
+    if collapsed and fmt != "json":
+        table = target.with_name("prisma-exclusion-reasons.tsv")
+        table.write_text(flow_mod.reasons_table(counts), encoding="utf-8", newline="\n")
+        written.append(str(table))
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    draft = not counts.complete
+    if ctx.obj["json"]:
+        _print_json({"written": written, "draft": draft, "counts": counts.to_dict()["totals"]})
+        return
+    out_console.print(f"[green]wrote[/] {', '.join(written)}")
+    if draft:
+        out_console.print(
+            f"[yellow]{flow_mod.DRAFT_TEXT}[/]: the diagram is watermarked as a draft"
+        )
 
 
 @app.command("audit")

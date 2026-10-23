@@ -448,6 +448,32 @@ def _verify_counts(repo: Repo, report: VerifyReport) -> None:
         )
 
 
+def _verify_diagram(repo: Repo, report: VerifyReport) -> None:
+    """A committed `reports/prisma.svg` is what `strata prisma` would draw now, byte for byte
+    (openspec:prisma-reporting#flow-diagram). A warning: the diagram is out of date after any
+    later decision until it is drawn again."""
+    path = repo.path("reports", "prisma.svg")
+    if not path.is_file():
+        return
+    from strata.report import counts as counts_mod
+    from strata.report import flow as flow_mod
+
+    counts = counts_mod.compute(repo)
+    if not counts.reconciled:
+        return
+    committed = path.read_bytes()
+    if committed not in (
+        flow_mod.render(counts, fmt="svg", columns=columns) for columns in flow_mod.COLUMNS
+    ):
+        report.add(
+            "W_DIAGRAM_STALE",
+            "reports/prisma.svg differs from the diagram the current events produce; "
+            "run strata prisma to draw it again",
+            path="reports/prisma.svg",
+            severity="warning",
+        )
+
+
 def _verify_analyses(repo: Repo, report: VerifyReport) -> None:
     """Every analysis specification parses, and committed results are not silently out of date:
     stale because the data changed, or because the tool did (openspec:analysis-specification)."""
@@ -503,5 +529,6 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
         _verify_extraction(repo, report)
         _verify_rob(repo, report)
         _verify_counts(repo, report)
+        _verify_diagram(repo, report)
         _verify_analyses(repo, report)
     return report

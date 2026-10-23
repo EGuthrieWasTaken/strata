@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}PRISMA flow diagram{% endblock %}
+{% block content %}
+<h1>PRISMA 2020 flow diagram</h1>
+
+{% if draft %}
+<p class="notice" role="status"><strong>{{ draft_text }}.</strong>
+  {% if counts.stale_decisions %}{{ counts.stale_decisions }} decision(s) are stale; run <code>strata rescreen</code>.{% endif %}
+  {% if counts.awaiting %}{{ counts.awaiting }} record(s) or report(s) still await a decision or retrieval.{% endif %}</p>
+{% endif %}
+
+{% if failures %}
+<div class="error" role="alert">
+  <p><strong>E_COUNT_RECONCILE:</strong> the counts do not close, so no diagram is drawn.</p>
+  <ul>{% for f in failures %}<li>{{ f }}</li>{% endfor %}</ul>
+</div>
+{% else %}
+<p>
+  {% if columns == "both" %}<a href="/prisma?columns=one">One column</a> &middot; <strong>Two columns</strong>
+  {% else %}<strong>One column</strong> &middot; <a href="/prisma?columns=both">Two columns (other methods apart)</a>{% endif %}
+  {% if not has_other_methods and columns == "both" %}<span class="field-meta">&mdash; no records were imported with <code>--via</code>, so the second column is empty.</span>{% endif %}
+</p>
+<figure class="plot-figure">
+  <img src="/prisma.svg?columns={{ columns }}" alt="PRISMA 2020 flow diagram: {{ totals.identified }} records identified, {{ totals.records_screened }} screened, {{ totals.reports_assessed }} reports assessed, {{ counts.studies_included }} studies included">
+  <figcaption>Flow diagram &middot; <a href="/prisma.svg?columns={{ columns }}">open the SVG</a> &middot; <code>strata prisma</code> writes and commits it</figcaption>
+</figure>
+{% endif %}
+
+<h2>Counts</h2>
+<table class="stage-table">
+  <thead><tr><th scope="col">Step</th><th scope="col">n</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Records identified</th><td>{{ totals.identified }}</td></tr>
+    <tr><th scope="row">Removed before screening</th><td>{{ totals.removed_before_screening }}</td></tr>
+    <tr><th scope="row">Records screened</th><td>{{ totals.records_screened }}</td></tr>
+    <tr><th scope="row">Records excluded</th><td>{{ totals.records_excluded_tiab }}</td></tr>
+    <tr><th scope="row">Reports sought for retrieval</th><td>{{ totals.reports_sought }}</td></tr>
+    <tr><th scope="row">Reports not retrieved</th><td>{{ totals.reports_not_retrieved }}</td></tr>
+    <tr><th scope="row">Reports assessed for eligibility</th><td>{{ totals.reports_assessed }}</td></tr>
+    <tr><th scope="row">Reports excluded</th><td>{{ totals.reports_excluded_ft }}</td></tr>
+    <tr><th scope="row">Studies included</th><td>{{ counts.studies_included }}</td></tr>
+    <tr><th scope="row">Reports of included studies</th><td>{{ counts.reports_of_included_studies }}</td></tr>
+  </tbody>
+</table>
+{% if counts.exclusion_reasons %}
+<h3>Reports excluded, by reason</h3>
+<table class="stage-table">
+  <thead><tr><th scope="col">Reason</th><th scope="col">n</th></tr></thead>
+  <tbody>{% for r in counts.exclusion_reasons %}<tr><th scope="row">{{ r.label }}</th><td>{{ r.count }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+<p class="field-meta">{{ counts.assertions | length }} reconciliation identities checked{% if not failures %}; all hold{% endif %}.
+  Flow diagram wording from PRISMA 2020 (Page et al., BMJ 2021;372:n71), CC BY 4.0.</p>
+<p><a href="/">&larr; Back to dashboard</a></p>
+{% endblock %}

@@ -1,1 +1,2 @@
 tests/golden/plots/* -text
+tests/golden/prisma/* -text

@@ -174,10 +174,12 @@ def create_app(
 
     from strata.web.analysis_routes import router as analysis_router
     from strata.web.extraction_routes import router as extraction_router
+    from strata.web.report_routes import router as report_router
     from strata.web.routes import router
 
     app.include_router(router)
     app.include_router(extraction_router)
     app.include_router(analysis_router)
+    app.include_router(report_router)
 
     return app
