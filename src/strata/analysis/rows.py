@@ -54,27 +54,30 @@ class EffectRow:
         return math.sqrt(self.vi)
 
     def values(self) -> dict[str, Any]:
-        """Everything a filter or a moderator may name."""
-        found: dict[str, Any] = {**self.fields, **self.moderators, **self.rob}
-        found.update(
-            {
-                "study_id": self.study_id,
-                "effect_id": self.effect_id,
-                "label": self.label,
-                "design": self.design,
-                "measure": self.measure,
-                "yi": self.yi,
-                "vi": self.vi,
-                "n": self.n,
-                "year": self.year,
-                "outcome": self.outcome,
-                "timepoint": self.timepoint,
-                "derived_from_pvalue": bool(self.details.get("derived_from_pvalue", False)),
-                "derived_from": self.details.get("derived_from"),
-                "assumed_correlation": self.details.get("assumed_correlation"),
-            }
-        )
-        return found
+        """Everything a filter or a moderator may name.
+
+        The identifying names (`study_id`, `effect_id`, `yi`, `vi`, `measure`, `n`, `year`, ...) are
+        reserved; any other name is an extraction field or a moderator, which win over the
+        convenience names (so `design` is the study's design if the form has one, and
+        `effect_design` is always the way the effect was entered).
+        """
+        reserved = {
+            "study_id": self.study_id,
+            "effect_id": self.effect_id,
+            "label": self.label,
+            "measure": self.measure,
+            "yi": self.yi,
+            "vi": self.vi,
+            "n": self.n,
+            "year": self.year,
+            "outcome": self.outcome,
+            "timepoint": self.timepoint,
+            "effect_design": self.design,
+            "derived_from_pvalue": bool(self.details.get("derived_from_pvalue", False)),
+            "derived_from": self.details.get("derived_from"),
+            "assumed_correlation": self.details.get("assumed_correlation"),
+        }
+        return {"design": self.design, **self.fields, **self.moderators, **self.rob, **reserved}
 
     def resolver(self) -> filters_mod.FieldResolver:
         values = self.values()
