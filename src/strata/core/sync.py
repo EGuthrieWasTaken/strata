@@ -27,7 +27,7 @@ from typing import Any
 from strata import gitio
 from strata.core import merge as merge_mod
 from strata.core import verify as verify_mod
-from strata.core.canon import load_yaml_str
+from strata.core.canon import canonical_json, load_yaml_str
 from strata.core.commit import StructuredCommit
 from strata.core.events import append_new_event
 from strata.core.repo import Repo, open_repo
@@ -188,7 +188,47 @@ def describe(repo: Repo, path: str) -> Conflict:
     return Conflict(path, mine, theirs, summary)
 
 
+_REGENERATED = ("derived/", "reports/", "analysis/results/")
+_UNIONED = ("records/aliases.ndjson", "fulltext/manifest.ndjson")
+
+
+def _auto_resolve(repo: Repo, path: str) -> bool:
+    """Settle a conflict in a file strata owns the way its merge driver would have, so that a
+    clone without the drivers installed still syncs
+    (openspec:git-integration#merge-drivers)."""
+    target = repo.path(*path.split("/"))
+    if path.startswith(_REGENERATED):
+        _git(repo, "checkout", "--ours", "--", path)  # rebuilt from the merged events below
+    elif (path.startswith("events/") and path.endswith(".ndjson")) or path in _UNIONED:
+        lines: list[str] = []
+        for stage in (2, 3):
+            for line in _stage_text(repo, stage, path).splitlines():
+                if line.strip() and line not in lines:
+                    lines.append(line)
+        target.write_text("".join(f"{line}\n" for line in lines), encoding="utf-8", newline="\n")
+    elif path == "records/records.ndjson":
+        trust = [str(t).lower() for t in repo.config.get("dedup", {}).get("source_trust", [])]
+        text, resolutions = merge_mod.merge_records_text(
+            _stage_text(repo, 1, path),
+            _stage_text(repo, 2, path),
+            _stage_text(repo, 3, path),
+            trust=trust,
+        )
+        target.write_text(text, encoding="utf-8", newline="\n")
+        notes = repo.path(*merge_mod.NOTES_PATH)
+        notes.parent.mkdir(parents=True, exist_ok=True)
+        with notes.open("a", encoding="utf-8", newline="\n") as handle:
+            for resolution in resolutions:
+                handle.write(canonical_json(resolution.to_dict()) + "\n")
+    else:
+        return False
+    _git(repo, "add", "--", path)
+    return True
+
+
 def _resolve_conflicts(repo: Repo, resolver: Resolver | None, report: SyncReport) -> None:
+    for path in _unmerged(repo):
+        _auto_resolve(repo, path)
     conflicts = [describe(repo, p) for p in _unmerged(repo)]
     if not conflicts:
         return

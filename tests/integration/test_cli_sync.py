@@ -349,6 +349,71 @@ def test_json_output_names_the_changes(review: tuple[Repo, Repo, Path]) -> None:
     assert out["screened"] == {"sam/title-abstract": {"exclude": 3}}
 
 
+# --- clones and remotes that are not set up ideally ----------------------------------------------
+
+
+def test_a_clone_without_the_merge_drivers_still_syncs(review: tuple[Repo, Repo, Path]) -> None:
+    ethan, sam, _bare = review
+    for driver in ("strata-regenerate", "strata-records"):
+        for key in ("name", "driver"):
+            gitio.run(["config", "--unset", f"merge.{driver}.{key}"], cwd=sam.root, check=False)
+    target = record_ids(ethan)[0]
+    cli(ethan, "fix", target, "--field", "title", "--value", "Beta title", "--by", "ethan")
+    cli(sam, "fix", target, "--field", "title", "--value", "Alpha title", "--by", "sam")
+    screen(sam, "sam", record_ids(sam)[1:3], "exclude", ["EXC-01"])
+    cli(ethan, "sync")
+    result = cli(sam, "sync")  # exit code 0: no conflict markers left for anyone to resolve
+    assert "<<<<" not in result.output and "decided automatically" in result.output
+    assert verify_repository(open_repo(sam.root)).ok and not gitio.is_dirty(sam.root)
+    assert "<<<<<<<" not in sam.path("records", "records.ndjson").read_text()
+    cli(ethan, "sync")
+    assert _head(ethan) == _head(sam)
+    assert (
+        ethan.path("records", "records.ndjson").read_bytes()
+        == sam.path("records", "records.ndjson").read_bytes()
+    )
+
+
+def test_the_rebase_strategy_replays_local_commits_and_converges(
+    review: tuple[Repo, Repo, Path],
+) -> None:
+    ethan, sam, bare = review
+    ids = record_ids(ethan)
+    screen(ethan, "ethan", ids[:3], "include")
+    cli(ethan, "sync")
+    screen(sam, "sam", ids[3:6], "exclude", ["EXC-01"])
+    report = sync_mod.sync(sam, actor="sam", strategy="rebase")
+    assert report.status == "merged" and report.pushed
+    for repo in (open_repo(sam.root), open_repo(ethan.root)):
+        if repo.root == ethan.root:
+            cli(ethan, "sync")
+        assert verify_repository(open_repo(repo.root)).ok
+    assert _head(sam) == _remote_head(bare) == _head(ethan)
+    assert len(_events(sam, "title-abstract.ethan.ndjson")) == 3
+    assert len(_events(sam, "title-abstract.sam.ndjson")) == 3
+
+
+def test_a_push_the_remote_rejects_is_integrated_and_tried_again(
+    review: tuple[Repo, Repo, Path],
+) -> None:
+    ethan, sam, bare = review
+    ids = record_ids(ethan)
+    screen(sam, "sam", ids[:2], "exclude", ["EXC-01"])
+    flag = bare / "rejected-once"
+    hook = bare / "hooks" / "pre-receive"
+    hook.write_text(
+        f'#!/bin/sh\nif [ ! -e "{flag}" ]; then touch "{flag}"; echo "remote: busy" >&2; exit 1; fi\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    report = sync_mod.sync(sam, actor="sam")
+    assert report.pushed and flag.exists()
+    assert _remote_head(bare) == _head(sam)
+    screen(ethan, "ethan", ids[2:4], "include")
+    cli(ethan, "sync")
+    assert verify_repository(open_repo(ethan.root)).ok
+
+
 # --- the merge drivers as commands -----------------------------------------------------------------
 
 
