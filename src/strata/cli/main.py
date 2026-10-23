@@ -50,6 +50,7 @@ from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
+from strata.protocol import studies as studies_mod
 from strata.web import security as web_security
 from strata.web import server as web_server_mod
 
@@ -68,6 +69,7 @@ EXIT_GUARDRAIL = 8
 _EXPORT_FILE_OPTION = typer.Option(None, "--export-file", help="May be repeated")
 _IMPORT_FILES_ARGUMENT = typer.Argument(..., help="One or more export files to import")
 _LOCATOR_OPTION = typer.Option(None, "--locator", help="kind=value (doi, pmid, ...); repeatable")
+_GROUP_OPTION = typer.Option(None, "--group", help="Report id to group; repeat per report")
 _MARK_OPTION = typer.Option(
     None, "--mark", help="Force record(s) stale (manual reason) instead of re-screening"
 )
@@ -1932,6 +1934,156 @@ def retrieve_command(
             ctx, repo, op="retrieve", scope=None, summary=f"recorded {recorded} outcome(s)", by=by
         )
     out_console.print(f"[green]done[/] -- {recorded} outcome(s) recorded")
+
+
+def _render_study_record(report: str, record: dict[str, Any]) -> str:
+    lines = [f"{report}  {records_mod.short_citation(record)}", f"  {record.get('title') or ''}"]
+    if record.get("DOI"):
+        lines.append(f"  doi:{record['DOI']}")
+    abstract = (record.get("abstract") or "").strip()
+    if abstract:
+        lines.append(f"  {abstract[:300]}{'...' if len(abstract) > 300 else ''}")
+    return "\n".join(lines)
+
+
+@app.command("studies")
+def studies_command(
+    ctx: typer.Context,
+    by: str | None = typer.Option(None, "--by", help="Actor handle recording the decision"),
+    list_only: bool = typer.Option(False, "--list", help="Show the counts and suggestions only"),
+    group: list[str] | None = _GROUP_OPTION,
+    study: str | None = typer.Option(None, "--study", help="With --group: redefine this study"),
+    split: str | None = typer.Option(None, "--split", help="Report id to split into studies"),
+    into: int = typer.Option(2, "--into", help="With --split: how many studies"),
+) -> None:
+    """Group reports into studies and split multi-study reports: openspec:study-grouping.
+
+    Suggestions (shared trial registration, shared authors and sample, follow-up language,
+    mutual citation) are shown with their evidence and never applied automatically. Every
+    grouping and splitting decision needs a rationale (--why).
+
+    Example: strata studies --by ethan --why "Same trial, 12-month follow-up" \\
+        --group rpt_3kq8v1r0zx2m4a7b --group rpt_9m2f4t7c1x8a5d6e
+    """
+    repo = _resolve_repo(ctx)
+    included = studies_mod.included_reports(repo)
+    records = records_mod.index_by_id(records_mod.read_records(repo))
+
+    def record_of(report: str) -> dict[str, Any]:
+        return records.get(ids_mod.record_id_for_report(report), {})
+
+    if group or split:
+        if not by:
+            err_console.print("[red]error:[/] --by is required to record a decision")
+            raise typer.Exit(EXIT_USAGE)
+        rationale = _get_required_rationale(ctx, repo, "You are recording a study decision.")
+        try:
+            if group:
+                event = studies_mod.group_reports(
+                    repo, reports=group, actor=by, rationale=rationale, study=study
+                )
+                summary = f"grouped {len(set(group))} report(s) into {event['body']['study']}"
+            else:
+                assert split is not None
+                event = studies_mod.split_report(
+                    repo, report=split, parts=into, actor=by, rationale=rationale
+                )
+                summary = f"split {split} into {into} studies"
+        except studies_mod.StudyError as exc:
+            err_console.print(f"[red]error:[/] {exc}")
+            raise typer.Exit(EXIT_USAGE) from None
+        _commit_domain_op(ctx, repo, op="studies", scope=None, summary=summary, by=by)
+        if ctx.obj["json"]:
+            _print_json({"event": event["id"], **event["body"]})
+        else:
+            out_console.print(f"[green]recorded[/] {summary}")
+        return
+
+    current = studies_mod.study_map(repo, reports=included)
+    found = studies_mod.suggestions(repo)
+    header = f"{len(included)} included reports -> {len(current.members)} studies"
+    if ctx.obj["json"] or list_only:
+        if ctx.obj["json"]:
+            _print_json(
+                {
+                    "reports": len(included),
+                    "studies": len(current.members),
+                    "groupings": [
+                        {"reports": list(g.reports), "evidence": list(g.evidence)}
+                        for g in found.groupings
+                    ],
+                    "splits": [
+                        {"report": s.report, "parts": s.parts, "evidence": s.evidence}
+                        for s in found.splits
+                    ],
+                }
+            )
+        else:
+            out_console.print(header)
+            for g in found.groupings:
+                out_console.print(f"  suggested grouping: {' + '.join(g.reports)}")
+                for line in g.evidence:
+                    out_console.print(f"    {line}")
+            for s in found.splits:
+                out_console.print(f"  suggested split: {s.report} into {s.parts} ({s.evidence})")
+        return
+
+    if not by:
+        err_console.print("[red]error:[/] --by is required to work the suggestions interactively")
+        raise typer.Exit(EXIT_USAGE)
+    out_console.print(f"\n  {header}\n")
+    decided = 0
+    for g in found.groupings:
+        out_console.print("  Suggested grouping (shared trial registration, sample, or authors):")
+        for report in g.reports:
+            out_console.print(f"    {report}  {records_mod.short_citation(record_of(report))}")
+        for line in g.evidence:
+            out_console.print(f"      {line}")
+        while True:
+            choice = typer.prompt("[g] group  [k] keep separate  [?] show both  [s] skip  [q] quit")
+            choice = choice.strip().lower()
+            if choice == "?":
+                for report in g.reports:
+                    out_console.print(_render_study_record(report, record_of(report)))
+                continue
+            break
+        if choice == "q":
+            break
+        if choice == "g":
+            rationale = _get_required_rationale(ctx, repo, f"You are grouping {len(g.reports)}.")
+            studies_mod.group_reports(repo, reports=list(g.reports), actor=by, rationale=rationale)
+            decided += 1
+        elif choice == "k":
+            studies_mod.dismiss_suggestion(
+                repo, reports=list(g.reports), actor=by, kind="keep-separate"
+            )
+            decided += 1
+    else:
+        for s in found.splits:
+            out_console.print(f"  Suggested split: {s.report} reports {s.parts} studies")
+            out_console.print(
+                f"    {records_mod.short_citation(record_of(s.report))}: {s.evidence!r}"
+            )
+            choice = typer.prompt("[s] split  [k] keep as one  [?] skip  [q] quit").strip().lower()
+            if choice == "q":
+                break
+            if choice == "s":
+                rationale = _get_required_rationale(ctx, repo, f"You are splitting {s.report}.")
+                studies_mod.split_report(
+                    repo, report=s.report, parts=s.parts, actor=by, rationale=rationale
+                )
+                decided += 1
+            elif choice == "k":
+                studies_mod.dismiss_suggestion(
+                    repo, reports=[s.report], actor=by, kind="keep-as-one"
+                )
+                decided += 1
+
+    if decided:
+        _commit_domain_op(
+            ctx, repo, op="studies", scope=None, summary=f"{decided} study decision(s)", by=by
+        )
+    out_console.print(f"[green]done[/] -- {decided} decision(s) recorded")
 
 
 @app.command("audit")
