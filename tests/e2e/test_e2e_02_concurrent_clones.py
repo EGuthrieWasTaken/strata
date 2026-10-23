@@ -1,11 +1,10 @@
-"""E2E-02 (skeleton): two collaborators screening concurrently on separate
-clones sync with zero manual conflict resolution.
+"""E2E-02: two collaborators screening concurrently on separate clones, syncing repeatedly through
+a shared remote with `strata sync`, end identical with zero manual conflict resolution.
 
-Full fidelity with openspec:test-suite's E2E-02 (repeated syncing via
-`strata sync`) lands once that command exists; this exercises the structural
-invariant it depends on (openspec:collaboration-sync#dual-screening-never-conflicts): two actors
-writing to disjoint per-actor event files never produces a git conflict,
-even under a genuine three-way merge.
+The first test is the structural invariant the second depends on
+(openspec:collaboration-sync#dual-screening-never-conflicts): two actors writing to disjoint
+per-actor event files never produce a git conflict, even under a genuine three-way merge. The second
+is the scenario itself, through the CLI: rounds of screening and syncing from both clones.
 """
 
 from __future__ import annotations
@@ -20,6 +19,8 @@ from strata.cli.main import app
 from strata.core.events import append_new_event, read_events
 from strata.core.repo import open_repo
 from strata.core.verify import verify_repository
+from tests.integration._sync import cli as sync_cli
+from tests.integration._sync import record_ids, shared_review
 
 runner = CliRunner()
 
@@ -136,3 +137,50 @@ def test_two_clones_disjoint_events_merge_without_conflict(tmp_path: Path) -> No
     # Dangling-record warnings are expected at this stage (dedup/import land in
     # M1); what matters here is that schemas and hash chains survived the merge.
     assert not any(issue.code in ("E_SCHEMA", "E_CHAIN") for issue in report.issues)
+
+
+@pytest.mark.req("E2E-02")
+def test_two_collaborators_screen_and_sync_repeatedly_and_converge(tmp_path: Path) -> None:
+    ethan, sam, bare = shared_review(tmp_path, records=9)
+    for _round in range(3):
+        for handle, clone in (("ethan", ethan), ("sam", sam)):
+            result = runner.invoke(
+                app,
+                [
+                    "--why",
+                    "Screening this batch for the shared review.",
+                    "-C",
+                    str(clone.root),
+                    "screen",
+                    "title-abstract",
+                    "--by",
+                    handle,
+                    "--limit",
+                    "3",
+                ],
+                input="i\n\n" * 3,
+            )
+            assert result.exit_code == 0, result.output
+        for clone in (ethan, sam):
+            out = sync_cli(clone, "sync")  # exit code 0 every time: never a conflict to resolve
+            assert "conflict:" not in out.output and "<<<<" not in out.output
+    for clone in (ethan, sam, ethan):
+        sync_cli(clone, "sync")
+
+    heads = {gitio.current_commit(c.root) for c in (ethan, sam)}
+    assert len(heads) == 1 and heads == {
+        gitio.run(["rev-parse", "refs/heads/main"], cwd=bare).stdout.strip()
+    }
+    for clone in (ethan, sam):
+        for handle in ("ethan", "sam"):
+            events = read_events(
+                clone.root / "events" / "screen" / f"title-abstract.{handle}.ndjson"
+            )
+            assert len(events) == 9 and len({e["body"]["record"] for e in events}) == 9
+        assert verify_repository(open_repo(clone.root)).ok
+        assert not gitio.is_dirty(clone.root)
+    assert (ethan.root / "derived" / "pool.tsv").read_bytes() == (
+        sam.root / "derived" / "pool.tsv"
+    ).read_bytes()
+    status = runner.invoke(app, ["--json", "-C", str(ethan.root), "status"])
+    assert status.exit_code == 0 and len(record_ids(ethan)) == 9
