@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
+import pytest
 from typer.testing import CliRunner
 
 from strata import gitio
@@ -23,6 +25,10 @@ from tests.unit._m5 import import_into, search
 
 runner = CliRunner()
 ROOT = Path(__file__).resolve().parents[2]
+# The workflow's `run:` steps are bash on a Linux runner; they are run here with a fake `gh`.
+posix_shell = pytest.mark.skipif(
+    sys.platform == "win32", reason="runs the workflow's POSIX shell steps"
+)
 
 
 def _init(path: Path, *flags: str, code: int = EXIT_OK) -> Any:
@@ -331,6 +337,7 @@ POST = "Post the comment"
 LABEL = "Label a change to the criteria and ask the methodologist"
 
 
+@posix_shell
 def test_the_workflow_posts_a_comment_and_labels_a_change_to_the_criteria(tmp_path: Path) -> None:
     repo, base = _review_on_a_branch(tmp_path)
     criteria_mod.add_criterion(
@@ -352,6 +359,7 @@ def test_the_workflow_posts_a_comment_and_labels_a_change_to_the_criteria(tmp_pa
     assert not any("--remove-label" in c for c in calls)
 
 
+@posix_shell
 def test_the_workflow_updates_its_one_comment_instead_of_adding_another(tmp_path: Path) -> None:
     repo, base = _review_on_a_branch(tmp_path)
     run = _Runner(tmp_path, repo, base, EXISTING_COMMENT_ID="4242")
@@ -364,6 +372,7 @@ def test_the_workflow_updates_its_one_comment_instead_of_adding_another(tmp_path
     assert not any(c.startswith("pr comment") for c in calls)
 
 
+@posix_shell
 def test_a_pull_request_that_leaves_the_criteria_alone_is_not_labelled(tmp_path: Path) -> None:
     repo, base = _review_on_a_branch(tmp_path)
     run = _Runner(tmp_path, repo, base)
@@ -376,6 +385,7 @@ def test_a_pull_request_that_leaves_the_criteria_alone_is_not_labelled(tmp_path:
     assert not any("--add-label" in c or "--add-reviewer" in c for c in calls)
 
 
+@posix_shell
 def test_a_review_request_that_github_refuses_does_not_fail_the_check(tmp_path: Path) -> None:
     repo, base = _review_on_a_branch(tmp_path)
     criteria_mod.add_criterion(
@@ -389,6 +399,7 @@ def test_a_review_request_that_github_refuses_does_not_fail_the_check(tmp_path: 
     assert done.returncode == 0 and "could not request a review from octocat" in done.stdout
 
 
+@posix_shell
 def test_without_a_methodologist_nobody_is_asked_to_review(tmp_path: Path) -> None:
     repo, base = _review_on_a_branch(tmp_path)
     criteria_mod.add_criterion(
@@ -402,6 +413,7 @@ def test_without_a_methodologist_nobody_is_asked_to_review(tmp_path: Path) -> No
     assert not any("--add-reviewer" in c for c in run.gh_calls())
 
 
+@posix_shell
 def test_a_base_without_a_strata_repository_still_gets_a_comment(tmp_path: Path) -> None:
     repo, _base = _review_on_a_branch(tmp_path)
     empty_tree = gitio.run(

@@ -19,6 +19,7 @@ from strata.cli.main import app
 from strata.core.canon import load_yaml_str
 
 ROOT = Path(__file__).resolve().parents[2]
+posix_shell = pytest.mark.skipif(sys.platform == "win32", reason="runs POSIX shell scripts")
 ENTRYPOINT = ROOT / "docker" / "entrypoint.sh"
 runner = CliRunner()
 
@@ -56,11 +57,13 @@ def _entrypoint(tmp_path: Path, *args: str, **env: str) -> tuple[list[str], str,
     return given, token, public
 
 
+@posix_shell
 def test_other_commands_go_straight_to_strata(tmp_path: Path) -> None:
     given, token, public = _entrypoint(tmp_path, "status", "--json")
     assert given == ["status", "--json"] and token == "" and public == ""
 
 
+@posix_shell
 def test_serve_listens_on_every_interface_with_a_new_token_and_the_localhost_url(
     tmp_path: Path,
 ) -> None:
@@ -74,6 +77,7 @@ def test_serve_listens_on_every_interface_with_a_new_token_and_the_localhost_url
     assert "--token" not in given  # it reaches strata in the environment, not on a command line
 
 
+@posix_shell
 def test_every_start_generates_a_different_token(tmp_path: Path) -> None:
     first = _entrypoint(tmp_path, "serve")[1]
     second = _entrypoint(tmp_path, "serve")[1]
@@ -81,17 +85,20 @@ def test_every_start_generates_a_different_token(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("flags", [["--port", "9000"], ["--port=9000"]])
+@posix_shell
 def test_the_public_url_follows_the_port_asked_for(tmp_path: Path, flags: list[str]) -> None:
     given, _token, public = _entrypoint(tmp_path, "serve", *flags)
     assert public == "http://localhost:9000"
     assert sum(1 for a in given if a.startswith("--port")) == 1  # not added a second time
 
 
+@posix_shell
 def test_the_port_can_come_from_the_environment(tmp_path: Path) -> None:
     given, _token, public = _entrypoint(tmp_path, "serve", STRATA_PORT="9100")
     assert given[given.index("--port") + 1] == "9100" and public == "http://localhost:9100"
 
 
+@posix_shell
 def test_a_token_that_was_supplied_is_kept(tmp_path: Path) -> None:
     _given, token, _public = _entrypoint(tmp_path, "serve", STRATA_TOKEN="from-the-environment")
     assert token == "from-the-environment"
@@ -99,6 +106,7 @@ def test_a_token_that_was_supplied_is_kept(tmp_path: Path) -> None:
     assert token == "" and given[given.index("--token") + 1] == "on-the-command-line"
 
 
+@posix_shell
 def test_a_public_url_that_was_supplied_is_kept(tmp_path: Path) -> None:
     _given, _token, public = _entrypoint(
         tmp_path, "serve", STRATA_PUBLIC_URL="https://strata.example.edu"
@@ -108,6 +116,7 @@ def test_a_public_url_that_was_supplied_is_kept(tmp_path: Path) -> None:
     assert public == "" and given[given.index("--public-url") + 1] == "https://x.example"
 
 
+@posix_shell
 def test_a_host_that_was_asked_for_is_respected(tmp_path: Path) -> None:
     given, *_ = _entrypoint(tmp_path, "serve", "--host", "127.0.0.1")
     assert given.count("--host") == 1 and given[given.index("--host") + 1] == "127.0.0.1"
@@ -168,6 +177,7 @@ def test_compose_publishes_only_on_loopback_and_runs_as_the_host_user() -> None:
     assert any(v.endswith(":/review") for v in service["volumes"])
 
 
+@posix_shell
 def test_the_entrypoint_is_executable_and_the_smoke_script_parses() -> None:
     assert os.access(ENTRYPOINT, os.X_OK) and os.access(
         ROOT / "scripts" / "container_smoke.sh", os.X_OK
