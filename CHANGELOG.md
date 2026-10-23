@@ -7,6 +7,37 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **M3: full text and extraction** (archived OpenSpec change
+  `add-full-text-and-extraction`; four new capability specs —
+  `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias`).
+  `strata retrieve` works the retrieval queue and writes `retrieval` events and
+  the committed `fulltext/manifest.ndjson` (documents identified by identifier
+  and version, never by file hash; a fixed vocabulary of not-retrieved reasons;
+  opt-in Unpaywall links, never a download). `strata studies` groups reports into
+  studies and splits multi-study reports, with suggestions from shared
+  registrations, authors and samples, follow-up wording and mutual citation.
+  `strata extract` (`init`, forms with `value @ source` locators, `--missing`,
+  scripted `--set` / `--effect`, `--reconcile`) with unit conversion (time, mass,
+  length, dose, project extensions, `E_UNIT`), effect entry for every reported
+  form (means with SD/SE/CI, 2x2 tables, correlations, test statistics,
+  p-value only, pre-post, pre-computed) following `metafor`'s conventions with
+  the size shown as you type, six data-quality guards with auditable
+  acknowledgements, and dual extraction with field-by-field reconciliation.
+  `strata rob` with RoB 2 algorithmic suggestions and recorded overrides,
+  ROBINS-I, Newcastle-Ottawa, and custom instruments; judgements are available as
+  `rob_overall` / `rob.<domain>` in filters and exports. `strata export effects`
+  (csv, tsv, json, xlsx, rds) and `strata export provenance`. `strata verify`
+  enforces `E_ORPHAN_EXTRACTION`, `E_MISSING_EXTRACTION`, `E_UNIT` and
+  `E_EFFECT_INPUTS`; `strata status` lists studies with missing values. Web
+  screens `/extract`, `/extract/<study>`, `/extract/<study>/reconcile`, `/rob/<study>`.
+  New tests include E2E-03 (to the analysis step), the extraction half of E2E-06,
+  and loading the export into real `metafor`. See `docs/m3-plan.md` and
+  `docs/rob-instruments.md` for what is partial (RoB 2 has not been compared with
+  Cochrane's own tables; no official question wording is bundled).
+- A study excluded at an earlier screening stage is no longer an included study,
+  so a title/abstract reversal leaves its extraction as an orphan rather than live.
+- Domain commands no longer fail on an empty commit when nothing changed.
+
 - The specification now lives entirely in [OpenSpec](openspec/README.md):
   29 capability specs under `openspec/specs/` (M0–M2.1), each with a
   `spec.md` of requirements and WHEN/THEN scenarios and a `design.md` of

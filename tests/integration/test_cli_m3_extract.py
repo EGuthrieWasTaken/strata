@@ -556,3 +556,27 @@ def test_a_late_required_field_queues_every_completed_study(tmp_path: Path) -> N
     assert [q["study"] for q in queue] == [study(1), study(2), study(3)]
     assert all(q["missing"] == ["setting"] for q in queue)
     assert _json(repo, "status")["extraction"]["complete"] == 0
+
+
+def test_export_provenance_lists_the_values_and_their_sources(tmp_path: Path) -> None:
+    repo = _form_repo(tmp_path)
+    _cli(
+        repo,
+        "extract",
+        S1,
+        "--by",
+        "ethan",
+        "--set",
+        "n_total=148 @ Table 1",
+        "--set",
+        "design=rct",
+    )
+    text = _cli(repo, "export", "provenance", "--format", "tsv").output
+    rows = [line.split("\t") for line in text.splitlines()]
+    assert rows[0][:4] == ["study_id", "kind", "item", "value"]
+    assert rows[1][:4] == [S1, "field", "n_total", "148"] and rows[1][5] == "Table 1"
+    out = tmp_path / "provenance.json"
+    _cli(repo, "export", "provenance", "--format", "json", "--out", str(out))
+    assert json.loads(out.read_text(encoding="utf-8"))
+    _cli(repo, "export", "provenance", "--format", "xlsx", code=EXIT_USAGE)
+    _cli(repo, "export", "provenance", "--format", "pdf", code=EXIT_USAGE)

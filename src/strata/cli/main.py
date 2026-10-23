@@ -2175,6 +2175,37 @@ def export_effects_command(
         sys.stdout.write(payload.decode("utf-8"))
 
 
+@export_app.command("provenance")
+def export_provenance_command(
+    ctx: typer.Context,
+    fmt: str = typer.Option("csv", "--format", help="csv | tsv | xlsx | rds | json"),
+    out: str | None = typer.Option(None, "--out", help="Write here instead of standard output"),
+) -> None:
+    """Every extracted value with its study and source locator, one row each: the provenance table
+    of openspec:data-extraction#extraction-records-and-source-locators.
+
+    Example: strata export provenance --format tsv --out provenance.tsv
+    """
+    repo = _resolve_repo(ctx)
+    if fmt not in export_mod.FORMATS:
+        err_console.print(f"[red]error:[/] --format must be one of {', '.join(export_mod.FORMATS)}")
+        raise typer.Exit(EXIT_USAGE)
+    if fmt in ("xlsx", "rds") and not out:
+        err_console.print(f"[red]error:[/] --format {fmt} is binary; give --out FILE")
+        raise typer.Exit(EXIT_USAGE)
+    try:
+        table = export_mod.provenance_table(repo)
+        payload = export_mod.render(table, fmt)
+    except (export_mod.ExportError, extraction_schema_mod.ExtractionSchemaError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out:
+        Path(out).write_bytes(payload)
+        out_console.print(f"[green]wrote {len(table.rows)} value(s) to {out}[/]")
+    else:
+        sys.stdout.write(payload.decode("utf-8"))
+
+
 def _export_extras(repo: Repo) -> export_mod.Extras | None:
     """Further study-level columns for the export: the risk-of-bias moderators, once assessed."""
     found = rob_mod.moderators(repo)

@@ -237,3 +237,28 @@ def test_the_rds_loads_in_r_as_a_data_frame_with_the_same_values(tmp_path: Path)
     first, second = result.stdout.splitlines()
     assert first.split() == ["study_id", "yi", "n", "ok", "note"]
     assert second.split() == ["0.5", "74", "TRUE", "std_a"]
+
+
+def test_the_provenance_table_lists_every_extracted_value_with_its_source(tmp_path: Path) -> None:
+    """openspec scenario: every extracted value is listed with its study and source locator."""
+    repo = _review(tmp_path, studies=2)
+    rec_mod.set_field(repo, study=study(1), handle="ethan", name="n_total", raw="148 @ Table 1")
+    rec_mod.set_field(repo, study=study(1), handle="ethan", name="design", raw="rct")
+    rec_mod.set_field(repo, study=study(1), handle="ethan", name="retention_interval", raw="NR")
+    rec_mod.set_field(repo, study=study(2), handle="ethan", name="n_total", raw="90 @ p. 4")
+    rec_mod.add_effect(
+        repo, study=study(1), handle="ethan", outcome="recall", design="two-group-means",
+        inputs=MEANS, source="Table 2",
+    )  # fmt: skip
+    table = ex.provenance_table(repo)
+    assert table.columns == ["study_id", "kind", "item", "value", "unit", "source", "recorded_by"]
+    rows = {(r["study_id"], r["item"]): r for r in table.rows}
+    assert rows[(study(1), "n_total")]["value"] == 148
+    assert rows[(study(1), "n_total")]["source"] == "Table 1"
+    assert rows[(study(1), "design")]["source"] is None  # a value without a locator is still listed
+    assert rows[(study(1), "retention_interval")]["value"] == "NR"
+    assert rows[(study(2), "n_total")]["source"] == "p. 4"
+    [effect] = [r for r in table.rows if r["kind"] == "effect"]
+    assert effect["source"] == "Table 2" and effect["value"] == "two-group-means (recall)"
+    assert len([r for r in table.rows if r["kind"] == "field"]) == 4  # nothing omitted
+    assert ex.render(table, "csv") == ex.render(ex.provenance_table(repo), "csv")

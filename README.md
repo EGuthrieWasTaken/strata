@@ -36,8 +36,8 @@ rather have quietly rewritten.
 
 ## Status
 
-**M0 (substrate), M1 ("literature in"), and M2 ("screening and staleness")
-are complete — this is the first genuinely useful release.** The
+**M0 (substrate), M1 ("literature in"), M2 ("screening and staleness"), and
+M3 ("full text and extraction") are complete.** The
 pull-request gate, the repository format's core (event log, canonical
 serialisation, identity and normalisation, the fold), and
 `init`/`clone`/`doctor`/`config`/`actor`/`verify`/`status`/`log` are
@@ -67,11 +67,26 @@ web UI (`strata serve`) covering the dashboard, screening, criteria editing
 with a live non-mutating impact preview, rescreening, adjudication, the
 duplicate review queue, a searchable record table, and domain history — all
 server-rendered and fully usable with JavaScript disabled. A screening
-session sustains sub-100ms decision latency at 50,000 records. Extraction
-(M3) and analysis (M4) are not built yet; see [the roadmap](docs/roadmap.md)
-for what comes next, and [`docs/m1-plan.md`](docs/m1-plan.md) /
-[`docs/m2-plan.md`](docs/m2-plan.md) for the sub-objective-by-sub-objective
-status of each milestone.
+session sustains sub-100ms decision latency at 50,000 records.
+
+M3 takes a review from included records to an analysis-ready dataset. A
+retrieval queue (`strata retrieve`) records each full text by identifier and
+version in a committed manifest, with the reason for every report that could not
+be obtained and, if you opt in, legal open-access links from Unpaywall.
+`strata studies` groups reports into studies and splits multi-study reports,
+suggesting but never applying. `strata extract` drafts a coding form from the
+protocol, walks each study (units converted, a source locator after any value,
+effects entered in whatever form the paper reports with the effect size shown as
+you type), warns about implausible values without blocking, and — with dual
+extraction — reconciles two reviewers field by field with a recorded rationale.
+`strata rob` records risk of bias (RoB 2 with algorithmic suggestions and
+recorded overrides, ROBINS-I, Newcastle-Ottawa, or your own instrument), and
+`strata export effects` writes one row per effect for `metafor::rma()` or any
+other tool. All of it is also in the web UI. Analysis (M4) is not built yet; see
+[the roadmap](docs/roadmap.md) for what comes next, and
+[`docs/m1-plan.md`](docs/m1-plan.md) / [`docs/m2-plan.md`](docs/m2-plan.md) /
+[`docs/m3-plan.md`](docs/m3-plan.md) for the sub-objective-by-sub-objective
+status of each milestone, including what is deliberately partial.
 
 ## Installing
 

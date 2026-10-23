@@ -12,7 +12,7 @@ change is archived into the specs and this page is updated.
 | M1 — Literature in | done | specs |
 | M2 — Screening and staleness | done (`0.1.0`) | specs |
 | M2.1 — Wiki and local MCP server | ongoing (MCP server done) | specs: `mcp-server`, `project-documentation` |
-| M3 — Full text and extraction | planned | `add-full-text-and-extraction` |
+| M3 — Full text and extraction | done | specs: `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias` |
 | M4 — Analysis | planned | `add-meta-analysis` |
 | M5 — Reporting (`1.0.0`) | planned | `add-prisma-reporting` |
 | M5.1 — Collaboration and hosting | planned; parts can start now | `add-container-image`, `add-hosted-team-deployment` |
@@ -150,7 +150,7 @@ decision.
 
 ---
 
-## M3 — Full text and extraction *(planned: `add-full-text-and-extraction`)*
+## M3 — Full text and extraction *(done)*
 
 **Scope**: retrieval queue and full-text manifest; study grouping; extraction
 schema, coding forms, units, dual extraction and reconciliation; data-quality

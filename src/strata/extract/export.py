@@ -336,6 +336,49 @@ def _rds(table: Table) -> bytes:
     return out.getvalue()
 
 
+def provenance_table(repo: Repo) -> Table:
+    """Every extracted value with its study and source locator, one row each
+    (openspec:data-extraction#extraction-records-and-source-locators: the per-value provenance
+    table `strata report` will embed). Consensus records only; sorted by study, then item."""
+    members = studies_mod.study_map(repo).members
+    table = Table(columns=["study_id", "kind", "item", "value", "unit", "source", "recorded_by"])
+    consensus = {
+        r["study"]: r
+        for kind, _h, r, _p in rec_mod.all_records(repo)
+        if kind == "consensus" and r.get("study") in members
+    }
+    for study in sorted(consensus):
+        record = consensus[study]
+        by = ";".join(
+            str(h) for h in record.get("reconciled_by") or record.get("extracted_by") or []
+        )
+        for name, entry in record.get("fields", {}).items():
+            table.rows.append(
+                {
+                    "study_id": study,
+                    "kind": "field",
+                    "item": name,
+                    "value": "NR" if entry.get("not_reported") else _flat(entry),
+                    "unit": entry.get("unit"),
+                    "source": entry.get("source"),
+                    "recorded_by": by,
+                }
+            )
+        for effect in sorted(record.get("effects", []), key=lambda e: str(e.get("id", ""))):
+            table.rows.append(
+                {
+                    "study_id": study,
+                    "kind": "effect",
+                    "item": effect.get("id") or rec_mod.effect_key(effect),
+                    "value": f"{effect.get('design')} ({effect.get('outcome')})",
+                    "unit": None,
+                    "source": effect.get("source"),
+                    "recorded_by": by,
+                }
+            )
+    return table
+
+
 def render(table: Table, fmt: str) -> bytes:
     if fmt == "csv":
         return _delimited(table, ",")
