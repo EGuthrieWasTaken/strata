@@ -312,3 +312,79 @@ def test_verify_flags_a_retrieval_for_a_missing_record(tmp_path: Path) -> None:
         body={"report": rpt(404), "status": "sought"},
     )
     assert "E_DANGLING_REF" in _codes(repo)
+
+
+# --- legal open-access links (Unpaywall) -----------------------------------------------------
+
+
+class _FakeClient:
+    def __init__(self, link):  # type: ignore[no-untyped-def]
+        self.link = link
+        self.asked: list[str] = []
+
+    def find(self, doi: str):  # type: ignore[no-untyped-def]
+        self.asked.append(doi)
+        return self.link
+
+
+def _enable_unpaywall(repo):  # type: ignore[no-untyped-def]
+    from strata.core.repo import open_repo
+
+    manifest = repo.path("strata.toml")
+    text = manifest.read_text(encoding="utf-8")
+    text = text.replace("enabled = false", "enabled = true")
+    text = text.replace("providers = []", 'providers = ["unpaywall"]')
+    text = text.replace('contact_email = ""', 'contact_email = "me@example.org"')
+    manifest.write_text(text, encoding="utf-8")
+    return open_repo(repo.root)
+
+
+def test_no_open_access_lookup_happens_with_enrichment_off(tmp_path: Path) -> None:
+    repo = _setup(tmp_path, 1)
+    client = _FakeClient("never returned")
+    assert retrieval.open_access_link(repo, rpt(1), client=client) is None  # type: ignore[arg-type]
+    assert client.asked == []
+    assert not repo.path(".strata", "network.log").exists()
+
+
+def test_open_access_link_is_offered_when_enabled(tmp_path: Path) -> None:
+    from strata.ingest.enrich.unpaywall import OpenAccessLink
+
+    repo = _enable_unpaywall(_setup(tmp_path, 1))
+    link = OpenAccessLink("https://repo.example/p.pdf", "preprint", "cc-by", "repository")
+    client = _FakeClient(link)
+    assert retrieval.open_access_link(repo, rpt(1), client=client) == link  # type: ignore[arg-type]
+    assert client.asked == ["10.1000/test.1"]
+    assert not list(repo.root.rglob("*.pdf"))  # offered, never downloaded
+
+
+def test_a_report_without_a_doi_has_nothing_to_look_up(tmp_path: Path) -> None:
+    from tests.unit._m3 import record
+
+    repo = init_review(tmp_path)
+    no_doi = record(1)
+    del no_doi["DOI"]
+    decide(repo, "title-abstract", add_records(repo, [no_doi]))
+    repo = _enable_unpaywall(repo)
+    client = _FakeClient("x")
+    assert retrieval.open_access_link(repo, rpt(1), client=client) is None  # type: ignore[arg-type]
+    assert client.asked == []
+
+
+def test_the_default_client_logs_to_the_network_log_and_needs_a_contact_email(
+    tmp_path: Path,
+) -> None:
+    from strata.ingest.enrich.unpaywall import EnrichmentError
+
+    repo = _enable_unpaywall(_setup(tmp_path, 1))
+    manifest = repo.path("strata.toml")
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace(
+            'contact_email = "me@example.org"', 'contact_email = ""'
+        ),
+        encoding="utf-8",
+    )
+    from strata.core.repo import open_repo
+
+    with pytest.raises(EnrichmentError):
+        retrieval.open_access_link(open_repo(repo.root), rpt(1))

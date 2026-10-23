@@ -38,6 +38,7 @@ GITIGNORE = """\
 /fulltext/*
 !/fulltext/manifest.ndjson
 /.strata/cache/
+/.strata/network.log
 """
 
 MERGE_DRIVERS = {

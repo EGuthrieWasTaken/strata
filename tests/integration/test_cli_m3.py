@@ -259,3 +259,29 @@ def test_studies_interactive_quit_and_skip_decide_nothing(tmp_path: Path) -> Non
 def test_studies_interactive_needs_an_actor(tmp_path: Path) -> None:
     repo = _full_text_review(tmp_path, 2)
     _cli(repo, "studies", code=EXIT_USAGE)
+
+
+def test_retrieve_offers_an_open_access_link_only_when_enrichment_allows(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    from strata.ingest.enrich.unpaywall import EnrichmentError, OpenAccessLink
+
+    repo = _sought(tmp_path, 1)
+    monkeypatch.setattr("strata.cli.main.webbrowser.open", lambda url: None)
+    calls: list[str] = []
+
+    def fake(_repo: Any, report: str) -> OpenAccessLink | None:
+        calls.append(report)
+        return OpenAccessLink("https://repo.example/p.pdf", None, None, None)
+
+    monkeypatch.setattr("strata.cli.main.retrieval_mod.open_access_link", fake)
+    out = _cli(repo, "retrieve", "--by", "ethan", input="u\nq\n").output
+    assert "open access copy: https://repo.example/p.pdf" in out and calls == [rpt(1)]
+
+    def failing(_repo: Any, _report: str) -> OpenAccessLink | None:
+        raise EnrichmentError("rate limited")
+
+    monkeypatch.setattr("strata.cli.main.retrieval_mod.open_access_link", failing)
+    out = _cli(repo, "retrieve", "--by", "ethan", input="u\nq\n").output
+    assert "open-access lookup failed" in out and "rate limited" in out
+    assert retrieval.all_retrieval_events(repo) == []

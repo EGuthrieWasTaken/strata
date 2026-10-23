@@ -431,21 +431,25 @@ def _next_effect_sequence(effects: list[dict[str, Any]]) -> int:
 # --- reading everything ----------------------------------------------------------------------
 
 
-def all_records(repo: Repo) -> list[tuple[str, str | None, dict[str, Any], Path]]:
-    """Every extraction file as `(kind, handle, record, path)`; kind is consensus/reviewer."""
-    found: list[tuple[str, str | None, dict[str, Any], Path]] = []
+def record_paths(repo: Repo) -> list[tuple[str, str | None, Path]]:
+    """Every extraction file as `(kind, handle, path)`; kind is `consensus` or `reviewer`."""
+    found: list[tuple[str, str | None, Path]] = []
     consensus_dir = repo.path("extraction", "consensus")
     if consensus_dir.exists():
-        for path in sorted(consensus_dir.glob("*.yaml")):
-            record = read_record(path)
-            if record is not None:
-                found.append(("consensus", None, record, path))
+        found.extend(("consensus", None, p) for p in sorted(consensus_dir.glob("*.yaml")))
     reviewer_dir = repo.path("extraction", "by-reviewer")
     if reviewer_dir.exists():
-        for path in sorted(reviewer_dir.glob("*/*.yaml")):
-            record = read_record(path)
-            if record is not None:
-                found.append(("reviewer", path.parent.name, record, path))
+        found.extend(("reviewer", p.parent.name, p) for p in sorted(reviewer_dir.glob("*/*.yaml")))
+    return found
+
+
+def all_records(repo: Repo) -> list[tuple[str, str | None, dict[str, Any], Path]]:
+    """Every readable extraction file as `(kind, handle, record, path)`."""
+    found: list[tuple[str, str | None, dict[str, Any], Path]] = []
+    for kind, handle, path in record_paths(repo):
+        record = read_record(path)
+        if record is not None:
+            found.append((kind, handle, record, path))
     return found
 
 

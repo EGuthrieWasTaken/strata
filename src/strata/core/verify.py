@@ -15,13 +15,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ruamel.yaml.error import YAMLError
+
 from strata.core import events as events_mod
 from strata.core import fulltext as fulltext_mod
 from strata.core.canon import load_yaml_str
-from strata.core.ids import record_id_for_report
+from strata.core.ids import record_id_for_report, report_id, singleton_study_id
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate
+from strata.extract import records as extraction_records_mod
+from strata.extract import schema as extraction_schema_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import studies as studies_mod
 
 
 @dataclass
@@ -29,6 +34,7 @@ class VerifyIssue:
     code: str
     message: str
     path: str | None = None
+    severity: str = "error"  # "warning" issues are reported but do not fail verification
 
 
 @dataclass
@@ -37,10 +43,12 @@ class VerifyReport:
 
     @property
     def ok(self) -> bool:
-        return not self.issues
+        return all(i.severity == "warning" for i in self.issues)
 
-    def add(self, code: str, message: str, path: str | None = None) -> None:
-        self.issues.append(VerifyIssue(code=code, message=message, path=path))
+    def add(
+        self, code: str, message: str, path: str | None = None, *, severity: str = "error"
+    ) -> None:
+        self.issues.append(VerifyIssue(code=code, message=message, path=path, severity=severity))
 
 
 def _verify_manifest(repo: Repo, report: VerifyReport) -> None:
@@ -51,9 +59,13 @@ def _verify_manifest(repo: Repo, report: VerifyReport) -> None:
             report.add("E_SCHEMA", error, path="strata.toml")
 
 
-def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
-    """Validate every event file's schema and hash chain. Returns all record ids referenced."""
+def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> tuple[set[str], set[str]]:
+    """Validate every event file's schema and hash chain.
+
+    Returns the record ids and the study ids that events refer to.
+    """
     referenced_records: set[str] = set()
+    referenced_studies: set[str] = set()
     for path in events_mod.iter_event_files(repo.root):
         rel = path.relative_to(repo.root).as_posix()
         raw_events = events_mod.read_events(path)
@@ -71,6 +83,10 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
                 referenced_records.add(absorbed)
             for report_ref in [body.get("report"), *(body.get("reports") or [])]:
                 referenced_records |= _records_for_reports([report_ref])
+            if envelope.get("ev") in ("extract", "reconcile", "rob") and isinstance(
+                body.get("study"), str
+            ):
+                referenced_studies.add(body["study"])
 
         if not fast:
             for violation in events_mod.verify_chain(path):
@@ -79,7 +95,7 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> set[str]:
                     f"line {violation.line} (event {violation.event_id}): {violation.reason}",
                     path=rel,
                 )
-    return referenced_records
+    return referenced_records, referenced_studies
 
 
 def _load_ndjson_field(path: Path, field: str) -> set[str]:
@@ -302,6 +318,12 @@ def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
             node = edges[node]
 
 
+def _all_record_ids(repo: Repo) -> set[str]:
+    return _load_ndjson_field(repo.path("records", "records.ndjson"), "id") | _load_ndjson_field(
+        repo.path("records", "aliases.ndjson"), "alias"
+    )
+
+
 def _verify_dangling_refs(repo: Repo, report: VerifyReport, referenced_records: set[str]) -> None:
     # aliases.ndjson entries key the absorbed record's id as "alias", not
     # "id" (openspec:repository-format#authoritative-versus-derived-files) -- a non-canonical
@@ -314,10 +336,78 @@ def _verify_dangling_refs(repo: Repo, report: VerifyReport, referenced_records: 
             report.add("E_DANGLING_REF", f"event references unknown record {ref!r}")
 
 
+def _known_studies(repo: Repo, record_ids: set[str]) -> set[str]:
+    """Every study id that exists or ever existed: a singleton per record, plus every id a
+    `study-group` / `study-split` event created."""
+    known: set[str] = set()
+    for record_id in record_ids:
+        try:
+            known.add(singleton_study_id(report_id(record_id)))
+        except ValueError:
+            continue
+    for event in studies_mod.all_study_events(repo):
+        body = event["body"]
+        known.update([body["study"]] if "study" in body else body.get("studies", []))
+    return known
+
+
+def _verify_studies(
+    repo: Repo, report: VerifyReport, record_ids: set[str], referenced_studies: set[str]
+) -> None:
+    known = _known_studies(repo, record_ids)
+    for study in sorted(referenced_studies - known):
+        report.add("E_DANGLING_REF", f"event references unknown study {study!r}")
+
+
+def _verify_extraction(repo: Repo, report: VerifyReport) -> None:
+    """`E_ORPHAN_EXTRACTION`, `E_MISSING_EXTRACTION`, `E_UNIT`, `E_EFFECT_INPUTS` and the schema
+    of every extraction file (openspec:data-extraction). Nothing to check before extraction starts.
+    """
+    if not extraction_schema_mod.schema_exists(repo):
+        return
+    try:
+        schema = extraction_schema_mod.load_schema(repo)
+        registry = extraction_schema_mod.unit_registry(repo)
+    except extraction_schema_mod.ExtractionSchemaError as exc:
+        report.add("E_SCHEMA", str(exc), path="extraction/schema.yaml")
+        return
+
+    members = studies_mod.study_map(repo).members
+    consensus: set[str] = set()
+    for kind, _handle, path in extraction_records_mod.record_paths(repo):
+        rel = path.relative_to(repo.root).as_posix()
+        try:
+            record = extraction_records_mod.read_record(path)
+        except YAMLError as exc:
+            report.add("E_SCHEMA", f"not valid YAML: {exc}", path=rel)
+            continue
+        if record is None:
+            report.add("E_SCHEMA", "not a mapping", path=rel)
+            continue
+        for issue in extraction_records_mod.validate_record(record, schema, registry, where=rel):
+            report.add(issue.code, issue.message, path=rel)
+        study = record.get("study")
+        if kind == "consensus" and isinstance(study, str):
+            consensus.add(study)
+        if isinstance(study, str) and study not in members:
+            report.add(
+                "E_ORPHAN_EXTRACTION",
+                f"{study} has an extraction but is not an included study "
+                "(the extraction is retained)",
+                path=rel,
+            )
+    for study in sorted(set(members) - consensus):
+        report.add(
+            "E_MISSING_EXTRACTION",
+            f"included study {study} has no consensus extraction",
+            severity="warning",
+        )
+
+
 def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     report = VerifyReport()
     _verify_manifest(repo, report)
-    referenced_records = _verify_events(repo, report, fast=fast)
+    referenced_records, referenced_studies = _verify_events(repo, report, fast=fast)
     referenced_records |= _verify_fulltext_manifest(repo, report)
     _verify_searches(repo, report)
     _verify_records(repo, report)
@@ -326,4 +416,8 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
         _verify_screen_events(repo, report)
         _verify_aliases(repo, report)
         _verify_dangling_refs(repo, report, referenced_records)
+        _verify_studies(
+            repo, report, referenced_records | _all_record_ids(repo), referenced_studies
+        )
+        _verify_extraction(repo, report)
     return report

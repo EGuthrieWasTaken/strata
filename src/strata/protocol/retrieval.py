@@ -32,6 +32,7 @@ from strata.core.fold import (
 from strata.core.ids import record_id_for_report, report_id
 from strata.core.repo import Repo
 from strata.core.validate import validate, validate_event_body
+from strata.ingest.enrich import unpaywall
 from strata.protocol import screening as screening_mod
 
 # openspec:full-text-retrieval#not-retrieved-reasons — the fixed vocabulary.
@@ -212,3 +213,27 @@ def record_retrieval(
     if manifest_entry is not None:
         fulltext_mod.append_manifest_entry(repo, manifest_entry)
     return append_new_event(_events_path(repo, actor), ev="retrieval", actor=actor, body=body)
+
+
+def open_access_link(
+    repo: Repo, report: str, *, client: unpaywall.UnpaywallClient | None = None
+) -> unpaywall.OpenAccessLink | None:
+    """A legal open-access link for a report, if enrichment allows asking and one exists.
+
+    Offered, never fetched: nothing is downloaded, and no source other than Unpaywall is touched
+    (openspec:full-text-retrieval#legal-open-access-links-only). With enrichment off, or
+    `unpaywall` not among the providers, this makes no request at all.
+    """
+    if not unpaywall.enrichment_enabled(repo.config, "unpaywall"):
+        return None
+    record = records_mod.get_record(repo, record_id_for_report(report)) or {}
+    doi = record.get("DOI")
+    if not doi:
+        return None
+    if client is None:
+        client = unpaywall.UnpaywallClient(
+            str(repo.config.get("enrichment", {}).get("contact_email", "")),
+            repo.path(".strata", "cache", "unpaywall"),
+            repo.path(".strata", "network.log"),
+        )
+    return client.find(str(doi))

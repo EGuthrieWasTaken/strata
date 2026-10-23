@@ -40,6 +40,7 @@ from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_re
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.ingest.enrich import unpaywall as unpaywall_mod
 from strata.mcpserver import server as mcp_server_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import audit as audit_mod
@@ -376,16 +377,18 @@ def verify(
             {
                 "ok": report.ok,
                 "issues": [
-                    {"code": i.code, "message": i.message, "path": i.path} for i in report.issues
+                    {"code": i.code, "message": i.message, "path": i.path, "severity": i.severity}
+                    for i in report.issues
                 ],
             }
         )
-    elif report.ok:
-        out_console.print("[green]ok[/] — repository is valid")
     else:
         for issue in report.issues:
             loc = f" ({issue.path})" if issue.path else ""
-            err_console.print(f"[red]{issue.code}[/]{loc}: {issue.message}")
+            colour = "yellow" if issue.severity == "warning" else "red"
+            err_console.print(f"[{colour}]{issue.code}[/]{loc}: {issue.message}")
+        if report.ok:
+            out_console.print("[green]ok[/] — repository is valid")
     raise typer.Exit(EXIT_OK if report.ok else EXIT_VALIDATION)
 
 
@@ -1884,6 +1887,13 @@ def retrieve_command(
                 webbrowser.open(f"https://doi.org/{doi}")
             else:
                 out_console.print("[yellow]no DOI on this record to open[/]")
+            try:
+                link = retrieval_mod.open_access_link(repo, current)
+            except unpaywall_mod.EnrichmentError as exc:
+                out_console.print(f"[yellow]open-access lookup failed:[/] {exc}")
+            else:
+                if link is not None:
+                    out_console.print(f"[green]open access copy:[/] {link.url}")
             continue
         try:
             if choice == "f":
