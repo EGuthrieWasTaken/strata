@@ -1,0 +1,28 @@
+name: windows-debug
+
+# Temporary: the sync tests on Windows, on their own, with the traceback of an unexpected error.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.12"
+      - run: uv sync
+      - name: Configure git identity (needed by integration/e2e tests)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+          git config --list --show-origin
+      - run: uv run pytest tests/integration/test_cli_sync.py tests/e2e/test_e2e_02_concurrent_clones.py -q -p no:cacheprovider

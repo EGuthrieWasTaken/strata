@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,10 @@ def commit(repo: Repo, message: str, actor: str = "ethan") -> None:
 
 def cli(repo: Repo, *args: str, code: int = 0) -> Any:
     result = runner.invoke(app, [*WHY, "-C", str(repo.root), *args])
-    assert result.exit_code == code, result.output
+    if result.exit_code != code:
+        # An unexpected exception leaves no message in the output, only in `exc_info`.
+        raised = "".join(traceback.format_exception(*result.exc_info)) if result.exc_info else ""
+        raise AssertionError(f"exit {result.exit_code}, wanted {code}\n{result.output}\n{raised}")
     return result
 
 
