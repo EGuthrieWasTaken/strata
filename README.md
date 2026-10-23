@@ -138,7 +138,8 @@ See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m6-plan.md`](docs/m6-plan.md) for
 the sub-objective-by-sub-objective status of each milestone, including what is
 deliberately partial. Reference pages: [statistical methods](docs/statistics.md) (formulae and
-sources), [recovery](docs/recovery.md) (when something looks wrong), [running in a container](docs/container.md), and [contributing](CONTRIBUTING.md) (including
+sources), [recovery](docs/recovery.md) (when something looks wrong), [for people who have never used git](docs/never-used-git.md),
+[methods-text cookbook](docs/methods-cookbook.md), [running in a container](docs/container.md), and [contributing](CONTRIBUTING.md) (including
 how to add an import parser).
 
 ## Installing
