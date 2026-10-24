@@ -116,15 +116,31 @@ Set `extraction.mode = "dual"` in `strata.toml` (the default is `single`). Each 
 file (`extraction/by-reviewer/<handle>/`) without seeing the other's; then someone reconciles:
 
 ```
-strata extract --reconcile --list                 # every unresolved difference, with each reviewer's value and source
-strata --why "Table 1 gives 7 days" extract STUDY_ID --by ada --reconcile \
-    --item ITEM_ID --choose sam --rationale "Table 1 gives 7 days" --source "Table 1"
+strata extract --reconcile --list                 # studies with differences nobody has settled yet
+strata extract STUDY_ID --reconcile --list        # one study: every difference
+```
+
+```
+6 of 7 items agree (86%)
+  std_3bfqqz4nft3qqtqr field:n_total: ada: 120  |  sam: 118
+```
+
+Each difference has an *item id*: `field:NAME` for a coding-form field (effects have their own ids, shown in the
+same listing). Settle one by naming the study and the item:
+
+```
+strata --why "Table 1 gives 120 analysed participants" extract STUDY_ID --by ada --reconcile \
+    --item field:n_total --choose ada --rationale "Table 1 gives 120 analysed participants" --source "Table 1"
+```
+
+```
+reconciled field:n_total: ada
 ```
 
 For each disagreeing item you pick a reviewer's value (`--choose ada`), the agreed value (`agreement`), or
 another (`--choose other --value 14`), and every reconciliation is recorded with a rationale and source. The
-consensus lands in `extraction/consensus/<study>.yaml`, which is what analyses use. The listing also gives the extraction agreement rate (the share of compared items on which
-the two extractors independently agreed).
+consensus lands in `extraction/consensus/<study>.yaml`, which is what analyses use. The first line of the listing is the extraction agreement rate: the share of compared items on which the two
+extractors independently agreed (it does not change when you reconcile).
 
 ## 4. Checking and exporting
 

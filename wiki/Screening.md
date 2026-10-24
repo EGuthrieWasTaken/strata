@@ -22,10 +22,18 @@ strata --why "Both reviewers screen everything" assign title-abstract --actors a
 assigned 8 record(s) at title-abstract to ada, sam
 ```
 
+By default **every actor whose role is `screener` or `lead` is assigned to every record**; an `assign` event for a
+record overrides that for that record, and `screening.assignment.<stage>` in `strata.toml` changes the default.
 `assign` records which reviewers must opine on which records; it can be limited with `--filter`, for example
 to give a subset (say, non-English records) to one particular person. A record is *resolved* when everyone
 assigned to it has opined and they agree. With `mode = "single"` one opinion is enough (use it for pilots; the
 generated Methods will say so).
+
+> **Adding a screener part-way through.** Because the default is "everyone", adding a new `screener` makes every
+> record that is already finished *partial* again (the new person has not opined), and studies you had included
+> can seem to disappear from `strata status` until they have. Before you add the person, freeze who is
+> assigned to the work already done (`strata --why "..." assign title-abstract --actors ada,sam --by ada`, and the
+> same for `full-text`), or add them with another role if they will not screen.
 
 ## The screening session
 

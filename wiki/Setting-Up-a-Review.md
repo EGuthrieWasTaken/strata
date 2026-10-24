@@ -43,7 +43,10 @@ ada              Ada Example              lead
 sam              Sam Example              screener
 ```
 
-The role is a label (`lead`, `screener`, ...). A person stays in the history for ever: when someone leaves,
+The role is a label, and it matters in one place: **everyone whose role is `screener` or `lead` is assigned to
+screen every record** unless you assign otherwise ([Screening](Screening#who-screens-what)). Give a person who will
+only extract data or advise some other role (`--role extractor`, `--role advisor`) and they are not
+asked to screen. A person stays in the history for ever: when someone leaves,
 `strata actor deactivate sam` marks them `inactive` (so they are not given new work) without rewriting
 anything they did.
 
