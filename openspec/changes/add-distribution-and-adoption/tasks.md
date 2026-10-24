@@ -39,8 +39,13 @@ EPPI-Reviewer imports (2.1-2.3) do not exist yet.
 - Limits worth knowing: dates stored in Excel as dates arrive as serial numbers (a year typed as a
   number or text is read as written); the citation-list parser understands two layouts; EndNote's
   `<foreign-keys>`, notes and attachments are not read.
-- 3.2 (documentation set) stays open: `docs/statistics.md` (the statistical methods reference), `CONTRIBUTING.md`
-  (including how to add a parser), `docs/recovery.md`, `docs/never-used-git.md` and `docs/methods-cookbook.md` now
-  exist. Still to write: a quickstart for a first review in 30 minutes (the README's Getting started is the start
-  of one), and a repository format reference for users (the format is specified in
-  `openspec/specs/repository-format`). The wiki the spec asks for is not set up; these live in `docs/`.
+- 3.2 (documentation set) stays open. Written: `docs/statistics.md` (the statistical methods reference), `CONTRIBUTING.md`
+  (including how to add a parser), `docs/recovery.md`, `docs/never-used-git.md`, `docs/methods-cookbook.md`, and a
+  wiki of 40 pages in `wiki/` (a quickstart for a first review, a guide for every stage of a review, the concepts
+  pages, the generated command reference and the web interface walkthrough), published to the GitHub wiki by
+  `.github/workflows/wiki.yml` once it is on `main` (the wiki repository could not be pushed to from the session that
+  wrote it, so nothing is on the live wiki until that workflow has run). Still to do: a repository format reference for
+  users (`wiki/The-Review-Folder.md` explains the layout and which files are yours to edit, but it is not a reference
+  to every file's schema; the format is specified in `openspec/specs/repository-format`); having a person who has
+  not used the tool follow the quickstart; and removing the duplicates in `docs/` of the pages that now live in the
+  wiki once it is published.
