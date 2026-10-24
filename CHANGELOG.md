@@ -20,7 +20,8 @@ All notable changes to `strata` are documented here. Format follows
   when it changes on `main`.
 - Fixed while writing it: `strata verify` reported every character of an absorbed record's id as an unknown
   record after any automatic merge (so `strata sync` and `strata clone` of a review with a merge failed); the
-  help example for `strata studies` put `--why` after the command.
+  help example for `strata studies` put `--why` after the command; and the web interface's header said
+  "signed in as" with nothing after it on the criteria pages and "signed in as None" on the history page.
 
 - **M6: more import formats** (task 2.4 of OpenSpec change `add-distribution-and-adoption`). `strata
   import` reads EndNote XML (`.xml`; unescaped `&` and HTML entities repaired, one bad record set aside

@@ -34,6 +34,55 @@ screening as; it is required if the review has more than one actor. Stop it with
 
 Retrieval and study grouping are command-line only so far.
 
+## A tour
+
+The screenshots below are from the spacing-effect example review used in the [Quickstart](Quickstart).
+
+**The dashboard** answers "where am I and what next?", the same as `strata status`.
+
+![The dashboard: each stage with its counts, stale decisions and the suggested next step](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-dashboard.png)
+
+**The criteria page** lists every criterion with its current version. Edit and Retire are buttons beside each one.
+
+![The criteria page listing inclusion and exclusion criteria with Edit and Retire buttons](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-criteria.png)
+
+**The impact preview.** Fill in the new wording, choose the direction, give a reason and press **Preview**.
+Nothing is saved: the page lists the decisions that *would* go stale, each with the rule that put it in doubt
+(see [Staleness](Staleness)). Only **Save and commit** records the change. The Preview button needs the reason
+filled in first; it is a required field.
+
+![The criteria editor with the impact preview listing ten decisions that would become stale](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-criteria-preview.png)
+
+**Re-screening** shows the stale queue: your earlier decision, why it is stale, and the buttons to include,
+exclude, mark maybe or **keep your previous decision** (`k`).
+
+![The re-screening queue showing a stale decision with the reason it went stale](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-rescreen.png)
+
+**Records** is a searchable table using the same [filter language](Filter-Language) as `strata records --filter`.
+
+![The records table with a filter box](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-records.png)
+
+**History** lists every commit with the operation and who made it (the same data as `strata log`), and can be
+filtered by stage or actor.
+
+![The history page listing each commit with its operation and actor](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-history.png)
+
+**Extraction** is the coding form for one study. Data-quality warnings come first, and each must be
+acknowledged with a reason; below them every field has a box for the value and one for where in the paper it
+came from. The effect size is worked out as you type.
+
+![The extraction form for one study with data-quality warnings and the fields to fill in](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-extract.png)
+
+**Analyses** shows committed results, the warnings the guardrails raised (and whether you acknowledged them),
+the plots, and flags any result that is out of date.
+
+![An analysis page showing guardrail warnings, the pooled estimate and heterogeneity](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-analysis.png)
+
+**PRISMA** draws the flow diagram from the review's own counts. While anything is still stale or undecided it
+is stamped **DRAFT**, with the reason in the banner above it.
+
+![The PRISMA flow diagram, marked as a draft because screening is incomplete](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-prisma.png)
+
 ## Screening from the keyboard
 
 The screening screen is built to be driven without a mouse:
