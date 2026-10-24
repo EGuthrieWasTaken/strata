@@ -121,8 +121,18 @@ Re-screening changes who is included. Then:
   reported by `strata verify`; nothing is deleted. Re-include it, or leave the warning.
 - A committed analysis whose inputs changed is reported **stale** by `strata status`. Screening never
   re-runs an analysis by itself; run `strata analyze` when you are ready.
-- `strata diff v1-protocol..HEAD` (after `git tag v1-protocol`; see [Setting up a review](Setting-Up-a-Review))
-  shows the criteria, records, included studies and pooled estimates that moved.
+- `strata diff v1-protocol..HEAD` (after `git tag v1-protocol` when the protocol was fixed; see
+  [Setting up a review](Setting-Up-a-Review)) shows the criteria, records, included studies and pooled
+  estimates that moved:
+
+  ```
+  Criteria:  v4 -> v6  (1 added, 1 loosened)
+  Records:   10 -> 10  (+0 identified, +0 duplicates)
+  Pool:      8 -> 8 at title-abstract  (+0 entered, -0 left)
+  Pool:      6 -> 6 at full-text  (+0 entered, -0 left)
+  Included:  4 -> 4 studies
+  primary:  unchanged  SMD = 0.48 [0.15, 0.80]
+  ```
 
 ## In the manuscript
 

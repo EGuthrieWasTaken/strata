@@ -311,7 +311,7 @@ def build() -> dict[str, str]:
         "|---|---|---|",
         *rows,
         "",
-        "`--why` is the reason recorded in the history (a terminal asks you if you do not give it);"
+        "`--why` is the reason recorded in the history (a terminal asks you if you do not give it; it must be at least 12 characters and not a stock word such as \"fix\" or \"update\");"
         " `--json` prints machine-readable output; `-C PATH` runs the command as if started in `PATH`; `--no-commit`"
         " performs the operation and leaves the tree uncommitted.",
         "",

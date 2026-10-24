@@ -44,7 +44,8 @@ sam              Sam Example              screener
 ```
 
 The role is a label (`lead`, `screener`, ...). A person stays in the history for ever: when someone leaves,
-`strata actor deactivate sam` stops them being assigned new work without rewriting what they did.
+`strata actor deactivate sam` marks them `inactive` (so they are not given new work) without rewriting
+anything they did.
 
 ## 4. Decide how you will screen
 

@@ -31,6 +31,7 @@
 - [Glossary](Glossary)
 
 **Reference**
+- [Cheat sheet](Cheat-Sheet)
 - [Command reference](Command-Reference)
 - [Filter language](Filter-Language)
 - [Configuration](Configuration)

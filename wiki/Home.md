@@ -56,6 +56,7 @@ Short explanations in a methodologist's terms rather than an implementer's.
 
 ## Reference
 
+- [Cheat sheet](Cheat-Sheet): the commands in the order of a review, on one page.
 - [Command reference](Command-Reference): every `strata` command, its options and exit codes.
 - [Filter language](Filter-Language) (the `--filter` expressions), [Configuration](Configuration) (`strata.toml`).
 - [Statistical methods](Statistical-Methods): the formulae, conventions and sources.

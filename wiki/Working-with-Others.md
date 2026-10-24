@@ -29,17 +29,59 @@ strata sync        # last thing: send what you did
 and then reports in plain terms what others did:
 
 ```
-Fetching origin ...
-Fast-forwarding ...
-Regenerating derived views ...
-Verifying ...
-sam screened 5 record(s) at title-abstract (5 exclude)
-Pushed.
+  Fetching origin ...
+  Fast-forwarding ...
+  Regenerating derived views ...
+  Verifying ...
+  Pushing ...
+
+  Incoming: 2 change(s) (2 from sam)
+  What changed:
+    sam screened 3 record(s) at title-abstract (3 include)
+    title-abstract included: 0 -> 2
+    1 new screening conflict(s)   run `strata adjudicate`
+  Pushed
 ```
 
 Options: `--no-push` (fetch, merge and verify, but do not push), `--resolve mine|theirs` (below), `--by` (which
 actor you are syncing as; defaults to the first active actor). The merge strategy is `git.sync_strategy` in
 `strata.toml`: `merge` (default) or `rebase`.
+
+## Example: two people screening at the same time
+
+Ada and Sam each have a clone of the same review (Sam made his with `strata clone`):
+
+```
+$ strata clone remote.git sam-copy
+fixed set core.hooksPath = .strata/hooks
+fixed installed merge driver strata-regenerate
+fixed installed merge driver strata-records
+ok — cloned and verified
+```
+
+Both screen three records, without syncing in between. Ada syncs first, which simply pushes. Then Sam syncs.
+His copy has things Ada's does not, and the reverse, so `strata sync` **merges**:
+
+```
+  Fetching origin ...
+  Merging ...
+  Normalising merged event files ...
+  Regenerating derived views ...
+  Verifying ...
+  Pushing ...
+
+  Incoming: 1 change(s) (1 from ada)
+  What changed:
+    ada screened 3 record(s) at title-abstract (1 exclude, 2 include)
+    title-abstract included: 0 -> 2
+    1 new screening conflict(s)   run `strata adjudicate`
+  Pushed
+```
+
+There was no conflict to resolve: each of them wrote to their own file. The one disagreement it found
+(the same record included by one and excluded by the other) is a *screening conflict*, which is a normal
+part of dual screening and is settled by [adjudication](Adjudication-and-Agreement), not by sync. When Ada
+syncs again she fast-forwards to the merged state, with Sam's decisions in it.
 
 ## When two people changed the same file
 
@@ -90,8 +132,9 @@ This installs `.github/workflows/strata.yml`, a thin file that calls a reusable 
 - **labels** a change to the eligibility criteria `protocol-amendment` (comparing the criteria *as data*, so
   reformatting does not count) and asks the `--methodologist` to review it.
 
-It uses the `pull_request` event with read-only permissions, never `pull_request_target`, so a pull request
-from a fork cannot reach the repository's secrets. The same pieces are available directly as
+It runs on the `pull_request` event, never `pull_request_target`. Only the job that comments has permission to
+write to pull requests (`pull-requests: write`); for a pull request from a fork the token is read-only and
+there are no secrets, so the checks still run but the comment, label and review request are skipped. The same pieces are available directly as
 `strata ci amendment` and `strata ci comment`. In a repository you use only by pushing to `main`, none of this
 applies; it is for teams that want changes to a review looked at before they merge.
 

@@ -99,7 +99,8 @@ More on sharing: [Working with others](Working-with-Others).
 1. **Do not edit files under `events/`, `records/`, `derived/` or `reports/` by hand.** They are the record
    and what is computed from it. `strata verify` tells you if one has been damaged.
 2. **Run `strata sync` before and after each session** when you share a review.
-3. **Give a real reason** when asked why. It is the most useful sentence in the history.
+3. **Give a real reason** when asked why (at least 12 characters; "fix" or "update" is refused). It is the
+   most useful sentence in the history.
 4. **If something looks wrong, run `strata verify`** and read
    [Recovery and troubleshooting](Recovery-and-Troubleshooting). Nearly every problem has a one-line fix,
    and nothing you have recorded is lost while it is in git.

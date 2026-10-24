@@ -15,7 +15,8 @@ saved in your current folder. (They are 8 and 3 references, as if exported from 
 > **About `--why`.** Every command that changes the review records *why*. In a terminal `strata` asks you;
 > here every command carries `--why "..."` so you can paste the lines as they are. Put it before the command
 > name, as shown. A real reason ("Pilot showed adults on a course count as formal education") is the most
-> useful sentence in a review's history.
+> useful sentence in a review's history. It must be at least 12 characters, and a bare "fix" or "update" is
+> refused (exit code 7): say what changed and why.
 
 ## 1. Start the review
 

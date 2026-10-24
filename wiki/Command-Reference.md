@@ -28,7 +28,7 @@ These apply to every command and are written *before* its name: `strata --why ".
 | `--why-file` | str | Read the rationale from a file |
 | `--no-commit` | flag | Perform the operation, stage nothing, leave the tree dirty |
 
-`--why` is the reason recorded in the history (a terminal asks you if you do not give it); `--json` prints machine-readable output; `-C PATH` runs the command as if started in `PATH`; `--no-commit` performs the operation and leaves the tree uncommitted.
+`--why` is the reason recorded in the history (a terminal asks you if you do not give it; it must be at least 12 characters and not a stock word such as "fix" or "update"); `--json` prints machine-readable output; `-C PATH` runs the command as if started in `PATH`; `--no-commit` performs the operation and leaves the tree uncommitted.
 
 ## Conventions
 
