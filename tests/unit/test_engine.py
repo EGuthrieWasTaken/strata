@@ -100,6 +100,22 @@ def test_run_dedup_auto_merges_doi_match(tmp_path: Path) -> None:
     assert events[0]["body"]["score"] == 1.0
 
 
+def test_a_repository_verifies_after_an_auto_merge(tmp_path: Path) -> None:
+    """The `dedup-merge` event names the absorbed record as a string; verify once read it as a
+    list and reported every character of the id as a dangling reference (`strata verify` exit 4,
+    and so a refused `strata sync` and `strata clone`)."""
+    from strata.core.verify import verify_repository
+
+    repo = _repo(tmp_path)
+    a = _record("rec_0000000000000001", DOI="10.1000/aaa")
+    b = _record("rec_0000000000000002", DOI="10.1000/aaa", author=[{"family": "Cepeda"}])
+    write_records(repo, [a, b])
+    assert len(run_dedup(repo, actor="ethan").auto_merged) == 1
+
+    report = verify_repository(open_repo(repo.root))
+    assert [i for i in report.issues if i.code == "E_DANGLING_REF"] == []
+
+
 def test_run_dedup_queues_pair_for_review(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     a = _record(

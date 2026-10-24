@@ -80,7 +80,9 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> tuple[set
             record = body.get("record") or body.get("canonical")
             if isinstance(record, str):
                 referenced_records.add(record)
-            for absorbed in body.get("absorbed") or []:
+            # `dedup-merge` names the absorbed record as a string; accept a list too.
+            absorbed_ids = body.get("absorbed") or []
+            for absorbed in [absorbed_ids] if isinstance(absorbed_ids, str) else absorbed_ids:
                 referenced_records.add(absorbed)
             for report_ref in [body.get("report"), *(body.get("reports") or [])]:
                 referenced_records |= _records_for_reports([report_ref])
