@@ -64,7 +64,7 @@ strata report manuscript --format docx
 |---|---|
 | `methods` | eligibility criteria, sources and search dates, selection process and agreement, data collection, risk of bias, synthesis methods |
 | `results` | study selection (with the PRISMA numbers), the synthesis with caveats, sensitivity results |
-| `characteristics` | one row per included study (`--format csv`) |
+| `characteristics` | one row per included study. `--format csv` writes a tab-separated `reports/characteristics.tsv` |
 | `amendments` | each change to the criteria after screening began, what it invalidated and what became of it |
 | `rob` | the risk-of-bias table (`--format svg` for the traffic-light plot) |
 | `checklist` | see above |

@@ -149,7 +149,7 @@ def paragraph(amendment: Amendment) -> str:
         f"{amendment.to_version}, by {amendment.actor})."
     )
     if amendment.rationale:
-        text += f' The stated rationale was: "{amendment.rationale}"'
+        text += f' The stated rationale was: "{amendment.rationale}".'
     if amendment.invalidated:
         text += (
             f" The change made {amendment.invalidated} screening decision(s) stale; "
