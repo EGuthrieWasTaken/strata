@@ -29,6 +29,9 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv sync
       - run: uv run python scripts/check_docs.py
+      # The wiki pages in wiki/: links, headings, the sidebar, the commands in examples and that the
+      # generated command reference is current (openspec:project-documentation#project-wiki).
+      - run: uv run python scripts/check_wiki.py
       # OpenSpec specs and change proposals (openspec/README.md). Uses the
       # runner's preinstalled Node (OpenSpec needs >= 20.19); the package
       # version is pinned so a new OpenSpec release cannot change the gate.

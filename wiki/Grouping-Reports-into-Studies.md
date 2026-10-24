@@ -22,7 +22,7 @@ sample size, a follow-up with the same sample in a different language, mutual ci
 **with its evidence** and never applies one. Grouping is a judgement, and every decision needs a rationale:
 
 ```
-strata studies --by ada --why "Same trial, 12-month follow-up" \
+strata --why "Same trial, 12-month follow-up" studies --by ada \
     --group rpt_3kq8v1r0zx2m4a7b --group rpt_9m2f4t7c1x8a5d6e
 ```
 

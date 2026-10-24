@@ -14,5 +14,7 @@
 - [ ] Schema version bumped, or this is not a breaking format change
 
 ## Wiki
-- [ ] Wiki updated for any new/changed user-facing command, web screen, or
-      concept (docs/roadmap.md, M2.1), or this PR has none
+- [ ] Wiki updated (the pages are in `wiki/`; run
+      `uv run python scripts/build_wiki_reference.py` after changing a command's help and
+      `uv run python scripts/check_wiki.py`) for any new/changed user-facing command,
+      web screen, or concept, or this PR has none (a fast-follow is fine)
