@@ -224,6 +224,15 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- Started by a path that is not on `PATH` (`/opt/venv/bin/strata ...`, or an environment that is not
+  activated), `strata` made every commit fail: the hooks it triggers run `strata` by name and died with
+  `exec: strata: not found`, and `strata init` left a repository with nothing committed and every file
+  staged. Git is now run with the directory of the running `strata` on the end of `PATH` when `strata`
+  does not already resolve, which also repairs existing repositories. The hook scripts of a new
+  repository check for `strata` first: `pre-commit` and `commit-msg` block with a message naming
+  `STRATA_SKIP_HOOKS=1`, as `openspec:git-integration#versioned-hooks` requires, and `post-merge` and
+  `post-checkout` warn and succeed. Existing repositories keep their hook scripts
+  (OpenSpec change `make-hooks-find-strata`).
 - A mutating command run non-interactively without `--why` or `--why-file` exited with code 7 only
   after it had written its files, leaving the working tree dirty with nothing committed (`strata actor
   add` left `strata.toml` modified; `strata dedup` left its merges in `records/`, `events/dedup/` and

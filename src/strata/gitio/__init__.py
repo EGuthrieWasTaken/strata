@@ -10,7 +10,10 @@ swappable.
 from __future__ import annotations
 
 import io
+import os
+import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -23,6 +26,41 @@ class GitError(RuntimeError):
         self.returncode = returncode
         self.stderr = stderr
         super().__init__(f"git {' '.join(args)} failed ({returncode}): {stderr.strip()}")
+
+
+_SCRIPT_NAMES = ("strata", "strata.exe")
+
+
+def _own_script_dir() -> Path | None:
+    """The directory of the `strata` script this process is running as, if it can be found."""
+    candidates = [
+        Path(os.path.abspath(sys.argv[0])),
+        *(Path(sys.executable).parent / name for name in _SCRIPT_NAMES),
+    ]
+    for candidate in candidates:
+        if candidate.name in _SCRIPT_NAMES and candidate.is_file():
+            return candidate.parent
+    return None
+
+
+def _env_for_hooks() -> dict[str, str] | None:
+    """The environment to run git in, or `None` to inherit this process's.
+
+    The hooks git triggers call `strata` by name (openspec:git-integration#versioned-hooks).
+    When this process was started by a path that is not on `PATH` (`/opt/venv/bin/strata ...`,
+    an environment that is not activated), they would fail with `strata: not found` and block
+    the commit. So when `strata` does not resolve, the directory of the running script goes on
+    the *end* of `PATH` for git: it is found only if nothing earlier on `PATH` is, so it never
+    shadows a tool the user has.
+    """
+    if shutil.which("strata") is not None:
+        return None
+    directory = _own_script_dir()
+    if directory is None:
+        return None
+    env = dict(os.environ)
+    env["PATH"] = os.pathsep.join(filter(None, [env.get("PATH"), str(directory)]))
+    return env
 
 
 def run(
@@ -38,6 +76,7 @@ def run(
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=_env_for_hooks(),
     )
     if check and result.returncode != 0:
         # `git commit` says "nothing to commit" on stdout, so a failure can have an empty stderr.
