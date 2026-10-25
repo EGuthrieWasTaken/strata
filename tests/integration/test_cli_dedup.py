@@ -134,7 +134,8 @@ def test_dedup_requires_rationale_when_auto_merging(tmp_path: Path) -> None:
 
     result = runner.invoke(app, ["-C", str(root), "dedup", "--by", "ethan"])
     assert result.exit_code == EXIT_RATIONALE_REFUSED, result.output
-    assert gitio.is_dirty(root)
+    # Refused up front, before any merge is written (openspec:git-integration#eliciting-the-rationale).
+    assert not gitio.is_dirty(root)
 
 
 def test_dedup_no_commit_flag_leaves_tree_dirty(tmp_path: Path) -> None:

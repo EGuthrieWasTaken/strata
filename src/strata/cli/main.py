@@ -17,7 +17,7 @@ import sys
 import webbrowser
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import typer
 from rich.console import Console
@@ -209,32 +209,48 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
 
 
-def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> str:
-    """Elicit and validate a rationale, unconditionally (shared by `_get_rationale`
-    and `_get_required_rationale` — see those for when each applies)."""
+def _read_supplied_rationale(ctx: typer.Context) -> str | None:
+    """The unvalidated text given with `--why-file` (first) or `--why`, else `None`."""
     why_file = ctx.obj.get("why_file")
-    why = ctx.obj.get("why")
-
-    text: str | None
     if why_file:
-        text = Path(why_file).read_text(encoding="utf-8")
-    elif why:
-        text = why
-    elif sys.stdin.isatty():
-        out_console.print(context_lines)
-        text = typer.prompt("Why? (this goes in the permanent record)")
-    else:
-        err_console.print(
-            "[red]error:[/] a rationale is required; "
-            "pass --why or --why-file in a non-interactive context"
-        )
-        raise typer.Exit(EXIT_RATIONALE_REFUSED)
+        try:
+            return Path(why_file).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            err_console.print(f"[red]error:[/] cannot read --why-file {why_file}: {exc}")
+            raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
+    return ctx.obj.get("why") or None
 
+
+def _refuse_missing_rationale() -> NoReturn:
+    err_console.print(
+        "[red]error:[/] a rationale is required; "
+        "pass --why or --why-file in a non-interactive context"
+    )
+    raise typer.Exit(EXIT_RATIONALE_REFUSED)
+
+
+def _validate_or_exit(text: str | None) -> str:
     try:
         return validate_rationale(text)
     except RationaleRejectedError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
+
+
+def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> str:
+    """Elicit and validate a rationale, unconditionally (shared by `_get_rationale`
+    and `_get_required_rationale` — see those for when each applies)."""
+    text = _read_supplied_rationale(ctx)
+    if text is None:
+        if not sys.stdin.isatty():
+            _refuse_missing_rationale()
+        out_console.print(context_lines)
+        text = typer.prompt("Why? (this goes in the permanent record)")
+    return _validate_or_exit(text)
+
+
+def _rationale_required(repo: Repo) -> bool:
+    return bool(repo.config.get("git", {}).get("require_rationale", True))
 
 
 def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
@@ -245,10 +261,39 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
     unavailable (non-interactive, no `--why`/`--why-file`) or rejected by
     `validate_rationale` (empty, stop-listed, or too short).
     """
-    require = bool(repo.config.get("git", {}).get("require_rationale", True))
-    if not require and not ctx.obj.get("why_file") and not ctx.obj.get("why"):
+    if not _rationale_required(repo) and not ctx.obj.get("why_file") and not ctx.obj.get("why"):
         return None
     return _prompt_and_validate_rationale(ctx, context_lines)
+
+
+def _preflight_rationale(ctx: typer.Context, repo: Repo, *, always: bool = False) -> None:
+    """Refuse, before anything is written, a command whose rationale cannot be obtained.
+
+    `_get_rationale` runs at commit time, after the domain operation has written its
+    files, so a refusal there (openspec:git-integration#eliciting-the-rationale: exit
+    code 7) would leave the working tree dirty with nothing committed. Call this ahead
+    of the first write in every mutating command, or mutating branch of one. It checks
+    only what is knowable up front:
+
+    - a rationale given with `--why`/`--why-file` is validated now, so a rejected one
+      (empty, stop-listed, too short) also stops before the work;
+    - with none given and stdin not a TTY, a required rationale exits with
+      `EXIT_RATIONALE_REFUSED`.
+
+    An interactive run is left alone: it prompts after the work, where the prompt can
+    say what was done. `always` is for operations that need a rationale whatever
+    `git.require_rationale` says, and even with `--no-commit`, because it is recorded in
+    the event itself (criteria changes, adjudications, study decisions); see
+    `_get_required_rationale`. Otherwise `--no-commit` needs none.
+    """
+    if ctx.obj["no_commit"] and not always:
+        return
+    supplied = _read_supplied_rationale(ctx)
+    if supplied is not None:
+        _validate_or_exit(supplied)
+        return
+    if (always or _rationale_required(repo)) and not sys.stdin.isatty():
+        _refuse_missing_rationale()
 
 
 def _get_required_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str:
@@ -637,6 +682,7 @@ def actor_add(
     role: str = typer.Option("screener", "--role"),
 ) -> None:
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
     try:
         actor_mod.add_actor(repo, handle=handle, name=name, email=email, role=role)
     except actor_mod.ActorError as exc:
@@ -667,6 +713,7 @@ def actor_list(ctx: typer.Context) -> None:
 @actor_app.command("deactivate")
 def actor_deactivate(ctx: typer.Context, handle: str) -> None:
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
     try:
         actor_mod.deactivate_actor(repo, handle)
     except actor_mod.ActorError as exc:
@@ -703,6 +750,7 @@ def search_add(
 ) -> None:
     """Record an executed search: `protocol/searches/<id>.yaml`."""
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
 
     if query_file:
         query = Path(query_file).read_text(encoding="utf-8")
@@ -813,6 +861,8 @@ def import_command(
     exit_code = EXIT_OK
     results = []
     mapping = _parse_map_option(map_option) if map_option else None
+    if not dry_run:
+        _preflight_rationale(ctx, repo)
 
     for file in files:
         try:
@@ -975,6 +1025,7 @@ def dedup_command(
 ) -> None:
     """Find and auto-merge obvious duplicates; `--review` walks the rest interactively."""
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
 
     if undo != ("", ""):
         canonical_id, absorbed_id = undo
@@ -1255,6 +1306,7 @@ def fix_command(
 ) -> None:
     """Correct a metadata field, recording the change as a `record-amend` event."""
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
     resolved_id = _resolve_record_id(repo, record_id)
 
     try:
@@ -1542,6 +1594,7 @@ def screen_command(
     repo = _resolve_repo(ctx)
 
     if decisions_file:
+        _preflight_rationale(ctx, repo)
         text = Path(decisions_file).read_text(encoding="utf-8")
         try:
             envelopes = screening_mod.import_decisions_tsv(repo, stage=stage, text=text, actor=by)
@@ -1576,6 +1629,7 @@ def screen_command(
     if not queue:
         out_console.print(f"[green]nothing to screen[/] at {stage} for {by}")
         return
+    _preflight_rationale(ctx, repo)
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     active_criteria = [
@@ -1659,6 +1713,7 @@ def assign_command(
 ) -> None:
     """Assign reviewers to records at `stage` (all canonical records by default)."""
     repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo)
     actor_list = [a.strip() for a in actors.split(",") if a.strip()]
     if filter_expr:
         record_ids = _resolve_filter_ids(repo, filter_expr)
@@ -1761,6 +1816,7 @@ def rescreen_command(
     if not queue:
         out_console.print(f"[green]nothing to rescreen[/] for {by}")
         return
+    _preflight_rationale(ctx, repo)
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     decided = 0
@@ -1879,6 +1935,9 @@ def adjudicate_command(
     if not queue:
         out_console.print("[green]no conflicts[/] to adjudicate")
         return
+    # Each adjudication carries its own rationale in the event, so one is needed whatever
+    # `git.require_rationale` says; fail now rather than after earlier decisions are recorded.
+    _preflight_rationale(ctx, repo, always=True)
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     decided = 0
@@ -2021,6 +2080,7 @@ def retrieve_command(
         if outcome is None:
             err_console.print("[red]error:[/] --report needs --outcome")
             raise typer.Exit(EXIT_USAGE)
+        _preflight_rationale(ctx, repo)
         try:
             event = retrieval_mod.record_retrieval(
                 repo,
@@ -2071,6 +2131,8 @@ def retrieve_command(
                 out_console.print(f"  {item['report']}  {item['citation']}")
         return
 
+    if queue:
+        _preflight_rationale(ctx, repo)
     out_console.print(f"\n  {counts.sought} reports sought. {counts.outstanding} outstanding.\n")
     recorded = 0
     index = 0
@@ -2244,6 +2306,10 @@ def studies_command(
     if not by:
         err_console.print("[red]error:[/] --by is required to work the suggestions interactively")
         raise typer.Exit(EXIT_USAGE)
+    if found.groupings or found.splits:
+        # Grouping and splitting need a rationale whatever `git.require_rationale` says
+        # (`--group`/`--split` above), and which a session will do is not known up front.
+        _preflight_rationale(ctx, repo, always=True)
     out_console.print(f"\n  {header}\n")
     decided = 0
     for g in found.groupings:
@@ -2501,6 +2567,7 @@ def _show_warnings(result: Any) -> None:
 
 
 def _extract_init(ctx: typer.Context, repo: Repo, by: str | None, overwrite: bool) -> None:
+    _preflight_rationale(ctx, repo)
     try:
         schema = extraction_schema_mod.init_schema(repo, overwrite=overwrite)
     except extraction_schema_mod.ExtractionSchemaError as exc:
@@ -2565,6 +2632,7 @@ def _extract_script(
     note: str | None,
 ) -> None:
     """Scriptable entry: `--set NAME=VALUE`, `--effect JSON`, `--ack CODE=EFFECT_KEY --note`."""
+    _preflight_rationale(ctx, repo)
     done: dict[str, Any] = {"study": study, "fields": [], "effects": [], "acknowledged": []}
     try:
         for assignment in set_values:
@@ -2732,6 +2800,7 @@ def _prompt_effect(repo: Repo, study: str, by: str) -> bool:
 def _extract_interactive(
     ctx: typer.Context, repo: Repo, by: str, queue: list[str], *, only_missing: bool
 ) -> None:
+    _preflight_rationale(ctx, repo)
     records = records_mod.index_by_id(records_mod.read_records(repo))
     schema = extraction_schema_mod.load_schema(repo)
     touched = 0
@@ -2792,6 +2861,7 @@ def _extract_reconcile(
                     "[red]error:[/] --item and --choose need one study and each other"
                 )
                 raise typer.Exit(EXIT_USAGE)
+            _preflight_rationale(ctx, repo)
             event = reconcile_mod.resolve(
                 repo,
                 study=studies[0],
@@ -2856,6 +2926,8 @@ def _extract_reconcile(
         return
 
     reconciler = _need_by(by)
+    if comparisons:
+        _preflight_rationale(ctx, repo)
     records = records_mod.index_by_id(records_mod.read_records(repo))
     resolved = 0
     quit_all = False
@@ -3126,6 +3198,7 @@ def _rob_script(
     source: str | None,
     justification: str | None,
 ) -> None:
+    _preflight_rationale(ctx, repo)
     done: dict[str, Any] = {"study": study, "domain": domain, "answers": {}}
     try:
         state = None
@@ -3202,6 +3275,7 @@ def _rob_reconcile(
                     "[red]error:[/] --domain and --choose need one study and each other"
                 )
                 raise typer.Exit(EXIT_USAGE)
+            _preflight_rationale(ctx, repo)
             event = rob_mod.resolve(
                 repo,
                 study=studies[0],
@@ -3256,6 +3330,8 @@ def _rob_reconcile(
         return
 
     reconciler = _need_by(by)
+    if comparisons:
+        _preflight_rationale(ctx, repo)
     resolved = 0
     quit_all = False
     for s, items in comparisons.items():
@@ -3349,6 +3425,7 @@ def rob_command(
     repo = _resolve_repo(ctx)
     try:
         if target == "init":
+            _preflight_rationale(ctx, repo)
             built = rob_mod.init_instrument(repo, instrument, overwrite=overwrite)
             _commit_domain_op(
                 ctx,
@@ -3411,6 +3488,8 @@ def rob_command(
                     out_console.print("    " + "  ".join(f"{k}:{v}" for k, v in judged.items()))
             return
         reviewer = _need_by(by)
+        if queue:
+            _preflight_rationale(ctx, repo)
         records = records_mod.index_by_id(records_mod.read_records(repo))
         touched = 0
         for index, study in enumerate(queue, start=1):
@@ -3515,6 +3594,8 @@ def analyze_command(
             f"known: {', '.join(analysis_guardrails.CODES)}"
         )
         raise typer.Exit(EXIT_USAGE)
+    if not check:
+        _preflight_rationale(ctx, repo)
     summaries: list[dict[str, Any]] = []
     try:
         for target in targets:
@@ -3623,6 +3704,8 @@ def prisma_command(
     if fmt in ("pdf", "png") and out == "-":
         err_console.print(f"[red]error:[/] --format {fmt} is binary; give --out FILE")
         raise typer.Exit(EXIT_USAGE)
+    if not out:  # --out writes elsewhere and commits nothing
+        _preflight_rationale(ctx, repo)
     counts = counts_mod.compute(repo)
     counts_mod.regenerate_counts_json(repo, counts)
     try:
@@ -3726,6 +3809,8 @@ def report_command(
     if status and name != "checklist":
         err_console.print("[red]error:[/] --status applies to the checklist only")
         raise typer.Exit(EXIT_USAGE)
+    if not out and not status:  # --out writes elsewhere; --status only reports (checklist)
+        _preflight_rationale(ctx, repo)
     facts = facts_mod.collect(repo)
     counts_mod.regenerate_counts_json(repo, facts.counts)
     if name != "amendments":
