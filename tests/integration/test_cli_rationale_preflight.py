@@ -20,7 +20,7 @@ import pytest
 from typer.testing import CliRunner
 
 from strata import gitio
-from strata.cli.main import EXIT_OK, EXIT_RATIONALE_REFUSED, app
+from strata.cli.main import EXIT_OK, EXIT_RATIONALE_REFUSED, EXIT_USAGE, app
 from strata.core import records as records_mod
 from strata.core.repo import Repo
 from strata.ingest.pipeline import import_file
@@ -538,6 +538,30 @@ def test_an_interactive_run_still_prompts_after_the_work(tmp_path: Path, monkeyp
     assert "You add actor jo." in result.output
     assert _head(scenario.repo) != head
     assert _porcelain(scenario.repo) == ""
+
+
+@pytest.mark.parametrize("build", [dedup, import_papers], ids=["dedup", "import_papers"])
+def test_a_rerun_with_nothing_to_commit_is_not_refused(build: Build, tmp_path: Path) -> None:
+    """The commit is what needs the rationale: a rerun that finds nothing new records nothing."""
+    scenario = build(tmp_path)
+    assert _run(scenario, "--why", WHY).exit_code == EXIT_OK
+    head = _head(scenario.repo)
+
+    rerun = _run(scenario)
+
+    assert rerun.exit_code == EXIT_OK, rerun.output
+    assert _head(scenario.repo) == head
+    assert _porcelain(scenario.repo) == ""
+
+
+def test_an_import_that_fails_still_reports_its_own_error(tmp_path: Path) -> None:
+    """A usage error is not hidden behind the rationale refusal: nothing would be committed."""
+    scenario = import_papers(tmp_path)
+
+    result = _run(scenario, args=("import", str(tmp_path / "no-such-file.json"), "--by", "ethan"))
+
+    assert result.exit_code == EXIT_USAGE, result.output
+    assert "no such file" in result.output
 
 
 # --- the read-only modes of the same commands need no rationale ------------------------------

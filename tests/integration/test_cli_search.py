@@ -48,9 +48,8 @@ def test_search_add_requires_rationale_non_interactively(tmp_path: Path) -> None
         ],
     )
     assert result.exit_code == EXIT_RATIONALE_REFUSED, result.output
-    # The record is written before the commit is attempted, but nothing is
-    # staged/committed without a rationale -- the tree is left dirty.
-    assert gitio.is_dirty(root)
+    # Refused up front: nothing is written, let alone staged or committed.
+    assert not gitio.is_dirty(root)
 
 
 def test_search_add_with_why_commits_with_trailers(tmp_path: Path) -> None:
@@ -291,6 +290,8 @@ def test_search_add_rejects_unknown_actor(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
+            "--why",
+            "recording a search by an unknown actor",
             "-C",
             str(root),
             "search",

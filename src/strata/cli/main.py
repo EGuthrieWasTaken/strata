@@ -15,6 +15,7 @@ import re
 import shutil
 import sys
 import webbrowser
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from typing import Any, NoReturn
@@ -266,7 +267,13 @@ def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | 
     return _prompt_and_validate_rationale(ctx, context_lines)
 
 
-def _preflight_rationale(ctx: typer.Context, repo: Repo, *, always: bool = False) -> None:
+def _preflight_rationale(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    always: bool = False,
+    needed: Callable[[], bool] | None = None,
+) -> None:
     """Refuse, before anything is written, a command whose rationale cannot be obtained.
 
     `_get_rationale` runs at commit time, after the domain operation has written its
@@ -285,6 +292,12 @@ def _preflight_rationale(ctx: typer.Context, repo: Repo, *, always: bool = False
     `git.require_rationale` says, and even with `--no-commit`, because it is recorded in
     the event itself (criteria changes, adjudications, study decisions); see
     `_get_required_rationale`. Otherwise `--no-commit` needs none.
+
+    A command that commits only if its work finds something to record (`dedup` that
+    merges nothing, `import` of a file already imported) can pass `needed`, a check
+    that writes nothing. It runs only when the refusal is otherwise due, so a run
+    that supplies a rationale or can prompt for one pays nothing, and a rerun that has
+    nothing to commit is not refused for want of a rationale it would never use.
     """
     if ctx.obj["no_commit"] and not always:
         return
@@ -292,7 +305,11 @@ def _preflight_rationale(ctx: typer.Context, repo: Repo, *, always: bool = False
     if supplied is not None:
         _validate_or_exit(supplied)
         return
-    if (always or _rationale_required(repo)) and not sys.stdin.isatty():
+    if (
+        (always or _rationale_required(repo))
+        and not sys.stdin.isatty()
+        and (needed is None or needed())
+    ):
         _refuse_missing_rationale()
 
 
@@ -861,8 +878,29 @@ def import_command(
     exit_code = EXIT_OK
     results = []
     mapping = _parse_map_option(map_option) if map_option else None
+
+    def would_import_something() -> bool:
+        for file in files:
+            try:
+                outcome = pipeline_mod.import_file(
+                    repo,
+                    file,
+                    imported_by=by,
+                    search_id=search_id,
+                    via=via,
+                    fmt=fmt,
+                    mapping=mapping,
+                    sheet=sheet,
+                    dry_run=True,
+                )
+            except pipeline_mod.ImportPipelineError:
+                continue  # nothing to commit from this one; the real run reports it as usual
+            if not outcome.already_imported:
+                return True
+        return False
+
     if not dry_run:
-        _preflight_rationale(ctx, repo)
+        _preflight_rationale(ctx, repo, needed=would_import_something)
 
     for file in files:
         try:
@@ -1025,7 +1063,12 @@ def dedup_command(
 ) -> None:
     """Find and auto-merge obvious duplicates; `--review` walks the rest interactively."""
     repo = _resolve_repo(ctx)
-    _preflight_rationale(ctx, repo)
+
+    def would_commit() -> bool:
+        preview = engine_mod.preview_dedup(repo, strict=strict)  # writes nothing
+        return bool(preview.auto_merged) or (review and bool(preview.review_queue))
+
+    _preflight_rationale(ctx, repo, needed=None if undo != ("", "") else would_commit)
 
     if undo != ("", ""):
         canonical_id, absorbed_id = undo

@@ -224,6 +224,16 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- A mutating command run non-interactively without `--why` or `--why-file` exited with code 7 only
+  after it had written its files, leaving the working tree dirty with nothing committed (`strata actor
+  add` left `strata.toml` modified; `strata dedup` left its merges in `records/`, `events/dedup/` and
+  `derived/counts.json`), which then made `strata sync` refuse. Every mutating command now checks
+  first and exits with code 7 before it writes anything; a `--why` that would be rejected (stop-listed,
+  too short) or an unreadable `--why-file` is refused at the same point, with a message rather than a
+  traceback. Interactive runs still prompt after the work and `--no-commit` still needs no rationale.
+  `strata dedup` and `strata import` skip the refusal when they have nothing to commit, so a rerun
+  needs no `--why`; a usage error in another command (an unknown actor or stage) now needs one to be
+  reached (OpenSpec change `refuse-missing-rationale-before-writing`).
 - `decode_bytes` crashed with an uncaught `UnicodeDecodeError` on a file that
   has a valid UTF-8 byte-order mark but corrupted/truncated bytes after it,
   instead of falling through to cp1252/latin-1 like the no-BOM path already

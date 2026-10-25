@@ -171,5 +171,16 @@ def test_actor_add_no_commit_leaves_working_tree_dirty(tmp_path: Path) -> None:
 
 def test_actor_deactivate_unknown_handle_is_usage_error(tmp_path: Path) -> None:
     root = _init(tmp_path)
-    result = runner.invoke(app, ["-C", str(root), "actor", "deactivate", "nobody"])
+    result = runner.invoke(
+        app,
+        [
+            "--why",
+            "deactivating an unknown actor",
+            "-C",
+            str(root),
+            "actor",
+            "deactivate",
+            "nobody",
+        ],
+    )
     assert result.exit_code == EXIT_USAGE, result.output

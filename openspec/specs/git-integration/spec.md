@@ -80,7 +80,13 @@ changed so the answer is about why. The rationale:
 - MAY be supplied with `--why "<text>"` or `--why-file <path>`.
 
 In a non-interactive context with neither flag, the command MUST fail (exit
-code 7) rather than invent a rationale.
+code 7) rather than invent a rationale. It MUST fail before it changes any file,
+so that a refused command leaves the working tree as it found it. A rationale
+given with `--why` or `--why-file` is checked at the same point, so one that
+would be rejected also stops the command before it changes anything. A command
+that makes no commit (`--no-commit`) needs no rationale, except that criteria
+changes, adjudications and study decisions carry their rationale in the event
+itself and always need one. An interactive run is prompted as before.
 
 #### Scenario: Stop-listed rationale
 
@@ -90,7 +96,17 @@ code 7) rather than invent a rationale.
 #### Scenario: Script without a rationale
 
 - **WHEN** a mutating command runs non-interactively without `--why` or `--why-file`
-- **THEN** it exits with code 7 and makes no commit
+- **THEN** it exits with code 7, makes no commit, and changes no file
+
+#### Scenario: Rationale rejected before the work
+
+- **WHEN** a mutating command runs non-interactively with `--why wip`
+- **THEN** it exits with code 7 and changes no file
+
+#### Scenario: No commit, no rationale
+
+- **WHEN** a mutating command other than a criteria change, adjudication or study decision runs non-interactively with `--no-commit` and without `--why`
+- **THEN** it makes its change, commits nothing, and exits with code 0
 
 #### Scenario: Criteria edit prompt shows the impact
 

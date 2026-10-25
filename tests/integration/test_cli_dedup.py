@@ -134,7 +134,7 @@ def test_dedup_requires_rationale_when_auto_merging(tmp_path: Path) -> None:
 
     result = runner.invoke(app, ["-C", str(root), "dedup", "--by", "ethan"])
     assert result.exit_code == EXIT_RATIONALE_REFUSED, result.output
-    # Refused up front, before any merge is written (openspec:git-integration#eliciting-the-rationale).
+    # Refused up front, before any merge is written.
     assert not gitio.is_dirty(root)
 
 
@@ -237,7 +237,16 @@ def test_dedup_review_queue_skip_leaves_pair_pending_next_run(tmp_path: Path) ->
 
     first = runner.invoke(
         app,
-        ["-C", str(root), "dedup", "--by", "ethan", "--review"],
+        [
+            "--why",
+            "skipping the review queue",
+            "-C",
+            str(root),
+            "dedup",
+            "--by",
+            "ethan",
+            "--review",
+        ],
         input="s\n",
     )
     assert first.exit_code == EXIT_OK, first.output
