@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -90,10 +91,15 @@ def test_log_returns_empty_list_on_failure(tmp_path: Path) -> None:
 # --- the hooks git triggers call `strata` by name -----------------------------------------------
 
 
+# On Windows `shutil.which` finds a command only through a PATHEXT extension, so a bare `strata`
+# file would not be found there.
+SCRIPT = "strata.exe" if sys.platform == "win32" else "strata"
+
+
 def _fake_script_dir(tmp_path: Path) -> Path:
     directory = tmp_path / "venv" / "bin"
     directory.mkdir(parents=True)
-    (directory / "strata").write_text("#!/bin/sh\n", encoding="utf-8")
+    (directory / SCRIPT).write_text("#!/bin/sh\n", encoding="utf-8")
     return directory
 
 
@@ -101,7 +107,7 @@ def test_git_inherits_the_environment_when_strata_is_on_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     on_path = _fake_script_dir(tmp_path)
-    (on_path / "strata").chmod(0o755)
+    (on_path / SCRIPT).chmod(0o755)
     monkeypatch.setenv("PATH", str(on_path))
     assert gitio._env_for_hooks() is None
 
@@ -113,7 +119,7 @@ def test_the_running_script_is_appended_to_path_not_prepended(
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     monkeypatch.setenv("PATH", str(elsewhere))
-    monkeypatch.setattr("sys.argv", [str(script_dir / "strata"), "actor", "add"])
+    monkeypatch.setattr("sys.argv", [str(script_dir / SCRIPT), "actor", "add"])
     env = gitio._env_for_hooks()
     assert env is not None
     assert env["PATH"].split(os.pathsep) == [str(elsewhere), str(script_dir)]

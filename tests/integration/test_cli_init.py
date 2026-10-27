@@ -194,6 +194,8 @@ def test_commits_work_with_the_hooks_when_strata_is_not_on_path(
 ) -> None:
     """Started by an absolute path (`/opt/venv/bin/strata ...`), `strata` is not on PATH, yet the
     hooks git triggers must still find it (openspec:git-integration#versioned-hooks)."""
+    if sys.platform == "win32":
+        pytest.skip("POSIX hook scripts and a symlinked git; Windows names the script strata.exe")
     script = Path(sys.executable).parent / "strata"
     git = shutil.which("git")
     if not script.is_file() or git is None or shutil.which("sh") is None:
