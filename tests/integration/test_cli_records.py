@@ -264,7 +264,20 @@ def test_fix_rejects_structured_field(tmp_path: Path) -> None:
     record_id = _record_id(root)
     result = runner.invoke(
         app,
-        ["-C", str(root), "fix", record_id, "--field", "author", "--value", "x", "--by", "ethan"],
+        [
+            "--why",
+            "correcting a structured field",
+            "-C",
+            str(root),
+            "fix",
+            record_id,
+            "--field",
+            "author",
+            "--value",
+            "x",
+            "--by",
+            "ethan",
+        ],
     )
     assert result.exit_code == EXIT_USAGE, result.output
     assert "cannot be corrected" in result.output

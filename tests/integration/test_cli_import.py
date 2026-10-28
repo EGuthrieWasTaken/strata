@@ -213,8 +213,8 @@ def test_import_requires_rationale_non_interactively(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == EXIT_RATIONALE_REFUSED, result.output
-    # Records/manifest/events are written before the commit is attempted.
-    assert gitio.is_dirty(root)
+    # Refused up front: no records, manifest or events are written.
+    assert not gitio.is_dirty(root)
 
 
 def test_import_unknown_actor_reports_usage_error(tmp_path: Path) -> None:

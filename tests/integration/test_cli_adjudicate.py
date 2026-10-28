@@ -160,7 +160,15 @@ def test_adjudicate_discuss_leaves_conflict_open(tmp_path: Path) -> None:
 
     result = runner.invoke(
         app,
-        ["-C", str(root), "adjudicate", "--by", "ethan"],
+        [
+            "--why",
+            "Discussing before adjudicating.",
+            "-C",
+            str(root),
+            "adjudicate",
+            "--by",
+            "ethan",
+        ],
         input="d\nLet's discuss at the Tuesday meeting.\n",
     )
     assert result.exit_code == EXIT_OK, result.output

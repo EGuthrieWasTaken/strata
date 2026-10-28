@@ -415,6 +415,18 @@ def test_assign_unknown_stage_is_usage_error(tmp_path: Path) -> None:
     root = _init(tmp_path)
     _import(root, tmp_path, "one.json", _CSL_ONE_RECORD)
     result = runner.invoke(
-        app, ["-C", str(root), "assign", "bogus-stage", "--actors", "ethan", "--by", "ethan"]
+        app,
+        [
+            "--why",
+            "assigning at an unknown stage",
+            "-C",
+            str(root),
+            "assign",
+            "bogus-stage",
+            "--actors",
+            "ethan",
+            "--by",
+            "ethan",
+        ],
     )
     assert result.exit_code == EXIT_USAGE, result.output

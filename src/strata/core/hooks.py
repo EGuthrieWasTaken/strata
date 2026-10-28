@@ -25,11 +25,37 @@ _SKIP_GUARD = (
     "fi\n"
 )
 
+_NEED_STRATA_TO_BLOCK = (
+    "if ! command -v strata >/dev/null 2>&1; then\n"
+    "    echo 'strata: not found on PATH; install it, or set STRATA_SKIP_HOOKS=1 to skip this hook'"
+    " >&2\n"
+    "    exit 1\n"
+    "fi\n"
+)
+_NEED_STRATA_TO_WARN = (
+    "if ! command -v strata >/dev/null 2>&1; then\n"
+    "    echo 'strata: not found on PATH, skipping this hook' >&2\n"
+    "    exit 0\n"
+    "fi\n"
+)
+
 HOOK_SCRIPTS: dict[str, str] = {
-    "pre-commit": _SHEBANG + _SKIP_GUARD + "exec strata internal hook-pre-commit\n",
-    "commit-msg": _SHEBANG + _SKIP_GUARD + 'exec strata internal hook-commit-msg "$1"\n',
-    "post-merge": _SHEBANG + _SKIP_GUARD + "strata internal hook-post-merge; exit 0\n",
-    "post-checkout": _SHEBANG + _SKIP_GUARD + "strata internal hook-post-checkout; exit 0\n",
+    "pre-commit": _SHEBANG
+    + _SKIP_GUARD
+    + _NEED_STRATA_TO_BLOCK
+    + "exec strata internal hook-pre-commit\n",
+    "commit-msg": _SHEBANG
+    + _SKIP_GUARD
+    + _NEED_STRATA_TO_BLOCK
+    + 'exec strata internal hook-commit-msg "$1"\n',
+    "post-merge": _SHEBANG
+    + _SKIP_GUARD
+    + _NEED_STRATA_TO_WARN
+    + "strata internal hook-post-merge; exit 0\n",
+    "post-checkout": _SHEBANG
+    + _SKIP_GUARD
+    + _NEED_STRATA_TO_WARN
+    + "strata internal hook-post-checkout; exit 0\n",
 }
 
 
