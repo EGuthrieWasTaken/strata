@@ -1,5 +1,8 @@
+import shutil
+import sys
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from strata import gitio
@@ -171,5 +174,50 @@ def test_actor_add_no_commit_leaves_working_tree_dirty(tmp_path: Path) -> None:
 
 def test_actor_deactivate_unknown_handle_is_usage_error(tmp_path: Path) -> None:
     root = _init(tmp_path)
-    result = runner.invoke(app, ["-C", str(root), "actor", "deactivate", "nobody"])
+    result = runner.invoke(
+        app,
+        [
+            "--why",
+            "deactivating an unknown actor",
+            "-C",
+            str(root),
+            "actor",
+            "deactivate",
+            "nobody",
+        ],
+    )
     assert result.exit_code == EXIT_USAGE, result.output
+
+
+def test_commits_work_with_the_hooks_when_strata_is_not_on_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Started by an absolute path (`/opt/venv/bin/strata ...`), `strata` is not on PATH, yet the
+    hooks git triggers must still find it (openspec:git-integration#versioned-hooks)."""
+    if sys.platform == "win32":
+        pytest.skip("POSIX hook scripts and a symlinked git; Windows names the script strata.exe")
+    script = Path(sys.executable).parent / "strata"
+    git = shutil.which("git")
+    if not script.is_file() or git is None or shutil.which("sh") is None:
+        pytest.skip("needs the installed `strata` script, git and sh")
+    only_git = tmp_path / "only-git"
+    only_git.mkdir()
+    (only_git / "git").symlink_to(git)
+    monkeypatch.delenv("STRATA_SKIP_HOOKS", raising=False)
+    monkeypatch.setenv("PATH", str(only_git))
+    monkeypatch.setattr("sys.argv", [str(script), "init"])
+    assert shutil.which("strata") is None
+
+    root = tmp_path / "review"
+    created = runner.invoke(
+        app, ["init", str(root), "--title", "Test Review", "--actor", "ethan", "--actor-name", "E"]
+    )
+    assert created.exit_code == EXIT_OK, created.output
+    added = runner.invoke(
+        app, ["--why", "Sam joins the team.", "-C", str(root), "actor", "add", "sam", "Sam"]
+    )
+    assert added.exit_code == EXIT_OK, added.output
+    assert (
+        gitio.run(["log", "--format=%s"], cwd=root).stdout.splitlines()[0].startswith("actor-add")
+    )
+    assert not gitio.is_dirty(root)

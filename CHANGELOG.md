@@ -240,6 +240,25 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- Started by a path that is not on `PATH` (`/opt/venv/bin/strata ...`, or an environment that is not
+  activated), `strata` made every commit fail: the hooks it triggers run `strata` by name and died with
+  `exec: strata: not found`, and `strata init` left a repository with nothing committed and every file
+  staged. Git is now run with the directory of the running `strata` on the end of `PATH` when `strata`
+  does not already resolve, which also repairs existing repositories. The hook scripts of a new
+  repository check for `strata` first: `pre-commit` and `commit-msg` block with a message naming
+  `STRATA_SKIP_HOOKS=1`, as `openspec:git-integration#versioned-hooks` requires, and `post-merge` and
+  `post-checkout` warn and succeed. Existing repositories keep their hook scripts
+  (OpenSpec change `make-hooks-find-strata`).
+- A mutating command run non-interactively without `--why` or `--why-file` exited with code 7 only
+  after it had written its files, leaving the working tree dirty with nothing committed (`strata actor
+  add` left `strata.toml` modified; `strata dedup` left its merges in `records/`, `events/dedup/` and
+  `derived/counts.json`), which then made `strata sync` refuse. Every mutating command now checks
+  first and exits with code 7 before it writes anything; a `--why` that would be rejected (stop-listed,
+  too short) or an unreadable `--why-file` is refused at the same point, with a message rather than a
+  traceback. Interactive runs still prompt after the work and `--no-commit` still needs no rationale.
+  `strata dedup` and `strata import` skip the refusal when they have nothing to commit, so a rerun
+  needs no `--why`; a usage error in another command (an unknown actor or stage) now needs one to be
+  reached (OpenSpec change `refuse-missing-rationale-before-writing`).
 - `decode_bytes` crashed with an uncaught `UnicodeDecodeError` on a file that
   has a valid UTF-8 byte-order mark but corrupted/truncated bytes after it,
   instead of falling through to cp1252/latin-1 like the no-BOM path already
