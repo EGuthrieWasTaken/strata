@@ -119,6 +119,10 @@ def create_app(
     app.state.strata = state
     app.state.templates = Jinja2Templates(directory=_templates_dir())
     app.state.templates.env.globals["csrf_field_name"] = CSRF_FIELD_NAME
+    # The page header's "signed in as": the server's own actor, so a page whose context carries
+    # no `actor` (the criteria pages) or one that means something else (the history filter) is
+    # right too.
+    app.state.templates.env.globals["signed_in_actor"] = actor
 
     class SecurityMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request: Request, call_next: Any) -> Any:

@@ -129,6 +129,9 @@ builds the supplement PRISMA item 27 asks for with no full text in it. One item
 is open: a methodologist has not yet read the generated Methods; see
 [`docs/m5-plan.md`](docs/m5-plan.md).
 
+The practical guide, stage by stage, is [the wiki](https://github.com/EGuthrieWasTaken/strata/wiki) (its pages
+are in [`wiki/`](wiki/) and are published from there); start with its Quickstart.
+
 See [the roadmap](docs/roadmap.md) for what comes next, and
 [`docs/m1-plan.md`](docs/m1-plan.md) / [`docs/m2-plan.md`](docs/m2-plan.md) /
 [`docs/m3-plan.md`](docs/m3-plan.md) / [`docs/m4-plan.md`](docs/m4-plan.md) /

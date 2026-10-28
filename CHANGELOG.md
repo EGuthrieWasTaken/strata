@@ -7,6 +7,22 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **The wiki** (`wiki/`, 40 pages; the `project-documentation` spec). A home page with Installation,
+  Quickstart (a whole single-reviewer review run on invented example data), Git for reviewers and a practical
+  guide for every stage (setting up, searching and importing, duplicates, screening, adjudication and
+  agreement, changing criteria mid-review, full texts, study grouping, extraction, risk of bias, analysis,
+  reporting, working with others, the web interface), concept pages (staleness, criteria versions and
+  direction, deduplication, blinding, the review folder, a glossary), configuration, the filter language,
+  recovery and troubleshooting, known limitations, and the methods and statistics references. The command
+  reference is generated from the program's help text (`scripts/build_wiki_reference.py`); `scripts/check_wiki.py`
+  checks links, headings, the sidebar and that every `strata ...` example names a real command and option (it
+  runs in the docs workflow and in the tests). `.github/workflows/wiki.yml` copies `wiki/` to the GitHub wiki
+  when it changes on `main`.
+- Fixed while writing it: `strata verify` reported every character of an absorbed record's id as an unknown
+  record after any automatic merge (so `strata sync` and `strata clone` of a review with a merge failed); the
+  help example for `strata studies` put `--why` after the command; and the web interface's header said
+  "signed in as" with nothing after it on the criteria pages and "signed in as None" on the history page.
+
 - **M6: more import formats** (task 2.4 of OpenSpec change `add-distribution-and-adoption`). `strata
   import` reads EndNote XML (`.xml`; unescaped `&` and HTML entities repaired, one bad record set aside
   rather than losing the file, DOCTYPE and entity declarations refused), Excel workbooks (`.xlsx`, first

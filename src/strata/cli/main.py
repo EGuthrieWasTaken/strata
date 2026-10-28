@@ -2280,7 +2280,7 @@ def studies_command(
     mutual citation) are shown with their evidence and never applied automatically. Every
     grouping and splitting decision needs a rationale (--why).
 
-    Example: strata studies --by ethan --why "Same trial, 12-month follow-up" \\
+    Example: strata --why "Same trial, 12-month follow-up" studies --by ethan \\
         --group rpt_3kq8v1r0zx2m4a7b --group rpt_9m2f4t7c1x8a5d6e
     """
     repo = _resolve_repo(ctx)

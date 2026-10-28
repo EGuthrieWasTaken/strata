@@ -88,3 +88,14 @@ def test_history_filters_by_stage(tmp_path: Path) -> None:
     # filter matches nothing here -- confirms the filter is real, not a
     # no-op, matching core.logcmd.domain_log's own behavior.
     assert "0 commits" in r.text
+
+
+def test_the_header_names_the_signed_in_actor_on_every_page(tmp_path: Path) -> None:
+    """The history page's `actor` is a filter, and the criteria pages carry no actor at all; the
+    header still says who the server is acting for."""
+    repo = _repo_with_a_criterion_commit(tmp_path)
+    client = _client(repo)
+    for path in ("/", "/history", "/history?actor=nobody", "/criteria", "/criteria/EXC-01/edit"):
+        r = client.get(path)
+        assert r.status_code == 200, path
+        assert "signed in as ethan" in r.text, path

@@ -1,0 +1,54 @@
+name: Wiki
+
+# Publishes wiki/ to the project's GitHub wiki (strata.wiki.git) when it changes on main. The pages
+# are written and reviewed in pull requests with the code they describe; the wiki itself is a copy,
+# so edits made on github.com are overwritten by the next publish (see wiki/Contributing-to-the-Wiki.md).
+# The workflow's own token can push to the repository's wiki, so no extra secret is needed.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: publish
+    # Forks do not have the wiki of the upstream repository.
+    if: github.repository == 'EGuthrieWasTaken/strata'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Copy wiki/ into the wiki repository and push
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.extraheader=$auth" clone --quiet \
+            "https://github.com/${GITHUB_REPOSITORY}.wiki.git" "$RUNNER_TEMP/wiki"
+          cd "$RUNNER_TEMP/wiki"
+          # Replace the pages wholesale so a page removed from wiki/ disappears from the wiki.
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R "$GITHUB_WORKSPACE/wiki/." .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The wiki already matches wiki/ at ${SOURCE_SHA}."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet -m "Publish wiki/ from ${SOURCE_SHA}"
+          git -c "http.extraheader=$auth" push --quiet origin HEAD
+          echo "Published wiki/ from ${SOURCE_SHA}."
