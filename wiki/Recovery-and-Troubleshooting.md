@@ -99,5 +99,5 @@ Every command exits with one of these, so scripts can tell what happened:
 | 4 | the repository does not validate (`strata verify`, `E_COUNT_RECONCILE`, ...) |
 | 5 | a conflict that needs a decision (`strata sync`) |
 | 6 | the review was made by a newer `strata` than this one |
-| 7 | a rationale was required and not given (or was rejected as too short or meaningless) |
+| 7 | a rationale was required and not given (or was rejected as too short or meaningless). Run without a terminal, the command stops before it writes anything, so there is nothing to clean up; run with a terminal, it asks after doing the work |
 | 8 | a guardrail refused: stale decisions, or a blocking analysis warning (`--force` / `--allow-stale` override, recorded) |
