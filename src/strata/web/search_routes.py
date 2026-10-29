@@ -27,6 +27,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from starlette.datastructures import UploadFile
 
+from strata.core import actor as actor_mod
 from strata.core import operations as ops
 from strata.core.commit import RationaleRejectedError
 from strata.core.repo import LockTimeoutError, Repo
@@ -35,7 +36,6 @@ from strata.ingest import pipeline
 from strata.protocol import searches as searches_mod
 from strata.web import uploads
 from strata.web.app import AppState
-from strata.web.common import active_actors as _active_actors
 from strata.web.common import go as _go
 from strata.web.common import state_of as _state
 from strata.web.routes import _error, _render
@@ -234,7 +234,7 @@ def _search_form(
         "search_new.html",
         _context(
             request,
-            {"values": values, "actors": _active_actors(repo), "error": error},
+            {"values": values, "actors": actor_mod.active_actors(repo), "error": error},
         ),
         status_code=status_code,
     )

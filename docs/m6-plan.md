@@ -86,11 +86,16 @@ what is deliberately partial.
   - The repository lock was a file whose existence meant "held": a killed `strata` locked everyone out until
     the file was deleted, and nothing took it. It is now an operating-system lock. The Windows branch is
     written and has only been exercised on Linux.
-- **Known gaps, deliberate.** `strata assign` still accepts a handle that is not one of the review's actors
-  (the command line is unchanged; the web form offers only actors). Dismissing a study-grouping suggestion
-  ("keep separate", "keep as one") is command line only. `strata verify` does not notice a stale
-  `derived/counts.json`. The interactive sessions of `strata retrieve` and `strata studies` stay on the command
-  line.
+- **Known gaps, deliberate.** Dismissing a study-grouping suggestion ("keep separate", "keep as one") is
+  command line only. The interactive sessions of `strata retrieve` and `strata studies` stay on the command
+  line. `strata verify --fast` (the pre-commit hook) does not check derived drift, and `strata verify --fix`
+  regenerates derived files but does not re-link chains or truncate partial lines; both are in
+  [`Known-Limitations`](../wiki/Known-Limitations.md).
+- **Follow-up, after review: `strata assign`, `strata verify`.** `strata assign` now refuses a handle that is
+  not an active actor and lists the eligible ones. `strata verify` now reports `E_DERIVED_DRIFT`, which the
+  specification had required since M1 and no one had implemented (`docs/m1-plan.md` records it as "still
+  unimplemented"). Implementing it found that `strata init`, `import`, `dedup` and `fix` left derived files
+  wrong; the commands now regenerate every derived view.
 
 ## add-web-ui-write-surfaces: manual checks for the new screens
 

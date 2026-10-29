@@ -446,18 +446,73 @@ def test_assign_refuses_and_writes_nothing(tmp_path: Path, args: list[str], mess
     assert _status(root) == []
 
 
-def test_assign_does_not_check_that_an_actor_is_configured(tmp_path: Path) -> None:
-    # Pinned as it is today: the command line takes any handle. The web form offers only the
-    # review's configured actors, so it cannot make this mistake; the command line is unchanged.
+def test_assign_refuses_a_handle_that_is_not_an_actor_and_lists_who_can_be_assigned(
+    tmp_path: Path,
+) -> None:
+    # Changed on purpose (it used to record the assignment): a typo in a handle made a queue
+    # nobody could work.
     root = _review(tmp_path)
+    before = _commit_count(root)
 
     code, out = _run(
-        "--why", "assigning a handle that is not configured", "-C", str(root), "assign",
+        "--why", "assigning a handle that is not an actor", "-C", str(root), "assign",
         "full-text", "--actors", "ghost", "--by", "ethan",
     )  # fmt: skip
 
+    assert code == EXIT_USAGE
+    assert out == (
+        "error: cannot assign 'ghost' (not an actor of this review); "
+        "eligible actors are ['ethan', 'sam']"
+    )
+    assert _commit_count(root) == before
+    assert _status(root) == []
+
+
+def test_assign_refuses_the_whole_assignment_when_one_handle_is_wrong(tmp_path: Path) -> None:
+    root = _review(tmp_path)
+    before = _commit_count(root)
+
+    code, out = _run(
+        "--why", "one good handle and two bad ones", "-C", str(root), "assign", "full-text",
+        "--actors", "ethan,ghost,zed,ghost", "--by", "ethan",
+    )  # fmt: skip
+
+    assert code == EXIT_USAGE
+    assert out == (
+        "error: cannot assign 'ghost' (not an actor of this review), "
+        "'zed' (not an actor of this review); eligible actors are ['ethan', 'sam']"
+    )
+    assert _commit_count(root) == before
+    assert not (root / "events" / "assign").exists()
+
+
+def test_assign_refuses_an_actor_who_has_been_deactivated(tmp_path: Path) -> None:
+    root = _review(tmp_path)
+    code, _ = _run("--why", "sam has left the team", "-C", str(root), "actor", "deactivate", "sam")
     assert code == EXIT_OK
-    assert out == "assigned 2 record(s) at full-text to ghost"
+    before = _commit_count(root)
+
+    code, out = _run(
+        "--why", "assigning someone who has left", "-C", str(root), "assign", "full-text",
+        "--actors", "sam", "--by", "ethan",
+    )  # fmt: skip
+
+    assert code == EXIT_USAGE
+    assert out == (
+        "error: cannot assign 'sam' (has been deactivated); eligible actors are ['ethan']"
+    )
+    assert _commit_count(root) == before
+
+
+def test_assign_checks_the_handles_even_when_nothing_is_to_be_committed(tmp_path: Path) -> None:
+    root = _review(tmp_path)
+
+    code, out = _run(
+        "--no-commit", "-C", str(root), "assign", "full-text", "--actors", "ghost", "--by", "ethan"
+    )
+
+    assert code == EXIT_USAGE and "cannot assign 'ghost'" in out
+    assert not (root / "events" / "assign").exists()
 
 
 def test_assign_without_a_rationale_is_refused_before_writing(tmp_path: Path) -> None:

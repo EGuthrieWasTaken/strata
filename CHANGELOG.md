@@ -25,8 +25,8 @@ All notable changes to `strata` are documented here. Format follows
   parser's message when it does not parse. `strata fix`, `strata criteria add` and `strata assign` now call the
   same operations in `strata.core.operations` (as `search add` and `import` already did), so a screen and its
   command record the same commit; tests hold the two to the same files, message and trailers, and the same
-  stale decisions after a criterion is added. The command line is unchanged. `strata assign` still accepts a
-  handle that is not one of the review's actors; the web form offers only the review's actors.
+  stale decisions after a criterion is added. The command line is unchanged except as listed under Changed
+  and Fixed.
 - **Full-text retrieval and study grouping in the web interface** (OpenSpec change
   `add-web-ui-write-surfaces`). `/retrieve` lists the reports sought and `/retrieve/<report>` records an outcome
   (retrieved with a source and version, interlibrary loan requested, not retrievable with a reason, or put back
@@ -285,8 +285,33 @@ All notable changes to `strata` are documented here. Format follows
 - `.gitattributes`, merge driver installation, and versioned git hooks
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
 
+### Changed
+
+- **`strata assign` refuses a handle that is not an active actor of the review.** It used to record an
+  assignment to any handle, including a typo, which left records in a queue nobody could work. It now refuses
+  (exit 2, nothing written, with or without `--no-commit`) a handle that was never added or has been
+  deactivated, names each one, and lists the actors who can be assigned:
+  `error: cannot assign 'ghost' (not an actor of this review); eligible actors are ['ethan', 'sam']`. The web
+  form was already limited to these actors and now gives the same message.
+- Commands that change what the derived files show now regenerate all of them, not just the counts: a commit by
+  `strata import`, `dedup`, `fix`, `assign`, `retrieve` or `studies` can include changes to `derived/pool.tsv`,
+  `conflicts.tsv`, `stale.tsv` and `irr.json` as well as `counts.json`.
+
 ### Fixed
 
+- **`strata verify` did not notice a derived file that was out of date.** It checked only that the counts the
+  events would produce close, never that `derived/counts.json` (or `pool.tsv`, `conflicts.tsv`, `stale.tsv`,
+  `irr.json`) says what regenerating it would write, though the specification has always required it
+  (`E_DERIVED_DRIFT`). It now reports the file by name and fails. Making it check showed that four commands
+  left derived files wrong, each now fixed: `strata init` wrote `{}` for `irr.json` and `counts.json` (so a
+  brand-new review would have failed), `strata import` left `pool.tsv` without the new records, and `strata
+  dedup` and `strata fix` left it listing a merged-away record and the old title. Reviews made before this
+  version can show the same drift; `strata verify --fix` repairs it.
+- **`strata verify --fix` did nothing.** The flag was accepted and ignored, so it reported success whatever was
+  wrong. It now regenerates the derived files that drifted (leaving them uncommitted) and says which. It does
+  not yet re-link broken hash chains or truncate half-written lines; those problems are still reported and not
+  repaired. `strata verify --fast` and the pre-commit hook do not check drift yet, since regenerating the views
+  does not fit the two seconds that mode is allowed.
 - **Every form in the web interface was refused by a real browser.** The server sent `Referrer-Policy:
   no-referrer`, under which browsers send `Origin: null` on every form post, even to the same site, and the
   `Origin` check rejected it with `invalid Origin header`. Screening decisions, adjudication, criteria edits,

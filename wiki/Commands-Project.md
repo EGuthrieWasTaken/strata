@@ -131,7 +131,7 @@ strata verify [OPTIONS]
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
 | `--fast` | flag |  |  |
-| `--fix` | flag |  |  |
+| `--fix` | flag |  | Regenerate derived files that drifted; other problems are only reported |
 
 Guide: [Recovery and troubleshooting](Recovery-and-Troubleshooting)
 

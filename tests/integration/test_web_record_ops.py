@@ -550,7 +550,9 @@ def test_assigning_someone_who_is_not_an_actor_or_no_one_is_refused(tmp_path: Pa
     ghost = _post(client, "/assign/title-abstract", _assign(actors=["ghost"]))
     nobody = _post(client, "/assign/title-abstract", {"filter": "", "rationale": _WHY})
 
-    assert ghost.status_code == 422 and "not an actor of this review: ghost" in _text(ghost)
+    assert ghost.status_code == 422
+    assert "cannot assign 'ghost' (not an actor of this review)" in _text(ghost)
+    assert "eligible actors are ['ethan', 'sam']" in _text(ghost)
     assert nobody.status_code == 422 and "Choose at least one reviewer" in _text(nobody)
     assert _clean(repo)
 

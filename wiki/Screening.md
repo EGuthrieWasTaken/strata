@@ -25,7 +25,9 @@ assigned 8 record(s) at title-abstract to ada, sam
 By default **every actor whose role is `screener` or `lead` is assigned to every record**; an `assign` event for a
 record overrides that for that record, and `screening.assignment.<stage>` in `strata.toml` changes the default.
 `assign` records which reviewers must opine on which records; it can be limited with `--filter`, for example
-to give a subset (say, non-English records) to one particular person. A record is *resolved* when everyone
+to give a subset (say, non-English records) to one particular person. Only the review's active actors can be
+assigned: a handle that is not on the team, or belongs to someone since deactivated, is refused with the list of
+who can be (`error: cannot assign 'ghost' (not an actor of this review); eligible actors are ['ada', 'sam']`). A record is *resolved* when everyone
 assigned to it has opined and they agree. With `mode = "single"` one opinion is enough (use it for pilots; the
 generated Methods will say so).
 

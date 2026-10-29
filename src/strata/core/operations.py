@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any, TypeAlias
 
 from strata import gitio
+from strata.core import actor as actor_mod
 from strata.core import filters as filters_mod
 from strata.core import records as records_mod
 from strata.core.commit import (
@@ -51,7 +52,6 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
-from strata.report import counts as counts_mod
 
 #: What a caller can hand an operation as its rationale: the text, nothing, or a function that
 #: produces it once the work is written (the interactive prompt).
@@ -151,10 +151,12 @@ def commit_domain_work(
 
     For the operations whose work is files under `records`, `events`, `derived` and the like.
     Nothing is committed when the work left the tree as it was (a form re-created identically),
-    and then no rationale is asked for. The counts are regenerated even without a commit.
+    and then no rationale is asked for. The derived views (the pool, conflicts, stale decisions,
+    agreement and the PRISMA counts) are regenerated even without a commit, because
+    `strata verify` holds them to what regeneration writes.
     """
     if op not in COUNT_NEUTRAL_OPS:
-        counts_mod.regenerate_counts_json(repo)  # whatever this changed, the counts follow it
+        pool_mod.regenerate_all(repo)  # whatever this changed, the derived views follow it
     if not commit:
         return False
     paths = [p for p in _DOMAIN_PATHS if repo.path(*p.split("/")).exists()]
@@ -358,7 +360,7 @@ def import_file(
             on_written(result)
         if outcome.already_imported:
             return result
-        counts_mod.regenerate_counts_json(repo)
+        pool_mod.regenerate_all(repo)  # the pool gains the records, the counts move
         if not commit:
             return result
         text = _resolve_rationale(repo, rationale)
@@ -628,6 +630,22 @@ class ReviewersAssigned:
     lock_reclaimed_from: int | None = None
 
 
+def _require_eligible(repo: Repo, handles: Sequence[str]) -> None:
+    """Refuse, naming who can be assigned, any handle that is not an active actor of the review."""
+    active = [str(a["handle"]) for a in actor_mod.active_actors(repo)]
+    deactivated = {str(a["handle"]) for a in repo.config.get("actors", [])} - set(active)
+    problems = []
+    for handle in dict.fromkeys(handles):
+        if handle in active:
+            continue
+        why = "has been deactivated" if handle in deactivated else "not an actor of this review"
+        problems.append(f"{handle!r} ({why})")
+    if problems:
+        raise screening_mod.ScreeningError(
+            f"cannot assign {', '.join(problems)}; eligible actors are {active!r}"
+        )
+
+
 def assign_reviewers(
     repo: Repo,
     *,
@@ -642,13 +660,15 @@ def assign_reviewers(
 ) -> ReviewersAssigned:
     """Assign reviewers to the canonical records at a stage (`strata assign`), all of them or
     those a filter expression matches. Raises `FilterError` for a filter that cannot be used and
-    `ScreeningError` for an unknown stage, no actors, or no matching records.
+    `ScreeningError` for an unknown stage, a handle that is not an active actor, no actors, or no
+    matching records.
 
-    The handles are not checked against the review's actors, as the command line has never done;
-    a surface that wants that checks before calling.
+    Every handle must be an active actor of the review; one that is not (a typo, or someone
+    since deactivated) is refused with the list of who can be assigned, before anything is written.
     """
     _check_up_front(repo, rationale, commit=commit)
     handles = [a.strip() for a in actors if a.strip()]
+    _require_eligible(repo, handles)
     with repo_lock(repo, timeout=lock_timeout) as held:
         record_ids = matching_record_ids(repo, filter_expr)
         screening_mod.assign_reviewers(
@@ -734,7 +754,6 @@ def record_retrieval(
             reason_text=reason_text,
             path=path,
         )
-        pool_mod.regenerate_all(repo)
         committed = commit_domain_work(
             repo,
             op="retrieve",

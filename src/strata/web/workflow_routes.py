@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
+from strata.core import actor as actor_mod
 from strata.core import operations as ops
 from strata.core import records as records_mod
 from strata.core.commit import RationaleRejectedError
@@ -23,7 +24,7 @@ from strata.core.repo import LockTimeoutError, Repo
 from strata.core.validate import SchemaValidationError
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import screening as screening_mod
-from strata.web.common import active_actors, go
+from strata.web.common import go
 from strata.web.common import state_of as _state
 from strata.web.routes import _error, _render, record_detail_context
 
@@ -172,7 +173,7 @@ def _assign_page(
 ) -> HTMLResponse:
     """The assignment screen: who is queued now, what a filter would match, and the form."""
     state = _state(request)
-    actors = active_actors(repo)
+    actors = actor_mod.active_actors(repo)
     all_ids = ops.matching_record_ids(repo)
     preview: dict[str, Any] | None = None
     filter_error: str | None = None
@@ -275,10 +276,6 @@ def assign_submit(
         return refuse(problem)
     if not chosen:
         return refuse("Choose at least one reviewer.")
-    known = {a["handle"] for a in active_actors(repo)}
-    unknown_handles = [h for h in chosen if h not in known]
-    if unknown_handles:
-        return refuse(f"not an actor of this review: {', '.join(unknown_handles)}")
     try:
         ops.assign_reviewers(
             repo,

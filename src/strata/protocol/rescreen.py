@@ -426,8 +426,9 @@ def preview_criterion_change_impact(
     )
 
 
-def regenerate_stale_tsv(repo: Repo) -> str:
-    """Regenerate `derived/stale.tsv` (openspec:derived-views#stale-decisions-view)."""
+def render_stale_tsv(repo: Repo) -> str:
+    """The text of `derived/stale.tsv` (openspec:derived-views#stale-decisions-view). Writes
+    nothing."""
     records = records_mod.index_by_id(records_mod.read_records(repo))
     rows = []
     for stale in compute_stale_records(repo):
@@ -449,8 +450,12 @@ def regenerate_stale_tsv(repo: Repo) -> str:
     lines = ["\t".join(_STALE_TSV_HEADER)]
     for row in rows:
         lines.append("\t".join(_tsv_escape(cell) for cell in row))
-    text = "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n"
 
+
+def regenerate_stale_tsv(repo: Repo) -> str:
+    """Regenerate `derived/stale.tsv`."""
+    text = render_stale_tsv(repo)
     path = repo.path("derived", "stale.tsv")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

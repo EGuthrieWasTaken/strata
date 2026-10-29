@@ -55,6 +55,7 @@ from strata.core.repo import (
     RepoNotFoundError,
     SchemaTooNewError,
     open_repo,
+    repo_lock,
 )
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
@@ -521,16 +522,31 @@ def config(
 def verify(
     ctx: typer.Context,
     fast: bool = typer.Option(False, "--fast"),
-    fix: bool = typer.Option(False, "--fix"),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="Regenerate derived files that drifted; other problems are only reported",
+    ),
 ) -> None:
     """Validate the whole repository."""
     repo = _resolve_repo(ctx)
     report = verify_mod.verify_repository(repo, fast=fast)
-    del fix  # regeneration-based repair lands with the derived views in M1
+    regenerated: list[str] = []
+    if fix:
+        drifted = [i.path for i in report.issues if i.code == "E_DERIVED_DRIFT" and i.path]
+        if drifted:
+            try:
+                with repo_lock(repo):
+                    pool_mod.regenerate_all(repo)
+            except LockTimeoutError as exc:
+                _lock_busy(exc)
+            regenerated = drifted
+            report = verify_mod.verify_repository(repo, fast=fast)
     if ctx.obj["json"]:
         _print_json(
             {
                 "ok": report.ok,
+                "regenerated": regenerated,
                 "issues": [
                     {"code": i.code, "message": i.message, "path": i.path, "severity": i.severity}
                     for i in report.issues
@@ -538,6 +554,10 @@ def verify(
             }
         )
     else:
+        for path in regenerated:
+            out_console.print(f"[green]regenerated[/] {path}")
+        if regenerated:
+            out_console.print("commit the regenerated files to keep them")
         for issue in report.issues:
             loc = f" ({issue.path})" if issue.path else ""
             colour = "yellow" if issue.severity == "warning" else "red"
