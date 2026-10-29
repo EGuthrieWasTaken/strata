@@ -60,6 +60,13 @@ that.
 - [ ] 7.3 Run the full local gate (`ruff`, `mypy --strict`, `pytest` with the coverage floors and diff coverage, and the determinism check) and verify it is green on Linux, macOS and Windows in CI
 - [ ] 7.4 Have someone who has never used the command line record a search and import its export in the browser, unaided, and record the outcome in `docs/m6-plan.md` (a manual gate, like the M2 usability session; it is not claimed until a person has done it)
 
+## 8. Follow-up after review: assignment and verification
+
+- [x] 8.1 Make `strata assign` refuse a handle that is not an active actor, naming each one and listing the eligible actors; verify with a test that records nothing, with and without `--no-commit`, for an unknown and a deactivated handle, and that the web form gives the same message
+- [x] 8.2 Make `strata verify` report `E_DERIVED_DRIFT` for a derived file that differs from regeneration, and make `strata verify --fix` regenerate the drifted files; verify a stale counts file, a stale pool, a missing file, `--fix` leaving the files uncommitted and the JSON shape unchanged without `--fix`
+- [x] 8.3 Make `strata init`, `import`, `dedup`, `fix` and every domain operation leave the derived files in step; verify with a test that takes a review through all of them and holds each to the check, and that a killed screening session is reported as drift and repaired by `--fix`
+- [x] 8.4 Update the wiki, CHANGELOG and M6 notes, and correct the Known-Limitations entry on `strata fix`
+
 ## Workflow follow-up
 
 - Archive the change after review, and confirm `openspec/specs/web-ui`, `architecture` and the new `web-uploads` capability read correctly.

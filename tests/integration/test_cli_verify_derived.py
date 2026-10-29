@@ -1,6 +1,6 @@
 """`strata verify` notices a derived file that is not what regeneration writes
 (`E_DERIVED_DRIFT`; openspec:repository-verification#cross-schema-validation-rules and
-openspec:repository-format#repository-layout).
+openspec:repository-format#directory-layout).
 
 `verify` used to check only that the counts the events *would* produce close, so a counts file that
 had gone out of date (after a web dedup merge, for one) passed. Found while writing the web write
@@ -139,6 +139,22 @@ def test_a_derived_file_that_does_not_exist_is_not_drift(tmp_path: Path) -> None
     code, out = _run(root, "verify")
 
     assert code == EXIT_OK, out
+
+
+def test_a_derived_check_that_cannot_run_is_a_warning_not_a_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _with_records(tmp_path)
+
+    def broken(repo: object) -> list[str]:
+        raise ValueError("an event is not readable")
+
+    monkeypatch.setattr(pool_mod, "derived_drift", broken)
+
+    code, out = _run(root, "verify")
+
+    assert code == EXIT_OK  # a warning does not fail verification
+    assert "W_DERIVED_UNCHECKED" in out and "an event is not readable" in out
 
 
 def test_fast_verification_does_not_check_drift_yet(tmp_path: Path) -> None:
