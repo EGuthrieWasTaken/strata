@@ -287,6 +287,18 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Changed
 
+- **`strata fix` corrects authors and years, keeps a record's identity in step, and skips no-ops.** It could
+  only edit plain-text fields; it now also takes `--field author` (`Family, Given; Family, Given`, a name with
+  no comma kept whole), `--field year` (four digits; the month and day are kept) and `--field issued` (`YYYY`,
+  `YYYY-MM` or `YYYY-MM-DD`), and the web form offers the same. A DOI, PMID, PMCID or ISBN is stored as an
+  import stores it (`https://doi.org/10.1000/ABC.` becomes `10.1000/abc`), an empty value removes the field
+  (a title cannot be removed), and a value the record already has records nothing, commits nothing and needs
+  no reason. A field that is not metadata is refused with the list of those that are. The record keeps its
+  id, as the specification has always said, and when a correction changes how it is identified (a DOI, or the
+  year of a record with none) the id the corrected identity gives becomes an alias of it: an export carrying
+  the corrected value, or still carrying the old one, is now matched to the record instead of being added as
+  a second record, and a correction that gives a record another record's identity names that record so
+  `strata dedup` can merge them. `strata why` and the record page show authors and dates as text.
 - **`strata assign` refuses a handle that is not an active actor of the review.** It used to record an
   assignment to any handle, including a typo, which left records in a queue nobody could work. It now refuses
   (exit 2, nothing written, with or without `--no-commit`) a handle that was never added or has been

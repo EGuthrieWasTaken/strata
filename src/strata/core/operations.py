@@ -487,10 +487,17 @@ def matching_record_ids(repo: Repo, filter_expr: str | None = None) -> list[str]
 @dataclass(frozen=True)
 class RecordAmended:
     record_id: str
+    #: The field as the record stores it (`issued` when the correction was given as `year`).
     field: str
     old: Any
     new: Any
+    #: False when the record already had the value: nothing was written or committed.
+    changed: bool
     committed: bool
+    #: The id an export carrying the corrected identity is now matched to this record by.
+    alias: str | None = None
+    #: Another record that already has the identity this one now has (`strata dedup` merges them).
+    shares_identity_with: str | None = None
     lock_reclaimed_from: int | None = None
 
 
@@ -506,41 +513,53 @@ def amend_record(
     on_written: Callable[[RecordAmended], None] | None = None,
     lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
 ) -> RecordAmended:
-    """Correct one plain-string field of a record (`strata fix`) as a `record-amend` event.
+    """Correct one field of a record (`strata fix`) as a `record-amend` event.
 
     `record_id` is a full id; turning a prefix into one is the surface's business. A field that
-    cannot be corrected, or an id with no record, raises before anything is written.
+    cannot be corrected, a value that does not fit it, or an id with no record raises before
+    anything is written. A value the record already has writes and commits nothing, and asks for no
+    rationale. See `records.amend_field` for how the value is read and what a correction to the
+    record's identity does.
     """
-    _check_up_front(repo, rationale, commit=commit)
+    changes = records_mod.preview_amendment(repo, record_id=record_id, field=field, value=value)
+    _check_up_front(repo, rationale, commit=commit, needed=changes)
     with repo_lock(repo, timeout=lock_timeout) as held:
-        old, new = records_mod.amend_field(
+        amendment = records_mod.amend_field(
             repo, record_id=record_id, field=field, value=value, actor=actor
         )
         amended = RecordAmended(
             record_id=record_id,
-            field=field,
-            old=old,
-            new=new,
+            field=amendment.field,
+            old=amendment.old,
+            new=amendment.new,
+            changed=amendment.changed,
             committed=False,
+            alias=amendment.alias,
+            shares_identity_with=amendment.shares_identity_with,
             lock_reclaimed_from=held.reclaimed_from,
         )
         if on_written is not None:
             on_written(amended)
-        committed = commit_domain_work(
-            repo,
-            op="fix",
-            scope=record_id,
-            summary=f"corrected {field}",
-            actor=actor,
-            commit=commit,
-            rationale=rationale,
-        )
+        committed = False
+        if amendment.changed:
+            committed = commit_domain_work(
+                repo,
+                op="fix",
+                scope=record_id,
+                summary=f"corrected {field}",
+                actor=actor,
+                commit=commit,
+                rationale=rationale,
+            )
     return RecordAmended(
         record_id=record_id,
-        field=field,
-        old=old,
-        new=new,
+        field=amendment.field,
+        old=amendment.old,
+        new=amendment.new,
+        changed=amendment.changed,
         committed=committed,
+        alias=amendment.alias,
+        shares_identity_with=amendment.shares_identity_with,
         lock_reclaimed_from=held.reclaimed_from,
     )
 

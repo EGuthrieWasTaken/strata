@@ -146,6 +146,12 @@ Guide: [Searching and importing](Searching-and-Importing)
 
 Correct a metadata field, recording the change as a `record-amend` event.
 
+Plain-text fields (title, journal, DOI, ...), `author` and the date (`year`, or `issued` for a
+full date) can be corrected. An empty value removes the field. A DOI, PMID, PMCID or ISBN is
+stored as an import would store it, and a value the record already has changes nothing. A
+correction that changes how the record is identified keeps its id, and an export carrying the
+corrected value is then matched to it.
+
 ```
 strata fix [OPTIONS] RECORD_ID
 ```
@@ -156,8 +162,8 @@ strata fix [OPTIONS] RECORD_ID
 
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
-| `--field` (required) | str |  | One of records_mod.EDITABLE_STRING_FIELDS |
-| `--value` (required) | str |  | The corrected value |
+| `--field` (required) | str |  | The field to correct (title, author, year, DOI, ...) |
+| `--value` (required) | str |  | The corrected value (authors: 'Family, Given; Family, Given'; a date: YYYY-MM-DD) |
 | `--by` (required) | str |  | Actor handle making the correction |
 
 Guide: [Searching and importing](Searching-and-Importing)

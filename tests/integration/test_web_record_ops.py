@@ -121,9 +121,10 @@ def test_the_record_page_offers_the_fields_a_correction_can_change(tmp_path: Pat
     assert page.status_code == 200
     assert f'action="/records/{rid}/fix"' in page.text
     options = re.findall(r'<option value="([^"]+)"', page.text)
-    assert "title" in options and "DOI" in options
-    assert "author" not in options and "issued" not in options
+    assert {"title", "DOI", "author", "year", "issued"} <= set(options)
+    assert "id" not in options and "strata" not in options
     assert "now &ldquo;Original title&rdquo;" in page.text
+    assert "now &ldquo;2008&rdquo;" in page.text  # the year, as the form will read it back
 
 
 def test_correcting_a_field_records_the_amendment_and_the_timeline_shows_it(
@@ -189,7 +190,7 @@ def test_a_field_strata_fix_refuses_is_refused_with_its_reason_and_nothing_is_re
     before = _count(repo)
 
     response = _post(
-        _client(repo), f"/records/{rid}/fix", {"field": "author", "value": "x", "rationale": _WHY}
+        _client(repo), f"/records/{rid}/fix", {"field": "id", "value": "x", "rationale": _WHY}
     )
 
     assert response.status_code == 422
@@ -261,6 +262,83 @@ def test_a_correction_of_an_unknown_record_is_a_404(tmp_path: Path) -> None:
 
     assert response.status_code == 404
     assert _clean(repo)
+
+
+def test_the_authors_and_the_year_can_be_corrected_in_the_browser(tmp_path: Path) -> None:
+    via_cli = _review(tmp_path, "cli")
+    via_web = _review(tmp_path, "web")
+    rid = _id_of(via_cli, "Original title")
+    client = _client(via_web)
+
+    for field, value in (("author", "Cepeda, Nicholas J.; Vul, Edward"), ("year", "2009")):
+        _cli(
+            "--why", "correcting it from a test", "-C", str(via_cli.root), "fix", rid,
+            "--field", field, "--value", value, "--by", "ethan",
+        )  # fmt: skip
+        response = _post(
+            client,
+            f"/records/{rid}/fix",
+            {"field": field, "value": value, "rationale": "correcting it from a test"},
+        )
+        assert response.status_code == 303
+        assert committed_snapshot(via_cli.root) == committed_snapshot(via_web.root)
+
+    assert pool_mod.derived_drift(open_repo(via_web.root)) == []
+    page = _text(client.get(f"/records/{rid}"))
+    assert "Cepeda, Nicholas J.; Vul, Edward" in page  # the timeline reads the authors back
+
+
+def test_a_correction_to_what_the_record_has_says_so_and_asks_for_no_reason(
+    tmp_path: Path,
+) -> None:
+    repo = _review(tmp_path)
+    rid = _id_of(repo, "Original title")
+    client = _client(repo)
+    before = _count(repo)
+
+    response = _post(
+        client,
+        f"/records/{rid}/fix",
+        {"field": "title", "value": "Original title", "rationale": ""},
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/records/{rid}?unchanged=1"
+    assert "nothing was changed" in _text(client.get(response.headers["location"]))
+    assert _count(repo) == before and _clean(repo)
+    assert 'data-testid="unchanged-note"' not in client.get(f"/records/{rid}").text
+
+
+def test_a_value_that_does_not_fit_the_field_is_refused_with_the_reason(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+    rid = _id_of(repo, "Original title")
+    before = _count(repo)
+
+    response = _post(
+        _client(repo), f"/records/{rid}/fix", {"field": "year", "value": "soon", "rationale": _WHY}
+    )
+
+    assert response.status_code == 422
+    assert "a year is four digits, got 'soon'" in _text(response)
+    assert _count(repo) == before and _clean(repo)
+
+
+def test_a_record_corrected_onto_another_ones_identity_says_so(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+    older, other = _id_of(repo, "Original title"), _id_of(repo, "Second paper")
+    client = _client(repo)
+
+    response = _post(
+        client,
+        f"/records/{older}/fix",
+        {"field": "DOI", "value": "10.1000/bbb", "rationale": "the DOI was entered wrongly"},
+    )
+
+    assert response.status_code == 303
+    page = client.get(f"/records/{older}")
+    assert 'data-testid="shares-identity"' in page.text
+    assert f'href="/records/{other}"' in page.text
+    assert 'data-testid="shares-identity"' in client.get(f"/records/{other}").text
 
 
 # ----------------------------------------------------------------------------- adding a criterion

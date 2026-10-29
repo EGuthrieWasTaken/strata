@@ -26,6 +26,12 @@
 </article>
 
 <h2>Correct a field</h2>
+{% if unchanged %}
+<p class="notice" role="status" data-testid="unchanged-note">The record already has that value, so nothing was changed.</p>
+{% endif %}
+{% if shares_identity %}
+<p class="notice flag" data-testid="shares-identity"><span aria-hidden="true">&#9888;</span> This record is now identified the same way as {% for other in shares_identity %}<a href="/records/{{ other }}">{{ other }}</a>{{ ", " if not loop.last else "" }}{% endfor %}. They are probably the same paper: review them under <a href="/dedup">Duplicates</a>, or run <code>strata dedup</code>.</p>
+{% endif %}
 {% if error %}
 <p class="error" role="alert" data-testid="form-error">{{ error }}</p>
 {% endif %}
@@ -35,11 +41,11 @@
     Field
     <select name="field" aria-describedby="fix-field-help">
       {% for name in editable_fields %}
-      {% set current = record.get(name) %}
-      <option value="{{ name }}"{{ " selected" if name == fix_values.field else "" }}>{{ name }} &mdash; {% if current %}now &ldquo;{{ current | string | truncate(60) }}&rdquo;{% else %}empty{% endif %}</option>
+      {% set current = current_values[name] %}
+      <option value="{{ name }}"{{ " selected" if name == fix_values.field else "" }}>{{ name }} &mdash; {% if current %}now &ldquo;{{ current | truncate(60) }}&rdquo;{% else %}empty{% endif %}</option>
       {% endfor %}
     </select>
-    <span class="field-help" id="fix-field-help">Authors and the year are structured fields that cannot be corrected here yet.</span>
+    <span class="field-help" id="fix-field-help">Authors are written <em>Family, Given; Family, Given</em>. A date is written <em>2008</em> or <em>2008-03-01</em> (<em>year</em> changes only the year). Leave the value empty to remove a field.</span>
   </label>
   <label class="note-field">
     Corrected value

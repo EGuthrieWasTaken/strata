@@ -17,6 +17,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
 from strata.core import actor as actor_mod
+from strata.core import fieldedit as fieldedit_mod
 from strata.core import operations as ops
 from strata.core import records as records_mod
 from strata.core.commit import RationaleRejectedError
@@ -60,6 +61,14 @@ def record_fix(
             status_code=status_code,
         )
 
+    try:
+        changes = records_mod.preview_amendment(
+            repo, record_id=record_id, field=values["field"], value=values["value"]
+        )
+    except (fieldedit_mod.FixFieldError, records_mod.RecordNotFoundError) as exc:
+        return refuse(str(exc))
+    if not changes:
+        return go(f"/records/{record_id}?unchanged=1")  # the record has that value: nothing to say
     problem = ops.rationale_problem(repo, values["rationale"])
     if problem is not None:
         return refuse(problem)
@@ -73,7 +82,7 @@ def record_fix(
             rationale=values["rationale"].strip() or None,
         )
     except (
-        records_mod.FixFieldError,
+        fieldedit_mod.FixFieldError,
         records_mod.RecordNotFoundError,
         RationaleRejectedError,
     ) as exc:

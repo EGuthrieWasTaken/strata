@@ -112,7 +112,7 @@ Nothing uploaded MUST be imported until the person has seen, for each file, what
 
 #### Scenario: Field that is not editable
 
-- **WHEN** a request names a field `strata fix` does not allow, such as the authors or the year, which are structured
+- **WHEN** a request names a field `strata fix` does not allow, such as `id`
 - **THEN** it is refused with the reason `strata fix` gives and nothing is recorded
 
 ### Requirement: Adding a criterion

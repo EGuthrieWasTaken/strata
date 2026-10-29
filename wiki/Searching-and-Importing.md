@@ -149,16 +149,34 @@ DEDUP-MERGE 2026-10-24T05:24:04Z by ada
 
 ### Correcting a record
 
-If an export has a wrong title, year or page, correct it rather than editing a file:
+If an export has a wrong title, year, author or page, correct it rather than editing a file:
 
 ```
 strata --why "Export truncated the title" fix rec_bja43jkhyfj1qxwv --field title --value "The corrected title" --by ada
+strata --why "Wrong year in the Embase export" fix rec_bja43jkhyfj1qxwv --field year --value 2009 --by ada
+strata --why "Second author was missing" fix rec_bja43jkhyfj1qxwv --field author --value "Cepeda, Nicholas J.; Vul, Edward" --by ada
 ```
 
-You can correct plain text fields: `title`, `container-title` (journal), `volume`, `issue`, `page`, `DOI`,
-`PMID`, `PMCID`, `URL`, `ISBN`, `abstract` and a few others. The change is recorded as an event with the old
-and new value, and `strata why` shows it. Authors and dates are structured fields and are not yet editable
-this way.
+| Field | What to type |
+|---|---|
+| `title`, `container-title` (journal), `volume`, `issue`, `page`, `abstract`, `keyword`, `language`, `URL` | the text; surrounding space is removed |
+| `DOI`, `PMID`, `PMCID`, `ISBN` | the identifier, as it would appear in an export (`https://doi.org/10.1000/ABC.` is stored as `10.1000/abc`) |
+| `author` | `Family, Given; Family, Given`. A name with no comma, such as an organisation, is kept whole; `Family,` alone is a family name |
+| `year` | four digits; the month and day the record has are kept |
+| `issued` | the whole date: `2009`, `2009-03` or `2009-03-30` |
+
+An empty `--value` removes the field (a title cannot be removed). A value the record already has changes
+nothing: no event, no commit, and no reason is needed. Otherwise the change is recorded as an event with the old
+and new value, and `strata why` shows it.
+
+**The record keeps its id.** Ids are permanent. When a correction changes how the record is identified (a new
+DOI, or the title, year or first author of a record with no identifier), the id the corrected identity would
+have becomes an *alias* of the record, so an export that carries the corrected value is matched to this record
+instead of being added again, and so is an export that still carries the old one. If the correction gives the
+record the same identity as another record, `strata fix` says so: `strata dedup` then merges them.
+
+Correcting the export and importing it again does **not** repair a record: an imported row that matches a
+record you already have only adds its source. Correct the record with `strata fix`.
 
 ## Before you move on
 

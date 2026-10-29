@@ -61,10 +61,12 @@ it becomes a new search that replaces the old one, which is kept as it was.
 
 ### Correcting a record, adding a criterion, assigning reviewers
 
-- **Correct a field.** Open a record and use *Correct a field*: choose the field (the plain-text ones that
-  `strata fix` allows: title, journal, DOI, volume and so on; authors and the year are structured and cannot be
-  corrected here yet), give the corrected value and say why. The old and the new value appear in the record's
-  provenance timeline, and the correction is its own commit.
+- **Correct a field.** Open a record and use *Correct a field*: choose the field (any that `strata fix`
+  allows: title, journal, DOI, authors, the year and so on), give the corrected value and say why. Authors are
+  written *Family, Given; Family, Given* and a date *2009* or *2009-03-30*; an empty value removes the field.
+  The old and the new value appear in the record's provenance timeline, and the correction is its own commit.
+  A value the record already has changes nothing and asks for no reason. If the correction gives the record
+  the same identity as another, the page says so and links to it; merge them under *Duplicates*.
 - **Add a criterion.** *Add a criterion* on the criteria page takes whether it includes or excludes, a label,
   a definition, the stages it applies at and why. A criterion you add is recorded as **tightened**
   ([Criteria versions and direction](Criteria-Versions-and-Direction)): decisions already made at those stages

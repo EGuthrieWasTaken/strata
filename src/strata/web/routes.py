@@ -63,6 +63,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from strata import gitio
+from strata.core import fieldedit as fieldedit_mod
 from strata.core import filters as filters_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import provenance as provenance_mod
@@ -1008,6 +1009,7 @@ def record_detail_context(
     *,
     error: str | None = None,
     fix_values: dict[str, str] | None = None,
+    unchanged: bool = False,
 ) -> dict[str, Any]:
     """What `record_detail.html` shows; also what the correction form re-renders with when it is
     turned away (openspec:web-ui#correcting-a-record)."""
@@ -1016,7 +1018,16 @@ def record_detail_context(
         "authors": _author_display(record),
         "year": _record_year(record),
         "provenance": provenance_mod.build_provenance(repo, record["id"]),
-        "editable_fields": sorted(records_mod.EDITABLE_STRING_FIELDS),
+        "editable_fields": sorted(fieldedit_mod.EDITABLE_FIELDS),
+        "current_values": {
+            name: fieldedit_mod.format_field_value(
+                "issued" if name == "year" else name,
+                record.get("issued" if name == "year" else name),
+            )
+            for name in fieldedit_mod.EDITABLE_FIELDS
+        },
+        "shares_identity": records_mod.records_sharing_identity(repo, record),
+        "unchanged": unchanged,
         "session_token": state.session_token,
         "error": error,
         "fix_values": fix_values or {"field": "title", "value": "", "rationale": ""},
@@ -1032,7 +1043,13 @@ async def record_detail_view(request: Request, record_id: str) -> HTMLResponse |
     record = records_mod.get_record(repo, record_id)
     if record is None:
         return _error(f"unknown record {record_id!r}", status_code=404)
-    return _render(request, "record_detail.html", record_detail_context(state, repo, record))
+    return _render(
+        request,
+        "record_detail.html",
+        record_detail_context(
+            state, repo, record, unchanged=request.query_params.get("unchanged") == "1"
+        ),
+    )
 
 
 # ----------------------------------------------------------------- history

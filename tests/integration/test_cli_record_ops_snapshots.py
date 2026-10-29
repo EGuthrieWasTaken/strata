@@ -164,21 +164,22 @@ def test_fix_accepts_a_short_id_and_prints_json(tmp_path: Path) -> None:
 
 
 def test_fix_refuses_a_field_it_cannot_edit_and_writes_nothing(tmp_path: Path) -> None:
+    # `author` used to be refused here; it and the year can be corrected now, so this pins the
+    # refusal of a field that is not metadata.
     root = _review(tmp_path)
     rid = _record_id_by_title(root, "Original title")
     before = _commit_count(root)
 
     code, out = _run(
-        "--why", "trying to edit a structured field", "-C", str(root), "fix", rid,
-        "--field", "author", "--value", "x", "--by", "ethan",
+        "--why", "trying to edit the identity of a record", "-C", str(root), "fix", rid,
+        "--field", "id", "--value", "x", "--by", "ethan",
     )  # fmt: skip
 
     assert code == EXIT_USAGE
     assert out == (
-        "error: field 'author' cannot be corrected with `strata fix` -- only plain string "
-        "fields can: DOI, ISBN, PMCID, PMID, URL, abstract, container-title, issue, keyword, "
-        "language, page, title, volume. `author` and `issued` are structured fields, not "
-        "editable this way yet."
+        "error: field 'id' cannot be corrected with `strata fix`; it can correct: DOI, ISBN, "
+        "PMCID, PMID, URL, abstract, author, container-title, issue, issued, keyword, language, "
+        "page, title, volume, year"
     )
     assert _commit_count(root) == before
     assert _status(root) == []

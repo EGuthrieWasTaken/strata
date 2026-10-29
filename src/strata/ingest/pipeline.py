@@ -20,18 +20,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from strata.core import aliases as aliases_mod
 from strata.core import manifest as manifest_mod
 from strata.core import records as records_mod
 from strata.core.canon import canonical_json, dump_yaml_str, load_yaml_str
 from strata.core.events import append_new_event, append_new_events
-from strata.core.ids import (
-    assign_record_id,
-    new_import_id,
-    normalise_doi,
-    normalise_isbn,
-    normalise_pmcid,
-    normalise_pmid,
-)
+from strata.core.ids import assign_record_id, new_import_id, normalise_identifier_fields
 from strata.core.repo import Repo
 from strata.core.validate import validate
 from strata.ingest.parsers import ParseResult, RejectedRow, decode_bytes, normalise_newlines
@@ -170,27 +164,6 @@ def detect_format(path: Path, text: str) -> str:
             "pass --format (ris, medline, or citation-list for a plain-text reference list)"
         )
     raise ImportPipelineError(f"unsupported file extension {ext!r}; pass --format explicitly")
-
-
-def _apply_identifier_normalisation(record: dict[str, Any]) -> None:
-    """openspec:data-schemas#record-schema-is-csl-json-plus-a-namespaced-extension --
-    DOI/PMID/PMCID/ISBN are normalised per openspec:record-identity#normalisation-rules on storage.
-
-    A value that fails to normalise (not DOI-shaped, no digits) is left as
-    parsed rather than dropped: strata never silently discards metadata, it
-    simply plays no role in identity (`canonical_key` re-derives the same
-    normalisation independently for that purpose).
-    """
-    for field_name, normaliser in (
-        ("DOI", normalise_doi),
-        ("PMID", normalise_pmid),
-        ("PMCID", normalise_pmcid),
-        ("ISBN", normalise_isbn),
-    ):
-        if field_name in record:
-            normalised = normaliser(record[field_name])
-            if normalised:
-                record[field_name] = normalised
 
 
 def _write_rejected(path: Path, rejected: list[RejectedRow]) -> None:
@@ -390,13 +363,17 @@ def import_file(
 
     import_id = new_import_id()
     by_id = records_mod.index_by_id(records_mod.read_records(repo))
+    # A record whose identity was corrected by hand (`strata fix`) is also known by the id the
+    # corrected identity gives; a row that carries it is that record again, not a new one
+    # (openspec:record-identity#identifiers-are-permanent).
+    alias_edges = {entry["alias"]: entry["canonical"] for entry in aliases_mod.read_aliases(repo)}
     existing_ids_appended = 0
     new_records: list[tuple[str, dict[str, Any]]] = []
     nondeterministic_rows: list[int] = []
 
     for row_number, raw_record in enumerate(parsed.records, start=1):
         record = dict(raw_record)
-        _apply_identifier_normalisation(record)
+        normalise_identifier_fields(record)
         rid, key, deterministic = assign_record_id(record)
         if not deterministic:  # pragma: no cover - unreachable while every parser rejects
             # a title-less record before it reaches this loop (see has_title()
@@ -423,8 +400,13 @@ def import_file(
         if via is not None:
             source_entry["via"] = via
 
-        if rid in by_id:
-            by_id[rid]["strata"]["sources"].append(source_entry)
+        match = rid
+        for _ in range(len(alias_edges) + 1):  # an alias chain is acyclic; the bound is a guard
+            if match in by_id or match not in alias_edges:
+                break
+            match = alias_edges[match]
+        if match in by_id:
+            by_id[match]["strata"]["sources"].append(source_entry)
             existing_ids_appended += 1
             continue
 

@@ -12,6 +12,7 @@ import hashlib
 import html
 import re
 import unicodedata
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -180,6 +181,29 @@ def normalise_isbn(raw: Any) -> str | None:
         return None
     digits = re.sub(r"\D", "", str(raw))
     return digits or None
+
+
+#: The identifier fields, with how each is normalised on storage
+#: (openspec:record-identity#normalisation-rules).
+IDENTIFIER_NORMALISERS: dict[str, Callable[[Any], str | None]] = {
+    "DOI": normalise_doi,
+    "PMID": normalise_pmid,
+    "PMCID": normalise_pmcid,
+    "ISBN": normalise_isbn,
+}
+
+
+def normalise_identifier_fields(record: dict[str, Any]) -> None:
+    """Store DOI, PMID, PMCID and ISBN in normalised form, as an import does.
+
+    A value that fails to normalise (not DOI-shaped, no digits) is left as given rather than
+    dropped: strata never silently discards metadata, it simply plays no role in identity.
+    """
+    for field_name, normaliser in IDENTIFIER_NORMALISERS.items():
+        if field_name in record:
+            normalised = normaliser(record[field_name])
+            if normalised:
+                record[field_name] = normalised
 
 
 def _first_author_family(record: dict[str, Any]) -> str:

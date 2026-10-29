@@ -91,6 +91,15 @@ what is deliberately partial.
   line. `strata verify --fast` (the pre-commit hook) does not check derived drift, and `strata verify --fix`
   regenerates derived files but does not re-link chains or truncate partial lines; both are in
   [`Known-Limitations`](../wiki/Known-Limitations.md).
+- **Follow-up, after review: `strata fix`.** It could not correct authors or years, re-importing a corrected
+  export did not repair a record (a DOI matched the old record unchanged; without one the row became a second
+  record), a corrected DOI left the identity the record is matched by as it was, and a value the record
+  already had was still recorded. Now: authors and years are editable, identifiers are normalised as an
+  import normalises them, an empty value removes a field, a no-op is not recorded, and a correction that
+  changes the canonical key makes the new key's id an alias (the mechanism `record-identity` already
+  described, and the import pipeline now follows). Not done: `strata dedup` is not run for you after a
+  correction, and an alias is not made when a correction lands on another record's identity (it is named
+  instead).
 - **Follow-up, after review: `strata assign`, `strata verify`.** `strata assign` now refuses a handle that is
   not an active actor and lists the eligible ones. `strata verify` now reports `E_DERIVED_DRIFT`, which the
   specification had required since M1 and no one had implemented (`docs/m1-plan.md` records it as "still

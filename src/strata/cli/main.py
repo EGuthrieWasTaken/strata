@@ -36,6 +36,7 @@ from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
+from strata.core import fieldedit as fieldedit_mod
 from strata.core import ids as ids_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
@@ -1383,25 +1384,66 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
 def fix_command(
     ctx: typer.Context,
     record_id: str,
-    field: str = typer.Option(..., "--field", help="One of records_mod.EDITABLE_STRING_FIELDS"),
-    value: str = typer.Option(..., "--value", help="The corrected value"),
+    field: str = typer.Option(
+        ..., "--field", help="The field to correct (title, author, year, DOI, ...)"
+    ),
+    value: str = typer.Option(
+        ...,
+        "--value",
+        help="The corrected value (authors: 'Family, Given; Family, Given'; a date: YYYY-MM-DD)",
+    ),
     by: str = typer.Option(..., "--by", help="Actor handle making the correction"),
 ) -> None:
-    """Correct a metadata field, recording the change as a `record-amend` event."""
+    """Correct a metadata field, recording the change as a `record-amend` event.
+
+    Plain-text fields (title, journal, DOI, ...), `author` and the date (`year`, or `issued` for a
+    full date) can be corrected. An empty value removes the field. A DOI, PMID, PMCID or ISBN is
+    stored as an import would store it, and a value the record already has changes nothing. A
+    correction that changes how the record is identified keeps its id, and an export carrying the
+    corrected value is then matched to it.
+    """
     repo = _resolve_repo(ctx)
-    _preflight_rationale(ctx, repo)
     resolved_id = _resolve_record_id(repo, record_id)
+    try:
+        changes = records_mod.preview_amendment(
+            repo, record_id=resolved_id, field=field, value=value
+        )
+    except fieldedit_mod.FixFieldError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    _preflight_rationale(ctx, repo, needed=lambda: changes)
 
     def say_what_was_fixed(amended: ops_mod.RecordAmended) -> None:
         _warn_lock_reclaimed(amended.lock_reclaimed_from)
+        old_text = fieldedit_mod.format_field_value(amended.field, amended.old)
+        new_text = fieldedit_mod.format_field_value(amended.field, amended.new)
         if ctx.obj["json"]:
-            _print_json(
-                {"record": resolved_id, "field": field, "old": amended.old, "new": amended.new}
-            )
+            payload: dict[str, Any] = {
+                "record": resolved_id,
+                "field": field,
+                "old": amended.old,
+                "new": amended.new,
+            }
+            if amended.alias:
+                payload["alias"] = amended.alias
+            if amended.shares_identity_with:
+                payload["shares_identity_with"] = amended.shares_identity_with
+            _print_json(payload)
+        elif not amended.changed:
+            out_console.print(f"unchanged {resolved_id}.{field} is already {new_text!r}")
         else:
             out_console.print(
-                f"[green]fixed[/] {resolved_id}.{field}: {amended.old!r} -> {amended.new!r}"
+                f"[green]fixed[/] {resolved_id}.{field}: {old_text!r} -> {new_text!r}"
             )
+            if amended.shares_identity_with:
+                err_console.print(
+                    f"[yellow]warning:[/] {resolved_id} is now identified as "
+                    f"{amended.shares_identity_with}; run `strata dedup` to merge them"
+                )
+            elif amended.alias:
+                out_console.print(
+                    "the record keeps its id; an export carrying the corrected value now matches it"
+                )
 
     try:
         ops_mod.amend_record(
@@ -1414,7 +1456,7 @@ def fix_command(
             rationale=lambda: _get_rationale(ctx, repo, f"You corrected {field}."),
             on_written=say_what_was_fixed,
         )
-    except records_mod.FixFieldError as exc:
+    except fieldedit_mod.FixFieldError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
     except LockTimeoutError as exc:

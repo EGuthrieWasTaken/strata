@@ -67,6 +67,10 @@ that.
 - [x] 8.3 Make `strata init`, `import`, `dedup`, `fix` and every domain operation leave the derived files in step; verify with a test that takes a review through all of them and holds each to the check, and that a killed screening session is reported as drift and repaired by `--fix`
 - [x] 8.4 Update the wiki, CHANGELOG and M6 notes, and correct the Known-Limitations entry on `strata fix`
 
+- [x] 8.5 Make `strata fix` correct authors and the year, store identifiers as an import does, remove a field on an empty value, and do nothing for a value the record already has; verify each, the refusals, the readable timeline, and that a no-op needs no rationale
+- [x] 8.6 Keep identity in step with a correction: the corrected key's id becomes an alias, the import pipeline matches through aliases, and a correction onto another record's identity names it; verify exports carrying the corrected and the old value are matched, and that `strata dedup` merges a clash
+- [x] 8.7 Update the web correction form, the wiki, the CHANGELOG and the M6 notes for `strata fix`
+
 ## Workflow follow-up
 
 - Archive the change after review, and confirm `openspec/specs/web-ui`, `architecture` and the new `web-uploads` capability read correctly.
