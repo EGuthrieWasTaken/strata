@@ -7,13 +7,13 @@ and the locking model in openspec:architecture#concurrency-and-locking.
 from __future__ import annotations
 
 import contextlib
-import os
-import time
 import tomllib
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from strata.core import lockfile
 
 MANIFEST_NAME = "strata.toml"
 SCHEMA_VERSION_PATH = ".strata/schema-version"
@@ -80,36 +80,34 @@ def open_repo(start: Path | None = None) -> Repo:
     return repo
 
 
+@dataclass(frozen=True)
+class HeldLock:
+    """What a holder of the repository lock is told about how it got it."""
+
+    #: The process id found in the lock file when it was taken, if that process did not release
+    #: it cleanly (it died while holding the lock). `None` for an ordinary acquisition.
+    reclaimed_from: int | None = None
+
+
 @contextlib.contextmanager
-def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[None]:
+def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[HeldLock]:
     """Advisory lock guarding mutating operations, per
     openspec:architecture#concurrency-and-locking.
 
-    Readers never take this lock. Held for the duration of an append-plus-commit.
+    Readers never take this lock. Held for the duration of an append-plus-commit. The lock is the
+    operating system's, so a holder that dies releases it with its last breath
+    (`strata.core.lockfile`); the result says when that happened to the previous holder.
     """
     lock_path = repo.path(*LOCK_PATH.split("/"))
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    deadline = time.monotonic() + timeout
-    fd: int | None = None
-    while fd is None:
-        try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
-            if time.monotonic() >= deadline:
-                holder = "unknown"
-                if lock_path.exists():
-                    with contextlib.suppress(OSError):
-                        holder = lock_path.read_text().strip() or holder
-                raise LockTimeoutError(
-                    f"repository is locked (held by process {holder}); timed out after {timeout:g}s"
-                ) from None
-            time.sleep(0.1)
     try:
-        os.write(fd, f"{os.getpid()}\n".encode())
-        os.close(fd)
-        fd = None
-        yield
+        fd, reclaimed_from = lockfile.acquire(lock_path, timeout)
+    except lockfile.LockTimeout as exc:
+        holder = "unknown" if exc.holder is None else str(exc.holder)
+        raise LockTimeoutError(
+            f"repository is locked (held by process {holder}); timed out after {timeout:g}s"
+        ) from None
+    try:
+        yield HeldLock(reclaimed_from=reclaimed_from)
     finally:
-        if fd is not None:
-            os.close(fd)
-        lock_path.unlink(missing_ok=True)
+        lockfile.release(lock_path, fd)

@@ -6,14 +6,23 @@ to record the same action differently. An operation here takes the repository an
 writes, regenerates what the write moves, builds the structured commit and commits. A surface adds
 only argument handling, rationale elicitation and presentation.
 
-**Rationale.** A caller that already holds the rationale passes the text; the operation validates it
-*before* it writes, so a rejected or missing one leaves the tree untouched
+**Rationale.** A caller that already holds the rationale passes the text; the operation validates
+it *before* it writes, so a rejected or missing one leaves the tree untouched
 (openspec:git-integration#eliciting-the-rationale). The command line asks interactively, and only
 after the work so that the prompt can say what was done, so it passes a callable instead; that is
 invoked after the write and before the commit, and its result is validated like any other.
 
+**Locking.** Each operation holds the repository lock
+(openspec:architecture#concurrency-and-locking) from just before it writes until its commit is
+made, so a command line and a web server working on one repository cannot interleave their writes
+or sweep each other's staged files into a commit. The lock is held while a callable rationale is
+being answered, because the commit waits for it. A waiter gives up with `LockTimeoutError` naming
+the holder, and a result says when the lock had been left by a process that died
+(`lock_reclaimed_from`). Reads and dry runs never take it.
+
 **Errors.** Domain errors (`SearchError`, `ImportPipelineError`, `SchemaValidationError`,
-`RationaleRejectedError`) propagate to the caller, which reports them in its own terms.
+`RationaleRejectedError`, `LockTimeoutError`) propagate to the caller, which reports them in its
+own terms.
 """
 
 from __future__ import annotations
@@ -30,7 +39,7 @@ from strata.core.commit import (
     fit_subject,
     validate_rationale,
 )
-from strata.core.repo import Repo
+from strata.core.repo import DEFAULT_LOCK_TIMEOUT, Repo, repo_lock
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import searches as searches_mod
 from strata.report import counts as counts_mod
@@ -115,6 +124,8 @@ def _commit(
 class SearchRecorded:
     record: dict[str, Any]
     committed: bool
+    #: The process that left the lock behind, if the previous holder died holding it.
+    lock_reclaimed_from: int | None = None
 
     @property
     def query_pending(self) -> bool:
@@ -138,6 +149,7 @@ def record_search(
     commit: bool = True,
     rationale: RationaleSource = None,
     on_written: Callable[[SearchRecorded], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
 ) -> SearchRecorded:
     """Record an executed search (`strata search add`): write `protocol/searches/<id>.yaml`, commit.
 
@@ -145,36 +157,39 @@ def record_search(
     for, so a surface can say what it has done first.
     """
     _check_up_front(repo, rationale, commit=commit)
-    record = searches_mod.add_search(
-        repo,
-        database=database,
-        platform=platform,
-        executed=executed,
-        executed_by=executed_by,
-        search_id=search_id,
-        query=query,
-        hits=hits,
-        export_files=list(export_files) if export_files else [],
-        peer_reviewed_by=peer_reviewed_by,
-        notes=notes,
-        supersedes=supersedes,
-    )
-    recorded = SearchRecorded(record=record, committed=False)
-    if on_written is not None:
-        on_written(recorded)
-    if not commit:
-        return recorded
-    text = _resolve_rationale(repo, rationale)
-    _commit(
-        repo,
-        op="search-add",
-        scope=record["id"],
-        summary=f"record search {record['id']}",
-        rationale=text,
-        trailers={"Op": "search-add", "Search": record["id"], "Actor": executed_by},
-        paths=["protocol/searches"],
-    )
-    return SearchRecorded(record=record, committed=True)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        record = searches_mod.add_search(
+            repo,
+            database=database,
+            platform=platform,
+            executed=executed,
+            executed_by=executed_by,
+            search_id=search_id,
+            query=query,
+            hits=hits,
+            export_files=list(export_files) if export_files else [],
+            peer_reviewed_by=peer_reviewed_by,
+            notes=notes,
+            supersedes=supersedes,
+        )
+        recorded = SearchRecorded(
+            record=record, committed=False, lock_reclaimed_from=held.reclaimed_from
+        )
+        if on_written is not None:
+            on_written(recorded)
+        if not commit:
+            return recorded
+        text = _resolve_rationale(repo, rationale)
+        _commit(
+            repo,
+            op="search-add",
+            scope=record["id"],
+            summary=f"record search {record['id']}",
+            rationale=text,
+            trailers={"Op": "search-add", "Search": record["id"], "Actor": executed_by},
+            paths=["protocol/searches"],
+        )
+    return SearchRecorded(record=record, committed=True, lock_reclaimed_from=held.reclaimed_from)
 
 
 # ------------------------------------------------------------------------------------ imports
@@ -184,6 +199,8 @@ def record_search(
 class ImportResult:
     outcome: pipeline_mod.ImportOutcome
     committed: bool
+    #: The process that left the lock behind, if the previous holder died holding it.
+    lock_reclaimed_from: int | None = None
 
 
 def would_import_anything(
@@ -235,50 +252,70 @@ def import_file(
     commit: bool = True,
     rationale: RationaleSource = None,
     on_written: Callable[[ImportResult], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
 ) -> ImportResult:
     """Import one export file (`strata import`): copy it raw, parse it, assign ids, commit.
 
     Each file is its own import and its own commit. A file already imported changes nothing and
-    commits nothing; a dry run writes nothing at all. The PRISMA counts are regenerated for any
-    real import, committed or not, because the identified and duplicate counts moved.
+    commits nothing; a dry run writes nothing at all and takes no lock. The PRISMA counts are
+    regenerated for any real import, committed or not, because the identified and duplicate counts
+    moved.
     """
-    if not dry_run:
-        _check_up_front(
+    if dry_run:
+        outcome = pipeline_mod.import_file(
             repo,
-            rationale,
-            commit=commit,
-            needed=pipeline_mod.find_import_by_file(repo, source_path) is None,
+            source_path,
+            imported_by=imported_by,
+            search_id=search_id,
+            via=via,
+            fmt=fmt,
+            mapping=mapping,
+            sheet=sheet,
+            dry_run=True,
         )
-    outcome = pipeline_mod.import_file(
-        repo,
-        source_path,
-        imported_by=imported_by,
-        search_id=search_id,
-        via=via,
-        fmt=fmt,
-        mapping=mapping,
-        sheet=sheet,
-        dry_run=dry_run,
-    )
-    result = ImportResult(outcome=outcome, committed=False)
-    if on_written is not None:
-        on_written(result)
-    if outcome.already_imported or dry_run:
+        result = ImportResult(outcome=outcome, committed=False)
+        if on_written is not None:
+            on_written(result)
         return result
-    counts_mod.regenerate_counts_json(repo)
-    if not commit:
-        return result
-    text = _resolve_rationale(repo, rationale)
-    _commit(
+
+    _check_up_front(
         repo,
-        op="import",
-        scope=outcome.import_id,
-        summary=f"import {Path(source_path).name}",
-        rationale=text,
-        trailers={"Op": "import", "Import": outcome.import_id, "Actor": imported_by},
-        paths=["imports", "records", "events", "derived"],
+        rationale,
+        commit=commit,
+        needed=pipeline_mod.find_import_by_file(repo, source_path) is None,
     )
-    return ImportResult(outcome=outcome, committed=True)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        outcome = pipeline_mod.import_file(
+            repo,
+            source_path,
+            imported_by=imported_by,
+            search_id=search_id,
+            via=via,
+            fmt=fmt,
+            mapping=mapping,
+            sheet=sheet,
+        )
+        result = ImportResult(
+            outcome=outcome, committed=False, lock_reclaimed_from=held.reclaimed_from
+        )
+        if on_written is not None:
+            on_written(result)
+        if outcome.already_imported:
+            return result
+        counts_mod.regenerate_counts_json(repo)
+        if not commit:
+            return result
+        text = _resolve_rationale(repo, rationale)
+        _commit(
+            repo,
+            op="import",
+            scope=outcome.import_id,
+            summary=f"import {Path(source_path).name}",
+            rationale=text,
+            trailers={"Op": "import", "Import": outcome.import_id, "Actor": imported_by},
+            paths=["imports", "records", "events", "derived"],
+        )
+    return ImportResult(outcome=outcome, committed=True, lock_reclaimed_from=held.reclaimed_from)
 
 
 @dataclass(frozen=True)

@@ -14,10 +14,10 @@ that.
 
 ## 2. The repository lock
 
-- [ ] 2.1 Rewrite `repo_lock` on OS-level locks (`fcntl.flock`, `msvcrt.locking`) over a persistent `.strata/lock` that records the holder's PID, keeping the 30-second timeout and the message that names the holder, and reporting a lock left by a process that did not exit cleanly; verify with unit tests for contention, the timeout message, and a holder killed with SIGKILL (terminated on Windows) after which the lock can be taken and the reclaim is reported
-- [ ] 2.2 Add a multi-process test in which a CLI import and a second writer run against one repository at the same time; verify both commits land and the test passes on the Linux, macOS and Windows jobs
-- [ ] 2.3 Take the lock in `record_search` and `import_files` for the write only, never for a dry run; verify with the 2.2 test and a check that `--dry-run` and a review leave no `.strata/lock` holder behind
-- [ ] 2.4 Document the lock in the wiki's recovery page (what the message means, that a crashed process no longer needs a manual cleanup, and that network drives are unsupported for a working copy) and in the CHANGELOG; verify `scripts/check_wiki.py` passes
+- [x] 2.1 Rewrite `repo_lock` on OS-level locks (`fcntl.flock`, `msvcrt.locking`) over a persistent `.strata/lock` that records the holder's PID, keeping the 30-second timeout and the message that names the holder, and reporting a lock left by a process that did not exit cleanly; verify with unit tests for contention, the timeout message, and a holder killed with SIGKILL (terminated on Windows) after which the lock can be taken and the reclaim is reported
+- [x] 2.2 Add a multi-process test in which a CLI import and a second writer run against one repository at the same time; verify both commits land and the test passes on the Linux, macOS and Windows jobs
+- [x] 2.3 Take the lock in `record_search` and `import_files` for the write only, never for a dry run; verify with the 2.2 test and a check that `--dry-run` and a review leave no `.strata/lock` holder behind
+- [x] 2.4 Document the lock in the wiki's recovery page (what the message means, that a crashed process no longer needs a manual cleanup, and that network drives are unsupported for a working copy) and in the CHANGELOG; verify `scripts/check_wiki.py` passes
 
 ## 3. Upload handling (`web-uploads`)
 

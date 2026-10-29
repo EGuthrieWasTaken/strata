@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -77,17 +78,41 @@ def test_repo_lock_acquires_and_releases(tmp_path: Path) -> None:
     assert not lock_path.exists()
 
 
-def test_repo_lock_times_out_when_already_held(tmp_path: Path) -> None:
+def _wait_for_the_lock(repo: Repo, timeout: float) -> None:
+    with repo_lock(repo, timeout=timeout):
+        pass
+
+
+def test_repo_lock_times_out_when_held_and_names_the_holder(tmp_path: Path) -> None:
+    _write_minimal_manifest(tmp_path)
+    repo = open_repo(tmp_path)
+    with repo_lock(repo), pytest.raises(LockTimeoutError, match=str(os.getpid())) as caught:
+        _wait_for_the_lock(repo, 0.2)
+    assert "timed out after 0.2s" in str(caught.value)
+
+
+def test_repo_lock_reclaims_a_lock_whose_holder_is_gone(tmp_path: Path) -> None:
     _write_minimal_manifest(tmp_path)
     repo = open_repo(tmp_path)
     lock_path = repo.path(".strata", "lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+    # What a process killed while holding the lock leaves behind: a file naming it, held by no one.
     lock_path.write_text("999999\n", encoding="utf-8")
-    try:
-        with pytest.raises(LockTimeoutError, match="999999"), repo_lock(repo, timeout=0.2):
-            pass
-    finally:
-        lock_path.unlink(missing_ok=True)
+
+    with repo_lock(repo, timeout=0.2) as held:
+        assert held.reclaimed_from == 999999
+
+    assert not lock_path.exists()
+
+
+def test_an_ordinary_acquisition_reclaims_nothing(tmp_path: Path) -> None:
+    _write_minimal_manifest(tmp_path)
+    repo = open_repo(tmp_path)
+
+    with repo_lock(repo) as first:
+        assert first.reclaimed_from is None
+    with repo_lock(repo) as second:
+        assert second.reclaimed_from is None
 
 
 def test_repo_lock_releases_on_exception(tmp_path: Path) -> None:

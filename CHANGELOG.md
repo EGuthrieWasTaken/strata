@@ -7,6 +7,15 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **The repository lock is the operating system's** (`strata.core.lockfile`; OpenSpec change
+  `add-web-ui-write-surfaces`). It was a file whose existence meant "held", so a `strata` killed mid-write left
+  it behind and every later write failed after 30 seconds until someone deleted `.strata/lock`; and nothing
+  actually took it. It is now a `flock` (a byte-range lock on Windows), so a holder that dies, however it dies,
+  holds nothing. A command that finds a lock its holder died holding takes it over and says so. `strata search
+  add` and `strata import` now take it for the length of their write and commit, so a terminal and `strata
+  serve` cannot interleave; a command that cannot get it in 30 seconds names the process that has it. The
+  Windows branch is written but has only been exercised on Linux so far.
+
 - **The wiki** (`wiki/`, 40 pages; the `project-documentation` spec). A home page with Installation,
   Quickstart (a whole single-reviewer review run on invented example data), Git for reviewers and a practical
   guide for every stage (setting up, searching and importing, duplicates, screening, adjudication and

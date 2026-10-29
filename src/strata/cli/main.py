@@ -50,7 +50,13 @@ from strata.core import sync as sync_mod
 from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
-from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
+from strata.core.repo import (
+    LockTimeoutError,
+    Repo,
+    RepoNotFoundError,
+    SchemaTooNewError,
+    open_repo,
+)
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -209,6 +215,21 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
     except SchemaTooNewError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
+
+
+def _warn_lock_reclaimed(previous_holder: int | None) -> None:
+    """Say so when this run took a lock its last holder died holding (it stopped mid-write)."""
+    if previous_holder is not None:
+        err_console.print(
+            f"[yellow]warning:[/] the repository lock was left by process {previous_holder}, which "
+            "is no longer running; it may have stopped part-way through a write. This run carried "
+            "on; `strata verify` checks that nothing was left half-done."
+        )
+
+
+def _lock_busy(exc: LockTimeoutError) -> NoReturn:
+    err_console.print(f"[red]error:[/] {exc}")
+    raise typer.Exit(EXIT_GENERIC)
 
 
 def _read_supplied_rationale(ctx: typer.Context) -> str | None:
@@ -770,6 +791,7 @@ def search_add(
 
     def say_what_was_recorded(recorded: ops_mod.SearchRecorded) -> None:
         written["record"] = recorded.record
+        _warn_lock_reclaimed(recorded.lock_reclaimed_from)
         if recorded.query_pending:
             out_console.print(
                 f"[yellow]warning:[/] no query string recorded for {recorded.record['id']} "
@@ -805,6 +827,8 @@ def search_add(
     except (searches_mod.SearchError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
     if not recorded.committed:
         out_console.print(f"[green]recorded[/] search {recorded.record['id']} (not committed)")
@@ -851,6 +875,7 @@ def _import_one(
     def say_what_happened(result: ops_mod.ImportResult) -> None:
         outcome = result.outcome
         written["outcome"] = outcome
+        _warn_lock_reclaimed(result.lock_reclaimed_from)
         if ctx.obj["json"]:
             results.append({"file": file, **dataclasses.asdict(outcome)})
         if outcome.already_imported:
@@ -968,6 +993,8 @@ def import_command(
                 results.append({"file": file, "error": str(exc)})
             else:
                 err_console.print(f"[red]error:[/] {file}: {exc}")
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
 
     if ctx.obj["json"]:
         _print_json(results)
