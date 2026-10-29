@@ -240,6 +240,13 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- `strata import` of a file with a long name (more than about 25 characters, such as
+  `medline-export-2026-10-01-final-v2.ris`) and `strata search add` for a database with a long name (such as
+  the Cochrane Central Register of Controlled Trials) failed with a `ValueError` traceback *after* writing and
+  staging their files, because the commit subject is limited to 72 characters and included the name. The
+  subject is now shortened to fit and the full id or file name stays in the commit trailers, the import
+  manifest and the stored file. Found while moving the two commands onto `strata.core.operations` (OpenSpec
+  change `add-web-ui-write-surfaces`), where every uploaded file name and database name is the user's.
 - Started by a path that is not on `PATH` (`/opt/venv/bin/strata ...`, or an environment that is not
   activated), `strata` made every commit fail: the hooks it triggers run `strata` by name and died with
   `exec: strata: not found`, and `strata init` left a repository with nothing committed and every file

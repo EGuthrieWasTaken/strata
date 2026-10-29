@@ -42,6 +42,7 @@ from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import merge as merge_mod
+from strata.core import operations as ops_mod
 from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
@@ -251,7 +252,7 @@ def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> st
 
 
 def _rationale_required(repo: Repo) -> bool:
-    return bool(repo.config.get("git", {}).get("require_rationale", True))
+    return ops_mod.rationale_required(repo)
 
 
 def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
@@ -355,19 +356,11 @@ def _parse_config_value(raw: str) -> bool | int | float | str:
 
 
 def _parse_map_option(raw: str) -> dict[str, str]:
-    """`--map title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
-
-    openspec:literature-import#csv-column-mapping's own example uses exactly this
-    comma-separated `field=Column Name` syntax; a column name containing a
-    literal comma isn't expressible this way, a known limitation.
-    """
-    mapping: dict[str, str] = {}
-    for pair in raw.split(","):
-        if "=" not in pair:
-            raise typer.BadParameter(f"--map entry {pair!r} is not of the form field=Column")
-        field_name, column = pair.split("=", 1)
-        mapping[field_name.strip()] = column.strip()
-    return mapping
+    """`--map title=Article Title,doi=DOI`; the syntax itself is `ingest`'s."""
+    try:
+        return pipeline_mod.parse_mapping(raw)
+    except pipeline_mod.MappingSyntaxError as exc:
+        raise typer.BadParameter(f"--map {exc}") from None
 
 
 @app.command()
@@ -773,8 +766,26 @@ def search_add(
         query = Path(query_file).read_text(encoding="utf-8")
     resolved_executed = executed or date.today().isoformat()
 
+    written: dict[str, dict[str, Any]] = {}
+
+    def say_what_was_recorded(recorded: ops_mod.SearchRecorded) -> None:
+        written["record"] = recorded.record
+        if recorded.query_pending:
+            out_console.print(
+                f"[yellow]warning:[/] no query string recorded for {recorded.record['id']} "
+                "(PRISMA item 7) — supply it before the review is finalised"
+            )
+
+    def ask_why() -> str | None:
+        record = written["record"]
+        return _get_rationale(
+            ctx,
+            repo,
+            f"You recorded search {record['id']} ({record['database']} via {record['platform']}).",
+        )
+
     try:
-        record = searches_mod.add_search(
+        recorded = ops_mod.record_search(
             repo,
             database=database,
             platform=platform,
@@ -787,36 +798,18 @@ def search_add(
             peer_reviewed_by=peer_reviewed_by,
             notes=notes,
             supersedes=supersedes,
+            commit=not ctx.obj["no_commit"],
+            rationale=ask_why,
+            on_written=say_what_was_recorded,
         )
     except (searches_mod.SearchError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
 
-    if record["query"] == searches_mod.PENDING_QUERY:
-        out_console.print(
-            f"[yellow]warning:[/] no query string recorded for {record['id']} "
-            "(PRISMA item 7) — supply it before the review is finalised"
-        )
-
-    if ctx.obj["no_commit"]:
-        out_console.print(f"[green]recorded[/] search {record['id']} (not committed)")
+    if not recorded.committed:
+        out_console.print(f"[green]recorded[/] search {recorded.record['id']} (not committed)")
         return
-
-    rationale = _get_rationale(
-        ctx,
-        repo,
-        f"You recorded search {record['id']} ({record['database']} via {record['platform']}).",
-    )
-    commit_obj = StructuredCommit(
-        op="search-add",
-        scope=record["id"],
-        summary=f"record search {record['id']}",
-        body=rationale,
-        trailers={"Op": "search-add", "Search": record["id"], "Actor": executed_by},
-    )
-    gitio.add(repo.root, ["protocol/searches"])
-    gitio.commit(repo.root, commit_obj.message())
-    out_console.print(f"[green]recorded[/] search {record['id']}")
+    out_console.print(f"[green]recorded[/] search {recorded.record['id']}")
 
 
 @search_app.command("list")
@@ -836,6 +829,65 @@ def search_list(ctx: typer.Context) -> None:
         hits = s.get("hits")
         hits_str = f"{hits} hits" if hits is not None else "hits unknown"
         out_console.print(f"{s['id']:<20} {s['database']:<14} {s['executed']}  {hits_str}{pending}")
+
+
+def _import_one(
+    ctx: typer.Context,
+    repo: Repo,
+    file: str,
+    results: list[dict[str, Any]],
+    *,
+    imported_by: str,
+    search_id: str | None,
+    via: str | None,
+    fmt: str | None,
+    mapping: dict[str, str] | None,
+    sheet: str | None,
+    dry_run: bool,
+) -> None:
+    """One file of `strata import`: the shared operation, plus what this command says about it."""
+    written: dict[str, pipeline_mod.ImportOutcome] = {}
+
+    def say_what_happened(result: ops_mod.ImportResult) -> None:
+        outcome = result.outcome
+        written["outcome"] = outcome
+        if ctx.obj["json"]:
+            results.append({"file": file, **dataclasses.asdict(outcome)})
+        if outcome.already_imported:
+            if not ctx.obj["json"]:
+                out_console.print(
+                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
+                )
+            return
+        if not ctx.obj["json"]:
+            verb = "would import" if dry_run else "imported"
+            out_console.print(
+                f"[green]{verb}[/] {file} as {outcome.import_id}: "
+                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
+                f"existing, {outcome.rows_rejected} rejected"
+            )
+            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
+                out_console.print(
+                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
+                )
+
+    def ask_why() -> str | None:
+        return _get_rationale(ctx, repo, f"You imported {file} as {written['outcome'].import_id}.")
+
+    ops_mod.import_file(
+        repo,
+        file,
+        imported_by=imported_by,
+        search_id=search_id,
+        via=via,
+        fmt=fmt,
+        mapping=mapping,
+        sheet=sheet,
+        dry_run=dry_run,
+        commit=not ctx.obj["no_commit"],
+        rationale=ask_why,
+        on_written=say_what_happened,
+    )
 
 
 @app.command("import")
@@ -876,37 +928,32 @@ def import_command(
     """
     repo = _resolve_repo(ctx)
     exit_code = EXIT_OK
-    results = []
+    results: list[dict[str, Any]] = []
     mapping = _parse_map_option(map_option) if map_option else None
 
-    def would_import_something() -> bool:
-        for file in files:
-            try:
-                outcome = pipeline_mod.import_file(
-                    repo,
-                    file,
-                    imported_by=by,
-                    search_id=search_id,
-                    via=via,
-                    fmt=fmt,
-                    mapping=mapping,
-                    sheet=sheet,
-                    dry_run=True,
-                )
-            except pipeline_mod.ImportPipelineError:
-                continue  # nothing to commit from this one; the real run reports it as usual
-            if not outcome.already_imported:
-                return True
-        return False
-
     if not dry_run:
-        _preflight_rationale(ctx, repo, needed=would_import_something)
+        _preflight_rationale(
+            ctx,
+            repo,
+            needed=lambda: ops_mod.would_import_anything(
+                repo,
+                files,
+                imported_by=by,
+                search_id=search_id,
+                via=via,
+                fmt=fmt,
+                mapping=mapping,
+                sheet=sheet,
+            ),
+        )
 
     for file in files:
         try:
-            outcome = pipeline_mod.import_file(
+            _import_one(
+                ctx,
                 repo,
                 file,
+                results,
                 imported_by=by,
                 search_id=search_id,
                 via=via,
@@ -921,45 +968,6 @@ def import_command(
                 results.append({"file": file, "error": str(exc)})
             else:
                 err_console.print(f"[red]error:[/] {file}: {exc}")
-            continue
-
-        if ctx.obj["json"]:
-            results.append({"file": file, **dataclasses.asdict(outcome)})
-
-        if outcome.already_imported:
-            if not ctx.obj["json"]:
-                out_console.print(
-                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
-                )
-            continue
-
-        if not ctx.obj["json"]:
-            verb = "would import" if dry_run else "imported"
-            out_console.print(
-                f"[green]{verb}[/] {file} as {outcome.import_id}: "
-                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
-                f"existing, {outcome.rows_rejected} rejected"
-            )
-            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
-                out_console.print(
-                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
-                )
-
-        if not dry_run:
-            counts_mod.regenerate_counts_json(repo)  # the identified and duplicate counts moved
-        if dry_run or ctx.obj["no_commit"]:
-            continue
-
-        rationale = _get_rationale(ctx, repo, f"You imported {file} as {outcome.import_id}.")
-        commit_obj = StructuredCommit(
-            op="import",
-            scope=outcome.import_id,
-            summary=f"import {Path(file).name}",
-            body=rationale,
-            trailers={"Op": "import", "Import": outcome.import_id, "Actor": by},
-        )
-        gitio.add(repo.root, ["imports", "records", "events", "derived"])
-        gitio.commit(repo.root, commit_obj.message())
 
     if ctx.obj["json"]:
         _print_json(results)

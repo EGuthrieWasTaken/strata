@@ -127,11 +127,25 @@ def list_import_manifests(repo: Repo) -> list[dict[str, Any]]:
     return sorted(results, key=lambda m: str(m["id"]))
 
 
+def file_digest(raw: bytes) -> str:
+    """The digest an import is identified by: `sha256:` and the hex of the file's bytes."""
+    return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
 def find_import_by_digest(repo: Repo, digest: str) -> dict[str, Any] | None:
     for manifest_data in list_import_manifests(repo):
         if manifest_data.get("digest") == digest:
             return manifest_data
     return None
+
+
+def find_import_by_file(repo: Repo, source_path: str | Path) -> dict[str, Any] | None:
+    """The earlier import of exactly this file's bytes, or `None` (also for an unreadable file)."""
+    try:
+        raw = Path(source_path).read_bytes()
+    except OSError:
+        return None
+    return find_import_by_digest(repo, file_digest(raw))
 
 
 def detect_format(path: Path, text: str) -> str:
@@ -209,6 +223,33 @@ def _resolve_csv_mapping(
     return {field: column for field, column in profile.mapping.items() if column in header_columns}
 
 
+@dataclass(frozen=True)
+class _Source:
+    """A file's bytes as the parsers see them: text, how it was decoded and which format it is."""
+
+    text: str
+    encoding: str
+    resolved_format: str  # what the import manifest records (`xlsx`, not `tsv`)
+    parse_format: str  # what picks the parser (a workbook's sheet is parsed as `tsv`)
+    sheet_name: str | None
+
+
+def _read_source(raw: bytes, source_path: Path, *, fmt: str | None, sheet: str | None) -> _Source:
+    if fmt == "xlsx" or (fmt is None and source_path.suffix.lower() == ".xlsx"):
+        # A workbook is not text: read its sheet, then treat the sheet as the TSV export it is.
+        try:
+            sheet_name, rows = xlsx_parser.read_rows(raw, sheet)
+        except xlsx_parser.XlsxError as exc:
+            raise ImportPipelineError(f"{source_path.name}: {exc}") from None
+        return _Source(xlsx_parser.rows_to_tsv(rows), "xlsx", "xlsx", "tsv", sheet_name)
+    if sheet is not None:
+        raise ImportPipelineError("--sheet only applies to an .xlsx workbook")
+    text, encoding = decode_bytes(raw)
+    text = normalise_newlines(text)
+    resolved_format = fmt or detect_format(source_path, text)
+    return _Source(text, encoding, resolved_format, resolved_format, None)
+
+
 def import_file(
     repo: Repo,
     source_path: str | Path,
@@ -239,7 +280,7 @@ def import_file(
             raise ImportPipelineError(f"unknown search {search_id!r}")
 
     raw = source_path.read_bytes()
-    digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+    digest = file_digest(raw)
 
     existing = find_import_by_digest(repo, digest)
     if existing is not None:
@@ -256,22 +297,13 @@ def import_file(
             column_mapping=existing.get("column_mapping"),
         )
 
-    sheet_name: str | None = None
-    if fmt == "xlsx" or (fmt is None and source_path.suffix.lower() == ".xlsx"):
-        # A workbook is not text: read its sheet, then treat the sheet as the TSV export it is.
-        try:
-            sheet_name, rows = xlsx_parser.read_rows(raw, sheet)
-        except xlsx_parser.XlsxError as exc:
-            raise ImportPipelineError(f"{source_path.name}: {exc}") from None
-        text, encoding = xlsx_parser.rows_to_tsv(rows), "xlsx"
-        resolved_format, parse_format = "xlsx", "tsv"
-    else:
-        if sheet is not None:
-            raise ImportPipelineError("--sheet only applies to an .xlsx workbook")
-        text, encoding = decode_bytes(raw)
-        text = normalise_newlines(text)
-        resolved_format = fmt or detect_format(source_path, text)
-        parse_format = resolved_format
+    source = _read_source(raw, source_path, fmt=fmt, sheet=sheet)
+    text, encoding = source.text, source.encoding
+    resolved_format, parse_format, sheet_name = (
+        source.resolved_format,
+        source.parse_format,
+        source.sheet_name,
+    )
 
     resolved_mapping: dict[str, str] | None = None
     parsed: ParseResult
@@ -413,3 +445,78 @@ def import_file(
     )
 
     return outcome
+
+
+class MappingSyntaxError(ValueError):
+    """A column mapping that is not a comma-separated list of `field=Column`."""
+
+
+def parse_mapping(raw: str) -> dict[str, str]:
+    """`title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
+
+    openspec:literature-import#csv-column-mapping's own example uses exactly this comma-separated
+    `field=Column Name` syntax; a column name containing a literal comma is not expressible this
+    way, a known limitation. Which fields are valid is the CSV parser's to say, not this
+    function's.
+    """
+    mapping: dict[str, str] = {}
+    for pair in raw.split(","):
+        if "=" not in pair:
+            raise MappingSyntaxError(f"entry {pair!r} is not of the form field=Column")
+        field_name, column = pair.split("=", 1)
+        mapping[field_name.strip()] = column.strip()
+    return mapping
+
+
+#: The fields a column mapping can target, for a surface that offers the choice.
+MAPPABLE_FIELDS: tuple[str, ...] = tuple(sorted(csv_tsv_parser.FIELDS))
+
+
+@dataclass(frozen=True)
+class TableLayout:
+    """What a spreadsheet-like export looks like before it is imported (nothing is written)."""
+
+    format: str  # csv | tsv | xlsx
+    columns: list[str]  # the header row
+    platform: str | None  # the platform whose export these columns match, if any
+    detected_mapping: dict[str, str] | None  # the mapping that platform implies
+    sheets: list[str] | None  # a workbook's sheet names, in order
+    sheet: str | None  # the sheet `columns` were read from
+
+
+def describe_table(
+    source_path: str | Path, *, fmt: str | None = None, sheet: str | None = None
+) -> TableLayout | None:
+    """The header and recognised platform of a CSV, TSV or workbook, or `None` for any other format.
+
+    Read-only, and decided by the same code as `import_file`, so a surface that offers a column or
+    sheet choice cannot disagree with the import about what the file is.
+    """
+    path = Path(source_path)
+    if not path.is_file():
+        raise ImportPipelineError(f"no such file: {path}")
+    raw = path.read_bytes()
+    source = _read_source(raw, path, fmt=fmt, sheet=sheet)
+    delimiter = _CSV_LIKE_DELIMITERS.get(source.parse_format)
+    if delimiter is None:
+        return None
+    sheets: list[str] | None = None
+    if source.resolved_format == "xlsx":
+        try:
+            sheets = xlsx_parser.sheet_names(raw)
+        except xlsx_parser.XlsxError as exc:
+            raise ImportPipelineError(f"{path.name}: {exc}") from None
+    columns = csv_tsv_parser.read_header(source.text, delimiter=delimiter)
+    profile = detect_profile(columns)
+    detected = None
+    if profile is not None:
+        present = set(columns)
+        detected = {f: c for f, c in profile.mapping.items() if c in present}
+    return TableLayout(
+        format=source.resolved_format,
+        columns=columns,
+        platform=profile.name if profile is not None else None,
+        detected_mapping=detected,
+        sheets=sheets,
+        sheet=source.sheet_name,
+    )

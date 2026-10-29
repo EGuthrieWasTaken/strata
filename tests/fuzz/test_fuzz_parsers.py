@@ -25,6 +25,7 @@ suite's job (`tests/golden/`).
 
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from tests.unit._xlsx import build_xlsx
 
+from strata.ingest import pipeline
 from strata.ingest.parsers import (
     ParseResult,
     bibtex,
@@ -160,3 +162,27 @@ def test_fuzz_xlsx_only_ever_refuses_cleanly(raw: bytes) -> None:
     except xlsx.XlsxError:
         return
     assert isinstance(rows, list)
+
+
+def _describe_survives(raw: bytes, name: str) -> None:
+    with tempfile.TemporaryDirectory() as scratch:
+        path = Path(scratch) / name
+        path.write_bytes(raw)
+        try:
+            layout = pipeline.describe_table(path)
+        except pipeline.ImportPipelineError:
+            return  # a controlled refusal, which the review page reports
+        assert layout is None or isinstance(layout.columns, list)
+
+
+@_SETTINGS
+@given(_mutated_bytes(_XLSX_SEEDS))
+def test_fuzz_describing_a_workbook_only_ever_refuses_cleanly(raw: bytes) -> None:
+    """The review page reads a stranger's workbook before anyone has agreed to import it."""
+    _describe_survives(raw, "export.xlsx")
+
+
+@_SETTINGS
+@given(_mutated_bytes(_seed_corpus(_FIXTURES_DIR / "csv")))
+def test_fuzz_describing_a_csv_only_ever_refuses_cleanly(raw: bytes) -> None:
+    _describe_survives(raw, "export.csv")

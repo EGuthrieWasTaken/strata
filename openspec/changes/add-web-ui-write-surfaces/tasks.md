@@ -7,10 +7,10 @@ that.
 
 ## 1. Shared operations for searches and imports
 
-- [ ] 1.1 Before touching `cli/main.py`, add snapshot tests that pin `strata search add` and `strata import` as they are (stdout, exit code, written files, commit message and trailers; `--no-commit`, `--dry-run`, `--json`, and a multi-file import where the second file fails); verify they pass on the unmodified code
-- [ ] 1.2 Add `core/operations.py` with `record_search`, `import_files` and `rationale_problem`, moving commit assembly out of the two commands, and make both commands call them; verify the 1.1 snapshots pass unchanged and `ruff` and `mypy --strict` are clean
-- [ ] 1.3 Move parsing of the `--map` string out of `cli/main.py` into `ingest`, and add read-only helpers that return a CSV or TSV header with its detected platform profile and a workbook's sheet names; verify with unit tests, including the malformed fixtures from the existing fuzz corpus
-- [ ] 1.4 Add the equivalence test for the operations layer: the same search and the same import through `strata` and through `operations` leave identical files and commit messages once ids and timestamps are normalised; verify it passes and fails when a trailer is changed
+- [x] 1.1 Before touching `cli/main.py`, add snapshot tests that pin `strata search add` and `strata import` as they are (stdout, exit code, written files, commit message and trailers; `--no-commit`, `--dry-run`, `--json`, and a multi-file import where the second file fails); verify they pass on the unmodified code
+- [x] 1.2 Add `core/operations.py` with `record_search`, `import_files` and `rationale_problem`, moving commit assembly out of the two commands, and make both commands call them; verify the 1.1 snapshots pass unchanged and `ruff` and `mypy --strict` are clean
+- [x] 1.3 Move parsing of the `--map` string out of `cli/main.py` into `ingest`, and add read-only helpers that return a CSV or TSV header with its detected platform profile and a workbook's sheet names; verify with unit tests, including the malformed fixtures from the existing fuzz corpus
+- [x] 1.4 Add the equivalence test for the operations layer: the same search and the same import through `strata` and through `operations` leave identical files and commit messages once ids and timestamps are normalised; verify it passes and fails when a trailer is changed
 
 ## 2. The repository lock
 

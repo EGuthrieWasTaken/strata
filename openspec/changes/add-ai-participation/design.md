@@ -87,9 +87,11 @@ does it; claiming otherwise would be worse than saying nothing).
 ### D3. Attribution is an envelope key
 
 ```json
-{"ev":"screen","id":"ev_…","ts":"…","actor":"claude-opus",
+{"ev":"screen","id":"ev_01m62y4n2etk2j22640hhrn4z8","ts":"2026-11-02T09:14:07Z","actor":"claude-opus",
  "agent":{"model":"claude-opus-5-5","client":{"name":"claude-code","version":"2.1.3"},"invoked_by":"ada"},
- "seq":41,"body":{…},"tool":"strata 0.4.0","prev":"…","digest":"…"}
+ "seq":41,"body":{"stage":"title-abstract","record":"rec_0000000000000042","decision":"include"},
+ "tool":"strata 0.4.0","prev":"sha256:0000000000000000000000000000000000000000000000000000000000000000",
+ "digest":"sha256:1111111111111111111111111111111111111111111111111111111111111111"}
 ```
 
 The key sits between `actor` and `seq` and is covered by the digest, so it cannot be edited out by hand
