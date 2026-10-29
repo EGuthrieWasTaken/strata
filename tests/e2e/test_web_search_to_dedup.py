@@ -21,6 +21,7 @@ from strata.cli.main import EXIT_OK, app
 from strata.core import records as records_mod
 from strata.core.init import init_repository
 from strata.core.repo import open_repo
+from strata.protocol import pool as pool_mod
 from strata.web.app import create_app
 
 _TOKEN = "e2e-session-token-0123456789abcdef"
@@ -110,6 +111,8 @@ def test_a_review_goes_from_nothing_to_deduplicated_records_using_only_http(
     assert counts["totals"]["duplicates_removed"] == 1
     assert counts["totals"]["records_screened"] == 3
     assert counts["reconciled"] is True
+    # And no derived file is left behind what the records now say (the pool lost the merged record).
+    assert pool_mod.derived_drift(open_repo(root)) == []
     assert client.get("/prisma").status_code == 200
     assert client.get("/records").status_code == 200
 

@@ -16,6 +16,7 @@ from strata.core.repo import Repo
 from strata.core.verify import verify_repository
 from strata.extract import records as rec_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import pool as pool_mod
 from strata.protocol import retrieval
 from strata.protocol import screening as screening_mod
 from tests.unit._m3 import add_records, decide, rec
@@ -57,6 +58,7 @@ def _review(tmp_path: Path, *, k: int = 12, **spec: Any) -> Repo:
             source="institutional-access", version="version-of-record",
         )  # fmt: skip
     write_spec(repo, **spec)
+    pool_mod.regenerate_all(repo)  # the retrievals above went in below the command that refreshes
     _commit_all(repo)
     return repo
 

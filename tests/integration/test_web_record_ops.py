@@ -24,6 +24,7 @@ from strata.core import records as records_mod
 from strata.core.actor import add_actor
 from strata.core.init import init_repository
 from strata.core.repo import Repo, open_repo
+from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.web.app import create_app
@@ -143,6 +144,7 @@ def test_correcting_a_field_records_the_amendment_and_the_timeline_shows_it(
     assert response.headers["location"] == f"/records/{rid}"
     assert _count(repo) == before + 1
     assert _clean(repo)
+    assert pool_mod.derived_drift(open_repo(repo.root)) == []  # the pool shows the new title
     assert _head(repo) == (
         f"fix({rid}): corrected title\n\nfixing a typo in the title\n\n"
         "Strata-Op: fix\nStrata-Actor: ethan\n\n"
@@ -473,6 +475,7 @@ def test_assigning_two_reviewers_fills_both_queues(tmp_path: Path) -> None:
     assert response.headers["location"] == "/assign/title-abstract?done=1"
     assert _count(repo) == before + 1
     assert _clean(repo)
+    assert pool_mod.derived_drift(open_repo(repo.root)) == []
     assert _head(repo) == (
         "assign(title-abstract): assigned 2 title-abstract record(s)\n\nassigning both of us\n\n"
         "Strata-Op: assign\nStrata-Actor: ethan\nStrata-Actors: ethan,sam\n\n"
