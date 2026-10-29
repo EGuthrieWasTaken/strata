@@ -7,6 +7,17 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **Searches and imports in the web interface** (OpenSpec change `add-web-ui-write-surfaces`). `/searches`
+  lists the recorded searches with their dates, hits, whether their query is missing and what has been
+  imported from each; `/searches/new` records one (the date defaults to today; blank query is recorded as
+  missing and flagged; "re-run" makes a superseding search); a search takes its export files by file chooser
+  or drag and drop and `/import` takes records found by other methods. Every upload goes through a review
+  that runs the import pipeline's own dry run per file (new, matched, rejected rows with reasons, already
+  imported, a sheet chooser for workbooks, a column mapping for CSVs) and imports only on confirmation, each
+  file as its own commit through the same `strata.core.operations` the command line uses; a test holds the
+  results byte-identical to `strata search add` and `strata import`. The dashboard now names searches
+  missing their query and searches with no export imported yet, each linking to the search. A real-browser
+  smoke test (`tests/browser`, optional) drives the whole flow.
 - **Upload handling for the web interface** (`strata.web.uploads`; capability `web-uploads`, OpenSpec change
   `add-web-ui-write-surfaces`). `strata serve` refuses a form post larger than its declared limit before reading
   it (100 MB for a file upload, `--max-upload-mb N` to change; 1 MB for any other form), refuses one that
@@ -259,6 +270,16 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **Every form in the web interface was refused by a real browser.** The server sent `Referrer-Policy:
+  no-referrer`, under which browsers send `Origin: null` on every form post, even to the same site, and the
+  `Origin` check rejected it with `invalid Origin header`. Screening decisions, adjudication, criteria edits,
+  duplicate merges, extraction and risk-of-bias forms all failed in Chromium (the tests use an in-process
+  client that sends no `Origin`, so none could see it). The policy is now `same-origin`, which still sends
+  nothing to other sites.
+- After a duplicate merge in the web interface, the committed `derived/counts.json` still showed the old
+  number of duplicates removed (the command line regenerated it; the web route did not).
+- The dashboard's stage table scrolled sideways at a phone's width (320 px), which the accessibility
+  requirement forbids; it, and the tables on the new pages, now stack as labelled cards on a narrow screen.
 - `strata import` of a file with a long name (more than about 25 characters, such as
   `medline-export-2026-10-01-final-v2.ris`) and `strata search add` for a database with a long name (such as
   the Cochrane Central Register of Controlled Trials) failed with a `ValueError` traceback *after* writing and

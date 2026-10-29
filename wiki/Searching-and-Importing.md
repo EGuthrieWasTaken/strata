@@ -23,6 +23,13 @@ recorded search S-01-medline
 imported medline-export.ris as imp_01m5p5sm4k7ny08j3gp0x6phd0: 7 new, 1 matched existing, 0 rejected
 ```
 
+### In the web interface
+
+Everything in this page can also be done in the browser: **Searches** in `strata serve` records a search with
+its date and query, takes the export file (chosen or dragged onto the page), shows what importing it would do
+before anything is imported, and then imports it. See [The web interface](The-Web-Interface#recording-a-search-and-importing-its-results).
+Records found by other methods (`--via`) are under **Import**.
+
 ### Recording a search
 
 `strata search add` writes `protocol/searches/<id>.yaml`.

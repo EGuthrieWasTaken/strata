@@ -67,7 +67,8 @@ that makes unsafe: see [Changing criteria mid-review](Changing-Criteria-Mid-Revi
 
 ## 3. Record the searches and import the results
 
-Record each search *before* importing its results, with the query exactly as you ran it:
+Record each search *before* importing its results, with the query exactly as you ran it. (You can do this
+step in the browser instead: run `strata serve`, open **Searches**, and drop each export on its search.)
 
 ```
 strata --why "Recording the MEDLINE search" search add --database MEDLINE --platform Ovid --by ada --query "1. exp Learning/ 2. (spaced or distributed or massed) adj3 practi*.ti,ab. 3. 1 and 2" --hits 8 --executed 2026-10-01

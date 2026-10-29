@@ -76,6 +76,7 @@ from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
+from strata.report import counts as counts_mod
 from strata.web.app import AppState
 
 router = APIRouter()
@@ -775,6 +776,8 @@ def _commit_dedup_change(
         body=rationale,
         trailers={"Op": op, "Actor": actor, **(extra_trailers or {})},
     )
+    # The identified and duplicate counts move with every merge, as they do for `strata dedup`.
+    counts_mod.regenerate_counts_json(repo)
     gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 

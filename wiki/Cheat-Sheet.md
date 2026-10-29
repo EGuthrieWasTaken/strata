@@ -33,6 +33,8 @@ strata --why "..." dedup --by you                                          # the
 strata records list --filter "year >= 2015"
 ```
 
+Searching and importing can also be done in the browser (`strata serve`, then **Searches**).
+
 ## Screen
 
 ```

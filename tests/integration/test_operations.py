@@ -23,12 +23,10 @@ from strata.core.repo import Repo, open_repo
 from strata.ingest import pipeline
 from strata.ingest.pipeline import ImportPipelineError
 from strata.protocol.searches import SearchError
+from tests.integration._equivalence import committed_snapshot
 
 runner = CliRunner()
 
-_IMPORT_ID = re.compile(r"imp_[0-9a-z]{26}")
-_EVENT_ID = re.compile(r"ev_[0-9a-z]{26}")
-_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 _PAPERS = json.dumps(
     [
         {"title": "First paper", "DOI": "10.1000/aaa"},
@@ -341,32 +339,7 @@ def test_import_errors_are_the_pipelines(tmp_path: Path) -> None:
 
 
 def _committed_snapshot(repo: Repo) -> dict[str, str]:
-    """What HEAD changed, with the parts that legitimately differ between runs masked.
-
-    Masked: generated import and event ids and timestamps, and the hash chain, which covers them.
-    Everything else (record ids, manifests, bodies, raw files, commit message) is compared as is.
-    """
-
-    def mask(text: str) -> str:
-        text = _IMPORT_ID.sub("<IMPORT>", text)
-        text = _EVENT_ID.sub("<EVENT>", text)
-        text = _TIMESTAMP.sub("<TS>", text)
-        return re.sub(r"sha256:[0-9a-f]{64}", "<DIGEST>", text) if '"prev"' in text else text
-
-    names = gitio.run(["show", "--name-only", "--format=", "HEAD"], cwd=repo.root).stdout
-    snapshot = {"<message>": mask(_head(repo))}
-    for name in sorted(n for n in names.splitlines() if n):
-        content = gitio.run(["show", f"HEAD:{name}"], cwd=repo.root).stdout
-        if name.startswith("events/"):
-            lines = []
-            for line in content.splitlines():
-                event = json.loads(line)
-                lines.append(
-                    json.dumps({k: event[k] for k in ("ev", "actor", "body")}, sort_keys=True)
-                )
-            content = "\n".join(lines)
-        snapshot[mask(name)] = mask(content)
-    return snapshot
+    return committed_snapshot(repo.root)
 
 
 def test_one_search_through_the_command_and_the_operation_is_the_same(tmp_path: Path) -> None:

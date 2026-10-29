@@ -37,8 +37,8 @@ that.
 - [x] 4.4 Add confirmation, calling `operations.import_files` once per file and showing per-file results; verify that two files give two commits, that confirming twice does not import twice, and that a failing file leaves the search recorded
 - [x] 4.5 Add `/import` for the methods `--via` accepts; verify the PRISMA counts for a registry import equal the command line's
 - [x] 4.6 Add `static/dropzone.js`, its styles and the live-region announcements; verify the whole shipped JavaScript stays under 50 KB (a test), that no page needs it (the suite runs without it), a manual checklist (keyboard only, 200% zoom, 320 px width, reduced motion, screen reader announcement), and an optional Playwright smoke test marked `browser` that drops two files
-- [ ] 4.7 Add the equivalence tests for the web: one search and one import through the web and through the CLI give byte-identical search files and identical trailers, records, manifests, events and counts once ids and timestamps are normalised; and an end-to-end test that takes a repository from a recorded search to deduplicated records using only HTTP requests
-- [ ] 4.8 Update the wiki (`Searching-and-Importing` with an "in the web interface" section, `The-Web-Interface`, `Cheat-Sheet`, and the quickstart's note that the web interface can do this) and the CHANGELOG; verify `scripts/check_wiki.py` and `scripts/check_docs.py` pass
+- [x] 4.7 Add the equivalence tests for the web: one search and one import through the web and through the CLI give byte-identical search files and identical trailers, records, manifests, events and counts once ids and timestamps are normalised; and an end-to-end test that takes a repository from a recorded search to deduplicated records using only HTTP requests
+- [x] 4.8 Update the wiki (`Searching-and-Importing` with an "in the web interface" section, `The-Web-Interface`, `Cheat-Sheet`, and the quickstart's note that the web interface can do this) and the CHANGELOG; verify `scripts/check_wiki.py` and `scripts/check_docs.py` pass
 
 ## 5. Record corrections, criterion add, assignment
 

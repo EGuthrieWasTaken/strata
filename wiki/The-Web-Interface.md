@@ -25,6 +25,8 @@ screening as; it is required if the review has more than one actor. Stop it with
 | Adjudication | `/adjudicate/<stage>` | Conflicts, with both opinions side by side |
 | Criteria | `/criteria` | Edit or retire a criterion, with a **live impact preview** (how many decisions the change would put in doubt) *before* you save |
 | Duplicates | `/dedup` | The review queue for doubtful duplicates |
+| Searches | `/searches`, `/searches/new`, `/searches/<id>` | Record a search with its date and query, attach the export it produced, see what has been imported from it, and re-run it |
+| Import | `/import`, then a review step | Records that did not come from a database search (reference lists, websites, registries, experts) |
 | Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance |
 | History | `/history` | The domain-level log: who did what, and why |
 | Extraction | `/extract`, `/extract/<study>` | The coding form, with the effect size shown as you type; reconciliation at `/extract/<study>/reconcile` |
@@ -32,7 +34,28 @@ screening as; it is required if the review has more than one actor. Stop it with
 | Analyses | `/analysis`, `/analysis/<id>` | The committed results and plots, and whether they are stale |
 | PRISMA | `/prisma` | The flow diagram |
 
-Retrieval and study grouping are command-line only so far.
+Retrieval, study grouping, correcting a record, adding a criterion, assigning reviewers, sharing with
+`strata sync`, running analyses and writing the reports are command-line only so far.
+
+### Recording a search and importing its results
+
+1. Open **Searches** and choose **Record a search**. Give the database and the platform you used, the date you
+   ran it (today unless you change it), the query exactly as you ran it, the number of hits, and why you are
+   recording it. If you do not have the query yet, leave it empty: the search is recorded as missing its query
+   and flagged on the dashboard until you supply it.
+2. Choose the export file or files the search produced (RIS, BibTeX, PubMed, EndNote XML, CSV, Excel and the
+   other formats in [Searching and importing](Searching-and-Importing#formats)), or drag them onto the box.
+   You can also leave this and add files from the search's own page later.
+3. **Review.** Nothing has been imported yet. For each file the page shows what importing it would do: how
+   many rows it holds, how many records are new, how many match ones you already have, and any rows that cannot
+   be used, each with its reason. This is the same check as `strata import --dry-run`. A CSV whose columns
+   match no known database export asks you which column is the title, the authors and so on; a workbook with
+   several sheets asks which one. A file you have imported before is recognised.
+4. Say why you are importing, and choose **Import**. Each file becomes its own import and its own commit, with
+   the same record of who did it and why as on the command line, and the raw file is kept with the import.
+
+To run a search again later (an update before you submit), open the search and choose **Re-run this search**:
+it becomes a new search that replaces the old one, which is kept as it was.
 
 ## A tour
 
@@ -128,7 +151,9 @@ container](Running-in-a-Container) for the container case.
 
 Screening in the browser appends the same decisions to the same files as the command line and commits them
 with the same trailers, so `strata log`, `strata why` and `strata sync` see no difference. A screening session
-is committed when you leave the screen.
+is committed when you leave the screen. Recording a search and importing its files use the very same code as
+`strata search add` and `strata import`: the search file, the import, the commit messages and the PRISMA
+counts come out identical, whichever you used.
 
 ## Also available to AI assistants (read only)
 
