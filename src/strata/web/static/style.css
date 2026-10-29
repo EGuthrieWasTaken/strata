@@ -114,6 +114,7 @@ main {
   border: 1px solid var(--border);
   border-radius: 0.25rem;
   padding: 0.5rem 0.75rem;
+  min-width: 0; /* a long id or hash must wrap, not widen the page */
 }
 
 .summary-grid dt {
@@ -125,6 +126,11 @@ main {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  overflow-wrap: anywhere; /* a record id is one long word */
 }
 
 table.stage-table {

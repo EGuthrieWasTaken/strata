@@ -42,21 +42,21 @@ that.
 
 ## 5. Record corrections, criterion add, assignment
 
-- [ ] 5.1 Pin `strata fix` with a snapshot test, move it onto a shared operation, and add the correction form on `/records/<id>`; verify allowed and refused fields, the provenance timeline showing the change, and CLI equivalence
-- [ ] 5.2 Pin `strata criteria add` with a snapshot test, move it onto a shared operation, and add `/criteria/new` stating that the criterion is recorded as tightened; verify a missing rationale writes nothing and that the criteria version and the stale set equal the command line's for the same criterion
-- [ ] 5.3 Pin `strata assign` with a snapshot test, move it onto a shared operation, and add `/assign/<stage>` showing how many records a filter matches before saving; verify a bad filter shows the parser's message and records nothing, and that assigned reviewers' queues contain the records
-- [ ] 5.4 Update the wiki pages for these screens and the CHANGELOG; verify `scripts/check_wiki.py` passes
+- [x] 5.1 Pin `strata fix` with a snapshot test, move it onto a shared operation, and add the correction form on `/records/<id>`; verify allowed and refused fields, the provenance timeline showing the change, and CLI equivalence
+- [x] 5.2 Pin `strata criteria add` with a snapshot test, move it onto a shared operation, and add `/criteria/new` stating that the criterion is recorded as tightened; verify a missing rationale writes nothing and that the criteria version and the stale set equal the command line's for the same criterion
+- [x] 5.3 Pin `strata assign` with a snapshot test, move it onto a shared operation, and add `/assign/<stage>` showing how many records a filter matches before saving; verify a bad filter shows the parser's message and records nothing, and that assigned reviewers' queues contain the records
+- [x] 5.4 Update the wiki pages for these screens and the CHANGELOG; verify `scripts/check_wiki.py` passes
 
 ## 6. Full-text retrieval and study grouping
 
-- [ ] 6.1 Pin `strata retrieve` with a snapshot test, move it onto a shared operation, and add `/retrieve` with the outcome form and no file or path control; verify `retrieved` needs a source, `not-retrieved` needs a reason, the page has no upload control, and the event equals the command line's
-- [ ] 6.2 Pin `strata studies` with a snapshot test, move it onto a shared operation, and add `/studies` showing suggestions with evidence and the group and split forms; verify that viewing and leaving records no event, that accepting a suggestion lowers the study count, that a split is recorded as the command records it, and that a rationale is required
-- [ ] 6.3 Update `Retrieving-Full-Texts`, `Grouping-Reports-into-Studies`, `Known-Limitations` and the CHANGELOG; verify `scripts/check_wiki.py` passes
+- [x] 6.1 Pin `strata retrieve` with a snapshot test, move it onto a shared operation, and add `/retrieve` with the outcome form and no file or path control; verify `retrieved` needs a source, `not-retrieved` needs a reason, the page has no upload control, and the event equals the command line's
+- [x] 6.2 Pin `strata studies` with a snapshot test, move it onto a shared operation, and add `/studies` showing suggestions with evidence and the group and split forms; verify that viewing and leaving records no event, that accepting a suggestion lowers the study count, that a split is recorded as the command records it, and that a rationale is required
+- [x] 6.3 Update `Retrieving-Full-Texts`, `Grouping-Reports-into-Studies`, `Known-Limitations` and the CHANGELOG; verify `scripts/check_wiki.py` passes
 
 ## 7. Integration and close-out
 
-- [ ] 7.1 Verify `openspec validate add-web-ui-write-surfaces --strict` passes with no warning from this change, and that no `openspec:` reference in code, tests or docs fails `scripts/check_docs.py`
-- [ ] 7.2 Add a note to `openspec/changes/add-hosted-team-deployment/design.md` that browser imports come from this change, and update `README.md` (status), `docs/roadmap.md` (M6 and M5.1) and `docs/m6-plan.md`; verify the documentation checks pass
+- [x] 7.1 Verify `openspec validate add-web-ui-write-surfaces --strict` passes with no warning from this change, and that no `openspec:` reference in code, tests or docs fails `scripts/check_docs.py`
+- [x] 7.2 Add a note to `openspec/changes/add-hosted-team-deployment/design.md` that browser imports come from this change, and update `README.md` (status), `docs/roadmap.md` (M6 and M5.1) and `docs/m6-plan.md`; verify the documentation checks pass
 - [ ] 7.3 Run the full local gate (`ruff`, `mypy --strict`, `pytest` with the coverage floors and diff coverage, and the determinism check) and verify it is green on Linux, macOS and Windows in CI
 - [ ] 7.4 Have someone who has never used the command line record a search and import its export in the browser, unaided, and record the outcome in `docs/m6-plan.md` (a manual gate, like the M2 usability session; it is not claimed until a person has done it)
 

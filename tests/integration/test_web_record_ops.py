@@ -323,15 +323,17 @@ def test_a_criterion_is_what_strata_criteria_add_records_and_stales_the_same_dec
             "--kind", "inclusion", "--label", "Adults only", "--definition", "Participants are 18+",
             "--applies-at", "title-abstract", "--by", "ethan",
         )  # fmt: skip
+        # Both reviewers: a decision only goes stale once its record is resolved.
         for title in ("Original title", "Second paper"):
-            screening_mod.record_screen_decision(
-                repo,
-                stage="title-abstract",
-                record_id=_id_of(repo, title),
-                decision="include",
-                actor="ethan",
-                cited=["INC-01"],
-            )
+            for reviewer in ("ethan", "sam"):
+                screening_mod.record_screen_decision(
+                    repo,
+                    stage="title-abstract",
+                    record_id=_id_of(repo, title),
+                    decision="include",
+                    actor=reviewer,
+                    cited=["INC-01"],
+                )
         gitio.add(repo.root, ["events"])
         gitio.commit(repo.root, "test: screening decisions")
         return repo
