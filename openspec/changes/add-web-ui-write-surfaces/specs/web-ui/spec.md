@@ -107,13 +107,13 @@ Nothing uploaded MUST be imported until the person has seen, for each file, what
 
 #### Scenario: Fixing a title
 
-- **WHEN** a person corrects the year of a record with a rationale
+- **WHEN** a person corrects the title of a record with a rationale
 - **THEN** a `record-amend` event is recorded and `/records/<id>` shows the old and new values in its provenance timeline
 
 #### Scenario: Field that is not editable
 
-- **WHEN** a request names a field `strata fix` does not allow
-- **THEN** it is refused and nothing is recorded
+- **WHEN** a request names a field `strata fix` does not allow, such as the authors or the year, which are structured
+- **THEN** it is refused with the reason `strata fix` gives and nothing is recorded
 
 ### Requirement: Adding a criterion
 

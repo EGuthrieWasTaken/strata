@@ -85,6 +85,12 @@ recorded overrides, ROBINS-I, Newcastle-Ottawa, or your own instrument), and
 `strata export effects` writes one row per effect for `metafor::rma()` or any
 other tool. All of it is also in the web UI.
 
+The web UI is not only a viewer. From the browser you can record a dated search and attach the export it
+produced (by file chooser or drag and drop, after a review of what would be imported), correct a record, add a
+criterion, assign reviewers, record full-text outcomes and group reports into studies; each does exactly what
+the matching command does and records the same commit. Sharing with `strata sync`, running analyses and writing
+reports are still command-line only.
+
 M4 pools the extracted effects. An analysis is a versioned file,
 `analysis/<id>.yaml`, and `strata analyze` turns it into committed results
 (`estimates.json`, `studies.tsv`, a plain-language `summary.md`, deterministic

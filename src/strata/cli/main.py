@@ -36,7 +36,6 @@ from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
-from strata.core import filters as filters_mod
 from strata.core import ids as ids_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
@@ -1052,10 +1051,6 @@ def _render_review_pair(
     return "\n".join(lines)
 
 
-# Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
-_COUNT_NEUTRAL_OPS = frozenset({"extract", "reconcile", "rob", "analyze", "prisma", "report"})
-
-
 def _commit_domain_op(
     ctx: typer.Context,
     repo: Repo,
@@ -1066,24 +1061,16 @@ def _commit_domain_op(
     by: str,
     extra_trailers: dict[str, str] | None = None,
 ) -> None:
-    if op not in _COUNT_NEUTRAL_OPS:
-        counts_mod.regenerate_counts_json(repo)  # whatever this changed, the counts follow it
-    if ctx.obj["no_commit"]:
-        return
-    candidates = (
-        "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
-        "reports",
-    )  # fmt: skip
-    paths = [p for p in candidates if repo.path(*p.split("/")).exists()]
-    if not gitio.has_changes(repo.root, paths):
-        return  # e.g. a form re-created identically: nothing to record
-    rationale = _get_rationale(ctx, repo, f"You {summary}.")
-    trailers = {"Op": op, "Actor": by, **(extra_trailers or {})}
-    commit_obj = StructuredCommit(
-        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    ops_mod.commit_domain_work(
+        repo,
+        op=op,
+        scope=scope,
+        summary=summary,
+        actor=by,
+        extra_trailers=extra_trailers,
+        commit=not ctx.obj["no_commit"],
+        rationale=lambda: _get_rationale(ctx, repo, f"You {summary}."),
     )
-    gitio.add(repo.root, paths)
-    gitio.commit(repo.root, commit_obj.message())
 
 
 _UNDO_OPTION = typer.Option(("", ""), "--undo", help="CANONICAL_ID ABSORBED_ID: reverse one merge")
@@ -1243,30 +1230,27 @@ def _apply_record_filter(
 ) -> list[dict[str, Any]]:
     """Shared `--filter` evaluation (openspec:filter-language), used by `records list`,
     `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
-    that can't be evaluated, rather than raising past the CLI boundary.
-
-    Given `repo`, a filter that names `rob_overall` / `rob.<domain>` sees each record's study-level
-    risk-of-bias judgements (openspec:risk-of-bias#rob-plots-and-moderators)."""
+    that can't be evaluated, rather than raising past the CLI boundary."""
     try:
-        ast = filters_mod.parse(filter_expr)
-    except filters_mod.FilterSyntaxError as exc:
-        err_console.print(f"[red]error:[/] invalid --filter: {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    moderators = (
-        rob_mod.moderators_by_record(repo) if repo is not None and "rob" in filter_expr else None
-    )
-    matched = []
-    for record in records:
-        study_fields = None if moderators is None else moderators.get(record["id"], {})
-        try:
-            if filters_mod.evaluate(
-                ast, records_mod.record_field_resolver(record, study_fields=study_fields)
-            ):
-                matched.append(record)
-        except filters_mod.FilterEvaluationError as exc:
-            err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
-            raise typer.Exit(EXIT_USAGE) from None
-    return matched
+        return ops_mod.filter_records(records, filter_expr, repo)
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
+
+
+def _refuse_filter(exc: ops_mod.FilterError) -> NoReturn:
+    if exc.record_id is None:
+        err_console.print(f"[red]error:[/] invalid --filter: {exc.detail}")
+    else:
+        err_console.print(f"[red]error:[/] --filter failed on record {exc.record_id}: {exc.detail}")
+    raise typer.Exit(EXIT_USAGE)
+
+
+def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
+    """Canonical record ids matching `--filter`, per openspec:filter-language."""
+    try:
+        return set(ops_mod.matching_record_ids(repo, filter_expr))
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
 
 
 @records_app.command("list")
@@ -1388,20 +1372,33 @@ def fix_command(
     _preflight_rationale(ctx, repo)
     resolved_id = _resolve_record_id(repo, record_id)
 
+    def say_what_was_fixed(amended: ops_mod.RecordAmended) -> None:
+        _warn_lock_reclaimed(amended.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json(
+                {"record": resolved_id, "field": field, "old": amended.old, "new": amended.new}
+            )
+        else:
+            out_console.print(
+                f"[green]fixed[/] {resolved_id}.{field}: {amended.old!r} -> {amended.new!r}"
+            )
+
     try:
-        old, new = records_mod.amend_field(
-            repo, record_id=resolved_id, field=field, value=value, actor=by
+        ops_mod.amend_record(
+            repo,
+            record_id=resolved_id,
+            field=field,
+            value=value,
+            actor=by,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, f"You corrected {field}."),
+            on_written=say_what_was_fixed,
         )
     except records_mod.FixFieldError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    if ctx.obj["json"]:
-        _print_json({"record": resolved_id, "field": field, "old": old, "new": new})
-    else:
-        out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
-
-    _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 def _split_stages(raw: str) -> list[str]:
@@ -1450,36 +1447,34 @@ def criteria_add(
     rationale = _get_required_rationale(
         ctx, repo, f"You are adding a new {kind} criterion: {label!r}."
     )
+
+    def say_what_was_added(added: ops_mod.CriterionAdded) -> None:
+        _warn_lock_reclaimed(added.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json(added.criterion)
+        else:
+            out_console.print(
+                f"[green]added[/] {added.criterion['id']} (criteria v{added.version})"
+            )
+
     try:
-        criterion = criteria_mod.add_criterion(
+        ops_mod.add_criterion(
             repo,
-            kind=kind,  # type: ignore[arg-type]
+            kind=kind,
             label=label,
             definition=definition,
             applies_at=_split_stages(applies_at),
             actor=by,
             rationale=rationale,
             criterion_id=criterion_id,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_added,
         )
     except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json(criterion)
-    else:
-        out_console.print(f"[green]added[/] {criterion['id']} (criteria v{version})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-add",
-        criterion_id=criterion["id"],
-        summary=f"add criterion {criterion['id']}",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("edit")
@@ -1600,14 +1595,6 @@ def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
         return
     for d in deltas:
         out_console.print(f"{d['id']:<8} {d['origin']:<8} {d['direction']:<10} {d['label']}")
-
-
-def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
-    """Canonical record ids matching `--filter`, per openspec:filter-language."""
-    records = [
-        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
-    ]
-    return {r["id"] for r in _apply_record_filter(records, filter_expr, repo)}
 
 
 _DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
@@ -1793,41 +1780,37 @@ def assign_command(
     """Assign reviewers to records at `stage` (all canonical records by default)."""
     repo = _resolve_repo(ctx)
     _preflight_rationale(ctx, repo)
-    actor_list = [a.strip() for a in actors.split(",") if a.strip()]
-    if filter_expr:
-        record_ids = _resolve_filter_ids(repo, filter_expr)
-    else:
-        record_ids = {
-            r["id"]
-            for r in records_mod.read_records(repo)
-            if r.get("strata", {}).get("canonical", True)
-        }
+
+    written: dict[str, int] = {}
+
+    def say_what_was_assigned(assigned: ops_mod.ReviewersAssigned) -> None:
+        written["count"] = assigned.record_count
+        _warn_lock_reclaimed(assigned.lock_reclaimed_from)
+        out_console.print(
+            f"[green]assigned[/] {assigned.record_count} record(s) at {stage} "
+            f"to {', '.join(assigned.actors)}"
+        )
 
     try:
-        screening_mod.assign_reviewers(
+        ops_mod.assign_reviewers(
             repo,
             stage=stage,
-            actors=actor_list,
-            record_ids=sorted(record_ids),
+            actors=actors.split(","),
             actor=by,
             filter_expr=filter_expr,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You assigned {written['count']} {stage} record(s)."
+            ),
+            on_written=say_what_was_assigned,
         )
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
     except screening_mod.ScreeningError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    out_console.print(
-        f"[green]assigned[/] {len(record_ids)} record(s) at {stage} to {', '.join(actor_list)}"
-    )
-    _commit_domain_op(
-        ctx,
-        repo,
-        op="assign",
-        scope=stage,
-        summary=f"assigned {len(record_ids)} {stage} record(s)",
-        by=by,
-        extra_trailers={"Actors": ",".join(actor_list)},
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 def _render_rescreen_record(
@@ -2161,10 +2144,10 @@ def retrieve_command(
             raise typer.Exit(EXIT_USAGE)
         _preflight_rationale(ctx, repo)
         try:
-            event = retrieval_mod.record_retrieval(
+            outcome_recorded = ops_mod.record_retrieval(
                 repo,
                 report=report,
-                status=outcome,
+                outcome=outcome,
                 actor=by,
                 source=source,
                 locator=_parse_locator_options(locator),
@@ -2172,16 +2155,19 @@ def retrieve_command(
                 reason=reason,
                 reason_text=reason_text,
                 path=path,
+                commit=not ctx.obj["no_commit"],
+                rationale=lambda: _get_rationale(ctx, repo, f"You {outcome}: {report}."),
             )
         except retrieval_mod.RetrievalError as exc:
             err_console.print(f"[red]error:[/] {exc}")
             raise typer.Exit(EXIT_USAGE) from None
-        pool_mod.regenerate_all(repo)
-        _commit_domain_op(
-            ctx, repo, op="retrieve", scope=None, summary=f"{outcome}: {report}", by=by
-        )
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
+        _warn_lock_reclaimed(outcome_recorded.lock_reclaimed_from)
         if ctx.obj["json"]:
-            _print_json({"report": report, "status": outcome, "event": event["id"]})
+            _print_json(
+                {"report": report, "status": outcome, "event": outcome_recorded.event["id"]}
+            )
         else:
             out_console.print(f"[green]recorded[/] {report}: {outcome}")
         return
@@ -2333,24 +2319,34 @@ def studies_command(
         rationale = _get_required_rationale(ctx, repo, "You are recording a study decision.")
         try:
             if group:
-                event = studies_mod.group_reports(
-                    repo, reports=group, actor=by, rationale=rationale, study=study
+                recorded_decision = ops_mod.group_reports(
+                    repo,
+                    reports=group,
+                    actor=by,
+                    rationale=rationale,
+                    study=study,
+                    commit=not ctx.obj["no_commit"],
                 )
-                summary = f"grouped {len(set(group))} report(s) into {event['body']['study']}"
             else:
                 assert split is not None
-                event = studies_mod.split_report(
-                    repo, report=split, parts=into, actor=by, rationale=rationale
+                recorded_decision = ops_mod.split_report(
+                    repo,
+                    report=split,
+                    parts=into,
+                    actor=by,
+                    rationale=rationale,
+                    commit=not ctx.obj["no_commit"],
                 )
-                summary = f"split {split} into {into} studies"
         except studies_mod.StudyError as exc:
             err_console.print(f"[red]error:[/] {exc}")
             raise typer.Exit(EXIT_USAGE) from None
-        _commit_domain_op(ctx, repo, op="studies", scope=None, summary=summary, by=by)
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
+        _warn_lock_reclaimed(recorded_decision.lock_reclaimed_from)
         if ctx.obj["json"]:
-            _print_json({"event": event["id"], **event["body"]})
+            _print_json({"event": recorded_decision.event["id"], **recorded_decision.event["body"]})
         else:
-            out_console.print(f"[green]recorded[/] {summary}")
+            out_console.print(f"[green]recorded[/] {recorded_decision.summary}")
         return
 
     current = studies_mod.study_map(repo, reports=included)

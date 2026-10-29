@@ -18,6 +18,23 @@ All notable changes to `strata` are documented here. Format follows
   results byte-identical to `strata search add` and `strata import`. The dashboard now names searches
   missing their query and searches with no export imported yet, each linking to the search. A real-browser
   smoke test (`tests/browser`, optional) drives the whole flow.
+- **Correcting a record, adding a criterion and assigning reviewers in the web interface** (OpenSpec change
+  `add-web-ui-write-surfaces`). `/records/<id>` has a form that corrects a field with a rationale, `/criteria/new`
+  adds a criterion (stating that it is recorded as tightened, and always asking for a rationale), and
+  `/assign/<stage>` assigns reviewers, with a count of what a filter matches before anything is saved and the
+  parser's message when it does not parse. `strata fix`, `strata criteria add` and `strata assign` now call the
+  same operations in `strata.core.operations` (as `search add` and `import` already did), so a screen and its
+  command record the same commit; tests hold the two to the same files, message and trailers, and the same
+  stale decisions after a criterion is added. The command line is unchanged. `strata assign` still accepts a
+  handle that is not one of the review's actors; the web form offers only the review's actors.
+- **Full-text retrieval and study grouping in the web interface** (OpenSpec change
+  `add-web-ui-write-surfaces`). `/retrieve` lists the reports sought and `/retrieve/<report>` records an outcome
+  (retrieved with a source and version, interlibrary loan requested, not retrievable with a reason, or put back
+  in the queue) with a rationale; it has no file or path field. `/studies` shows the included reports as
+  studies with the suggestions and their evidence and forms to group or split reports, each requiring a
+  rationale; viewing it records nothing. `strata retrieve --report --outcome` and `strata studies --group` /
+  `--split` call the same operations, held to identical commits by tests. Keeping a suggestion separate is
+  still command line only.
 - **Upload handling for the web interface** (`strata.web.uploads`; capability `web-uploads`, OpenSpec change
   `add-web-ui-write-surfaces`). `strata serve` refuses a form post larger than its declared limit before reading
   it (100 MB for a file upload, `--max-upload-mb N` to change; 1 MB for any other form), refuses one that

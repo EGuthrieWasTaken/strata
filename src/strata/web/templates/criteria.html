@@ -2,7 +2,10 @@
 {% block title %}Criteria{% endblock %}
 {% block content %}
 <h1>Criteria &mdash; v{{ version }}</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="/">&larr; Back to dashboard</a> &middot; <a href="/criteria/new">Add a criterion &rarr;</a></p>
+{% if added %}
+<p class="notice" role="status" data-testid="added-note">Added {{ added }}. It is recorded as tightened, so decisions it affects are now stale: see the <a href="/">dashboard</a>.</p>
+{% endif %}
 <table class="stage-table">
   <thead>
     <tr>

@@ -132,6 +132,49 @@ function check(condition, message) {
   report.formOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(report.formOverflow <= 0, "the search form scrolls sideways at 320px");
 
+
+  // The other write screens, each posted by the browser itself (the Origin check only ever failed in
+  // a real browser), and each looked at the width of a phone.
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto(origin + "/records");
+  const recordHref = await page.getAttribute('a[href^="/records/rec_"]', "href");
+  check(recordHref, "no record to correct");
+  await page.goto(origin + recordHref);
+  await page.selectOption('select[name="field"]', "title");
+  await page.fill('input[name="value"]', "A corrected title from the browser test");
+  await page.fill('#fix-form textarea[name="rationale"]', "Correcting the title in a real browser");
+  await Promise.all([page.waitForURL(origin + recordHref), page.click("#fix-form button")]);
+  const corrected = await page.textContent("main");
+  check(/RECORD-AMEND/i.test(corrected) && corrected.includes("A corrected title from the browser test"), "the correction is not in the timeline");
+  report.corrected = true;
+
+  await page.goto(origin + "/criteria/new");
+  check(/recorded as\s+tightened/.test(await page.textContent("main")), "the form does not say it is recorded as tightened");
+  await page.check('input[name="kind"][value="exclusion"]');
+  await page.fill('input[name="label"]', "Not empirical");
+  await page.fill('textarea[name="definition"]', "Not an empirical study");
+  await page.check('input[name="applies_at"][value="title-abstract"]');
+  await page.fill('#criterion-form textarea[name="rationale"]', "Adding a criterion from a real browser");
+  await Promise.all([page.waitForSelector('[data-testid="added-note"]'), page.click("#criterion-form button")]);
+  report.criterionAdded = true;
+
+  await page.goto(origin + "/assign/title-abstract");
+  await page.fill('input[name="filter"]', "year >= 2000");
+  await Promise.all([page.waitForURL(/filter=/), page.click("#filter-form button")]);
+  check(/2 of 2 records match/.test(await page.textContent('[data-testid="filter-result"]')), "the preview does not count the matches");
+  await page.check('input[name="actors"][value="ethan"]');
+  await page.fill('#assign-form textarea[name="rationale"]', "Assigning myself from a real browser");
+  await Promise.all([page.waitForSelector('[data-testid="assigned-note"]'), page.click("#assign-form button")]);
+  report.assigned = true;
+
+  report.screenOverflow = {};
+  await page.setViewportSize({ width: 320, height: 640 });
+  for (const path of ["/assign/title-abstract", "/criteria/new", "/criteria", "/retrieve", "/studies", recordHref]) {
+    await page.goto(origin + path);
+    report.screenOverflow[path] = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    check(report.screenOverflow[path] <= 0, path + " scrolls sideways at 320px");
+  }
+
   report.problems = problems;
   check(problems.length === 0, "problems in the page: " + problems.join("; "));
   console.log(JSON.stringify(report));

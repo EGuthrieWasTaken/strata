@@ -568,7 +568,12 @@ async def criteria_list(request: Request) -> HTMLResponse:
     repo = state.open_repo()
     criteria = sorted(criteria_mod.list_criteria(repo), key=lambda c: c["id"])
     version = criteria_mod.read_criteria_doc(repo)["version"]
-    return _render(request, "criteria.html", {"criteria": criteria, "version": version})
+    added = request.query_params.get("added")
+    if added is not None and criteria_mod.get_criterion(repo, added) is None:
+        added = None  # the note only names a criterion that exists, whatever the link said
+    return _render(
+        request, "criteria.html", {"criteria": criteria, "version": version, "added": added}
+    )
 
 
 def _criteria_edit_context(
@@ -996,6 +1001,28 @@ async def records_list_view(request: Request) -> HTMLResponse:
     )
 
 
+def record_detail_context(
+    state: AppState,
+    repo: Any,
+    record: dict[str, Any],
+    *,
+    error: str | None = None,
+    fix_values: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """What `record_detail.html` shows; also what the correction form re-renders with when it is
+    turned away (openspec:web-ui#correcting-a-record)."""
+    return {
+        "record": record,
+        "authors": _author_display(record),
+        "year": _record_year(record),
+        "provenance": provenance_mod.build_provenance(repo, record["id"]),
+        "editable_fields": sorted(records_mod.EDITABLE_STRING_FIELDS),
+        "session_token": state.session_token,
+        "error": error,
+        "fix_values": fix_values or {"field": "title", "value": "", "rationale": ""},
+    }
+
+
 @router.get("/records/{record_id}", response_class=HTMLResponse, response_model=None)
 async def record_detail_view(request: Request, record_id: str) -> HTMLResponse | PlainTextResponse:
     """Record detail + provenance timeline (`strata why`'s data,
@@ -1005,17 +1032,7 @@ async def record_detail_view(request: Request, record_id: str) -> HTMLResponse |
     record = records_mod.get_record(repo, record_id)
     if record is None:
         return _error(f"unknown record {record_id!r}", status_code=404)
-    provenance = provenance_mod.build_provenance(repo, record_id)
-    return _render(
-        request,
-        "record_detail.html",
-        {
-            "record": record,
-            "authors": _author_display(record),
-            "year": _record_year(record),
-            "provenance": provenance,
-        },
-    )
+    return _render(request, "record_detail.html", record_detail_context(state, repo, record))
 
 
 # ----------------------------------------------------------------- history

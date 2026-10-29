@@ -35,6 +35,9 @@ from strata.ingest import pipeline
 from strata.protocol import searches as searches_mod
 from strata.web import uploads
 from strata.web.app import AppState
+from strata.web.common import active_actors as _active_actors
+from strata.web.common import go as _go
+from strata.web.common import state_of as _state
 from strata.web.routes import _error, _render
 
 router = APIRouter()
@@ -87,15 +90,6 @@ _REJECTED_SHOWN = 50
 # ------------------------------------------------------------------------------------ helpers
 
 
-def _state(request: Request) -> AppState:
-    state: AppState = request.app.state.strata
-    return state
-
-
-def _active_actors(repo: Repo) -> list[dict[str, Any]]:
-    return [a for a in repo.config.get("actors", []) if a.get("role") != "inactive"]
-
-
 def _context(request: Request, extra: dict[str, Any]) -> dict[str, Any]:
     state = _state(request)
     return {
@@ -103,10 +97,6 @@ def _context(request: Request, extra: dict[str, Any]) -> dict[str, Any]:
         "max_upload_mb": state.max_upload_bytes // uploads.MIB,
         **extra,
     }
-
-
-def _go(path: str) -> RedirectResponse:
-    return RedirectResponse(url=path, status_code=303)
 
 
 def _uploaded_files(form: Any) -> list[tuple[str, Any]]:

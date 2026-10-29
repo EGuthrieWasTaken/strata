@@ -25,6 +25,34 @@
   {% endif %}
 </article>
 
+<h2>Correct a field</h2>
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+<form method="post" action="/records/{{ record.id }}/fix" id="fix-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <label class="note-field">
+    Field
+    <select name="field" aria-describedby="fix-field-help">
+      {% for name in editable_fields %}
+      {% set current = record.get(name) %}
+      <option value="{{ name }}"{{ " selected" if name == fix_values.field else "" }}>{{ name }} &mdash; {% if current %}now &ldquo;{{ current | string | truncate(60) }}&rdquo;{% else %}empty{% endif %}</option>
+      {% endfor %}
+    </select>
+    <span class="field-help" id="fix-field-help">Authors and the year are structured fields that cannot be corrected here yet.</span>
+  </label>
+  <label class="note-field">
+    Corrected value
+    <input type="text" name="value" value="{{ fix_values.value }}">
+  </label>
+  <label class="note-field">
+    Why are you correcting it?
+    <textarea name="rationale" rows="2">{{ fix_values.rationale }}</textarea>
+    <span class="field-help">This goes in the permanent record, with the old and the new value.</span>
+  </label>
+  <button type="submit" class="btn btn-include">Correct and commit</button>
+</form>
+
 <h2>Provenance</h2>
 {% if not provenance %}
 <p class="todo-note">No recorded provenance for this record.</p>

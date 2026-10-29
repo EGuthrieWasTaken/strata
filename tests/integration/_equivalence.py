@@ -14,6 +14,7 @@ from strata import gitio
 
 _IMPORT_ID = re.compile(r"imp_[0-9a-z]{26}")
 _EVENT_ID = re.compile(r"ev_[0-9a-z]{26}")
+_STUDY_ID = re.compile(r"std_[0-9a-z]{16}")
 _TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 _DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 _TEMP_DIR = re.compile(r"/tmp/\S*?/(?=[^/\s]+\.(?:ris|json|csv|xlsx))")
@@ -23,6 +24,7 @@ def mask(text: str) -> str:
     """Generated ids, timestamps and the hash chain that covers them, and temp paths."""
     text = _IMPORT_ID.sub("<IMPORT>", text)
     text = _EVENT_ID.sub("<EVENT>", text)
+    text = _STUDY_ID.sub("<STUDY>", text)
     text = _TIMESTAMP.sub("<TS>", text)
     return _TEMP_DIR.sub("", text)
 

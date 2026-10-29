@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Add a criterion{% endblock %}
+{% block content %}
+<h1>Add a criterion</h1>
+<p><a href="/criteria">&larr; Back to criteria (now v{{ version }})</a></p>
+
+<p class="notice" data-testid="tightened-note">A criterion you add is recorded as <strong>tightened</strong>: it can only narrow what is included, so decisions already made at the stages you choose may need another look. Strata marks those decisions stale and lists them for rescreening; nothing is changed for you.</p>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/criteria" id="criterion-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+
+  <fieldset class="criteria-list">
+    <legend>What does it do?</legend>
+    {% for value, label in kinds %}
+    <label class="criterion">
+      <input type="radio" name="kind" value="{{ value }}"{{ " checked" if values.kind == value else "" }} required>
+      <span>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <label class="note-field">
+    Short label
+    <input type="text" name="label" value="{{ values.label }}" required placeholder="e.g. Adults only">
+  </label>
+
+  <label class="note-field">
+    Definition
+    <textarea name="definition" rows="3" required>{{ values.definition }}</textarea>
+    <span class="field-help">Written so that two reviewers would reach the same decision.</span>
+  </label>
+
+  <fieldset class="criteria-list">
+    <legend>Where does it apply?</legend>
+    {% for stage in stages %}
+    <label class="criterion">
+      <input type="checkbox" name="applies_at" value="{{ stage }}"{{ " checked" if stage in values.applies_at else "" }}>
+      <span>{{ stage }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <label class="note-field">
+    Why are you adding it?
+    <textarea name="rationale" rows="2" required minlength="12">{{ values.rationale }}</textarea>
+    <span class="field-help">Required. This goes in the permanent record.</span>
+  </label>
+
+  <button type="submit" class="btn btn-include">Add and commit</button>
+</form>
+{% endblock %}

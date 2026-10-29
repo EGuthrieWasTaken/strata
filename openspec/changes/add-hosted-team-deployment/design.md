@@ -8,6 +8,13 @@ respect to the repository, and protected by a session token, CSRF tokens, and
 people at once, knowing who each request is from, several repositories, and
 keeping a git remote in step without a human running `git pull`/`push`.
 
+Browser imports do not belong to this change: `add-web-ui-write-surfaces` adds them to the local
+`strata serve`, together with what they need: a per-request upload size limit and staging area
+(`.strata/tmp/uploads`, cleaned on use, at start-up and after an hour), the operating-system repository
+lock that a terminal and a server share, and `strata.core.operations`, which the command line and the web
+screens both call. A hosted instance inherits all of that and adds what is its own: per-user accounts and
+quotas, a staging area per project, and the sync loop. It should not grow a second import path.
+
 The repository format already makes concurrent work safe: each actor appends
 only to their own event files, so two users screening on one instance — or one
 on the instance and one on a laptop — never touch the same file.

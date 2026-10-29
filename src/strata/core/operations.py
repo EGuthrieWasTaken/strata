@@ -20,7 +20,8 @@ being answered, because the commit waits for it. A waiter gives up with `LockTim
 the holder, and a result says when the lock had been left by a process that died
 (`lock_reclaimed_from`). Reads and dry runs never take it.
 
-**Errors.** Domain errors (`SearchError`, `ImportPipelineError`, `SchemaValidationError`,
+**Errors.** Domain errors (`SearchError`, `ImportPipelineError`, `FixFieldError`, `CriteriaError`,
+`ScreeningError`, `RetrievalError`, `StudyError`, `FilterError`, `SchemaValidationError`,
 `RationaleRejectedError`, `LockTimeoutError`) propagate to the caller, which reports them in its
 own terms.
 """
@@ -33,6 +34,8 @@ from pathlib import Path
 from typing import Any, TypeAlias
 
 from strata import gitio
+from strata.core import filters as filters_mod
+from strata.core import records as records_mod
 from strata.core.commit import (
     RationaleRejectedError,
     StructuredCommit,
@@ -40,8 +43,14 @@ from strata.core.commit import (
     validate_rationale,
 )
 from strata.core.repo import DEFAULT_LOCK_TIMEOUT, Repo, repo_lock
+from strata.extract import rob as rob_mod
 from strata.ingest import pipeline as pipeline_mod
+from strata.protocol import criteria as criteria_mod
+from strata.protocol import pool as pool_mod
+from strata.protocol import retrieval as retrieval_mod
+from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
+from strata.protocol import studies as studies_mod
 from strata.report import counts as counts_mod
 
 #: What a caller can hand an operation as its rationale: the text, nothing, or a function that
@@ -115,6 +124,53 @@ def _commit(
     ).message()
     gitio.add(repo.root, paths)
     gitio.commit(repo.root, message)
+
+
+#: Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
+COUNT_NEUTRAL_OPS = frozenset({"extract", "reconcile", "rob", "analyze", "prisma", "report"})
+
+#: Where the work of a domain operation can land (those that exist are what gets committed).
+_DOMAIN_PATHS = (
+    "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
+    "reports",
+)  # fmt: skip
+
+
+def commit_domain_work(
+    repo: Repo,
+    *,
+    op: str,
+    scope: str | None,
+    summary: str,
+    actor: str,
+    extra_trailers: dict[str, str] | None = None,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+) -> bool:
+    """Regenerate what a domain operation moved and commit what it wrote; whether it committed.
+
+    For the operations whose work is files under `records`, `events`, `derived` and the like.
+    Nothing is committed when the work left the tree as it was (a form re-created identically),
+    and then no rationale is asked for. The counts are regenerated even without a commit.
+    """
+    if op not in COUNT_NEUTRAL_OPS:
+        counts_mod.regenerate_counts_json(repo)  # whatever this changed, the counts follow it
+    if not commit:
+        return False
+    paths = [p for p in _DOMAIN_PATHS if repo.path(*p.split("/")).exists()]
+    if not gitio.has_changes(repo.root, paths):
+        return False
+    text = _resolve_rationale(repo, rationale)
+    _commit(
+        repo,
+        op=op,
+        scope=scope,
+        summary=summary,
+        rationale=text,
+        trailers={"Op": op, "Actor": actor, **(extra_trailers or {})},
+        paths=paths,
+    )
+    return True
 
 
 # ------------------------------------------------------------------------------------ searches
@@ -365,3 +421,427 @@ def import_files(
             continue
         items.append(ImportItem(file=str(file), result=result, error=None))
     return items
+
+
+# ------------------------------------------------------------------------------ record filters
+
+
+class FilterError(Exception):
+    """A filter expression that cannot be used (openspec:filter-language).
+
+    `str()` is the reason alone, without the name of any option, so each surface can put it in its
+    own words. `record_id` is set when the expression parsed but could not be evaluated on a
+    record.
+    """
+
+    def __init__(self, detail: str, *, record_id: str | None = None) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.record_id = record_id
+
+
+def filter_records(
+    records: list[dict[str, Any]], filter_expr: str, repo: Repo | None = None
+) -> list[dict[str, Any]]:
+    """The records a filter expression matches (openspec:filter-language).
+
+    Given `repo`, a filter that names `rob_overall` / `rob.<domain>` sees each record's study-level
+    risk-of-bias judgements (openspec:risk-of-bias#rob-plots-and-moderators). Raises `FilterError`
+    for an expression that does not parse or cannot be evaluated on a record.
+    """
+    try:
+        ast = filters_mod.parse(filter_expr)
+    except filters_mod.FilterSyntaxError as exc:
+        raise FilterError(str(exc)) from None
+    moderators = (
+        rob_mod.moderators_by_record(repo) if repo is not None and "rob" in filter_expr else None
+    )
+    matched = []
+    for record in records:
+        study_fields = None if moderators is None else moderators.get(record["id"], {})
+        try:
+            if filters_mod.evaluate(
+                ast, records_mod.record_field_resolver(record, study_fields=study_fields)
+            ):
+                matched.append(record)
+        except filters_mod.FilterEvaluationError as exc:
+            raise FilterError(str(exc), record_id=record["id"]) from None
+    return matched
+
+
+def matching_record_ids(repo: Repo, filter_expr: str | None = None) -> list[str]:
+    """Ids of the canonical records a filter matches (every canonical record without one)."""
+    records = [
+        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
+    ]
+    if filter_expr:
+        records = filter_records(records, filter_expr, repo)
+    return sorted(r["id"] for r in records)
+
+
+# ------------------------------------------------------------------------------------ records
+
+
+@dataclass(frozen=True)
+class RecordAmended:
+    record_id: str
+    field: str
+    old: Any
+    new: Any
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def amend_record(
+    repo: Repo,
+    *,
+    record_id: str,
+    field: str,
+    value: str,
+    actor: str,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    on_written: Callable[[RecordAmended], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> RecordAmended:
+    """Correct one plain-string field of a record (`strata fix`) as a `record-amend` event.
+
+    `record_id` is a full id; turning a prefix into one is the surface's business. A field that
+    cannot be corrected, or an id with no record, raises before anything is written.
+    """
+    _check_up_front(repo, rationale, commit=commit)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        old, new = records_mod.amend_field(
+            repo, record_id=record_id, field=field, value=value, actor=actor
+        )
+        amended = RecordAmended(
+            record_id=record_id,
+            field=field,
+            old=old,
+            new=new,
+            committed=False,
+            lock_reclaimed_from=held.reclaimed_from,
+        )
+        if on_written is not None:
+            on_written(amended)
+        committed = commit_domain_work(
+            repo,
+            op="fix",
+            scope=record_id,
+            summary=f"corrected {field}",
+            actor=actor,
+            commit=commit,
+            rationale=rationale,
+        )
+    return RecordAmended(
+        record_id=record_id,
+        field=field,
+        old=old,
+        new=new,
+        committed=committed,
+        lock_reclaimed_from=held.reclaimed_from,
+    )
+
+
+# ---------------------------------------------------------------------------------- criteria
+
+
+@dataclass(frozen=True)
+class CriterionAdded:
+    criterion: dict[str, Any]
+    #: The criteria version after the addition.
+    version: int
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def add_criterion(
+    repo: Repo,
+    *,
+    kind: str,
+    label: str,
+    definition: str,
+    applies_at: Sequence[str],
+    actor: str,
+    rationale: str,
+    criterion_id: str | None = None,
+    commit: bool = True,
+    on_written: Callable[[CriterionAdded], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> CriterionAdded:
+    """Add a criterion (`strata criteria add`); a criterion added behaves as `tightened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change).
+
+    The rationale is required whatever `git.require_rationale` says, and with or without a commit,
+    because it is recorded in the criteria event itself; it is validated before anything is
+    written. What the change makes stale is regenerated even when nothing is committed.
+    """
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        criterion = criteria_mod.add_criterion(
+            repo,
+            kind=kind,  # type: ignore[arg-type]
+            label=label,
+            definition=definition,
+            applies_at=list(applies_at),
+            actor=actor,
+            rationale=text,
+            criterion_id=criterion_id,
+        )
+        version = int(criteria_mod.read_criteria_doc(repo)["version"])
+        added = CriterionAdded(
+            criterion=criterion,
+            version=version,
+            committed=False,
+            lock_reclaimed_from=held.reclaimed_from,
+        )
+        if on_written is not None:
+            on_written(added)
+        pool_mod.regenerate_all(repo)
+        if commit:
+            _commit(
+                repo,
+                op="criteria-add",
+                scope=criterion["id"],
+                summary=f"add criterion {criterion['id']}",
+                rationale=text,
+                trailers={"Op": "criteria-add", "Criterion": criterion["id"], "Actor": actor},
+                paths=["protocol/criteria.yaml", "events/criteria", "derived"],
+            )
+    return CriterionAdded(
+        criterion=criterion,
+        version=version,
+        committed=commit,
+        lock_reclaimed_from=held.reclaimed_from,
+    )
+
+
+# ---------------------------------------------------------------------------------- assignment
+
+
+@dataclass(frozen=True)
+class ReviewersAssigned:
+    stage: str
+    actors: list[str]
+    record_count: int
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def assign_reviewers(
+    repo: Repo,
+    *,
+    stage: str,
+    actors: Sequence[str],
+    actor: str,
+    filter_expr: str | None = None,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    on_written: Callable[[ReviewersAssigned], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> ReviewersAssigned:
+    """Assign reviewers to the canonical records at a stage (`strata assign`), all of them or
+    those a filter expression matches. Raises `FilterError` for a filter that cannot be used and
+    `ScreeningError` for an unknown stage, no actors, or no matching records.
+
+    The handles are not checked against the review's actors, as the command line has never done;
+    a surface that wants that checks before calling.
+    """
+    _check_up_front(repo, rationale, commit=commit)
+    handles = [a.strip() for a in actors if a.strip()]
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        record_ids = matching_record_ids(repo, filter_expr)
+        screening_mod.assign_reviewers(
+            repo,
+            stage=stage,
+            actors=handles,
+            record_ids=record_ids,
+            actor=actor,
+            filter_expr=filter_expr,
+        )
+        assigned = ReviewersAssigned(
+            stage=stage,
+            actors=handles,
+            record_count=len(record_ids),
+            committed=False,
+            lock_reclaimed_from=held.reclaimed_from,
+        )
+        if on_written is not None:
+            on_written(assigned)
+        committed = commit_domain_work(
+            repo,
+            op="assign",
+            scope=stage,
+            summary=f"assigned {len(record_ids)} {stage} record(s)",
+            actor=actor,
+            extra_trailers={"Actors": ",".join(handles)},
+            commit=commit,
+            rationale=rationale,
+        )
+    return ReviewersAssigned(
+        stage=stage,
+        actors=handles,
+        record_count=len(record_ids),
+        committed=committed,
+        lock_reclaimed_from=held.reclaimed_from,
+    )
+
+
+# -------------------------------------------------------------------------------- retrieval
+
+
+@dataclass(frozen=True)
+class RetrievalRecorded:
+    event: dict[str, Any]
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def record_retrieval(
+    repo: Repo,
+    *,
+    report: str,
+    outcome: str,
+    actor: str,
+    source: str | None = None,
+    version: str | None = None,
+    locator: dict[str, str] | None = None,
+    reason: str | None = None,
+    reason_text: str | None = None,
+    path: str | None = None,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> RetrievalRecorded:
+    """Record one retrieval outcome for a report (`strata retrieve --report --outcome`).
+
+    Everything is validated before anything is written (`RetrievalError`), so a refused outcome
+    leaves the tree as it was. `path` is a convenience of the command line, which names a file on
+    the person's own machine; the web interface never passes one and strata does not store full
+    texts either way.
+    """
+    _check_up_front(repo, rationale, commit=commit)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        event = retrieval_mod.record_retrieval(
+            repo,
+            report=report,
+            status=outcome,
+            actor=actor,
+            source=source,
+            locator=locator,
+            version=version,
+            reason=reason,
+            reason_text=reason_text,
+            path=path,
+        )
+        pool_mod.regenerate_all(repo)
+        committed = commit_domain_work(
+            repo,
+            op="retrieve",
+            scope=None,
+            summary=f"{outcome}: {report}",
+            actor=actor,
+            commit=commit,
+            rationale=rationale,
+        )
+    return RetrievalRecorded(
+        event=event, committed=committed, lock_reclaimed_from=held.reclaimed_from
+    )
+
+
+# ----------------------------------------------------------------------------------- studies
+
+
+@dataclass(frozen=True)
+class StudyDecided:
+    event: dict[str, Any]
+    #: What the commit says was done, e.g. "grouped 2 report(s) into std_...".
+    summary: str
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def _decide_study(
+    repo: Repo,
+    *,
+    actor: str,
+    rationale: str,
+    commit: bool,
+    lock_timeout: float,
+    write: Callable[[str], tuple[dict[str, Any], str]],
+) -> StudyDecided:
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        event, summary = write(text)
+        committed = commit_domain_work(
+            repo,
+            op="studies",
+            scope=None,
+            summary=summary,
+            actor=actor,
+            commit=commit,
+            rationale=text,
+        )
+    return StudyDecided(
+        event=event, summary=summary, committed=committed, lock_reclaimed_from=held.reclaimed_from
+    )
+
+
+def group_reports(
+    repo: Repo,
+    *,
+    reports: Sequence[str],
+    actor: str,
+    rationale: str,
+    study: str | None = None,
+    commit: bool = True,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> StudyDecided:
+    """Make reports one study (`strata studies --group`); with `study`, redefine that one.
+
+    A grouping needs a rationale whatever `git.require_rationale` says, validated before anything
+    is written. Suggestions are never applied by anything but a person calling this.
+    """
+
+    def write(text: str) -> tuple[dict[str, Any], str]:
+        event = studies_mod.group_reports(
+            repo, reports=list(reports), actor=actor, rationale=text, study=study
+        )
+        return event, f"grouped {len(set(reports))} report(s) into {event['body']['study']}"
+
+    return _decide_study(
+        repo,
+        actor=actor,
+        rationale=rationale,
+        commit=commit,
+        lock_timeout=lock_timeout,
+        write=write,
+    )
+
+
+def split_report(
+    repo: Repo,
+    *,
+    report: str,
+    parts: int,
+    actor: str,
+    rationale: str,
+    commit: bool = True,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> StudyDecided:
+    """Split one report into several studies (`strata studies --split`); a rationale is required."""
+
+    def write(text: str) -> tuple[dict[str, Any], str]:
+        event = studies_mod.split_report(
+            repo, report=report, parts=parts, actor=actor, rationale=text
+        )
+        return event, f"split {report} into {parts} studies"
+
+    return _decide_study(
+        repo,
+        actor=actor,
+        rationale=rationale,
+        commit=commit,
+        lock_timeout=lock_timeout,
+        write=write,
+    )

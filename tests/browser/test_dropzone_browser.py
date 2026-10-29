@@ -1,9 +1,10 @@
-"""The drop zone in a real browser (OpenSpec change `add-web-ui-write-surfaces`, task 4.6).
+"""The write screens in a real browser (OpenSpec change `add-web-ui-write-surfaces`, task 4.6).
 
 Optional: it needs Node with Playwright and a Chromium, none of which the project depends on, so it
 is skipped wherever they are not installed. Where they are, it drives the whole flow in a browser:
-reach the chooser by keyboard, drop files on it, post the form, review, import, and check that the
-page raised no script or CSP errors and does not scroll sideways at 320 px.
+reach the chooser by keyboard, drop files on it, post the form, review and import, then correct a
+record, add a criterion and assign a reviewer through their forms. It checks that no page raised a
+script or CSP error and that none scrolls sideways at 320 px.
 """
 
 import json
@@ -68,6 +69,8 @@ def test_a_person_can_drop_files_on_a_search_and_import_them(tmp_path: Path) -> 
         assert report["keyboardReachesChooser"] and report["imported"]
         assert report["dropped"]["count"] == 2 and report["problems"] == []
         assert report["reviewOverflow"] <= 0 and report["formOverflow"] <= 0
+        assert report["corrected"] and report["criterionAdded"] and report["assigned"]
+        assert all(width <= 0 for width in report["screenOverflow"].values())
         assert len(list((root / "imports").glob("*/manifest.yaml"))) == 2
     finally:
         server.kill()

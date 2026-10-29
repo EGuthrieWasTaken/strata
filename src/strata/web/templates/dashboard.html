@@ -24,6 +24,8 @@
   <a href="/searches">Searches ({{ report.search_count }}) &rarr;</a>
   &middot; <a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
   &middot; <a href="/dedup">Duplicates &rarr;</a>
+  &middot; <a href="/retrieve">Full texts &rarr;</a>
+  &middot; <a href="/studies">Studies &rarr;</a>
   &middot; <a href="/records">Records ({{ report.record_count }}) &rarr;</a>
   &middot; <a href="/history">History &rarr;</a>
   {% if report.extraction %}
@@ -78,6 +80,9 @@
     {% endfor %}
   </tbody>
 </table>
+
+<p>Assign reviewers:
+  {% for stage in report.stages %}<a href="/assign/{{ stage.stage }}">{{ stage.stage }}</a>{{ " &middot; " | safe if not loop.last else "" }}{% endfor %}</p>
 
 {% if report.next_action %}
 <p class="next-action">Next: <code>{{ report.next_action }}</code></p>

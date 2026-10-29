@@ -236,13 +236,19 @@ def create_app(
     from strata.web.analysis_routes import router as analysis_router
     from strata.web.extraction_routes import router as extraction_router
     from strata.web.report_routes import router as report_router
+    from strata.web.retrieval_routes import router as retrieval_router
     from strata.web.routes import router
     from strata.web.search_routes import router as search_router
+    from strata.web.study_routes import router as study_router
+    from strata.web.workflow_routes import router as workflow_router
 
     app.include_router(router)
     app.include_router(extraction_router)
     app.include_router(analysis_router)
     app.include_router(report_router)
     app.include_router(search_router)
+    app.include_router(workflow_router)
+    app.include_router(retrieval_router)
+    app.include_router(study_router)
 
     return app

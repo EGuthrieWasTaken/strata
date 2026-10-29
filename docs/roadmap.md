@@ -306,6 +306,12 @@ review repository.
   (`add-review-repository-ci`), so review teams get pre-merge assurance for
   their data. Depends only on M0, so it may land earlier. *Written and tested
   locally; not yet run on GitHub — see [`m6-plan.md`](m6-plan.md).*
+- **Write screens in the web interface** (`add-web-ui-write-surfaces`): record a dated search, attach its export
+  by file chooser or drag and drop with a review before anything is imported, correct a record, add a
+  criterion, assign reviewers, record retrieval outcomes and group studies. Browser imports are the first step
+  towards the hosted instance of M5.1, where people who never use a terminal do the same work. *Written and
+  tested; its manual gate, a first-time user doing it unaided, has not been run — see
+  [`m6-plan.md`](m6-plan.md).*
 - Translations.
 
 ---

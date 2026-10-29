@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Retrieve {{ citation }}{% endblock %}
+{% block content %}
+<h1>{{ citation }}</h1>
+<p><a href="/retrieve">&larr; All reports sought</a></p>
+
+<article class="record-card">
+  <h2>{{ record.title or "" }}</h2>
+  <p>{{ record.get("container-title", "") }}</p>
+  {% if record.DOI %}<p>DOI: <a href="https://doi.org/{{ record.DOI | urlencode }}" rel="noopener noreferrer" target="_blank">{{ record.DOI }}</a></p>{% endif %}
+  {% if record.PMID %}<p>PubMed ID: {{ record.PMID }}</p>{% endif %}
+  <p>Now: <strong>{{ status_words }}</strong></p>
+</article>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/retrieve/{{ report }}" id="retrieve-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+
+  <fieldset class="criteria-list">
+    <legend>What happened?</legend>
+    {% for value, label in outcomes %}
+    <label class="criterion">
+      <input type="radio" name="outcome" value="{{ value }}"{{ " checked" if values.outcome == value else "" }} required>
+      <span>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>If you have it (or have asked for it)</legend>
+    <label class="note-field">
+      Where it came from
+      <input type="text" name="source" value="{{ values.source }}" list="known-sources" autocomplete="off">
+      <datalist id="known-sources">
+        {% for name in ["institutional-access", "open-access", "interlibrary-loan", "author", "publisher"] %}<option value="{{ name }}">{% endfor %}
+      </datalist>
+    </label>
+    <label class="note-field">
+      Which version
+      <select name="version">
+        {% for v in versions %}<option value="{{ v }}"{{ " selected" if v == values.version else "" }}>{{ v }}</option>{% endfor %}
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>If it cannot be retrieved</legend>
+    <label class="note-field">
+      Why not
+      <select name="reason">
+        <option value="">Choose&hellip;</option>
+        {% for value, label in reasons %}<option value="{{ value }}"{{ " selected" if value == values.reason else "" }}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="note-field">
+      What happened (needed for &ldquo;Other&rdquo;)
+      <input type="text" name="reason_text" value="{{ values.reason_text }}">
+    </label>
+  </fieldset>
+
+  <label class="note-field">
+    Why are you recording this?
+    <textarea name="rationale" rows="2">{{ values.rationale }}</textarea>
+    <span class="field-help">This goes in the permanent record.</span>
+  </label>
+
+  <button type="submit" class="btn btn-include">Record and commit</button>
+</form>
+{% endblock %}

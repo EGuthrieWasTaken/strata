@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Group reports into studies{% endblock %}
+{% block content %}
+<h1>Group reports into studies</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<p data-testid="study-counts">{{ report_count }} included report{{ "s" if report_count != 1 else "" }} &rarr; {{ study_count }} stud{{ "ies" if study_count != 1 else "y" }}.</p>
+<p class="field-help">Nothing is grouped for you. The suggestions below are evidence to weigh; each decision needs your reason and is recorded as its own commit.</p>
+
+{% if done %}
+<p class="notice" role="status" data-testid="decided-note">Decision recorded.</p>
+{% endif %}
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<h2>Suggested groupings</h2>
+{% if groupings %}
+{% for g in groupings %}
+<section class="record-card" data-testid="grouping-suggestion">
+  <ul>
+    {% for r in g.reports %}<li><strong>{{ r.citation }}</strong> &mdash; {{ r.title }} <span class="field-help">({{ r.report }})</span></li>{% endfor %}
+  </ul>
+  <p>Why they may be one study:</p>
+  <ul>{% for line in g.evidence %}<li>{{ line }}</li>{% endfor %}</ul>
+  <form method="post" action="/studies/group">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    {% for r in g.reports %}<input type="hidden" name="reports" value="{{ r.report }}">{% endfor %}
+    <label class="note-field">
+      Why are you grouping them?
+      <textarea name="rationale" rows="2" required minlength="12"></textarea>
+    </label>
+    <button type="submit" class="btn btn-include">Group these {{ g.reports | length }} reports as one study</button>
+  </form>
+</section>
+{% endfor %}
+{% else %}
+<p class="done-note">No groupings suggested.</p>
+{% endif %}
+
+<h2>Suggested splits</h2>
+{% if splits %}
+{% for s in splits %}
+<section class="record-card" data-testid="split-suggestion">
+  <p><strong>{{ s.citation }}</strong> &mdash; {{ s.title }} <span class="field-help">({{ s.report }})</span></p>
+  <p>It may report {{ s.parts }} studies: &ldquo;{{ s.evidence }}&rdquo;.</p>
+  <form method="post" action="/studies/split">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <input type="hidden" name="report" value="{{ s.report }}">
+    <input type="hidden" name="parts" value="{{ s.parts }}">
+    <label class="note-field">
+      Why are you splitting it?
+      <textarea name="rationale" rows="2" required minlength="12"></textarea>
+    </label>
+    <button type="submit" class="btn btn-include">Split into {{ s.parts }} studies</button>
+  </form>
+</section>
+{% endfor %}
+{% else %}
+<p class="done-note">No splits suggested.</p>
+{% endif %}
+
+<h2>Group reports yourself</h2>
+<form method="post" action="/studies/group" id="group-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <fieldset class="criteria-list">
+    <legend>Reports that belong to one study</legend>
+    {% for r in reports %}
+    <label class="criterion">
+      <input type="checkbox" name="reports" value="{{ r.report }}">
+      <span>{{ r.citation }} &mdash; {{ r.title }}</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  <label class="note-field">
+    Why are you grouping them?
+    <textarea name="rationale" rows="2" required minlength="12"></textarea>
+  </label>
+  <button type="submit" class="btn btn-include">Group the chosen reports</button>
+</form>
+
+<h2>Split a report yourself</h2>
+<form method="post" action="/studies/split" id="split-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <label class="note-field">
+    Report
+    <select name="report" required>
+      {% for r in reports %}<option value="{{ r.report }}">{{ r.citation }} &mdash; {{ r.title }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="note-field">
+    Into how many studies
+    <input type="number" name="parts" min="2" max="{{ max_split }}" value="2" required>
+  </label>
+  <label class="note-field">
+    Why are you splitting it?
+    <textarea name="rationale" rows="2" required minlength="12"></textarea>
+  </label>
+  <button type="submit" class="btn btn-include">Split the report</button>
+</form>
+
+<h2>Studies now</h2>
+<table class="stage-table stack-table" data-testid="studies-now">
+  <thead><tr><th scope="col">Study</th><th scope="col">Reports</th></tr></thead>
+  <tbody>
+    {% for st in studies %}
+    <tr>
+      <th scope="row">{{ st.id }}</th>
+      <td data-label="Reports">{% for r in st.reports %}{{ r.citation }}{{ "; " if not loop.last else "" }}{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

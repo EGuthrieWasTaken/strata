@@ -23,19 +23,21 @@ screening as; it is required if the review has more than one actor. Stop it with
 | Screening | `/screen/title-abstract`, `/screen/full-text` | One record at a time with the criteria numbered beside it; keyboard-driven |
 | Re-screening | `/rescreen/<stage>` | The stale queue, with your previous decision and why it is stale |
 | Adjudication | `/adjudicate/<stage>` | Conflicts, with both opinions side by side |
-| Criteria | `/criteria` | Edit or retire a criterion, with a **live impact preview** (how many decisions the change would put in doubt) *before* you save |
+| Criteria | `/criteria`, `/criteria/new` | Edit or retire a criterion, with a **live impact preview** (how many decisions the change would put in doubt) *before* you save, or add a new one |
+| Assigning | `/assign/<stage>` | Choose who screens which records, with a count of what a filter matches *before* you save |
 | Duplicates | `/dedup` | The review queue for doubtful duplicates |
 | Searches | `/searches`, `/searches/new`, `/searches/<id>` | Record a search with its date and query, attach the export it produced, see what has been imported from it, and re-run it |
 | Import | `/import`, then a review step | Records that did not come from a database search (reference lists, websites, registries, experts) |
-| Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance |
+| Full texts | `/retrieve`, `/retrieve/<report>` | The reports sought and what became of each: record that you have the document, asked for it, or could not get it (and why). No file is uploaded |
+| Studies | `/studies` | Included reports grouped into studies, with the suggestions and their evidence, and forms to group or split (each needs a reason; nothing is applied for you) |
+| Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance, with a form to correct a field |
 | History | `/history` | The domain-level log: who did what, and why |
 | Extraction | `/extract`, `/extract/<study>` | The coding form, with the effect size shown as you type; reconciliation at `/extract/<study>/reconcile` |
 | Risk of bias | `/rob`, `/rob/<study>` | Domain-by-domain assessment with the algorithm's suggestion |
 | Analyses | `/analysis`, `/analysis/<id>` | The committed results and plots, and whether they are stale |
 | PRISMA | `/prisma` | The flow diagram |
 
-Retrieval, study grouping, correcting a record, adding a criterion, assigning reviewers, sharing with
-`strata sync`, running analyses and writing the reports are command-line only so far.
+Sharing with `strata sync`, running analyses and writing the reports are command-line only so far.
 
 ### Recording a search and importing its results
 
@@ -56,6 +58,21 @@ Retrieval, study grouping, correcting a record, adding a criterion, assigning re
 
 To run a search again later (an update before you submit), open the search and choose **Re-run this search**:
 it becomes a new search that replaces the old one, which is kept as it was.
+
+### Correcting a record, adding a criterion, assigning reviewers
+
+- **Correct a field.** Open a record and use *Correct a field*: choose the field (the plain-text ones that
+  `strata fix` allows: title, journal, DOI, volume and so on; authors and the year are structured and cannot be
+  corrected here yet), give the corrected value and say why. The old and the new value appear in the record's
+  provenance timeline, and the correction is its own commit.
+- **Add a criterion.** *Add a criterion* on the criteria page takes whether it includes or excludes, a label,
+  a definition, the stages it applies at and why. A criterion you add is recorded as **tightened**
+  ([Criteria versions and direction](Criteria-Versions-and-Direction)): decisions already made at those stages
+  are marked stale for re-screening, exactly as after `strata criteria add`. A reason is always required here.
+- **Assign reviewers.** Open `/assign/<stage>` (the dashboard links to it for every stage). It shows how many
+  records each reviewer still has waiting. To assign only some records, type a [filter](Filter-Language) and
+  choose *Check how many match*: nothing is saved, and a filter that does not parse shows the parser's message.
+  Then choose the reviewers, say why, and assign.
 
 ## A tour
 
