@@ -275,7 +275,8 @@ def test_serve_documents_the_upload_limit_in_its_help() -> None:
     result = runner.invoke(app, ["serve", "--help"])
 
     assert result.exit_code == EXIT_OK
-    assert "--max-upload-mb" in result.output
+    # Where colour is forced (CI on Windows) the option name arrives split by escape codes.
+    assert "--max-upload-mb" in re.sub(r"\x1b\[[0-9;]*m", "", result.output)
 
 
 def test_a_real_server_enforces_the_upload_limit_before_reading_the_body(tmp_path: Path) -> None:

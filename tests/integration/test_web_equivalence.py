@@ -88,7 +88,7 @@ def test_one_import_is_the_same_from_either_surface(tmp_path: Path) -> None:
     via_cli = _review(tmp_path, "cli")
     via_web = _review(tmp_path, "web")
     export = tmp_path / "medline.ris"
-    export.write_text(_RIS, encoding="utf-8")
+    export.write_bytes(_RIS.encode())  # bytes: text mode would turn "\n" into "\r\n" on Windows
     _cli_search(via_cli, None)
     result = runner.invoke(
         app,
@@ -124,7 +124,7 @@ def test_a_search_with_its_export_is_the_same_two_commits_from_either_surface(
     via_cli = _review(tmp_path, "cli")
     via_web = _review(tmp_path, "web")
     export = tmp_path / "medline.ris"
-    export.write_text(_RIS, encoding="utf-8")
+    export.write_bytes(_RIS.encode())  # bytes: text mode would turn "\n" into "\r\n" on Windows
     _cli_search(via_cli, "medline.ris")
     runner.invoke(
         app,

@@ -16,13 +16,18 @@ import pytest
 from strata.core.repo import LockTimeoutError, Repo, repo_lock
 
 _HOLDER = """
-import sys, time
+import os, sys, time
 from pathlib import Path
 from strata.core.repo import Repo, repo_lock
 
 repo = Repo(root=Path(sys.argv[1]), config={})
 with repo_lock(repo):
-    Path(sys.argv[2]).write_text("holding", encoding="utf-8")
+    # Say who the holder is: on Windows the process `Popen` starts can be a launcher that runs
+    # the interpreter as a child, so `Popen.pid` is not the process that holds the lock. The file
+    # is written whole and then moved into place, so a reader never sees half of it.
+    ready = Path(sys.argv[2])
+    ready.with_suffix(".tmp").write_text(str(os.getpid()), encoding="utf-8")
+    os.replace(ready.with_suffix(".tmp"), ready)
     time.sleep(120)
 """
 
@@ -53,15 +58,16 @@ def test_a_holder_killed_without_cleaning_up_does_not_strand_the_lock(tmp_path: 
     holder = subprocess.Popen([sys.executable, "-c", _HOLDER, str(tmp_path), str(ready)])
     try:
         _wait_for(ready, holder)
+        holder_pid = int(ready.read_text(encoding="utf-8"))
 
         # While it is alive, the lock is its, and a waiter is told who has it.
-        _try_to_take(repo, 0.3, match=str(holder.pid))
+        _try_to_take(repo, 0.3, match=str(holder_pid))
 
         holder.kill()  # SIGKILL on POSIX, TerminateProcess on Windows: no chance to clean up
         holder.wait(timeout=30)
 
         with repo_lock(repo, timeout=10) as held:
-            assert held.reclaimed_from == holder.pid
+            assert held.reclaimed_from == holder_pid
     finally:
         if holder.poll() is None:
             holder.kill()

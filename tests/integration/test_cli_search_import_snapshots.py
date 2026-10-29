@@ -73,7 +73,7 @@ def _init(tmp_path: Path) -> Path:
 
 
 def _normalise(text: str, tmp_path: Path) -> str:
-    text = text.replace(str(tmp_path), "<TMP>")
+    text = text.replace(str(tmp_path), "<TMP>").replace("<TMP>\\", "<TMP>/")  # Windows paths
     return _IMPORT_ID.sub("<IMPORT>", " ".join(text.split()))
 
 
