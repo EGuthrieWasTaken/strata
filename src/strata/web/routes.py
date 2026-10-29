@@ -70,6 +70,7 @@ from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.dedup import engine as engine_mod
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
@@ -162,7 +163,15 @@ async def dashboard(request: Request) -> HTMLResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     report = status_mod.compute_status(repo)
-    return _render(request, "dashboard.html", {"report": report, "actor": state.actor})
+    return _render(
+        request,
+        "dashboard.html",
+        {
+            "report": report,
+            "actor": state.actor,
+            "awaiting_export": pipeline_mod.searches_awaiting_import(repo),
+        },
+    )
 
 
 def _canonical_ids(repo: Any) -> list[str]:

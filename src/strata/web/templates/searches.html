@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Searches{% endblock %}
+{% block content %}
+<h1>Searches</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<p class="actions">
+  <a class="btn" href="/searches/new">Record a search</a>
+  <a href="/import">Import records found by other methods &rarr;</a>
+</p>
+
+{% if not searches %}
+<p class="done-note">No searches recorded yet. Record each database search you run, with its query and the date, then attach the export file it produced.</p>
+{% else %}
+<table class="stage-table stack-table" data-testid="searches-table">
+  <caption class="visually-hidden">Recorded searches</caption>
+  <thead>
+    <tr>
+      <th scope="col">Search</th>
+      <th scope="col">Database</th>
+      <th scope="col">Run</th>
+      <th scope="col">Hits</th>
+      <th scope="col">Query</th>
+      <th scope="col">Imported</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in searches %}
+    <tr>
+      <th scope="row">
+        <a href="/searches/{{ s.id | urlencode }}">{{ s.id }}</a>
+        {% if s.replaced_by %}<br><span class="muted">replaced by <a href="/searches/{{ s.replaced_by | urlencode }}">{{ s.replaced_by }}</a></span>{% endif %}
+      </th>
+      <td data-label="Database">{{ s.database }} <span class="muted">via {{ s.platform }}</span></td>
+      <td data-label="Run">{{ s.executed }}</td>
+      <td data-label="Hits">{{ s.hits if s.hits is not none else "unknown" }}</td>
+      <td data-label="Query">
+        {% if s.query_pending %}
+        <span class="flag"><span aria-hidden="true">&#9888;</span> Missing (PRISMA item 7)</span>
+        {% else %}Recorded{% endif %}
+      </td>
+      <td data-label="Imported">
+        {% if s.import_count %}
+        {{ s.import_count }} file{{ "s" if s.import_count != 1 else "" }}, {{ s.records }} new record{{ "s" if s.records != 1 else "" }}
+        {% elif s.replaced_by %}
+        <span class="muted">&mdash;</span>
+        {% else %}
+        <span class="flag"><span aria-hidden="true">&#9888;</span> No export yet</span>
+        <a href="/searches/{{ s.id | urlencode }}">Add one</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

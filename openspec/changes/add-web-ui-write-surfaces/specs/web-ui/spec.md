@@ -31,11 +31,11 @@ The web UI MUST provide `/searches`, `/searches/new`, `/searches/<id>` and `/imp
 - **THEN** `/searches/new` is pre-filled from it, and saving creates a new search with `supersedes: "S-01-medline"`
 - **AND** `S-01-medline.yaml` is unchanged
 
-#### Scenario: Pending notice leads somewhere
+#### Scenario: Notices lead somewhere
 
-- **GIVEN** a search recorded without an export file
-- **WHEN** the dashboard shows it as awaiting an export
-- **THEN** the notice links to that search's page, where a file can be added
+- **GIVEN** a search with no export imported yet, and another recorded without its query
+- **WHEN** the dashboard is shown
+- **THEN** one notice names the first and another names the second, and each name links to that search's page, where a file can be added
 
 ### Requirement: Review before importing
 
@@ -77,10 +77,15 @@ Nothing uploaded MUST be imported until the person has seen, for each file, what
 
 #### Scenario: File that cannot be imported
 
-- **GIVEN** a search was recorded together with a file that has an unsupported format
+- **GIVEN** a search was recorded together with a file whose content cannot be read, such as a corrupt workbook
 - **WHEN** the file is reviewed
 - **THEN** the reason is shown and the file cannot be confirmed
 - **AND** the search stays recorded, as it would after `strata search add` followed by a failed `strata import`
+
+#### Scenario: File that is not an export at all
+
+- **WHEN** a search is submitted with a file `strata import` would not recognise as an export, such as a PDF
+- **THEN** the whole submission is refused with the reason, and no search is recorded and nothing is kept
 
 ### Requirement: Imports from other methods
 

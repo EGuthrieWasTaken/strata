@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "_forms.html" import file_picker %}
+{% block title %}Record a search{% endblock %}
+{% block content %}
+<h1>Record a search</h1>
+<p><a href="/searches">&larr; All searches</a></p>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+{% if values.supersedes %}
+<p class="notice">A new version of <a href="/searches/{{ values.supersedes | urlencode }}">{{ values.supersedes }}</a>. The earlier record is kept as it is.</p>
+{% endif %}
+
+<form method="post" action="/searches" enctype="multipart/form-data" id="search-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="supersedes" value="{{ values.supersedes }}">
+
+  <label class="note-field">
+    Database
+    <input type="text" name="database" value="{{ values.database }}" required list="known-databases" autocomplete="off">
+    <datalist id="known-databases">
+      {% for name in ["MEDLINE", "Embase", "PsycINFO", "CENTRAL", "CINAHL", "Scopus", "Web of Science", "ERIC"] %}<option value="{{ name }}">{% endfor %}
+    </datalist>
+  </label>
+
+  <label class="note-field">
+    Platform you used
+    <input type="text" name="platform" value="{{ values.platform }}" required placeholder="e.g. Ovid, PubMed, EBSCOhost">
+  </label>
+
+  <label class="note-field">
+    Date you ran it
+    <input type="date" name="executed" value="{{ values.executed }}" required>
+  </label>
+
+  <label class="note-field">
+    Run by
+    <select name="executed_by">
+      {% for a in actors %}<option value="{{ a.handle }}"{{ " selected" if a.handle == values.executed_by else "" }}>{{ a.name or a.handle }} ({{ a.handle }})</option>{% endfor %}
+    </select>
+  </label>
+
+  <label class="note-field">
+    Query, exactly as you ran it
+    <textarea name="query" rows="6" aria-describedby="query-help">{{ values.query }}</textarea>
+    <span class="field-help" id="query-help">If you do not have it to hand, leave this empty: the search is recorded as missing its query, and it is flagged until it is supplied.</span>
+  </label>
+
+  <label class="note-field">
+    Hits the platform reported (optional)
+    <input type="number" name="hits" min="0" value="{{ values.hits }}">
+  </label>
+
+  <label class="note-field">
+    Notes (optional)
+    <textarea name="notes" rows="2" aria-describedby="notes-help">{{ values.notes }}</textarea>
+    <span class="field-help" id="notes-help">Filters you applied (language, years) and anything else a reader needs.</span>
+  </label>
+
+  <label class="note-field">
+    Strategy peer reviewed by (optional)
+    <input type="text" name="peer_reviewed_by" value="{{ values.peer_reviewed_by }}">
+  </label>
+
+  {{ file_picker("export-files", "files", "Export files this search produced (optional, and you can add them later)", max_upload_mb) }}
+
+  <label class="note-field">
+    Why are you recording this search?
+    <textarea name="rationale" rows="2">{{ values.rationale }}</textarea>
+    <span class="field-help">This goes in the permanent record.</span>
+  </label>
+
+  <button type="submit" class="btn btn-include">Record the search</button>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/dropzone.js"></script>{% endblock %}

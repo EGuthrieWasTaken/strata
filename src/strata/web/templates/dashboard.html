@@ -12,11 +12,17 @@
 </dl>
 
 {% if report.pending_searches %}
-<p class="notice">Pending searches awaiting an export file: {{ report.pending_searches | join(", ") }}</p>
+<p class="notice flag" data-testid="pending-queries"><span aria-hidden="true">&#9888;</span> Searches missing their query (PRISMA item 7):
+  {% for id in report.pending_searches %}<a href="/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
+{% endif %}
+{% if awaiting_export %}
+<p class="notice flag" data-testid="awaiting-export"><span aria-hidden="true">&#9888;</span> Searches with no export imported yet:
+  {% for id in awaiting_export %}<a href="/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
 {% endif %}
 
 <p>
-  <a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
+  <a href="/searches">Searches ({{ report.search_count }}) &rarr;</a>
+  &middot; <a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
   &middot; <a href="/dedup">Duplicates &rarr;</a>
   &middot; <a href="/records">Records ({{ report.record_count }}) &rarr;</a>
   &middot; <a href="/history">History &rarr;</a>
@@ -31,7 +37,7 @@
 </p>
 
 <h2>Screening stages</h2>
-<table class="stage-table">
+<table class="stage-table stack-table">
   <thead>
     <tr>
       <th scope="col">Stage</th>
@@ -48,13 +54,13 @@
     {% for stage in report.stages %}
     <tr>
       <th scope="row">{{ stage.stage }}</th>
-      <td>{{ stage.total }}</td>
-      <td>{{ stage.resolved }}</td>
-      <td>{{ stage.unscreened }}</td>
-      <td>{{ stage.partial }}</td>
-      <td>{{ stage.conflicts }}</td>
-      <td>{{ stage.stale }}</td>
-      <td>
+      <td data-label="Total">{{ stage.total }}</td>
+      <td data-label="Resolved">{{ stage.resolved }}</td>
+      <td data-label="Unscreened">{{ stage.unscreened }}</td>
+      <td data-label="Partial">{{ stage.partial }}</td>
+      <td data-label="Conflicts">{{ stage.conflicts }}</td>
+      <td data-label="Stale">{{ stage.stale }}</td>
+      <td data-label="Action">
         {% if stage.conflicts %}
         <a href="/adjudicate/{{ stage.stage }}">Adjudicate &rarr;</a>
         {% endif %}

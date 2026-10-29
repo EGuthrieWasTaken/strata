@@ -268,6 +268,15 @@ class UploadStaging:
             raise
         return batch
 
+    def set_context(self, batch_id: str, context: Mapping[str, Any]) -> None:
+        """Add to what a batch remembers about where it belongs (for example, the search it was
+        uploaded to once that search has been recorded)."""
+        batch = self.open(batch_id)
+        meta_path = batch.directory / "batch.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        meta["context"] = {**meta.get("context", {}), **context}
+        meta_path.write_text(json.dumps(meta, sort_keys=True), encoding="utf-8")
+
     # -- reading
 
     def open(self, batch_id: str) -> StagedBatch:

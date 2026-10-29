@@ -222,7 +222,11 @@ def create_app(
             response.headers.setdefault("Content-Security-Policy", _CSP)
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["X-Frame-Options"] = "DENY"
-            response.headers["Referrer-Policy"] = "no-referrer"
+            # `same-origin`, not `no-referrer`: under `no-referrer` a browser sends `Origin: null`
+            # on *every* form post, same-origin ones included (Fetch: "append a request `Origin`
+            # header"), and the Origin check above then refuses all of the interface's own forms.
+            # `same-origin` sends the real Origin to this server and no referrer to anyone else.
+            response.headers["Referrer-Policy"] = "same-origin"
             return response
 
     app.add_middleware(SecurityMiddleware)
@@ -233,10 +237,12 @@ def create_app(
     from strata.web.extraction_routes import router as extraction_router
     from strata.web.report_routes import router as report_router
     from strata.web.routes import router
+    from strata.web.search_routes import router as search_router
 
     app.include_router(router)
     app.include_router(extraction_router)
     app.include_router(analysis_router)
     app.include_router(report_router)
+    app.include_router(search_router)
 
     return app

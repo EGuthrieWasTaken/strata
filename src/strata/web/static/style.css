@@ -320,3 +320,141 @@ tr.missing th, tr.missing td { background: rgba(255, 193, 7, 0.12); }
 .plot-figure img { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--border); border-radius: 0.35rem; }
 .warning-list { padding-left: 1.2em; }
 .study-values { font-size: 0.9em; }
+
+/* Forms that take text and files (searches and imports). */
+.note-field input[type="text"],
+.note-field input[type="date"],
+.note-field input[type="number"],
+.note-field select {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  margin-top: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+.field-help {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.flag {
+  color: var(--maybe);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.query-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+}
+
+.review-file {
+  margin: 1.5rem 0;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+}
+
+fieldset.review-choices {
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+}
+
+/* The drop target is a visible box around a real file chooser. Its drag state is a thick solid
+   border and a sentence, not a colour alone. */
+.dropzone {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 2px dashed var(--border);
+  border-radius: 0.5rem;
+}
+
+.dropzone input[type="file"] {
+  display: block;
+  margin: 0.5rem 0;
+  max-width: 100%;
+}
+
+.dropzone.is-dragging {
+  border-style: solid;
+  border-color: var(--accent);
+  border-width: 4px;
+}
+
+.dropzone-state {
+  display: block;
+  font-weight: 600;
+}
+
+.dropzone-list {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dropzone {
+    transition: border-color 0.12s ease-out;
+  }
+}
+
+/* A table that becomes a stack of labelled cards on a narrow screen, so the page never scrolls
+   sideways (openspec:web-ui#accessibility: reflow to 320 px). Each cell carries its column's name in
+   `data-label`; the header row stays in the page for assistive technology but is not drawn. */
+@media (max-width: 40rem) {
+  table.stack-table,
+  .stack-table tbody,
+  .stack-table tr,
+  .stack-table th,
+  .stack-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .stack-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .stack-table tr {
+    margin: 0 0 1rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+  }
+
+  .stack-table th,
+  .stack-table td {
+    border: none;
+    padding: 0.15rem 0;
+    overflow-wrap: anywhere;
+  }
+
+  .stack-table td[data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+  }
+}

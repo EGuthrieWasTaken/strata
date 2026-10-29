@@ -223,6 +223,70 @@ def _resolve_csv_mapping(
     return {field: column for field, column in profile.mapping.items() if column in header_columns}
 
 
+def validate_source(
+    repo: Repo, imported_by: str, search_id: str | None, via: str | None
+) -> dict[str, Any] | None:
+    """Check who is importing and where the records came from; the search's record, if one is named.
+
+    Exactly one of a database search and another method (`via`) must be given. The messages are
+    `strata import`'s, so a surface that asks for these before it has a file refuses in the same
+    words.
+    """
+    if (search_id is None) == (via is None):
+        raise ImportPipelineError("exactly one of --search or --via is required")
+    if via is not None and via not in VALID_VIA:
+        raise ImportPipelineError(f"invalid --via {via!r}; must be one of {sorted(VALID_VIA)}")
+    manifest_doc = manifest_mod.load_manifest_doc(repo.root)
+    if manifest_mod.find_actor(manifest_doc, imported_by) is None:
+        raise ImportPipelineError(f"imported_by {imported_by!r} is not a configured actor")
+    if search_id is None:
+        return None
+    search_record = searches_mod.get_search(repo, search_id)
+    if search_record is None:
+        raise ImportPipelineError(f"unknown search {search_id!r}")
+    return search_record
+
+
+@dataclass(frozen=True)
+class SearchOverview:
+    """A recorded search with what has become of it: the imports made from it, and the later
+    search that replaced it, if any."""
+
+    search: dict[str, Any]
+    query_pending: bool
+    replaced_by: str | None
+    imports: list[dict[str, Any]]
+
+
+def search_overview(repo: Repo) -> list[SearchOverview]:
+    """Every recorded search, sorted by id, with its imports and the search that replaced it."""
+    searches = searches_mod.list_searches(repo)
+    manifests = list_import_manifests(repo)
+    replaced_by = {s["supersedes"]: str(s["id"]) for s in searches if s.get("supersedes")}
+    return [
+        SearchOverview(
+            search=s,
+            query_pending=s["query"] == searches_mod.PENDING_QUERY,
+            replaced_by=replaced_by.get(s["id"]),
+            imports=[m for m in manifests if m.get("search") == s["id"]],
+        )
+        for s in searches
+    ]
+
+
+def searches_awaiting_import(repo: Repo) -> list[str]:
+    """Ids of searches no import has been made from yet, sorted.
+
+    A search replaced by a later version (`supersedes`) no longer waits for anything.
+    """
+    imported_from = {m.get("search") for m in list_import_manifests(repo)}
+    searches = searches_mod.list_searches(repo)
+    superseded = {s.get("supersedes") for s in searches}
+    return [
+        str(s["id"]) for s in searches if s["id"] not in imported_from and s["id"] not in superseded
+    ]
+
+
 def sniff_format(source_path: str | Path, *, fmt: str | None = None) -> str:
     """The format `import_file` would take this file to be: nothing is parsed or written.
 
@@ -280,19 +344,7 @@ def import_file(
     source_path = Path(source_path)
     if not source_path.is_file():
         raise ImportPipelineError(f"no such file: {source_path}")
-    if (search_id is None) == (via is None):
-        raise ImportPipelineError("exactly one of --search or --via is required")
-    if via is not None and via not in VALID_VIA:
-        raise ImportPipelineError(f"invalid --via {via!r}; must be one of {sorted(VALID_VIA)}")
-
-    manifest_doc = manifest_mod.load_manifest_doc(repo.root)
-    if manifest_mod.find_actor(manifest_doc, imported_by) is None:
-        raise ImportPipelineError(f"imported_by {imported_by!r} is not a configured actor")
-    search_record: dict[str, Any] | None = None
-    if search_id is not None:
-        search_record = searches_mod.get_search(repo, search_id)
-        if search_record is None:
-            raise ImportPipelineError(f"unknown search {search_id!r}")
+    search_record = validate_source(repo, imported_by, search_id, via)
 
     raw = source_path.read_bytes()
     digest = file_digest(raw)

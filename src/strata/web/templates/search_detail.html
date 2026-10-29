@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "_forms.html" import file_picker %}
+{% block title %}{{ search.id }}{% endblock %}
+{% block content %}
+<h1>{{ search.id }}</h1>
+<p><a href="/searches">&larr; All searches</a></p>
+
+{% if error %}
+<p class="error" role="alert">{{ error }}</p>
+{% endif %}
+
+<dl class="summary-grid">
+  <div><dt>Database</dt><dd>{{ search.database }}</dd></div>
+  <div><dt>Platform</dt><dd>{{ search.platform }}</dd></div>
+  <div><dt>Run on</dt><dd>{{ search.executed }}</dd></div>
+  <div><dt>Run by</dt><dd>{{ search.executed_by }}</dd></div>
+  <div><dt>Hits</dt><dd>{{ search.hits if search.hits is not none else "unknown" }}</dd></div>
+</dl>
+
+{% if query_pending %}
+<p class="notice flag" data-testid="query-pending"><span aria-hidden="true">&#9888;</span> No query string was recorded for this search. PRISMA item 7 asks for the full strategy of every database search.</p>
+{% else %}
+<h2>Query</h2>
+<pre class="query-text">{{ search.query }}</pre>
+{% endif %}
+
+{% if search.notes %}
+<h2>Notes</h2>
+<p>{{ search.notes }}</p>
+{% endif %}
+
+{% if search.peer_reviewed_by %}<p>Strategy peer reviewed by {{ search.peer_reviewed_by }}.</p>{% endif %}
+{% if search.supersedes %}<p>Replaces <a href="/searches/{{ search.supersedes | urlencode }}">{{ search.supersedes }}</a>.</p>{% endif %}
+{% if replaced_by %}<p class="notice">This search was re-run as <a href="/searches/{{ replaced_by | urlencode }}">{{ replaced_by }}</a>.</p>{% endif %}
+{% if search.export_files %}
+<p>Export files named when it was recorded: {{ search.export_files | join(", ") }}.</p>
+{% endif %}
+
+<h2>Imports from this search</h2>
+{% if imports %}
+<table class="stage-table stack-table" data-testid="search-imports">
+  <caption class="visually-hidden">Imports from {{ search.id }}</caption>
+  <thead>
+    <tr>
+      <th scope="col">File</th>
+      <th scope="col">Format</th>
+      <th scope="col">Rows</th>
+      <th scope="col">New</th>
+      <th scope="col">Matched</th>
+      <th scope="col">Rejected</th>
+      <th scope="col">Imported</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in imports %}
+    <tr>
+      <th scope="row">{{ m.source_file }}</th>
+      <td data-label="Format">{{ m.format }}</td>
+      <td data-label="Rows">{{ m.rows_read }}</td>
+      <td data-label="New">{{ m.records_created }}</td>
+      <td data-label="Matched">{{ m.existing_ids_appended }}</td>
+      <td data-label="Rejected">{{ m.rows_rejected }}</td>
+      <td data-label="Imported">{{ m.imported }} by {{ m.imported_by }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="done-note">Nothing has been imported from this search yet.</p>
+{% endif %}
+
+{% if not replaced_by %}
+<h2>Add export files</h2>
+<form method="post" action="/searches/{{ search.id | urlencode }}/files" enctype="multipart/form-data">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  {{ file_picker("export-files", "files", "Export files from this search", max_upload_mb, "(RIS, BibTeX, CSL-JSON, PubMed, EndNote XML, CSV, TSV or Excel)") }}
+  <button type="submit" class="btn btn-include">Upload and review</button>
+</form>
+{% endif %}
+
+<p class="actions"><a href="/searches/new?supersedes={{ search.id | urlencode }}">Re-run this search (record a new version) &rarr;</a></p>
+{% endblock %}
+{% block scripts %}<script src="/static/dropzone.js"></script>{% endblock %}

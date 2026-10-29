@@ -92,10 +92,10 @@ the search.
 POST /searches            multipart: search fields + 0..n files + rationale
   -> operations.record_search            (commit 1; lock held only for this)
   -> stage files                         (.strata/tmp/uploads/<batch>/)
-  -> 303 /searches/<id>/review/<batch>
+  -> 303 /import/review/<batch>
 
-GET  /searches/<id>/review/<batch>       dry run per file, read-only, no lock
-POST /searches/<id>/review/<batch>       confirm: mapping, sheet, rationale
+GET  /import/review/<batch>              dry run per file, read-only, no lock
+POST /import/review/<batch>              confirm: mapping, sheet, rationale
   -> operations.import_files             (one commit per file)
   -> 303 /searches/<id>                  per-file results
 ```
@@ -109,7 +109,12 @@ method is given); holding the search uncommitted until confirmation (a half-writ
 survives a crashed server and has no CLI equivalent).
 
 The same review and confirm steps serve the "attach more files" form on a search page and the
-`/import` screen for other methods; only the first step differs.
+`/import` screen for other methods; only the first step differs. The batch remembers whether it belongs
+to a search or to a method, which is why the review address names only the batch.
+
+A file that is not a bibliographic export at all (a PDF, an unknown extension) is turned away before the
+search is recorded, with nothing staged. A file that is recognised but cannot be read (a corrupt
+workbook, an unrecognised CSV) is found at review, where the search is already recorded.
 
 ### D4. Limits are enforced before parsing, using the declared length
 

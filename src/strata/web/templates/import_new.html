@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_forms.html" import file_picker %}
+{% block title %}Import records found by other methods{% endblock %}
+{% block content %}
+<h1>Import records found by other methods</h1>
+<p><a href="/searches">&larr; All searches</a></p>
+<p>For records that did not come from a database search: reference lists and forward citations, websites, organisations, trial registries and contact with experts. They appear in the "other methods" column of the PRISMA flow diagram. Database exports belong to a <a href="/searches">recorded search</a>.</p>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/import" enctype="multipart/form-data">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <label class="note-field">
+    How were these records found?
+    <select name="via" required>
+      <option value="">Choose&hellip;</option>
+      {% for value, label in methods %}<option value="{{ value }}"{{ " selected" if value == via else "" }}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  {{ file_picker("export-files", "files", "Files to import", max_upload_mb) }}
+  <button type="submit" class="btn btn-include">Upload and review</button>
+</form>
+{% endblock %}
+{% block scripts %}<script src="/static/dropzone.js"></script>{% endblock %}

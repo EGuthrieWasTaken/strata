@@ -95,6 +95,7 @@ pythonpath = ["."]
 markers = [
     "req: mark a test as covering a specification requirement id (property invariant, E2E scenario, or error code)",
     "benchmark_50k: the 50,000-record performance targets nightly.yml's benchmark-50k job runs blocking (openspec:performance#benchmarks-run-in-ci)",
+    "browser: drives a real browser through Node and Playwright; skipped where they are not installed",
 ]
 
 [tool.coverage.run]

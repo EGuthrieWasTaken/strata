@@ -142,6 +142,30 @@ def test_response_carries_security_headers(tmp_path: Path) -> None:
     assert r.headers["X-Content-Type-Options"] == "nosniff"
 
 
+def test_the_referrer_policy_lets_a_browser_send_its_real_origin(tmp_path: Path) -> None:
+    """Under `Referrer-Policy: no-referrer` a browser sends `Origin: null` on every form post, the
+    interface's own same-origin forms included, and the Origin check then refuses all of them.
+    The in-process client sends no Origin header, so only the policy itself can be pinned here;
+    `tests/browser` posts a form from a real browser."""
+    repo = _repo_with_records(tmp_path, [])
+    client = _authenticated(_client(repo))
+
+    policy = client.get("/").headers["Referrer-Policy"]
+
+    assert policy == "same-origin"
+
+
+def test_a_post_from_a_page_sandboxed_into_a_null_origin_is_still_refused(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    client = _authenticated(_client(repo))
+
+    r = client.post(
+        "/dedup/run", data={"csrf_token": _TOKEN, "rationale": "x" * 20}, headers={"origin": "null"}
+    )
+
+    assert r.status_code == 400 and r.text == "invalid Origin header"
+
+
 def test_expired_session_is_rejected(tmp_path: Path) -> None:
     repo = _repo_with_records(tmp_path, [])
     client = _client(repo, inactivity_timeout=0.0)
@@ -176,7 +200,7 @@ def test_dashboard_reflects_screening_progress(tmp_path: Path) -> None:
     repo = open_repo(repo.root)
     client = _authenticated(_client(repo))
     r = client.get("/")
-    assert "<td>1</td>" in r.text  # resolved count for title-abstract
+    assert '<td data-label="Resolved">1</td>' in r.text  # resolved count for title-abstract
 
 
 # -------------------------------------------------------------- screening

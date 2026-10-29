@@ -20,6 +20,7 @@ from strata.core import operations as ops
 from strata.core.commit import RationaleRejectedError
 from strata.core.init import init_repository
 from strata.core.repo import Repo, open_repo
+from strata.ingest import pipeline
 from strata.ingest.pipeline import ImportPipelineError
 from strata.protocol.searches import SearchError
 
@@ -418,3 +419,79 @@ def test_the_comparison_notices_a_different_commit_message(tmp_path: Path) -> No
     _search(via_ops, rationale="a different reason for recording the same search")
 
     assert _committed_snapshot(via_cli) != _committed_snapshot(via_ops)
+
+
+# --------------------------------------------------------- what the pipeline says about searches
+
+
+def test_searches_awaiting_an_import_drop_off_as_they_are_imported_or_replaced(
+    tmp_path: Path,
+) -> None:
+    repo = _init(tmp_path)
+    _search(repo)
+    _search(repo, database="Embase", export_files=[])
+    assert pipeline.searches_awaiting_import(repo) == ["S-01-embase", "S-01-medline"]
+
+    ops.import_file(
+        repo, _export(tmp_path), imported_by="ethan", search_id="S-01-medline", rationale=_WHY
+    )
+    assert pipeline.searches_awaiting_import(repo) == ["S-01-embase"]
+
+    _search(repo, database="Embase", supersedes="S-01-embase", export_files=[])
+    # The replaced search no longer waits for anything; the one that replaced it does.
+    assert pipeline.searches_awaiting_import(repo) == ["S-02-embase"]
+
+
+def test_the_search_overview_joins_each_search_to_its_imports_and_its_successor(
+    tmp_path: Path,
+) -> None:
+    repo = _init(tmp_path)
+    _search(repo, query="")
+    ops.import_file(
+        repo, _export(tmp_path), imported_by="ethan", search_id="S-01-medline", rationale=_WHY
+    )
+    _search(repo, supersedes="S-01-medline")
+
+    first, second = pipeline.search_overview(repo)
+
+    assert first.search["id"] == "S-01-medline" and first.query_pending
+    assert first.replaced_by == "S-02-medline"
+    assert [m["source_file"] for m in first.imports] == ["export.json"]
+    assert second.search["id"] == "S-02-medline" and not second.query_pending
+    assert second.replaced_by is None and second.imports == []
+
+
+@pytest.mark.parametrize(
+    ("search_id", "via", "message"),
+    [
+        (None, None, "exactly one of --search or --via is required"),
+        ("S-01-medline", "website", "exactly one of --search or --via is required"),
+        (None, "carrier-pigeon", "invalid --via 'carrier-pigeon'"),
+        ("S-99-nothing", None, "unknown search 'S-99-nothing'"),
+    ],
+)
+def test_validate_source_refuses_in_the_commands_words(
+    tmp_path: Path, search_id: str | None, via: str | None, message: str
+) -> None:
+    repo = _init(tmp_path)
+    _search(repo)
+
+    with pytest.raises(ImportPipelineError, match=re.escape(message)):
+        pipeline.validate_source(repo, "ethan", search_id, via)
+
+
+def test_validate_source_refuses_an_actor_who_is_not_configured(tmp_path: Path) -> None:
+    repo = _init(tmp_path)
+
+    with pytest.raises(ImportPipelineError, match="imported_by 'nobody' is not a configured"):
+        pipeline.validate_source(repo, "nobody", None, "website")
+
+
+def test_validate_source_returns_the_search_it_found(tmp_path: Path) -> None:
+    repo = _init(tmp_path)
+    _search(repo)
+
+    found = pipeline.validate_source(repo, "ethan", "S-01-medline", None)
+
+    assert found is not None and found["database"] == "MEDLINE"
+    assert pipeline.validate_source(repo, "ethan", None, "website") is None

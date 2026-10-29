@@ -61,3 +61,30 @@ what is deliberately partial.
   number of a billion would have yielded a billion blank rows; both now end in a clean refusal.
 - **Not done**: the Covidence, Rayyan and EPPI-Reviewer migration imports (2.1-2.3), which need real export
   samples this project does not have; the XLS (legacy) format; reading dates formatted as dates.
+
+## add-web-ui-write-surfaces: manual checks for the search and import screens
+
+The browser test in `tests/browser` (Node and Playwright, skipped where they are not installed) drives
+Chromium through reaching the file chooser by keyboard, dropping files, posting the form, reviewing and
+importing, and checks for script and Content-Security-Policy errors and for sideways scrolling at 320 px.
+A person still has to check what a script cannot judge. **None of these has been run by a person yet.**
+
+- [ ] **Keyboard only**, in a real browser: reach every control of `/searches/new`, the review page and the
+      results page with Tab and Shift-Tab, choose files with Enter or Space on the file control, submit with
+      Enter. Focus is visible on every control, and the order follows the page.
+- [ ] **Screen reader** (NVDA or VoiceOver): choosing or dropping files is announced ("2 files chosen: ..."),
+      the review table's columns are read with their headings, the "already imported" and error messages are
+      announced, and the "Only files can be dropped here" message is heard after dropping text.
+- [ ] **200 % zoom and 320 px width**: nothing is cut off or needs sideways scrolling on `/`, `/searches`, a
+      search page, `/searches/new`, the review page and the results page; the tables read as labelled cards.
+- [ ] **Reduced motion** (`prefers-reduced-motion: reduce`): the drop target changes with no animation.
+- [ ] **Dark mode** (`prefers-color-scheme: dark`): the drop target, its dragging state, the warning flags and
+      the error messages all keep their contrast (4.5:1 for text, 3:1 for the border).
+- [ ] **Colour is never the only signal**: with colour removed (a greyscale filter), a search with no query, a
+      search with no export, a file that cannot be imported and the dragging state are each still
+      distinguishable by an icon or by words.
+- [ ] **JavaScript disabled**: record a search with a file, review, and import, using only the ordinary file
+      chooser; nothing is missing but the drop box.
+- [ ] **Firefox and Safari** (the browser test uses Chromium): the same flow, in particular that a form post
+      is accepted (the referrer policy was `no-referrer`, which makes browsers send `Origin: null`).
+

@@ -1,0 +1,15 @@
+{#- Shared form pieces. -#}
+{% macro file_picker(id, name, label, max_upload_mb, hint="") %}
+{#- A real file input; static/dropzone.js (when it runs) lets files be dropped onto it as well.
+    Without that script this is an ordinary file chooser and the form posts as usual. -#}
+<div class="dropzone" data-dropzone>
+  <label for="{{ id }}">{{ label }}</label>
+  <input type="file" id="{{ id }}" name="{{ name }}" multiple
+         accept=".ris,.bib,.nbib,.json,.xml,.csv,.tsv,.txt,.xlsx" aria-describedby="{{ id }}-hint">
+  <p class="dropzone-hint" id="{{ id }}-hint" data-dropzone-hint>
+    Choose files{% if hint %} {{ hint }}{% endif %}. Up to {{ max_upload_mb }} MB.
+    <span class="dropzone-js-only" hidden>You can also drop them here.</span>
+  </p>
+  <ul class="dropzone-list" data-dropzone-list aria-label="Chosen files"></ul>
+</div>
+{% endmacro %}
