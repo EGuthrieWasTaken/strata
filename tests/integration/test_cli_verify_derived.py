@@ -244,7 +244,7 @@ def test_no_command_leaves_a_derived_file_out_of_date(tmp_path: Path) -> None:
          "--by", "ethan"),
         ("--why", "ethan screens", "screen", "title-abstract", "--by", "ethan", "--decisions",
          str(decisions)),
-        ("--why", "sam screens", "screen", "title-abstract", "--by", "sam", "--decisions",
+        ("--why", "sam screens it all", "screen", "title-abstract", "--by", "sam", "--decisions",
          str(decisions)),
         ("--why", "retrieving a full text", "retrieve", "--by", "ethan", "--report",
          "rpt_" + ids[0][4:], "--outcome", "retrieved", "--source", "institutional-access"),

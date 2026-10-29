@@ -353,8 +353,11 @@ def test_search_add_with_rationale_not_required_commits_without_a_body(tmp_path:
 # strata import
 # ---------------------------------------------------------------------------------------------
 
+# `derived/pool.tsv` is here since `strata verify` began holding the derived files to regeneration:
+# an import used to commit the counts and leave the pool without the records it had just added.
 _IMPORT_FILES = [
     "derived/counts.json",
+    "derived/pool.tsv",
     "events/import/ethan.ndjson",
     "imports/<IMPORT>/manifest.yaml",
     "imports/<IMPORT>/raw/export.json",
@@ -502,6 +505,7 @@ def test_import_no_commit_leaves_exactly_the_import_uncommitted(tmp_path: Path) 
     assert _commit_count(root) == before
     assert _status(root) == [
         " M derived/counts.json",
+        " M derived/pool.tsv",
         " M records/records.ndjson",
         "?? events/import/ethan.ndjson",
         "?? imports/<IMPORT>/manifest.yaml",

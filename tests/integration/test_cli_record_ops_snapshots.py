@@ -123,7 +123,12 @@ def test_fix_output_commit_and_files(tmp_path: Path) -> None:
         "fix(<REC>): corrected title\n\nfixing a typo in the title\n\n"
         "Strata-Op: fix\nStrata-Actor: ethan\n\n"
     )
-    assert _head_files(root) == ["events/fix/ethan.ndjson", "records/records.ndjson"]
+    # The pool lists the title, so the correction changes it too (it used to be left as it was).
+    assert _head_files(root) == [
+        "derived/pool.tsv",
+        "events/fix/ethan.ndjson",
+        "records/records.ndjson",
+    ]
     assert _status(root) == []
 
     events = [
@@ -252,12 +257,9 @@ def test_criteria_add_output_commit_and_files(tmp_path: Path) -> None:
         "criteria-add(INC-01): add criterion INC-01\n\nadding the population criterion\n\n"
         "Strata-Op: criteria-add\nStrata-Criterion: INC-01\nStrata-Actor: ethan\n\n"
     )
-    assert _head_files(root) == [
-        "derived/irr.json",
-        "derived/pool.tsv",
-        "events/criteria/ethan.ndjson",
-        "protocol/criteria.yaml",
-    ]
+    # No decision exists yet, so no derived file changes (the commit used to carry `irr.json` and
+    # `pool.tsv` only because import had left them out of date).
+    assert _head_files(root) == ["events/criteria/ethan.ndjson", "protocol/criteria.yaml"]
     assert _status(root) == []
 
 

@@ -546,7 +546,7 @@ def verify(
         _print_json(
             {
                 "ok": report.ok,
-                "regenerated": regenerated,
+                **({"regenerated": regenerated} if fix else {}),
                 "issues": [
                     {"code": i.code, "message": i.message, "path": i.path, "severity": i.severity}
                     for i in report.issues
