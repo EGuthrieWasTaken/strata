@@ -258,7 +258,7 @@ def test_fix_corrects_field_and_commits(tmp_path: Path) -> None:
     assert "Strata-Op: fix" in message
 
 
-def test_fix_rejects_structured_field(tmp_path: Path) -> None:
+def test_fix_rejects_a_field_that_is_not_metadata(tmp_path: Path) -> None:
     root = _init(tmp_path)
     _import(root, tmp_path, "a.json", _RECORD)
     record_id = _record_id(root)
@@ -266,13 +266,13 @@ def test_fix_rejects_structured_field(tmp_path: Path) -> None:
         app,
         [
             "--why",
-            "correcting a structured field",
+            "correcting a field that is not metadata",
             "-C",
             str(root),
             "fix",
             record_id,
             "--field",
-            "author",
+            "id",
             "--value",
             "x",
             "--by",
