@@ -143,3 +143,35 @@ def test_nothing_changes_when_strata_cannot_be_found_anywhere(
     monkeypatch.setattr("sys.argv", ["pytest"])
     monkeypatch.setattr("sys.executable", str(tmp_path / "nowhere" / "python"))
     assert gitio._env_for_hooks() is None
+
+
+def test_ensure_local_exclude_ignores_a_path_without_touching_a_tracked_file(
+    tmp_path: Path,
+) -> None:
+    _repo(tmp_path)
+    (tmp_path / ".strata" / "tmp").mkdir(parents=True)
+    (tmp_path / ".strata" / "tmp" / "upload.ris").write_text("x", encoding="utf-8")
+    assert gitio.is_dirty(tmp_path)
+
+    gitio.ensure_local_exclude(tmp_path, ["/.strata/tmp/"])
+
+    assert not gitio.is_dirty(tmp_path)
+    assert not (tmp_path / ".gitignore").exists()
+
+
+def test_ensure_local_exclude_is_idempotent_and_keeps_existing_entries(tmp_path: Path) -> None:
+    _repo(tmp_path)
+    exclude = tmp_path / ".git" / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    exclude.write_text("# mine\n*.swp", encoding="utf-8")  # no trailing newline
+
+    gitio.ensure_local_exclude(tmp_path, ["/.strata/tmp/", "*.swp"])
+    gitio.ensure_local_exclude(tmp_path, ["/.strata/tmp/"])
+
+    assert exclude.read_text(encoding="utf-8").splitlines() == ["# mine", "*.swp", "/.strata/tmp/"]
+
+
+def test_ensure_local_exclude_outside_a_repository_does_nothing(tmp_path: Path) -> None:
+    gitio.ensure_local_exclude(tmp_path, ["/.strata/tmp/"])
+
+    assert not (tmp_path / ".git").exists()

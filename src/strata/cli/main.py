@@ -88,6 +88,7 @@ from strata.stats import models as models_mod
 from strata.stats import robust as robust_mod
 from strata.web import security as web_security
 from strata.web import server as web_server_mod
+from strata.web import uploads as web_uploads
 
 EXIT_OK = 0
 EXIT_GENERIC = 1
@@ -4350,8 +4351,16 @@ def serve_command(
         "--inactivity-timeout",
         help="Seconds of inactivity before the server exits (openspec:web-ui#localhost-security)",
     ),
+    max_upload_mb: int = typer.Option(
+        web_uploads.DEFAULT_MAX_UPLOAD_MB,
+        "--max-upload-mb",
+        help="Largest file upload the server accepts, in megabytes (openspec:web-uploads)",
+    ),
 ) -> None:
     """Start the local web UI (openspec:web-ui)."""
+    if max_upload_mb < 1:
+        err_console.print("[red]error:[/] --max-upload-mb must be at least 1")
+        raise typer.Exit(EXIT_USAGE)
     repo = _resolve_repo(ctx)
 
     try:
@@ -4377,6 +4386,7 @@ def serve_command(
         session_token=session_token,
         inactivity_timeout=inactivity_timeout,
         public_url=parsed_public,
+        max_upload_mb=max_upload_mb,
     )
     url = web_server_mod.opened_url(params)
     out_console.print(f"[green]strata serve[/] listening on {url}  (actor: {resolved_actor})")

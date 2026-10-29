@@ -7,6 +7,16 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **Upload handling for the web interface** (`strata.web.uploads`; capability `web-uploads`, OpenSpec change
+  `add-web-ui-write-surfaces`). `strata serve` refuses a form post larger than its declared limit before reading
+  it (100 MB for a file upload, `--max-upload-mb N` to change; 1 MB for any other form), refuses one that
+  declares no size, more than 20 files, and a text field over 1 MB, and does all of that only after the session,
+  `Host` and `Origin` checks. Browser file names are never paths (`sanitise_filename`). Uploads wait in
+  `.strata/tmp/uploads/<id>/` under an unguessable id until confirmed, and are deleted on confirm, discard,
+  start-up and after an hour. Only bibliographic exports are accepted, by the detection `strata import` uses; a
+  PDF is refused with the reason. A new review's `.gitignore` now ignores `/.strata/tmp/` and `/.strata/lock`;
+  for existing reviews the staging area is excluded locally (`.git/info/exclude`), which needs no commit. No
+  upload screen uses this yet (searches and imports in the browser come next in the same change).
 - **The repository lock is the operating system's** (`strata.core.lockfile`; OpenSpec change
   `add-web-ui-write-surfaces`). It was a file whose existence meant "held", so a `strata` killed mid-write left
   it behind and every later write failed after 30 seconds until someone deleted `.strata/lock`; and nothing

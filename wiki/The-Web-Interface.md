@@ -110,6 +110,15 @@ Any web page in your browser can send requests to `127.0.0.1`, so `strata serve`
 - escapes everything it displays (an abstract containing `<script>` is shown as text);
 - **exits after 60 minutes of inactivity** (`--inactivity-timeout SECONDS` changes it).
 
+**Files the browser sends are held to the same standard.** `strata serve` refuses an upload larger than **100
+MB** (`--max-upload-mb N` changes it) from the size the browser declares, before reading any of it, and refuses
+one that does not declare a size, more than 20 files at once, and any ordinary form over 1 MB. A file name
+from the browser is never used as a path: it is cleaned (folders, odd characters and device names such as
+`CON` are removed) and kept only as a label. An uploaded file waits in a private folder inside the review
+(`.strata/tmp/uploads/`) until you confirm it, is deleted when you confirm or discard it, when the server
+starts, and after an hour, and is never committed. Only the bibliographic exports `strata import` understands
+are taken; a PDF is refused, because `strata` does not store full texts.
+
 `--host 0.0.0.0` (to reach it from another machine) is refused unless you also give `--token`; if you put it
 behind a proxy or a published container port, tell it the address people will use with `--public-url`. This is a
 tool for you or your team on a trusted network, not a public website. See [Running in a

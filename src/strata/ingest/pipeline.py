@@ -223,6 +223,21 @@ def _resolve_csv_mapping(
     return {field: column for field, column in profile.mapping.items() if column in header_columns}
 
 
+def sniff_format(source_path: str | Path, *, fmt: str | None = None) -> str:
+    """The format `import_file` would take this file to be: nothing is parsed or written.
+
+    For a surface that wants to turn a file away at the door with the reason `strata import` would
+    give, from the same detection.
+    """
+    path = Path(source_path)
+    if not path.is_file():
+        raise ImportPipelineError(f"no such file: {path}")
+    if fmt == "xlsx" or (fmt is None and path.suffix.lower() == ".xlsx"):
+        return "xlsx"
+    text, _encoding = decode_bytes(path.read_bytes())
+    return fmt or detect_format(path, normalise_newlines(text))
+
+
 @dataclass(frozen=True)
 class _Source:
     """A file's bytes as the parsers see them: text, how it was decoded and which format it is."""

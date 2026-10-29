@@ -21,13 +21,13 @@ that.
 
 ## 3. Upload handling (`web-uploads`)
 
-- [ ] 3.1 Add `strata serve --max-upload-mb` (default 100) and carry it in the app state; verify with a CLI test of the default, an override and a non-positive value, and regenerate the command reference with `scripts/build_wiki_reference.py`
-- [ ] 3.2 In the security middleware, refuse a multipart request with no length (411) or over the limit (413) before the form is read, naming the limit, and pass explicit file-count and field-size limits when parsing; verify with tests for an oversize file, a chunked request, too many files and a raised limit, each asserting nothing exists under `.strata/tmp/` and the repository is clean
-- [ ] 3.3 Verify the order of checks for a multipart request: a foreign `Origin`, no session, and a missing CSRF token each leave nothing staged (extend `tests/integration/test_web_security.py`)
-- [ ] 3.4 Add `web/uploads.py` with the file-name sanitiser; verify with unit cases (traversal, both separators, reserved device names, empty and dot-only names, Unicode, over-long names, duplicates in one request) and a Hypothesis property that any input gives a non-empty name with no separator, no leading dot, that resolves inside the batch directory
-- [ ] 3.5 Add the staging store (batch ids, `batch.json`, create, open, discard, purge by age and at startup); verify with tests for a forged id containing separators, an unknown id, an expired id, a purge at start-up, and that `strata status` reports a clean tree while a batch is staged
-- [ ] 3.6 Refuse anything `strata import` does not recognise, using the same detection, and explain for PDFs that full texts are not stored; verify against the golden parser fixtures (accepted exactly when the CLI accepts them) and a PDF
-- [ ] 3.7 Document upload limits in the wiki's web interface page and `Known-Limitations` (the limit, no progress bar, parse time on large files); verify `scripts/check_wiki.py` passes
+- [x] 3.1 Add `strata serve --max-upload-mb` (default 100) and carry it in the app state; verify with a CLI test of the default, an override and a non-positive value, and regenerate the command reference with `scripts/build_wiki_reference.py`
+- [x] 3.2 In the security middleware, refuse a multipart request with no length (411) or over the limit (413) before the form is read, naming the limit, and pass explicit file-count and field-size limits when parsing; verify with tests for an oversize file, a chunked request, too many files and a raised limit, each asserting nothing exists under `.strata/tmp/` and the repository is clean
+- [x] 3.3 Verify the order of checks for a multipart request: a foreign `Origin`, no session, and a missing CSRF token each leave nothing staged (extend `tests/integration/test_web_security.py`)
+- [x] 3.4 Add `web/uploads.py` with the file-name sanitiser; verify with unit cases (traversal, both separators, reserved device names, empty and dot-only names, Unicode, over-long names, duplicates in one request) and a Hypothesis property that any input gives a non-empty name with no separator, no leading dot, that resolves inside the batch directory
+- [x] 3.5 Add the staging store (batch ids, `batch.json`, create, open, discard, purge by age and at startup); verify with tests for a forged id containing separators, an unknown id, an expired id, a purge at start-up, and that `strata status` reports a clean tree while a batch is staged
+- [x] 3.6 Refuse anything `strata import` does not recognise, using the same detection, and explain for PDFs that full texts are not stored; verify against the golden parser fixtures (accepted exactly when the CLI accepts them) and a PDF
+- [x] 3.7 Document upload limits in the wiki's web interface page and `Known-Limitations` (the limit, no progress bar, parse time on large files); verify `scripts/check_wiki.py` passes
 
 ## 4. Searches and imports in the browser
 
