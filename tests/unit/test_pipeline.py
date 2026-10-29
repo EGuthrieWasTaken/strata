@@ -18,6 +18,7 @@ from strata.ingest.pipeline import (
     import_file,
     list_import_manifests,
 )
+from strata.protocol import pool as pool_mod
 from strata.protocol.searches import add_search
 
 _CLEAN_CSL = """\
@@ -98,6 +99,7 @@ def test_import_file_creates_records_and_events(tmp_path: Path) -> None:
     raw_path = repo.path("imports", outcome.import_id, "raw", "export.json")
     assert raw_path.read_text(encoding="utf-8") == _CLEAN_CSL
 
+    pool_mod.regenerate_all(repo)  # the operation that calls the pipeline refreshes the views
     report = verify_repository(repo)
     assert report.ok, report.issues
 
