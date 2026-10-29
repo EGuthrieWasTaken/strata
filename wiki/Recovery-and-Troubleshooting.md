@@ -23,7 +23,7 @@ chain, and a hand edit is exactly what `E_CHAIN` exists to catch.
 Decisions are appended to the event log and flushed as you make them; the commit is made when the session
 ends. If the process died (a crash, a closed terminal, a dead battery) every decision you saw accepted is on
 disk, uncommitted. Start `strata screen` again: it resumes with those records already done, and the commit
-comes at the end of that session. `git diff` shows exactly what is waiting to be committed.
+comes at the end of that session. `git diff` shows exactly what is waiting to be committed. `strata verify` may report `E_DERIVED_DRIFT` for the views under `derived/`, which are refreshed when a session ends; `strata verify --fix` (or finishing the next session) brings them up to date.
 
 ## `strata verify` says…
 
@@ -39,7 +39,7 @@ comes at the end of that session. `git diff` shows exactly what is waiting to be
 | `E_ORPHAN_EXTRACTION` | extraction data exists for a study that is not included | the study was excluded after extraction; the data is kept, not deleted. Re-include the study, or leave the warning |
 | `E_MISSING_EXTRACTION` | an included study has no consensus extraction | a warning until you analyse: `strata extract --missing` |
 | `E_COUNT_RECONCILE` | the PRISMA counts do not add up | records that no import manifest accounts for (hand-written records) or a hand-edited `derived/counts.json`; the message names the identity that fails. Every `strata` command that changes a count regenerates the file, so `strata prisma` rewrites it |
-| `E_DERIVED_DRIFT` | a file under `derived/` is not what regenerating it from the records and events would write | a hand edit, a merge done with plain `git`, or a `strata` older than the version that regenerates every derived file after each command (its `pool.tsv` could lag behind an import, a duplicate merge or a correction). `strata verify --fix` regenerates the files that drifted and leaves them uncommitted; `git diff derived/` shows what changed, and committing it keeps it. A file that is not there at all is not drift |
+| `E_DERIVED_DRIFT` | a file under `derived/` is not what regenerating it from the records and events would write | a hand edit, a merge done with plain `git`, a `strata screen` session that was killed before it ended (its decisions are safe; the views catch up when you screen again, or with `--fix`), or a `strata` older than the version that regenerates every derived file after each command (its `pool.tsv` could lag behind an import, a duplicate merge or a correction). `strata verify --fix` regenerates the files that drifted and leaves them uncommitted; `git diff derived/` shows what changed, and committing it keeps it. A file that is not there at all is not drift |
 | `E_UNIT`, `E_EFFECT_INPUTS` | an extracted value has a unit the schema does not accept, or an effect lacks the fields its design needs | `strata extract` the study again |
 
 ## "I made a wrong decision"

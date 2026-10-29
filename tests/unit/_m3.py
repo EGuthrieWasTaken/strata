@@ -14,6 +14,7 @@ from strata.core.actor import add_actor
 from strata.core.canon import dump_yaml_str
 from strata.core.init import init_repository
 from strata.core.repo import Repo, open_repo
+from strata.protocol import pool as pool_mod
 from strata.protocol.screening import record_screen_decision
 
 
@@ -87,6 +88,7 @@ def add_records(repo: Repo, count: int | list[dict[str, Any]]) -> list[str]:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
     _write_import_manifests(repo, records)
+    pool_mod.regenerate_all(repo)  # as the commands leave a review: the derived views follow
     return [r["id"] for r in records]
 
 
@@ -106,3 +108,4 @@ def decide(
                 decision=decision,
                 actor=actor,  # type: ignore[arg-type]
             )
+    pool_mod.regenerate_all(repo)

@@ -157,9 +157,14 @@ def test_sigkill_mid_session_loses_nothing_and_resumes_cleanly(tmp_path: Path) -
     # never got there, so the working tree is (correctly) still dirty.
     assert gitio.is_dirty(root)
 
-    # No torn/corrupt write: the event log is still well-formed.
+    # No torn/corrupt write: the event log is still well-formed. The derived views are refreshed
+    # when a session ends, so the killed one leaves them behind the event it appended; that is
+    # all `strata verify` finds, and `--fix` brings them up to date.
     report = verify_repository(repo)
-    assert report.ok, report.issues
+    assert {issue.code for issue in report.issues} == {"E_DERIVED_DRIFT"}, report.issues
+    fixed = _run(["-C", str(root), "verify", "--fix"])
+    assert "regenerated derived/" in fixed.output
+    assert verify_repository(open_repo(root)).ok
 
     # Resume with an ordinary session: the already-decided record is not
     # re-offered, and the other two are, in full.
