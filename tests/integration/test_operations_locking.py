@@ -38,6 +38,17 @@ with repo_lock(Repo(root=Path(sys.argv[1]), config={})):
 
 _RUN_STRATA = "import sys; from strata.cli.main import app; app()"
 
+# The same command with a lock wait long enough for a slow, busy machine. Four commands queued for
+# one lock each wait for every commit ahead of them (a git commit, its hook, a fresh interpreter),
+# and on a loaded Windows runner those add up to more than the 30 seconds a command waits by
+# default. What the test below asks is that the lock *serialises* the writers, not how fast the
+# machine is; that the wait ends in a refusal is tested with a short timeout further down.
+_RUN_STRATA_PATIENTLY = (
+    "import sys; from strata.core import operations as ops, repo; real = repo.repo_lock; "
+    "ops.repo_lock = lambda r, timeout: real(r, timeout=600); "
+    "from strata.cli.main import app; app()"
+)
+
 
 def _init(tmp_path: Path) -> Repo:
     root = tmp_path / "review"
@@ -66,9 +77,10 @@ def _search_args(database: str) -> list[str]:
     ]
 
 
-def _strata(root: Path, *args: str) -> subprocess.Popen[bytes]:
+def _strata(root: Path, *args: str, patient: bool = False) -> subprocess.Popen[bytes]:
+    script = _RUN_STRATA_PATIENTLY if patient else _RUN_STRATA
     return subprocess.Popen(
-        [sys.executable, "-c", _RUN_STRATA, "-C", str(root), *args],
+        [sys.executable, "-c", script, "-C", str(root), *args],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
@@ -117,7 +129,7 @@ def test_four_commands_at_once_all_succeed_with_one_commit_each(tmp_path: Path) 
     before = len(gitio.log(repo.root))
     databases = ["MEDLINE", "Embase", "PsycINFO", "Scopus"]
 
-    writers = [_strata(repo.root, *_search_args(db)) for db in databases]
+    writers = [_strata(repo.root, *_search_args(db), patient=True) for db in databases]
     outputs = [(w.communicate(timeout=300)[0].decode(), w.returncode) for w in writers]
 
     assert [code for _out, code in outputs] == [EXIT_OK] * 4, outputs
