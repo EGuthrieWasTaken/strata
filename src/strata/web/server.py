@@ -21,6 +21,7 @@ from strata.web.security import (
     PublicUrl,
     generate_token,
 )
+from strata.web.uploads import DEFAULT_MAX_UPLOAD_MB, MIB
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
@@ -92,6 +93,7 @@ class ServeParams:
     session_token: str
     inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS
     public_url: PublicUrl | None = None
+    max_upload_mb: int = DEFAULT_MAX_UPLOAD_MB
 
 
 def opened_url(params: ServeParams) -> str:
@@ -121,6 +123,7 @@ async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
         port=params.port,
         inactivity_timeout=params.inactivity_timeout,
         public_url=params.public_url,
+        max_upload_bytes=params.max_upload_mb * MIB,
     )
     clock = app.state.strata.clock
 

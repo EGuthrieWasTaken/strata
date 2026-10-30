@@ -1,11 +1,10 @@
 """`strata verify`: whole-repository validation.
 
-Implements the checks catalogued in openspec:repository-verification#cross-schema-validation-rules
-that are in
-scope at M0 (schema validation, hash-chain integrity, dangling references,
-alias-graph acyclicity). Checks that depend on derived-view regeneration or
-domain events not yet implemented (dedup, screening, extraction, analysis)
-are added as those land.
+Implements the checks catalogued in openspec:repository-verification#cross-schema-validation-rules:
+schema validation, hash-chain integrity, dangling references, alias-graph acyclicity, the checks
+over screening, extraction, risk of bias and the PRISMA counts, and derived drift. `--fast` (the
+pre-commit hook) skips the checks that cross-reference or recompute, derived drift among them,
+which does not yet fit the two seconds that mode is allowed on 50,000 records.
 """
 
 from __future__ import annotations
@@ -450,6 +449,37 @@ def _verify_counts(repo: Repo, report: VerifyReport) -> None:
         )
 
 
+def _verify_derived(repo: Repo, report: VerifyReport) -> None:
+    """`E_DERIVED_DRIFT`: every file under `derived/` is what regenerating it now would write
+    (openspec:repository-format: GENERATED files are regenerated and compared with what is
+    committed, and never read back as input).
+
+    This is what notices a counts file that is out of date after a change that forgot to
+    regenerate it, which `_verify_counts` cannot: it checks that the counts the events *would*
+    produce close, not that the file on disk says what they produce. A file that does not exist is
+    not drift, since commands regenerate what they need.
+    """
+    from strata.protocol import pool as pool_mod
+
+    try:
+        drifted = pool_mod.derived_drift(repo)
+    except Exception as exc:  # noqa: BLE001 - a corrupt repository is reported elsewhere
+        report.add(
+            "W_DERIVED_UNCHECKED",
+            f"cannot check the derived files: {exc}",
+            path="derived",
+            severity="warning",
+        )
+        return
+    for name in drifted:
+        report.add(
+            "E_DERIVED_DRIFT",
+            f"derived/{name} differs from what the records and events produce; "
+            "`strata verify --fix` regenerates it",
+            path=f"derived/{name}",
+        )
+
+
 def _verify_diagram(repo: Repo, report: VerifyReport) -> None:
     """A committed `reports/prisma.svg` is what `strata prisma` would draw now, byte for byte
     (openspec:prisma-reporting#flow-diagram). A warning: the diagram is out of date after any
@@ -531,6 +561,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
         _verify_extraction(repo, report)
         _verify_rob(repo, report)
         _verify_counts(repo, report)
+        _verify_derived(repo, report)
         _verify_diagram(repo, report)
         _verify_analyses(repo, report)
     return report

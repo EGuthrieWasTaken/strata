@@ -23,16 +23,58 @@ screening as; it is required if the review has more than one actor. Stop it with
 | Screening | `/screen/title-abstract`, `/screen/full-text` | One record at a time with the criteria numbered beside it; keyboard-driven |
 | Re-screening | `/rescreen/<stage>` | The stale queue, with your previous decision and why it is stale |
 | Adjudication | `/adjudicate/<stage>` | Conflicts, with both opinions side by side |
-| Criteria | `/criteria` | Edit or retire a criterion, with a **live impact preview** (how many decisions the change would put in doubt) *before* you save |
+| Criteria | `/criteria`, `/criteria/new` | Edit or retire a criterion, with a **live impact preview** (how many decisions the change would put in doubt) *before* you save, or add a new one |
+| Assigning | `/assign/<stage>` | Choose who screens which records, with a count of what a filter matches *before* you save |
 | Duplicates | `/dedup` | The review queue for doubtful duplicates |
-| Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance |
+| Searches | `/searches`, `/searches/new`, `/searches/<id>` | Record a search with its date and query, attach the export it produced, see what has been imported from it, and re-run it |
+| Import | `/import`, then a review step | Records that did not come from a database search (reference lists, websites, registries, experts) |
+| Full texts | `/retrieve`, `/retrieve/<report>` | The reports sought and what became of each: record that you have the document, asked for it, or could not get it (and why). No file is uploaded |
+| Studies | `/studies` | Included reports grouped into studies, with the suggestions and their evidence, and forms to group or split (each needs a reason; nothing is applied for you) |
+| Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance, with a form to correct a field |
 | History | `/history` | The domain-level log: who did what, and why |
 | Extraction | `/extract`, `/extract/<study>` | The coding form, with the effect size shown as you type; reconciliation at `/extract/<study>/reconcile` |
 | Risk of bias | `/rob`, `/rob/<study>` | Domain-by-domain assessment with the algorithm's suggestion |
 | Analyses | `/analysis`, `/analysis/<id>` | The committed results and plots, and whether they are stale |
 | PRISMA | `/prisma` | The flow diagram |
 
-Retrieval and study grouping are command-line only so far.
+Sharing with `strata sync`, running analyses and writing the reports are command-line only so far.
+
+### Recording a search and importing its results
+
+1. Open **Searches** and choose **Record a search**. Give the database and the platform you used, the date you
+   ran it (today unless you change it), the query exactly as you ran it, the number of hits, and why you are
+   recording it. If you do not have the query yet, leave it empty: the search is recorded as missing its query
+   and flagged on the dashboard until you supply it.
+2. Choose the export file or files the search produced (RIS, BibTeX, PubMed, EndNote XML, CSV, Excel and the
+   other formats in [Searching and importing](Searching-and-Importing#formats)), or drag them onto the box.
+   You can also leave this and add files from the search's own page later.
+3. **Review.** Nothing has been imported yet. For each file the page shows what importing it would do: how
+   many rows it holds, how many records are new, how many match ones you already have, and any rows that cannot
+   be used, each with its reason. This is the same check as `strata import --dry-run`. A CSV whose columns
+   match no known database export asks you which column is the title, the authors and so on; a workbook with
+   several sheets asks which one. A file you have imported before is recognised.
+4. Say why you are importing, and choose **Import**. Each file becomes its own import and its own commit, with
+   the same record of who did it and why as on the command line, and the raw file is kept with the import.
+
+To run a search again later (an update before you submit), open the search and choose **Re-run this search**:
+it becomes a new search that replaces the old one, which is kept as it was.
+
+### Correcting a record, adding a criterion, assigning reviewers
+
+- **Correct a field.** Open a record and use *Correct a field*: choose the field (any that `strata fix`
+  allows: title, journal, DOI, authors, the year and so on), give the corrected value and say why. Authors are
+  written *Family, Given; Family, Given* and a date *2009* or *2009-03-30*; an empty value removes the field.
+  The old and the new value appear in the record's provenance timeline, and the correction is its own commit.
+  A value the record already has changes nothing and asks for no reason. If the correction gives the record
+  the same identity as another, the page says so and links to it; merge them under *Duplicates*.
+- **Add a criterion.** *Add a criterion* on the criteria page takes whether it includes or excludes, a label,
+  a definition, the stages it applies at and why. A criterion you add is recorded as **tightened**
+  ([Criteria versions and direction](Criteria-Versions-and-Direction)): decisions already made at those stages
+  are marked stale for re-screening, exactly as after `strata criteria add`. A reason is always required here.
+- **Assign reviewers.** Open `/assign/<stage>` (the dashboard links to it for every stage). It shows how many
+  records each reviewer still has waiting. To assign only some records, type a [filter](Filter-Language) and
+  choose *Check how many match*: nothing is saved, and a filter that does not parse shows the parser's message.
+  Then choose the reviewers, say why, and assign.
 
 ## A tour
 
@@ -110,6 +152,15 @@ Any web page in your browser can send requests to `127.0.0.1`, so `strata serve`
 - escapes everything it displays (an abstract containing `<script>` is shown as text);
 - **exits after 60 minutes of inactivity** (`--inactivity-timeout SECONDS` changes it).
 
+**Files the browser sends are held to the same standard.** `strata serve` refuses an upload larger than **100
+MB** (`--max-upload-mb N` changes it) from the size the browser declares, before reading any of it, and refuses
+one that does not declare a size, more than 20 files at once, and any ordinary form over 1 MB. A file name
+from the browser is never used as a path: it is cleaned (folders, odd characters and device names such as
+`CON` are removed) and kept only as a label. An uploaded file waits in a private folder inside the review
+(`.strata/tmp/uploads/`) until you confirm it, is deleted when you confirm or discard it, when the server
+starts, and after an hour, and is never committed. Only the bibliographic exports `strata import` understands
+are taken; a PDF is refused, because `strata` does not store full texts.
+
 `--host 0.0.0.0` (to reach it from another machine) is refused unless you also give `--token`; if you put it
 behind a proxy or a published container port, tell it the address people will use with `--public-url`. This is a
 tool for you or your team on a trusted network, not a public website. See [Running in a
@@ -119,7 +170,9 @@ container](Running-in-a-Container) for the container case.
 
 Screening in the browser appends the same decisions to the same files as the command line and commits them
 with the same trailers, so `strata log`, `strata why` and `strata sync` see no difference. A screening session
-is committed when you leave the screen.
+is committed when you leave the screen. Recording a search and importing its files use the very same code as
+`strata search add` and `strata import`: the search file, the import, the commit messages and the PRISMA
+counts come out identical, whichever you used.
 
 ## Also available to AI assistants (read only)
 

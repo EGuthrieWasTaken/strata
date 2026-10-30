@@ -29,6 +29,11 @@ strata --why "Same trial, 12-month follow-up" studies --by ada \
 Run `strata studies --by ada` (without options) for the interactive version, which walks the suggestions:
 `g` group, `k` keep separate, `?` show both reports, `s` skip, `q` quit.
 
+In the browser, `/studies` (`strata serve`) shows the included reports as studies, every suggestion with its
+evidence, and forms to group or split, each asking for your reason. Opening the page records nothing; only a
+form you submit does. Keeping a suggestion as it is (`k` above) is command-line only for now, so a suggestion
+you reject stays on the page.
+
 | Option | Meaning |
 |---|---|
 | `--group REPORT` | A report to put in the study (repeat it for each report) |

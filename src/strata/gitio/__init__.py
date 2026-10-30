@@ -107,6 +107,29 @@ def add_all(path: Path) -> None:
     run(["add", "-A"], cwd=path)
 
 
+def ensure_local_exclude(path: Path, patterns: list[str]) -> None:
+    """Make git ignore `patterns` in this clone, changing no tracked file.
+
+    The entries go in the clone's `info/exclude`, so nothing needs committing and nobody else's
+    clone is affected. For files strata keeps in the working tree that older review repositories'
+    `.gitignore` does not name (the upload staging area).
+    """
+    located = run(["rev-parse", "--git-path", "info/exclude"], cwd=path, check=False)
+    if located.returncode != 0:
+        return
+    exclude = Path(located.stdout.strip())
+    if not exclude.is_absolute():
+        exclude = path / exclude
+    present = exclude.read_text(encoding="utf-8").splitlines() if exclude.exists() else []
+    missing = [pattern for pattern in patterns if pattern not in present]
+    if not missing:
+        return
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    prefix = "\n" if present and exclude.read_text(encoding="utf-8")[-1:] != "\n" else ""
+    with exclude.open("a", encoding="utf-8") as handle:
+        handle.write(prefix + "\n".join(missing) + "\n")
+
+
 def has_staged_changes(path: Path) -> bool:
     """Whether the index differs from HEAD, i.e. whether a commit would record anything."""
     return run(["diff", "--cached", "--quiet"], cwd=path, check=False).returncode == 1

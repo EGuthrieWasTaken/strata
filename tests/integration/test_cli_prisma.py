@@ -15,6 +15,7 @@ from strata.cli.main import EXIT_GUARDRAIL, EXIT_OK, EXIT_USAGE, EXIT_VALIDATION
 from strata.core.repo import Repo
 from strata.core.verify import verify_repository
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import pool as pool_mod
 from strata.web.app import create_app
 from tests.unit._m5 import finished_review
 
@@ -46,6 +47,7 @@ def _stale(repo: Repo) -> None:
         repo, kind="exclusion", label="Older than 2005", definition="Published before 2005.",
         applies_at=["title-abstract", "full-text"], actor="ethan", rationale="Amendment.",
     )  # fmt: skip
+    pool_mod.regenerate_all(repo)  # what `strata criteria add` does after the criterion is written
     _commit_all(repo)
 
 

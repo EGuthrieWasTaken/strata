@@ -36,12 +36,13 @@ from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
-from strata.core import filters as filters_mod
+from strata.core import fieldedit as fieldedit_mod
 from strata.core import ids as ids_mod
 from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import merge as merge_mod
+from strata.core import operations as ops_mod
 from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
@@ -49,7 +50,14 @@ from strata.core import sync as sync_mod
 from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
-from strata.core.repo import Repo, RepoNotFoundError, SchemaTooNewError, open_repo
+from strata.core.repo import (
+    LockTimeoutError,
+    Repo,
+    RepoNotFoundError,
+    SchemaTooNewError,
+    open_repo,
+    repo_lock,
+)
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -81,6 +89,7 @@ from strata.stats import models as models_mod
 from strata.stats import robust as robust_mod
 from strata.web import security as web_security
 from strata.web import server as web_server_mod
+from strata.web import uploads as web_uploads
 
 EXIT_OK = 0
 EXIT_GENERIC = 1
@@ -210,6 +219,21 @@ def _resolve_repo(ctx: typer.Context) -> Repo:
         raise typer.Exit(EXIT_SCHEMA_TOO_NEW) from None
 
 
+def _warn_lock_reclaimed(previous_holder: int | None) -> None:
+    """Say so when this run took a lock its last holder died holding (it stopped mid-write)."""
+    if previous_holder is not None:
+        err_console.print(
+            f"[yellow]warning:[/] the repository lock was left by process {previous_holder}, which "
+            "is no longer running; it may have stopped part-way through a write. This run carried "
+            "on; `strata verify` checks that nothing was left half-done."
+        )
+
+
+def _lock_busy(exc: LockTimeoutError) -> NoReturn:
+    err_console.print(f"[red]error:[/] {exc}")
+    raise typer.Exit(EXIT_GENERIC)
+
+
 def _read_supplied_rationale(ctx: typer.Context) -> str | None:
     """The unvalidated text given with `--why-file` (first) or `--why`, else `None`."""
     why_file = ctx.obj.get("why_file")
@@ -251,7 +275,7 @@ def _prompt_and_validate_rationale(ctx: typer.Context, context_lines: str) -> st
 
 
 def _rationale_required(repo: Repo) -> bool:
-    return bool(repo.config.get("git", {}).get("require_rationale", True))
+    return ops_mod.rationale_required(repo)
 
 
 def _get_rationale(ctx: typer.Context, repo: Repo, context_lines: str) -> str | None:
@@ -355,19 +379,11 @@ def _parse_config_value(raw: str) -> bool | int | float | str:
 
 
 def _parse_map_option(raw: str) -> dict[str, str]:
-    """`--map title=Article Title,doi=DOI` -> `{"title": "Article Title", "doi": "DOI"}`.
-
-    openspec:literature-import#csv-column-mapping's own example uses exactly this
-    comma-separated `field=Column Name` syntax; a column name containing a
-    literal comma isn't expressible this way, a known limitation.
-    """
-    mapping: dict[str, str] = {}
-    for pair in raw.split(","):
-        if "=" not in pair:
-            raise typer.BadParameter(f"--map entry {pair!r} is not of the form field=Column")
-        field_name, column = pair.split("=", 1)
-        mapping[field_name.strip()] = column.strip()
-    return mapping
+    """`--map title=Article Title,doi=DOI`; the syntax itself is `ingest`'s."""
+    try:
+        return pipeline_mod.parse_mapping(raw)
+    except pipeline_mod.MappingSyntaxError as exc:
+        raise typer.BadParameter(f"--map {exc}") from None
 
 
 @app.command()
@@ -507,16 +523,31 @@ def config(
 def verify(
     ctx: typer.Context,
     fast: bool = typer.Option(False, "--fast"),
-    fix: bool = typer.Option(False, "--fix"),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="Regenerate derived files that drifted; other problems are only reported",
+    ),
 ) -> None:
     """Validate the whole repository."""
     repo = _resolve_repo(ctx)
     report = verify_mod.verify_repository(repo, fast=fast)
-    del fix  # regeneration-based repair lands with the derived views in M1
+    regenerated: list[str] = []
+    if fix:
+        drifted = [i.path for i in report.issues if i.code == "E_DERIVED_DRIFT" and i.path]
+        if drifted:
+            try:
+                with repo_lock(repo):
+                    pool_mod.regenerate_all(repo)
+            except LockTimeoutError as exc:
+                _lock_busy(exc)
+            regenerated = drifted
+            report = verify_mod.verify_repository(repo, fast=fast)
     if ctx.obj["json"]:
         _print_json(
             {
                 "ok": report.ok,
+                **({"regenerated": regenerated} if fix else {}),
                 "issues": [
                     {"code": i.code, "message": i.message, "path": i.path, "severity": i.severity}
                     for i in report.issues
@@ -524,6 +555,10 @@ def verify(
             }
         )
     else:
+        for path in regenerated:
+            out_console.print(f"[green]regenerated[/] {path}")
+        if regenerated:
+            out_console.print("commit the regenerated files to keep them")
         for issue in report.issues:
             loc = f" ({issue.path})" if issue.path else ""
             colour = "yellow" if issue.severity == "warning" else "red"
@@ -773,8 +808,27 @@ def search_add(
         query = Path(query_file).read_text(encoding="utf-8")
     resolved_executed = executed or date.today().isoformat()
 
+    written: dict[str, dict[str, Any]] = {}
+
+    def say_what_was_recorded(recorded: ops_mod.SearchRecorded) -> None:
+        written["record"] = recorded.record
+        _warn_lock_reclaimed(recorded.lock_reclaimed_from)
+        if recorded.query_pending:
+            out_console.print(
+                f"[yellow]warning:[/] no query string recorded for {recorded.record['id']} "
+                "(PRISMA item 7) — supply it before the review is finalised"
+            )
+
+    def ask_why() -> str | None:
+        record = written["record"]
+        return _get_rationale(
+            ctx,
+            repo,
+            f"You recorded search {record['id']} ({record['database']} via {record['platform']}).",
+        )
+
     try:
-        record = searches_mod.add_search(
+        recorded = ops_mod.record_search(
             repo,
             database=database,
             platform=platform,
@@ -787,36 +841,20 @@ def search_add(
             peer_reviewed_by=peer_reviewed_by,
             notes=notes,
             supersedes=supersedes,
+            commit=not ctx.obj["no_commit"],
+            rationale=ask_why,
+            on_written=say_what_was_recorded,
         )
     except (searches_mod.SearchError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
-    if record["query"] == searches_mod.PENDING_QUERY:
-        out_console.print(
-            f"[yellow]warning:[/] no query string recorded for {record['id']} "
-            "(PRISMA item 7) — supply it before the review is finalised"
-        )
-
-    if ctx.obj["no_commit"]:
-        out_console.print(f"[green]recorded[/] search {record['id']} (not committed)")
+    if not recorded.committed:
+        out_console.print(f"[green]recorded[/] search {recorded.record['id']} (not committed)")
         return
-
-    rationale = _get_rationale(
-        ctx,
-        repo,
-        f"You recorded search {record['id']} ({record['database']} via {record['platform']}).",
-    )
-    commit_obj = StructuredCommit(
-        op="search-add",
-        scope=record["id"],
-        summary=f"record search {record['id']}",
-        body=rationale,
-        trailers={"Op": "search-add", "Search": record["id"], "Actor": executed_by},
-    )
-    gitio.add(repo.root, ["protocol/searches"])
-    gitio.commit(repo.root, commit_obj.message())
-    out_console.print(f"[green]recorded[/] search {record['id']}")
+    out_console.print(f"[green]recorded[/] search {recorded.record['id']}")
 
 
 @search_app.command("list")
@@ -836,6 +874,66 @@ def search_list(ctx: typer.Context) -> None:
         hits = s.get("hits")
         hits_str = f"{hits} hits" if hits is not None else "hits unknown"
         out_console.print(f"{s['id']:<20} {s['database']:<14} {s['executed']}  {hits_str}{pending}")
+
+
+def _import_one(
+    ctx: typer.Context,
+    repo: Repo,
+    file: str,
+    results: list[dict[str, Any]],
+    *,
+    imported_by: str,
+    search_id: str | None,
+    via: str | None,
+    fmt: str | None,
+    mapping: dict[str, str] | None,
+    sheet: str | None,
+    dry_run: bool,
+) -> None:
+    """One file of `strata import`: the shared operation, plus what this command says about it."""
+    written: dict[str, pipeline_mod.ImportOutcome] = {}
+
+    def say_what_happened(result: ops_mod.ImportResult) -> None:
+        outcome = result.outcome
+        written["outcome"] = outcome
+        _warn_lock_reclaimed(result.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            results.append({"file": file, **dataclasses.asdict(outcome)})
+        if outcome.already_imported:
+            if not ctx.obj["json"]:
+                out_console.print(
+                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
+                )
+            return
+        if not ctx.obj["json"]:
+            verb = "would import" if dry_run else "imported"
+            out_console.print(
+                f"[green]{verb}[/] {file} as {outcome.import_id}: "
+                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
+                f"existing, {outcome.rows_rejected} rejected"
+            )
+            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
+                out_console.print(
+                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
+                )
+
+    def ask_why() -> str | None:
+        return _get_rationale(ctx, repo, f"You imported {file} as {written['outcome'].import_id}.")
+
+    ops_mod.import_file(
+        repo,
+        file,
+        imported_by=imported_by,
+        search_id=search_id,
+        via=via,
+        fmt=fmt,
+        mapping=mapping,
+        sheet=sheet,
+        dry_run=dry_run,
+        commit=not ctx.obj["no_commit"],
+        rationale=ask_why,
+        on_written=say_what_happened,
+    )
 
 
 @app.command("import")
@@ -876,37 +974,32 @@ def import_command(
     """
     repo = _resolve_repo(ctx)
     exit_code = EXIT_OK
-    results = []
+    results: list[dict[str, Any]] = []
     mapping = _parse_map_option(map_option) if map_option else None
 
-    def would_import_something() -> bool:
-        for file in files:
-            try:
-                outcome = pipeline_mod.import_file(
-                    repo,
-                    file,
-                    imported_by=by,
-                    search_id=search_id,
-                    via=via,
-                    fmt=fmt,
-                    mapping=mapping,
-                    sheet=sheet,
-                    dry_run=True,
-                )
-            except pipeline_mod.ImportPipelineError:
-                continue  # nothing to commit from this one; the real run reports it as usual
-            if not outcome.already_imported:
-                return True
-        return False
-
     if not dry_run:
-        _preflight_rationale(ctx, repo, needed=would_import_something)
+        _preflight_rationale(
+            ctx,
+            repo,
+            needed=lambda: ops_mod.would_import_anything(
+                repo,
+                files,
+                imported_by=by,
+                search_id=search_id,
+                via=via,
+                fmt=fmt,
+                mapping=mapping,
+                sheet=sheet,
+            ),
+        )
 
     for file in files:
         try:
-            outcome = pipeline_mod.import_file(
+            _import_one(
+                ctx,
                 repo,
                 file,
+                results,
                 imported_by=by,
                 search_id=search_id,
                 via=via,
@@ -921,45 +1014,8 @@ def import_command(
                 results.append({"file": file, "error": str(exc)})
             else:
                 err_console.print(f"[red]error:[/] {file}: {exc}")
-            continue
-
-        if ctx.obj["json"]:
-            results.append({"file": file, **dataclasses.asdict(outcome)})
-
-        if outcome.already_imported:
-            if not ctx.obj["json"]:
-                out_console.print(
-                    f"[yellow]already imported[/] {file} as {outcome.import_id} — no changes made"
-                )
-            continue
-
-        if not ctx.obj["json"]:
-            verb = "would import" if dry_run else "imported"
-            out_console.print(
-                f"[green]{verb}[/] {file} as {outcome.import_id}: "
-                f"{outcome.records_created} new, {outcome.existing_ids_appended} matched "
-                f"existing, {outcome.rows_rejected} rejected"
-            )
-            for row in outcome.nondeterministic_rows:  # pragma: no cover - see pipeline.py
-                out_console.print(
-                    f"[yellow]warning:[/] row {row} had no stable identifier (assigned a random id)"
-                )
-
-        if not dry_run:
-            counts_mod.regenerate_counts_json(repo)  # the identified and duplicate counts moved
-        if dry_run or ctx.obj["no_commit"]:
-            continue
-
-        rationale = _get_rationale(ctx, repo, f"You imported {file} as {outcome.import_id}.")
-        commit_obj = StructuredCommit(
-            op="import",
-            scope=outcome.import_id,
-            summary=f"import {Path(file).name}",
-            body=rationale,
-            trailers={"Op": "import", "Import": outcome.import_id, "Actor": by},
-        )
-        gitio.add(repo.root, ["imports", "records", "events", "derived"])
-        gitio.commit(repo.root, commit_obj.message())
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
 
     if ctx.obj["json"]:
         _print_json(results)
@@ -1016,10 +1072,6 @@ def _render_review_pair(
     return "\n".join(lines)
 
 
-# Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
-_COUNT_NEUTRAL_OPS = frozenset({"extract", "reconcile", "rob", "analyze", "prisma", "report"})
-
-
 def _commit_domain_op(
     ctx: typer.Context,
     repo: Repo,
@@ -1030,24 +1082,16 @@ def _commit_domain_op(
     by: str,
     extra_trailers: dict[str, str] | None = None,
 ) -> None:
-    if op not in _COUNT_NEUTRAL_OPS:
-        counts_mod.regenerate_counts_json(repo)  # whatever this changed, the counts follow it
-    if ctx.obj["no_commit"]:
-        return
-    candidates = (
-        "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
-        "reports",
-    )  # fmt: skip
-    paths = [p for p in candidates if repo.path(*p.split("/")).exists()]
-    if not gitio.has_changes(repo.root, paths):
-        return  # e.g. a form re-created identically: nothing to record
-    rationale = _get_rationale(ctx, repo, f"You {summary}.")
-    trailers = {"Op": op, "Actor": by, **(extra_trailers or {})}
-    commit_obj = StructuredCommit(
-        op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
+    ops_mod.commit_domain_work(
+        repo,
+        op=op,
+        scope=scope,
+        summary=summary,
+        actor=by,
+        extra_trailers=extra_trailers,
+        commit=not ctx.obj["no_commit"],
+        rationale=lambda: _get_rationale(ctx, repo, f"You {summary}."),
     )
-    gitio.add(repo.root, paths)
-    gitio.commit(repo.root, commit_obj.message())
 
 
 _UNDO_OPTION = typer.Option(("", ""), "--undo", help="CANONICAL_ID ABSORBED_ID: reverse one merge")
@@ -1207,30 +1251,27 @@ def _apply_record_filter(
 ) -> list[dict[str, Any]]:
     """Shared `--filter` evaluation (openspec:filter-language), used by `records list`,
     `screen`, and `assign`. Exits with `EXIT_USAGE` on a bad expression or a field
-    that can't be evaluated, rather than raising past the CLI boundary.
-
-    Given `repo`, a filter that names `rob_overall` / `rob.<domain>` sees each record's study-level
-    risk-of-bias judgements (openspec:risk-of-bias#rob-plots-and-moderators)."""
+    that can't be evaluated, rather than raising past the CLI boundary."""
     try:
-        ast = filters_mod.parse(filter_expr)
-    except filters_mod.FilterSyntaxError as exc:
-        err_console.print(f"[red]error:[/] invalid --filter: {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    moderators = (
-        rob_mod.moderators_by_record(repo) if repo is not None and "rob" in filter_expr else None
-    )
-    matched = []
-    for record in records:
-        study_fields = None if moderators is None else moderators.get(record["id"], {})
-        try:
-            if filters_mod.evaluate(
-                ast, records_mod.record_field_resolver(record, study_fields=study_fields)
-            ):
-                matched.append(record)
-        except filters_mod.FilterEvaluationError as exc:
-            err_console.print(f"[red]error:[/] --filter failed on record {record['id']}: {exc}")
-            raise typer.Exit(EXIT_USAGE) from None
-    return matched
+        return ops_mod.filter_records(records, filter_expr, repo)
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
+
+
+def _refuse_filter(exc: ops_mod.FilterError) -> NoReturn:
+    if exc.record_id is None:
+        err_console.print(f"[red]error:[/] invalid --filter: {exc.detail}")
+    else:
+        err_console.print(f"[red]error:[/] --filter failed on record {exc.record_id}: {exc.detail}")
+    raise typer.Exit(EXIT_USAGE)
+
+
+def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
+    """Canonical record ids matching `--filter`, per openspec:filter-language."""
+    try:
+        return set(ops_mod.matching_record_ids(repo, filter_expr))
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
 
 
 @records_app.command("list")
@@ -1343,29 +1384,83 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
 def fix_command(
     ctx: typer.Context,
     record_id: str,
-    field: str = typer.Option(..., "--field", help="One of records_mod.EDITABLE_STRING_FIELDS"),
-    value: str = typer.Option(..., "--value", help="The corrected value"),
+    field: str = typer.Option(
+        ..., "--field", help="The field to correct (title, author, year, DOI, ...)"
+    ),
+    value: str = typer.Option(
+        ...,
+        "--value",
+        help="The corrected value (authors: 'Family, Given; Family, Given'; a date: YYYY-MM-DD)",
+    ),
     by: str = typer.Option(..., "--by", help="Actor handle making the correction"),
 ) -> None:
-    """Correct a metadata field, recording the change as a `record-amend` event."""
-    repo = _resolve_repo(ctx)
-    _preflight_rationale(ctx, repo)
-    resolved_id = _resolve_record_id(repo, record_id)
+    """Correct a metadata field, recording the change as a `record-amend` event.
 
+    Plain-text fields (title, journal, DOI, ...), `author` and the date (`year`, or `issued` for a
+    full date) can be corrected. An empty value removes the field. A DOI, PMID, PMCID or ISBN is
+    stored as an import would store it, and a value the record already has changes nothing. A
+    correction that changes how the record is identified keeps its id, and an export carrying the
+    corrected value is then matched to it.
+    """
+    repo = _resolve_repo(ctx)
+    resolved_id = _resolve_record_id(repo, record_id)
     try:
-        old, new = records_mod.amend_field(
-            repo, record_id=resolved_id, field=field, value=value, actor=by
+        changes = records_mod.preview_amendment(
+            repo, record_id=resolved_id, field=field, value=value
         )
-    except records_mod.FixFieldError as exc:
+    except fieldedit_mod.FixFieldError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    _preflight_rationale(ctx, repo, needed=lambda: changes)
 
-    if ctx.obj["json"]:
-        _print_json({"record": resolved_id, "field": field, "old": old, "new": new})
-    else:
-        out_console.print(f"[green]fixed[/] {resolved_id}.{field}: {old!r} -> {new!r}")
+    def say_what_was_fixed(amended: ops_mod.RecordAmended) -> None:
+        _warn_lock_reclaimed(amended.lock_reclaimed_from)
+        old_text = fieldedit_mod.format_field_value(amended.field, amended.old)
+        new_text = fieldedit_mod.format_field_value(amended.field, amended.new)
+        if ctx.obj["json"]:
+            payload: dict[str, Any] = {
+                "record": resolved_id,
+                "field": field,
+                "old": amended.old,
+                "new": amended.new,
+            }
+            if amended.alias:
+                payload["alias"] = amended.alias
+            if amended.shares_identity_with:
+                payload["shares_identity_with"] = amended.shares_identity_with
+            _print_json(payload)
+        elif not amended.changed:
+            out_console.print(f"unchanged {resolved_id}.{field} is already {new_text!r}")
+        else:
+            out_console.print(
+                f"[green]fixed[/] {resolved_id}.{field}: {old_text!r} -> {new_text!r}"
+            )
+            if amended.shares_identity_with:
+                err_console.print(
+                    f"[yellow]warning:[/] {resolved_id} is now identified as "
+                    f"{amended.shares_identity_with}; run `strata dedup` to merge them"
+                )
+            elif amended.alias:
+                out_console.print(
+                    "the record keeps its id; an export carrying the corrected value now matches it"
+                )
 
-    _commit_domain_op(ctx, repo, op="fix", scope=resolved_id, summary=f"corrected {field}", by=by)
+    try:
+        ops_mod.amend_record(
+            repo,
+            record_id=resolved_id,
+            field=field,
+            value=value,
+            actor=by,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, f"You corrected {field}."),
+            on_written=say_what_was_fixed,
+        )
+    except fieldedit_mod.FixFieldError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 def _split_stages(raw: str) -> list[str]:
@@ -1414,36 +1509,34 @@ def criteria_add(
     rationale = _get_required_rationale(
         ctx, repo, f"You are adding a new {kind} criterion: {label!r}."
     )
+
+    def say_what_was_added(added: ops_mod.CriterionAdded) -> None:
+        _warn_lock_reclaimed(added.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json(added.criterion)
+        else:
+            out_console.print(
+                f"[green]added[/] {added.criterion['id']} (criteria v{added.version})"
+            )
+
     try:
-        criterion = criteria_mod.add_criterion(
+        ops_mod.add_criterion(
             repo,
-            kind=kind,  # type: ignore[arg-type]
+            kind=kind,
             label=label,
             definition=definition,
             applies_at=_split_stages(applies_at),
             actor=by,
             rationale=rationale,
             criterion_id=criterion_id,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_added,
         )
     except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json(criterion)
-    else:
-        out_console.print(f"[green]added[/] {criterion['id']} (criteria v{version})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-add",
-        criterion_id=criterion["id"],
-        summary=f"add criterion {criterion['id']}",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("edit")
@@ -1564,14 +1657,6 @@ def criteria_diff_cmd(ctx: typer.Context, v1: int, v2: int) -> None:
         return
     for d in deltas:
         out_console.print(f"{d['id']:<8} {d['origin']:<8} {d['direction']:<10} {d['label']}")
-
-
-def _resolve_filter_ids(repo: Repo, filter_expr: str) -> set[str]:
-    """Canonical record ids matching `--filter`, per openspec:filter-language."""
-    records = [
-        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
-    ]
-    return {r["id"] for r in _apply_record_filter(records, filter_expr, repo)}
 
 
 _DECISION_KEYS = {"i": "include", "e": "exclude", "m": "maybe"}
@@ -1757,41 +1842,37 @@ def assign_command(
     """Assign reviewers to records at `stage` (all canonical records by default)."""
     repo = _resolve_repo(ctx)
     _preflight_rationale(ctx, repo)
-    actor_list = [a.strip() for a in actors.split(",") if a.strip()]
-    if filter_expr:
-        record_ids = _resolve_filter_ids(repo, filter_expr)
-    else:
-        record_ids = {
-            r["id"]
-            for r in records_mod.read_records(repo)
-            if r.get("strata", {}).get("canonical", True)
-        }
+
+    written: dict[str, int] = {}
+
+    def say_what_was_assigned(assigned: ops_mod.ReviewersAssigned) -> None:
+        written["count"] = assigned.record_count
+        _warn_lock_reclaimed(assigned.lock_reclaimed_from)
+        out_console.print(
+            f"[green]assigned[/] {assigned.record_count} record(s) at {stage} "
+            f"to {', '.join(assigned.actors)}"
+        )
 
     try:
-        screening_mod.assign_reviewers(
+        ops_mod.assign_reviewers(
             repo,
             stage=stage,
-            actors=actor_list,
-            record_ids=sorted(record_ids),
+            actors=actors.split(","),
             actor=by,
             filter_expr=filter_expr,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You assigned {written['count']} {stage} record(s)."
+            ),
+            on_written=say_what_was_assigned,
         )
+    except ops_mod.FilterError as exc:
+        _refuse_filter(exc)
     except screening_mod.ScreeningError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    out_console.print(
-        f"[green]assigned[/] {len(record_ids)} record(s) at {stage} to {', '.join(actor_list)}"
-    )
-    _commit_domain_op(
-        ctx,
-        repo,
-        op="assign",
-        scope=stage,
-        summary=f"assigned {len(record_ids)} {stage} record(s)",
-        by=by,
-        extra_trailers={"Actors": ",".join(actor_list)},
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 def _render_rescreen_record(
@@ -2125,10 +2206,10 @@ def retrieve_command(
             raise typer.Exit(EXIT_USAGE)
         _preflight_rationale(ctx, repo)
         try:
-            event = retrieval_mod.record_retrieval(
+            outcome_recorded = ops_mod.record_retrieval(
                 repo,
                 report=report,
-                status=outcome,
+                outcome=outcome,
                 actor=by,
                 source=source,
                 locator=_parse_locator_options(locator),
@@ -2136,16 +2217,19 @@ def retrieve_command(
                 reason=reason,
                 reason_text=reason_text,
                 path=path,
+                commit=not ctx.obj["no_commit"],
+                rationale=lambda: _get_rationale(ctx, repo, f"You {outcome}: {report}."),
             )
         except retrieval_mod.RetrievalError as exc:
             err_console.print(f"[red]error:[/] {exc}")
             raise typer.Exit(EXIT_USAGE) from None
-        pool_mod.regenerate_all(repo)
-        _commit_domain_op(
-            ctx, repo, op="retrieve", scope=None, summary=f"{outcome}: {report}", by=by
-        )
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
+        _warn_lock_reclaimed(outcome_recorded.lock_reclaimed_from)
         if ctx.obj["json"]:
-            _print_json({"report": report, "status": outcome, "event": event["id"]})
+            _print_json(
+                {"report": report, "status": outcome, "event": outcome_recorded.event["id"]}
+            )
         else:
             out_console.print(f"[green]recorded[/] {report}: {outcome}")
         return
@@ -2297,24 +2381,34 @@ def studies_command(
         rationale = _get_required_rationale(ctx, repo, "You are recording a study decision.")
         try:
             if group:
-                event = studies_mod.group_reports(
-                    repo, reports=group, actor=by, rationale=rationale, study=study
+                recorded_decision = ops_mod.group_reports(
+                    repo,
+                    reports=group,
+                    actor=by,
+                    rationale=rationale,
+                    study=study,
+                    commit=not ctx.obj["no_commit"],
                 )
-                summary = f"grouped {len(set(group))} report(s) into {event['body']['study']}"
             else:
                 assert split is not None
-                event = studies_mod.split_report(
-                    repo, report=split, parts=into, actor=by, rationale=rationale
+                recorded_decision = ops_mod.split_report(
+                    repo,
+                    report=split,
+                    parts=into,
+                    actor=by,
+                    rationale=rationale,
+                    commit=not ctx.obj["no_commit"],
                 )
-                summary = f"split {split} into {into} studies"
         except studies_mod.StudyError as exc:
             err_console.print(f"[red]error:[/] {exc}")
             raise typer.Exit(EXIT_USAGE) from None
-        _commit_domain_op(ctx, repo, op="studies", scope=None, summary=summary, by=by)
+        except LockTimeoutError as exc:
+            _lock_busy(exc)
+        _warn_lock_reclaimed(recorded_decision.lock_reclaimed_from)
         if ctx.obj["json"]:
-            _print_json({"event": event["id"], **event["body"]})
+            _print_json({"event": recorded_decision.event["id"], **recorded_decision.event["body"]})
         else:
-            out_console.print(f"[green]recorded[/] {summary}")
+            out_console.print(f"[green]recorded[/] {recorded_decision.summary}")
         return
 
     current = studies_mod.study_map(repo, reports=included)
@@ -4315,8 +4409,16 @@ def serve_command(
         "--inactivity-timeout",
         help="Seconds of inactivity before the server exits (openspec:web-ui#localhost-security)",
     ),
+    max_upload_mb: int = typer.Option(
+        web_uploads.DEFAULT_MAX_UPLOAD_MB,
+        "--max-upload-mb",
+        help="Largest file upload the server accepts, in megabytes (openspec:web-uploads)",
+    ),
 ) -> None:
     """Start the local web UI (openspec:web-ui)."""
+    if max_upload_mb < 1:
+        err_console.print("[red]error:[/] --max-upload-mb must be at least 1")
+        raise typer.Exit(EXIT_USAGE)
     repo = _resolve_repo(ctx)
 
     try:
@@ -4342,6 +4444,7 @@ def serve_command(
         session_token=session_token,
         inactivity_timeout=inactivity_timeout,
         public_url=parsed_public,
+        max_upload_mb=max_upload_mb,
     )
     url = web_server_mod.opened_url(params)
     out_console.print(f"[green]strata serve[/] listening on {url}  (actor: {resolved_actor})")

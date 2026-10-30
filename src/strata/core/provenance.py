@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from strata.core import fieldedit as fieldedit_mod
 from strata.core.events import iter_event_files, read_events
 from strata.core.repo import Repo
 from strata.protocol import searches as searches_mod
@@ -43,6 +44,18 @@ def _involves_record(event: dict[str, Any], record_id: str) -> bool:
         body.get("b"),
         body.get("restored"),
     )
+
+
+def _readable(body: dict[str, Any]) -> dict[str, Any]:
+    """A `record-amend` body with authors and dates written as a person would read them."""
+    field = body.get("field")
+    if field not in ("author", "issued"):
+        return body
+    return {
+        **body,
+        "old": fieldedit_mod.format_field_value(field, body.get("old")),
+        "new": fieldedit_mod.format_field_value(field, body.get("new")),
+    }
 
 
 def build_provenance(repo: Repo, record_id: str) -> list[ProvenanceEntry]:
@@ -102,7 +115,9 @@ def build_provenance(repo: Repo, record_id: str) -> list[ProvenanceEntry]:
         )
 
     amendments = [
-        ProvenanceEntry(kind="record-amend", ts=e.get("ts"), actor=e.get("actor"), detail=e["body"])
+        ProvenanceEntry(
+            kind="record-amend", ts=e.get("ts"), actor=e.get("actor"), detail=_readable(e["body"])
+        )
         for e in events
         if e.get("ev") == "record-amend" and e["body"].get("record") == record_id
     ]

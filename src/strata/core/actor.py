@@ -49,6 +49,12 @@ def list_actors(repo: Repo) -> list[dict[str, Any]]:
     return [dict(a) for a in doc.get("actors", [])]
 
 
+def active_actors(repo: Repo) -> list[dict[str, Any]]:
+    """The review's actors who can still be given work: everyone not deactivated, in the order
+    `strata.toml` lists them."""
+    return [a for a in repo.config.get("actors", []) if a.get("role") != "inactive"]
+
+
 def deactivate_actor(repo: Repo, handle: str) -> None:
     doc = manifest_mod.load_manifest_doc(repo.root)
     actor = manifest_mod.find_actor(doc, handle)

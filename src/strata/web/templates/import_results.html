@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Import results{% endblock %}
+{% block content %}
+<h1>Import results</h1>
+<p>
+  {% if search %}From search <a href="/searches/{{ search.id | urlencode }}">{{ search.id }}</a>.{% else %}Found by: {{ via_label }}.{% endif %}
+</p>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<table class="stage-table stack-table" data-testid="import-results">
+  <caption class="visually-hidden">What happened to each file</caption>
+  <thead>
+    <tr>
+      <th scope="col">File</th>
+      <th scope="col">Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in results %}
+    <tr>
+      <th scope="row">{{ r.label }}</th>
+      <td data-label="Result">
+        {% if r.error %}
+        <span class="flag"><span aria-hidden="true">&#10007;</span> Not imported: {{ r.error }}</span>
+        {% elif r.already_imported %}
+        <span aria-hidden="true">&#10003;</span> Already imported as <code>{{ r.import_id }}</code>; nothing changed.
+        {% else %}
+        <span aria-hidden="true">&#10003;</span> Imported as <code>{{ r.import_id }}</code>: {{ r.records_created }} new, {{ r.existing_ids_appended }} matched existing, {{ r.rows_rejected }} rejected.
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="actions">
+  {% if search %}<a href="/searches/{{ search.id | urlencode }}">Back to {{ search.id }} &rarr;</a>{% endif %}
+  <a href="/dedup">Check for duplicates &rarr;</a>
+  <a href="/records">Records &rarr;</a>
+  <a href="/">Dashboard &rarr;</a>
+</p>
+{% endblock %}

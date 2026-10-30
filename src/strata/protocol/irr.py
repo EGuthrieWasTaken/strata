@@ -136,8 +136,9 @@ def compute_stage_irr(repo: Repo, stage: str) -> list[PairIrr]:
     ]
 
 
-def regenerate_irr_json(repo: Repo) -> str:
-    """Regenerate `derived/irr.json` (openspec:derived-views#inter-rater-reliability-view)."""
+def render_irr_json(repo: Repo) -> str:
+    """The text of `derived/irr.json` (openspec:derived-views#inter-rater-reliability-view).
+    Writes nothing."""
     payload: dict[str, list[dict[str, Any]]] = {}
     for stage in screening_mod.configured_stages(repo):
         payload[stage] = [
@@ -153,7 +154,12 @@ def regenerate_irr_json(repo: Repo) -> str:
             }
             for pair in compute_stage_irr(repo, stage)
         ]
-    text = canonical_json(payload) + "\n"
+    return canonical_json(payload) + "\n"
+
+
+def regenerate_irr_json(repo: Repo) -> str:
+    """Regenerate `derived/irr.json`."""
+    text = render_irr_json(repo)
     path = repo.path("derived", "irr.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

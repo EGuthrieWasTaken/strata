@@ -479,11 +479,17 @@ def require_reconciled(counts: Counts) -> None:
 # --- derived/counts.json --------------------------------------------------------------------
 
 
+def render_counts_json(repo: Repo, counts: Counts | None = None) -> str:
+    """The text of `derived/counts.json`, from `counts` if the caller already computed them.
+    Writes nothing."""
+    return canonical_json((counts or compute(repo)).to_dict()) + "\n"
+
+
 def regenerate_counts_json(repo: Repo, counts: Counts | None = None) -> str:
     """Regenerate `derived/counts.json` (from `counts` if the caller already computed them). The
     file records the assertions whether or not they hold; `strata verify` and `strata prisma` are
     what fail on a broken one."""
-    text = canonical_json((counts or compute(repo)).to_dict()) + "\n"
+    text = render_counts_json(repo, counts)
     path = repo.path("derived", "counts.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

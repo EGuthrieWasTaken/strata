@@ -10,39 +10,21 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from strata.core import aliases as aliases_mod
 from strata.core.canon import canonical_json
 from strata.core.events import append_new_event
+from strata.core.fieldedit import parse_value
 from strata.core.filters import FieldResolver, FilterEvaluationError
-from strata.core.ids import normalise_year
+from strata.core.ids import canonical_key, normalise_year
+from strata.core.ids import record_id as record_id_for_key
 from strata.core.repo import Repo
 from strata.core.validate import validate
 
 RECORDS_PATH = ("records", "records.ndjson")
-
-# The record schema's plain string fields a human can safely correct with
-# `strata fix --field <f> --value <v>` (openspec:cli). `id`/`type`
-# are identity, not metadata; `author`/`issued`/`strata` are structured, not
-# a flat string -- `strata fix` doesn't support editing those yet.
-EDITABLE_STRING_FIELDS = frozenset(
-    {
-        "title",
-        "container-title",
-        "volume",
-        "issue",
-        "page",
-        "DOI",
-        "PMID",
-        "PMCID",
-        "URL",
-        "ISBN",
-        "abstract",
-        "keyword",
-        "language",
-    }
-)
 
 # openspec:filter-language's "Available fields" table lists many fields that
 # belong to screening (M2), extraction (M3), risk-of-bias and analysis (M4)
@@ -223,60 +205,128 @@ def record_field_resolver(
     return resolve
 
 
-class FixFieldError(ValueError):
-    """`strata fix --field <f>` named a field `amend_field` cannot correct."""
+@dataclass(frozen=True)
+class Amendment:
+    """What correcting a field did (or, with `changed` false, found nothing to do)."""
+
+    #: The field as the record stores it (`issued` when the correction was given as `year`).
+    field: str
+    old: Any
+    new: Any
+    changed: bool
+    #: The `record-amend` event, if one was written.
+    event: dict[str, Any] | None = None
+    #: The id the corrected record can now also be reached by: an export carrying the corrected
+    #: identity is matched to this record instead of being added again.
+    alias: str | None = None
+    #: Another record that already has the identity this one now has (run `strata dedup`).
+    shares_identity_with: str | None = None
 
 
-def amend_field(
-    repo: Repo, *, record_id: str, field: str, value: str, actor: str
-) -> tuple[Any, Any]:
-    """Correct one plain-string field on a record: `strata fix` (openspec:cli).
+def preview_amendment(repo: Repo, *, record_id: str, field: str, value: str) -> bool:
+    """Whether `amend_field` would change anything, raising what it would. Writes nothing."""
+    record = get_record(repo, record_id)
+    if record is None:
+        raise RecordNotFoundError(f"no record with id {record_id!r}")
+    stored_field, new_value = parse_value(record, field, value)
+    return not _same_value(record.get(stored_field), new_value)
 
-    Returns `(old_value, new_value)`. Writes the updated record set and
-    appends a `record-amend` event (`record`, `field`, `old`, `new`,
-    `source`), per the event catalog in
-    openspec:event-log#event-types. `source` is always `"manual"` here, distinguishing a human
-    correction from `strata sync`'s automatic three-way-merge resolution
-    (openspec:git-integration#gitattributes), which emits the same event type
-    with a different `source` value.
 
-    Raises `FixFieldError` for a field that isn't one of
-    `EDITABLE_STRING_FIELDS` (structured fields like `author`/`issued`
-    aren't expressible as a single string value) and `RecordNotFoundError`
-    for an id with no matching record. `record_id` must already be a full,
-    resolved id -- see `resolve_id_prefix` for turning a user-supplied
-    abbreviation into one.
+def _same_value(old: Any, new: Any) -> bool:
+    return canonical_json(old) == canonical_json(new)
+
+
+def amend_field(repo: Repo, *, record_id: str, field: str, value: str, actor: str) -> Amendment:
+    """Correct one field of a record: `strata fix` (openspec:cli#correcting-a-record).
+
+    Writes the corrected record and appends a `record-amend` event (`record`, `field`, `old`,
+    `new`, `source`), per the event catalog in openspec:event-log#event-types. `source` is always
+    `"manual"` here, distinguishing a human correction from `strata sync`'s automatic three-way
+    merge resolution (openspec:git-integration#gitattributes), which emits the same event type with
+    a different `source` value.
+
+    `value` is what a person typed (`fieldedit.parse_value`): identifiers are normalised as an
+    import normalises them, an empty value removes the field, and authors and dates are read from
+    text. A value the record already has changes nothing and writes nothing.
+
+    A correction that changes the record's canonical key (a DOI, an identifier, or the title,
+    year or first author of a record that has none) keeps the record's id, which is permanent,
+    and records the id the new key would give as an alias for it
+    (openspec:record-identity#identifiers-are-permanent). An export that carries the corrected
+    value is then matched to this record, not added beside it. If another record already has that
+    identity, no alias is made and `shares_identity_with` names it.
+
+    Raises `FixFieldError` for a field that cannot be corrected or a value that does not fit it,
+    and `RecordNotFoundError` for an id with no matching record. `record_id` must already be a
+    full, resolved id -- see `resolve_id_prefix` for turning a user-supplied abbreviation into one.
     """
-    if field not in EDITABLE_STRING_FIELDS:
-        raise FixFieldError(
-            f"field {field!r} cannot be corrected with `strata fix` -- only plain string "
-            f"fields can: {', '.join(sorted(EDITABLE_STRING_FIELDS))}. `author` and `issued` "
-            "are structured fields, not editable this way yet."
-        )
-
     by_id = index_by_id(read_records(repo))
     if record_id not in by_id:
         raise RecordNotFoundError(f"no record with id {record_id!r}")
-
     record = by_id[record_id]
-    old_value = record.get(field)
-    by_id[record_id] = {**record, field: value}
+    stored_field, new_value = parse_value(record, field, value)
+    old_value = record.get(stored_field)
+    if _same_value(old_value, new_value):
+        return Amendment(field=stored_field, old=old_value, new=new_value, changed=False)
+
+    updated = {k: v for k, v in record.items() if k != stored_field}
+    if new_value is not None:
+        updated[stored_field] = new_value
+
+    alias: str | None = None
+    shares: str | None = None
+    old_key, _ = canonical_key(record)
+    new_key, _ = canonical_key(updated)
+    if new_key != old_key:
+        updated["strata"] = {**record.get("strata", {}), "canonical_key": new_key}
+        new_id = record_id_for_key(new_key)
+        if record.get("strata", {}).get("canonical", True) and new_id != record_id:
+            holder = aliases_mod.resolve(repo, new_id) if new_id not in by_id else new_id
+            if holder in by_id and holder != record_id:
+                shares = holder
+            elif new_id not in by_id and holder != record_id:
+                alias = new_id
+
+    by_id[record_id] = updated
     write_records(repo, list(by_id.values()))
 
-    events_path = repo.path("events", "fix", f"{actor}.ndjson")
-    append_new_event(
-        events_path,
+    event = append_new_event(
+        repo.path("events", "fix", f"{actor}.ndjson"),
         ev="record-amend",
         actor=actor,
         body={
             "record": record_id,
-            "field": field,
+            "field": stored_field,
             "old": old_value,
-            "new": value,
+            "new": new_value,
             "source": "manual",
         },
     )
-    return old_value, value
+    if alias is not None:
+        aliases_mod.append_alias(
+            repo, alias=alias, canonical=record_id, reason="correction", event=str(event["id"])
+        )
+    return Amendment(
+        field=stored_field,
+        old=old_value,
+        new=new_value,
+        changed=True,
+        event=event,
+        alias=alias,
+        shares_identity_with=shares,
+    )
+
+
+def records_sharing_identity(repo: Repo, record: dict[str, Any]) -> list[str]:
+    """Ids of the other canonical records that have the same canonical key as `record`."""
+    key = record.get("strata", {}).get("canonical_key")
+    return sorted(
+        r["id"]
+        for r in read_records(repo)
+        if r["id"] != record["id"]
+        and r.get("strata", {}).get("canonical", True)
+        and r.get("strata", {}).get("canonical_key") == key
+    )
 
 
 def short_citation(record: dict[str, Any]) -> str:

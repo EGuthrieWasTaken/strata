@@ -9,6 +9,7 @@ import pytest
 
 from strata.core.ids import singleton_study_id
 from strata.core.verify import verify_repository
+from strata.protocol import pool as pool_mod
 from strata.protocol import studies
 from strata.protocol.criteria import add_criterion
 from strata.protocol.screening import record_screen_decision
@@ -23,6 +24,10 @@ def _review(tmp_path: Path, records: list[dict[str, Any]] | int):  # type: ignor
 
 
 def _codes(repo) -> set[str]:  # type: ignore[no-untyped-def]
+    # These tests write events with the domain functions, which leave the derived views to the
+    # command that calls them; refresh the views as the command would, so what is checked here is
+    # the events and not the views.
+    pool_mod.regenerate_all(repo)
     return {i.code for i in verify_repository(repo).issues}
 
 

@@ -28,3 +28,4 @@ htmlcov/
 *.swp
 .idea/
 .vscode/
+coverage.xml

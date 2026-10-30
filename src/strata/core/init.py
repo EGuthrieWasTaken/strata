@@ -19,6 +19,8 @@ from strata import __version__, gitio
 from strata.core import manifest as manifest_mod
 from strata.core.commit import StructuredCommit
 from strata.core.hooks import HOOK_SCRIPTS, HOOKS_DIR
+from strata.core.repo import open_repo
+from strata.protocol import pool as pool_mod
 
 GITATTRIBUTES = """\
 * text=auto eol=lf
@@ -39,6 +41,8 @@ GITIGNORE = """\
 !/fulltext/manifest.ndjson
 /.strata/cache/
 /.strata/network.log
+/.strata/tmp/
+/.strata/lock
 """
 
 MERGE_DRIVERS = {
@@ -104,22 +108,6 @@ def _write_protocol_stubs(root: Path, title: str) -> None:
     )
 
 
-def _write_derived_stubs(root: Path) -> None:
-    (root / "derived" / "pool.tsv").write_text(
-        "record_id\ttiab\tfulltext\tstale\tyear\tfirst_author\ttitle\tjournal\tdoi\n",
-        encoding="utf-8",
-    )
-    (root / "derived" / "conflicts.tsv").write_text(
-        "record_id\tstage\topinions\tcriteria_cited\tfirst_seen\ttitle\n", encoding="utf-8"
-    )
-    (root / "derived" / "stale.tsv").write_text(
-        "record_id\tstage\tprior_decision\tprior_criteria\treason\tsince_version\ttitle\n",
-        encoding="utf-8",
-    )
-    (root / "derived" / "counts.json").write_text("{}\n", encoding="utf-8")
-    (root / "derived" / "irr.json").write_text("{}\n", encoding="utf-8")
-
-
 def init_repository(
     root: Path,
     *,
@@ -155,7 +143,9 @@ def init_repository(
     (root / "records" / "records.ndjson").write_text("", encoding="utf-8")
     (root / "records" / "aliases.ndjson").write_text("", encoding="utf-8")
     _write_protocol_stubs(root, title)
-    _write_derived_stubs(root)
+    # The derived views of an empty review, as regeneration writes them: `strata verify` compares
+    # the files with regeneration, so a placeholder would be drift from the first commit.
+    pool_mod.regenerate_all(open_repo(root))
 
     (root / ".gitattributes").write_text(GITATTRIBUTES, encoding="utf-8")
     (root / ".gitignore").write_text(GITIGNORE, encoding="utf-8")

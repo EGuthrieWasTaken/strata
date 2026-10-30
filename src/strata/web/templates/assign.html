@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Assign reviewers &middot; {{ stage }}{% endblock %}
+{% block content %}
+<h1>Assign reviewers &mdash; {{ stage }}</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+{% if done %}
+<p class="notice" role="status" data-testid="assigned-note">Assignment recorded. Each reviewer's queue is shown below.</p>
+{% endif %}
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+<h2>Who is queued now</h2>
+<table class="stage-table stack-table">
+  <thead>
+    <tr><th scope="col">Reviewer</th><th scope="col">Records waiting for a decision</th></tr>
+  </thead>
+  <tbody>
+    {% for q in queues %}
+    <tr><th scope="row">{{ q.name }} ({{ q.handle }})</th><td data-label="Waiting">{{ q.waiting }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Which records?</h2>
+<p>{{ total }} record{{ "s" if total != 1 else "" }} at this stage. Assign all of them, or narrow them with a <a href="/records">filter</a> such as <code>year &gt;= 2010</code>.</p>
+<form method="get" action="/assign/{{ stage }}" id="filter-form">
+  <label class="note-field">
+    Filter (optional)
+    <input type="text" name="filter" value="{{ filter_expr }}" aria-describedby="filter-result">
+  </label>
+  <button type="submit" class="btn">Check how many match</button>
+</form>
+<div id="filter-result" data-testid="filter-result">
+  {% if filter_error %}
+  <p class="error" role="alert">{{ filter_error }}</p>
+  {% elif preview is not none %}
+  <p class="notice"><strong>{{ preview.count }}</strong> of {{ total }} record{{ "s" if total != 1 else "" }} match (nothing saved yet).</p>
+  {% if preview.titles %}
+  <ul>{% for t in preview.titles %}<li>{{ t }}</li>{% endfor %}{% if preview.count > preview.titles | length %}<li>&hellip;</li>{% endif %}</ul>
+  {% endif %}
+  {% endif %}
+</div>
+
+<h2>Assign</h2>
+<form method="post" action="/assign/{{ stage }}" id="assign-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <input type="hidden" name="filter" value="{{ filter_expr }}">
+  <p>{% if filter_expr.strip() %}To the records matching <code>{{ filter_expr }}</code>.{% else %}To every record at this stage.{% endif %}</p>
+  <fieldset class="criteria-list">
+    <legend>Reviewers</legend>
+    {% for a in actors %}
+    <label class="criterion">
+      <input type="checkbox" name="actors" value="{{ a.handle }}"{{ " checked" if a.handle in chosen else "" }}>
+      <span>{{ a.name or a.handle }} ({{ a.handle }})</span>
+    </label>
+    {% endfor %}
+  </fieldset>
+  <label class="note-field">
+    Why are you assigning them?
+    <textarea name="rationale" rows="2">{{ rationale }}</textarea>
+    <span class="field-help">This goes in the permanent record.</span>
+  </label>
+  <button type="submit" class="btn btn-include">Assign and commit</button>
+</form>
+{% endblock %}

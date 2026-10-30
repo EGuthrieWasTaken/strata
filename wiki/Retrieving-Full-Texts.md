@@ -24,6 +24,14 @@ strata retrieve --by ada --list
 Work through them interactively (no `--list`): for each report you can press `f` (I have the file), `u`
 (open the DOI in a browser), `i` (interlibrary loan requested), `n` (not retrievable), `s` (skip) or `q`.
 
+## In the browser
+
+`strata serve` has the same queue at `/retrieve`: the reports sought with their status, and for each a page
+where you say whether you have the document (and where from, and which version), have asked for it, cannot
+get it (and why), or want it put back in the queue, and why you are recording that. It writes exactly what
+`strata retrieve --report ... --outcome ...` writes. It has no file or path field: you record *that* you have
+the document, and keep the document wherever you keep it.
+
 ## Recording an outcome from a script
 
 ```

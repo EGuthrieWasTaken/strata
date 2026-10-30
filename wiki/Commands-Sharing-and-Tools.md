@@ -45,6 +45,7 @@ strata serve [OPTIONS]
 | `--actor` | str |  | Screen as this actor; required if more than one is configured |
 | `--no-browser` | flag |  | Do not automatically open a browser |
 | `--inactivity-timeout` | number | `3600` | Seconds of inactivity before the server exits |
+| `--max-upload-mb` | int | `100` | Largest file upload the server accepts, in megabytes |
 
 Guide: [The web interface](The-Web-Interface), [Running in a container](Running-in-a-Container)
 

@@ -83,8 +83,10 @@ jobs:
     # same too-tight-by-a-few-minutes mistake `coverage` just hit. The M3-M6 suite (2,300+ tests,
     # mostly CLI and git-backed integration tests) takes 35-45 minutes on Linux and macOS and
     # 50-60 on Windows on a four-core runner, so a 60-minute budget cancelled two legs seconds
-    # before the end; 90 leaves room for a slow runner.
-    timeout-minutes: 90
+    # before the end; 90 leaves room for a slow runner. The web write screens (PR 58) took the suite
+    # from about 2,300 to 2,950 tests, most of them git-backed; on one run the nine legs took 51 to
+    # 80 minutes and the slowest Windows leg was cancelled by this limit. 120 leaves room again.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -176,7 +178,8 @@ jobs:
     # too-tight-by-a-few-minutes mistake. The M3-M6 suite (2,300+ tests) took 34 minutes without
     # instrumentation on a four-core runner and was cancelled at 35 with it, so the budget is
     # now the same as the matrix legs' (the instrumented run took 54 minutes, so 60 was too tight).
-    timeout-minutes: 90
+    # It took 75 minutes on the run that added the web write screens, so it moves with them.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

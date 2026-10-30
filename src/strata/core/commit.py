@@ -13,6 +13,41 @@ from dataclasses import dataclass, field
 MIN_RATIONALE_LENGTH = 12
 _RATIONALE_STOPLIST = frozenset({".", "x", "fix", "update", "wip", "asdf"})
 
+SUBJECT_LIMIT = 72
+_MIN_SUMMARY = 16
+_MIN_SCOPE = 8
+
+
+def _ellipsise(text: str, width: int) -> str:
+    if len(text) <= width:
+        return text
+    if width <= 3:
+        return text[:width]
+    return text[: width - 3] + "..."
+
+
+def fit_subject(op: str, scope: str | None, summary: str) -> tuple[str | None, str]:
+    """Shorten `scope` and `summary` so `op(scope): summary` fits `SUBJECT_LIMIT`.
+
+    A subject built from something a person chose (a file name, a search id derived from a database
+    name) can be longer than the limit. Refusing it would fail the operation *after* it had written
+    its files, so callers fit it instead; the full values stay in the trailers and in the data. The
+    summary gives way first, down to a floor, then the scope. Text that already fits is returned
+    unchanged, so ordinary commit messages are byte-identical.
+    """
+
+    def length(sc: str | None, su: str) -> int:
+        return len(op) + (len(sc) + 2 if sc else 0) + 2 + len(su)
+
+    over = length(scope, summary) - SUBJECT_LIMIT
+    if over <= 0:
+        return scope, summary
+    summary = _ellipsise(summary, max(len(summary) - over, _MIN_SUMMARY))
+    over = length(scope, summary) - SUBJECT_LIMIT
+    if over > 0 and scope:
+        scope = _ellipsise(scope, max(len(scope) - over, _MIN_SCOPE))
+    return scope, summary
+
 
 class RationaleRejectedError(ValueError):
     """The supplied rationale fails openspec:git-integration#eliciting-the-rationale."""

@@ -7,18 +7,22 @@ from pathlib import Path
 
 import pytest
 
+from strata.core import aliases as aliases_mod
 from strata.core.events import iter_event_files, read_events
+from strata.core.fieldedit import FixFieldError
 from strata.core.filters import FilterEvaluationError
+from strata.core.ids import record_id as id_for_key
 from strata.core.records import (
     AmbiguousRecordIdError,
-    FixFieldError,
     RecordNotFoundError,
     amend_field,
     get_record,
     index_by_id,
+    preview_amendment,
     read_records,
     record_field_resolver,
     records_path,
+    records_sharing_identity,
     resolve_id_prefix,
     write_records,
 )
@@ -263,14 +267,31 @@ def test_record_field_resolver_unknown_field_raises() -> None:
 # ---- amend_field ----------------------------------------------------------------
 
 
+def _doi_record(record_id: str, doi: str | None, title: str = "Spacing effects") -> dict:
+    record = {
+        "id": record_id,
+        "type": "article-journal",
+        "title": title,
+        "author": [{"family": "Cepeda", "given": "N."}],
+        "issued": {"date-parts": [[2008, 3]]},
+        "strata": {
+            "canonical_key": f"doi:{doi}" if doi else "sig:spacing effects|2008|cepeda",
+            "canonical": True,
+            "sources": [{"import": "imp_01arz3ndektsv4rrffq69g5fav"}],
+        },
+    }
+    if doi:
+        record["DOI"] = doi
+    return record
+
+
 def test_amend_field_updates_value_and_returns_old_new(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     write_records(repo, [_record("rec_0000000000000001", title="Old Title")])
-    old, new = amend_field(
+    amendment = amend_field(
         repo, record_id="rec_0000000000000001", field="title", value="New Title", actor="ethan"
     )
-    assert old == "Old Title"
-    assert new == "New Title"
+    assert (amendment.old, amendment.new, amendment.changed) == ("Old Title", "New Title", True)
     assert get_record(repo, "rec_0000000000000001")["title"] == "New Title"
 
 
@@ -299,17 +320,164 @@ def test_amend_field_unknown_record_raises(tmp_path: Path) -> None:
         amend_field(repo, record_id="rec_nonexistent0000", field="title", value="x", actor="ethan")
 
 
-def test_amend_field_rejects_structured_field(tmp_path: Path) -> None:
+@pytest.mark.parametrize("field", ["id", "type", "strata", "no-such-field"])
+def test_amend_field_rejects_a_field_that_is_not_metadata(tmp_path: Path, field: str) -> None:
     repo = _repo(tmp_path)
     write_records(repo, [_record("rec_0000000000000001")])
-    with pytest.raises(FixFieldError, match="author"):
-        amend_field(
-            repo, record_id="rec_0000000000000001", field="author", value="x", actor="ethan"
-        )
+    with pytest.raises(FixFieldError, match="cannot be corrected with `strata fix`"):
+        amend_field(repo, record_id="rec_0000000000000001", field=field, value="x", actor="ethan")
 
 
-def test_amend_field_rejects_identity_field(tmp_path: Path) -> None:
+def test_a_value_the_record_already_has_writes_and_records_nothing(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
-    write_records(repo, [_record("rec_0000000000000001")])
+    write_records(repo, [_record("rec_0000000000000001", title="Same")])
+    before = records_path(repo).read_text()
+
+    amendment = amend_field(
+        repo, record_id="rec_0000000000000001", field="title", value="  Same  ", actor="ethan"
+    )
+
+    assert amendment.changed is False and amendment.event is None
+    assert records_path(repo).read_text() == before
+    assert not list(iter_event_files(repo.root))
+
+
+def test_a_doi_is_stored_as_an_import_would_store_it(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_doi_record("rec_0000000000000001", "10.1000/a")])
+    amend_field(
+        repo,
+        record_id="rec_0000000000000001",
+        field="DOI",
+        value="  https://doi.org/10.1000/B.  ",
+        actor="ethan",
+    )
+    assert get_record(repo, "rec_0000000000000001")["DOI"] == "10.1000/b"
+
+
+def test_an_empty_value_removes_the_field_but_never_the_title(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    record = _doi_record("rec_0000000000000001", "10.1000/a")
+    record["abstract"] = "An abstract."
+    write_records(repo, [record])
+
+    removed = amend_field(
+        repo, record_id="rec_0000000000000001", field="abstract", value=" ", actor="ethan"
+    )
+
+    assert removed.new is None
+    assert "abstract" not in get_record(repo, "rec_0000000000000001")
+    with pytest.raises(FixFieldError, match="title cannot be empty"):
+        amend_field(repo, record_id="rec_0000000000000001", field="title", value="", actor="ethan")
+
+
+def test_authors_are_read_from_text_and_year_keeps_the_month(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_doi_record("rec_0000000000000001", "10.1000/a")])
+
+    amend_field(
+        repo,
+        record_id="rec_0000000000000001",
+        field="author",
+        value="Cepeda, Nicholas J.; Vul, Edward; World Health Organization",
+        actor="ethan",
+    )
+    amend_field(repo, record_id="rec_0000000000000001", field="year", value="2009", actor="ethan")
+
+    record = get_record(repo, "rec_0000000000000001")
+    assert record["author"] == [
+        {"family": "Cepeda", "given": "Nicholas J."},
+        {"family": "Vul", "given": "Edward"},
+        {"literal": "World Health Organization"},
+    ]
+    assert record["issued"] == {"date-parts": [[2009, 3]]}
+    events = [e for path in iter_event_files(repo.root) for e in read_events(path)]
+    assert [e["body"]["field"] for e in events] == [
+        "author",
+        "issued",
+    ]  # `year` is stored as `issued`
+
+
+def test_correcting_the_identity_keeps_the_id_and_makes_the_new_id_an_alias(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_doi_record("rec_0000000000000001", "10.1000/wrong")])
+
+    amendment = amend_field(
+        repo, record_id="rec_0000000000000001", field="DOI", value="10.1000/right", actor="ethan"
+    )
+
+    record = get_record(repo, "rec_0000000000000001")
+    assert record["strata"]["canonical_key"] == "doi:10.1000/right"
+    assert amendment.alias is not None and amendment.alias.startswith("rec_")
+    entries = aliases_mod.read_aliases(repo)
+    assert [(e["alias"], e["canonical"], e["reason"]) for e in entries] == [
+        (amendment.alias, "rec_0000000000000001", "correction")
+    ]
+    assert entries[0]["event"] == amendment.event["id"]
+    assert aliases_mod.resolve(repo, amendment.alias) == "rec_0000000000000001"
+
+
+def test_a_correction_that_leaves_the_identity_alone_makes_no_alias(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_doi_record("rec_0000000000000001", "10.1000/a")])
+
+    # The record has a DOI, so the title and year are not part of its identity.
+    amend_field(repo, record_id="rec_0000000000000001", field="title", value="New", actor="ethan")
+    amend_field(repo, record_id="rec_0000000000000001", field="year", value="2010", actor="ethan")
+
+    assert aliases_mod.read_aliases(repo) == []
+    assert get_record(repo, "rec_0000000000000001")["strata"]["canonical_key"] == "doi:10.1000/a"
+
+
+def test_a_year_is_part_of_the_identity_of_a_record_with_no_identifier(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_doi_record("rec_0000000000000001", None)])
+
+    amendment = amend_field(
+        repo, record_id="rec_0000000000000001", field="year", value="2009", actor="ethan"
+    )
+
+    assert amendment.alias is not None
+    key = get_record(repo, "rec_0000000000000001")["strata"]["canonical_key"]
+    assert key == "sig:spacing effects|2009|cepeda"
+
+
+def test_correcting_onto_the_identity_of_another_record_names_it_and_makes_no_alias(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    holder = id_for_key("doi:10.1000/b")  # a record's id is the hash of its key
+    write_records(
+        repo,
+        [
+            _doi_record("rec_0000000000000001", "10.1000/a"),
+            _doi_record(holder, "10.1000/b", title="Another"),
+        ],
+    )
+
+    amendment = amend_field(
+        repo, record_id="rec_0000000000000001", field="DOI", value="10.1000/b", actor="ethan"
+    )
+
+    assert amendment.alias is None and amendment.shares_identity_with == holder
+    assert aliases_mod.read_aliases(repo) == []
+    assert records_sharing_identity(repo, get_record(repo, "rec_0000000000000001")) == [holder]
+
+
+def test_preview_says_whether_a_correction_would_change_anything(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    write_records(repo, [_record("rec_0000000000000001", title="Same")])
+    assert (
+        preview_amendment(repo, record_id="rec_0000000000000001", field="title", value="Same")
+        is False
+    )
+    assert (
+        preview_amendment(repo, record_id="rec_0000000000000001", field="title", value="Other")
+        is True
+    )
     with pytest.raises(FixFieldError):
-        amend_field(repo, record_id="rec_0000000000000001", field="id", value="x", actor="ethan")
+        preview_amendment(repo, record_id="rec_0000000000000001", field="id", value="x")
+    with pytest.raises(RecordNotFoundError):
+        preview_amendment(repo, record_id="rec_nonexistent0000", field="title", value="x")

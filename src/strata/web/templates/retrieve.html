@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Retrieve full texts{% endblock %}
+{% block content %}
+<h1>Retrieve full texts</h1>
+<p><a href="/">&larr; Back to dashboard</a></p>
+
+<p data-testid="retrieval-counts">{{ counts.sought }} report{{ "s" if counts.sought != 1 else "" }} sought: {{ counts.retrieved }} retrieved, {{ counts.not_retrieved }} not retrievable, {{ counts.outstanding }} outstanding{% if counts.ill_requested %} ({{ counts.ill_requested }} on interlibrary loan){% endif %}.</p>
+<p class="field-help">strata records where each document came from and whether you could get it. It does not store the documents themselves.</p>
+
+<h2>Outstanding</h2>
+{% if outstanding %}
+<table class="stage-table stack-table" data-testid="outstanding">
+  <thead>
+    <tr><th scope="col">Report</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Action</th></tr>
+  </thead>
+  <tbody>
+    {% for r in outstanding %}
+    <tr>
+      <th scope="row">{{ r.citation }}</th>
+      <td data-label="Title">{{ r.title }}</td>
+      <td data-label="Status">{{ r.status_words }}</td>
+      <td data-label="Action"><a href="/retrieve/{{ r.report }}">Record what happened &rarr;</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="done-note">Nothing outstanding.</p>
+{% endif %}
+
+{% if settled %}
+<h2>Already recorded</h2>
+<table class="stage-table stack-table" data-testid="settled">
+  <thead>
+    <tr><th scope="col">Report</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Action</th></tr>
+  </thead>
+  <tbody>
+    {% for r in settled %}
+    <tr>
+      <th scope="row">{{ r.citation }}</th>
+      <td data-label="Title">{{ r.title }}</td>
+      <td data-label="Status">{{ r.status_words }}</td>
+      <td data-label="Action"><a href="/retrieve/{{ r.report }}">Change &rarr;</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

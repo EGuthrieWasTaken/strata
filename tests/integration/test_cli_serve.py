@@ -255,3 +255,104 @@ def test_serve_behind_a_public_url_announces_it_and_validates_against_it(tmp_pat
     finally:
         proc.kill()
         proc.wait(timeout=10)
+
+
+# ----------------------------------------------------------------------------- upload limit
+
+
+def test_serve_refuses_an_upload_limit_below_one_megabyte(tmp_path: Path) -> None:
+    root = _init(tmp_path)
+
+    result = runner.invoke(
+        app, ["-C", str(root), "serve", "--port", "0", "--max-upload-mb", "0", "--no-browser"]
+    )
+
+    assert result.exit_code == 2
+    assert "--max-upload-mb must be at least 1" in result.output
+
+
+def test_serve_documents_the_upload_limit_in_its_help() -> None:
+    result = runner.invoke(app, ["serve", "--help"])
+
+    assert result.exit_code == EXIT_OK
+    # Where colour is forced (CI on Windows) the option name arrives split by escape codes.
+    assert "--max-upload-mb" in re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+
+
+def test_a_real_server_enforces_the_upload_limit_before_reading_the_body(tmp_path: Path) -> None:
+    import http.client
+    from urllib.parse import parse_qs, urlsplit
+
+    root = _init(tmp_path)
+    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "strata.cli.main", "-C", str(root), "serve", "--port", "0"]
+        + ["--no-browser", "--max-upload-mb", "1", "--inactivity-timeout", "120"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        env=env,
+    )
+    try:
+        url = _wait_for_url(proc, time.monotonic() + 30.0)
+        parts = urlsplit(url)
+        token = parse_qs(parts.query)["token"][0]
+        host, port = parts.hostname or "127.0.0.1", parts.port or 80
+
+        def connect() -> http.client.HTTPConnection:
+            return http.client.HTTPConnection(host, port, timeout=30)
+
+        cookie = ""
+        for _ in range(50):
+            try:
+                conn = connect()
+                conn.request("GET", f"/?token={token}")
+                response = conn.getresponse()
+                response.read()
+                cookie = response.getheader("Set-Cookie", "").split(";")[0]
+                conn.close()
+                break
+            except OSError:
+                time.sleep(0.2)
+        assert cookie.startswith("strata_session=")
+
+        def multipart(size: int) -> bytes:
+            return (
+                b'--x\r\nContent-Disposition: form-data; name="csrf_token"\r\n\r\n'
+                + token.encode()
+                + b'\r\n--x\r\nContent-Disposition: form-data; name="files"; filename="a.ris"\r\n'
+                + b"Content-Type: application/octet-stream\r\n\r\n"
+                + b"x" * size
+                + b"\r\n--x--\r\n"
+            )
+
+        headers = {"Cookie": cookie, "Content-Type": "multipart/form-data; boundary=x"}
+
+        # Over the limit: refused from its declared size.
+        conn = connect()
+        conn.request("POST", "/nowhere", body=multipart(2 * 1024 * 1024), headers=headers)
+        over = conn.getresponse()
+        assert over.status == 413
+        assert "limit is 1 MB" in over.read().decode()
+        conn.close()
+
+        # No declared size (chunked): refused, not read.
+        conn = connect()
+        conn.request(
+            "POST", "/nowhere", body=iter([multipart(10)]), headers=headers, encode_chunked=True
+        )
+        chunked = conn.getresponse()
+        assert chunked.status == 411
+        conn.close()
+
+        # Within the limit: passes the middleware (the path does not exist, hence 404).
+        conn = connect()
+        conn.request("POST", "/nowhere", body=multipart(1024), headers=headers)
+        within = conn.getresponse()
+        assert within.status == 404
+        conn.close()
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=10)

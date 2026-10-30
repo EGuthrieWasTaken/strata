@@ -7,6 +7,53 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **Searches and imports in the web interface** (OpenSpec change `add-web-ui-write-surfaces`). `/searches`
+  lists the recorded searches with their dates, hits, whether their query is missing and what has been
+  imported from each; `/searches/new` records one (the date defaults to today; blank query is recorded as
+  missing and flagged; "re-run" makes a superseding search); a search takes its export files by file chooser
+  or drag and drop and `/import` takes records found by other methods. Every upload goes through a review
+  that runs the import pipeline's own dry run per file (new, matched, rejected rows with reasons, already
+  imported, a sheet chooser for workbooks, a column mapping for CSVs) and imports only on confirmation, each
+  file as its own commit through the same `strata.core.operations` the command line uses; a test holds the
+  results byte-identical to `strata search add` and `strata import`. The dashboard now names searches
+  missing their query and searches with no export imported yet, each linking to the search. A real-browser
+  smoke test (`tests/browser`, optional) drives the whole flow.
+- **Correcting a record, adding a criterion and assigning reviewers in the web interface** (OpenSpec change
+  `add-web-ui-write-surfaces`). `/records/<id>` has a form that corrects a field with a rationale, `/criteria/new`
+  adds a criterion (stating that it is recorded as tightened, and always asking for a rationale), and
+  `/assign/<stage>` assigns reviewers, with a count of what a filter matches before anything is saved and the
+  parser's message when it does not parse. `strata fix`, `strata criteria add` and `strata assign` now call the
+  same operations in `strata.core.operations` (as `search add` and `import` already did), so a screen and its
+  command record the same commit; tests hold the two to the same files, message and trailers, and the same
+  stale decisions after a criterion is added. The command line is unchanged except as listed under Changed
+  and Fixed.
+- **Full-text retrieval and study grouping in the web interface** (OpenSpec change
+  `add-web-ui-write-surfaces`). `/retrieve` lists the reports sought and `/retrieve/<report>` records an outcome
+  (retrieved with a source and version, interlibrary loan requested, not retrievable with a reason, or put back
+  in the queue) with a rationale; it has no file or path field. `/studies` shows the included reports as
+  studies with the suggestions and their evidence and forms to group or split reports, each requiring a
+  rationale; viewing it records nothing. `strata retrieve --report --outcome` and `strata studies --group` /
+  `--split` call the same operations, held to identical commits by tests. Keeping a suggestion separate is
+  still command line only.
+- **Upload handling for the web interface** (`strata.web.uploads`; capability `web-uploads`, OpenSpec change
+  `add-web-ui-write-surfaces`). `strata serve` refuses a form post larger than its declared limit before reading
+  it (100 MB for a file upload, `--max-upload-mb N` to change; 1 MB for any other form), refuses one that
+  declares no size, more than 20 files, and a text field over 1 MB, and does all of that only after the session,
+  `Host` and `Origin` checks. Browser file names are never paths (`sanitise_filename`). Uploads wait in
+  `.strata/tmp/uploads/<id>/` under an unguessable id until confirmed, and are deleted on confirm, discard,
+  start-up and after an hour. Only bibliographic exports are accepted, by the detection `strata import` uses; a
+  PDF is refused with the reason. A new review's `.gitignore` now ignores `/.strata/tmp/` and `/.strata/lock`;
+  for existing reviews the staging area is excluded locally (`.git/info/exclude`), which needs no commit. No
+  upload screen uses this yet (searches and imports in the browser come next in the same change).
+- **The repository lock is the operating system's** (`strata.core.lockfile`; OpenSpec change
+  `add-web-ui-write-surfaces`). It was a file whose existence meant "held", so a `strata` killed mid-write left
+  it behind and every later write failed after 30 seconds until someone deleted `.strata/lock`; and nothing
+  actually took it. It is now a `flock` (a byte-range lock on Windows), so a holder that dies, however it dies,
+  holds nothing. A command that finds a lock its holder died holding takes it over and says so. `strata search
+  add` and `strata import` now take it for the length of their write and commit, so a terminal and `strata
+  serve` cannot interleave; a command that cannot get it in 30 seconds names the process that has it. The
+  Windows branch is written but has only been exercised on Linux so far.
+
 - **The wiki** (`wiki/`, 40 pages; the `project-documentation` spec). A home page with Installation,
   Quickstart (a whole single-reviewer review run on invented example data), Git for reviewers and a practical
   guide for every stage (setting up, searching and importing, duplicates, screening, adjudication and
@@ -238,8 +285,62 @@ All notable changes to `strata` are documented here. Format follows
 - `.gitattributes`, merge driver installation, and versioned git hooks
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
 
+### Changed
+
+- **`strata fix` corrects authors and years, keeps a record's identity in step, and skips no-ops.** It could
+  only edit plain-text fields; it now also takes `--field author` (`Family, Given; Family, Given`, a name with
+  no comma kept whole), `--field year` (four digits; the month and day are kept) and `--field issued` (`YYYY`,
+  `YYYY-MM` or `YYYY-MM-DD`), and the web form offers the same. A DOI, PMID, PMCID or ISBN is stored as an
+  import stores it (`https://doi.org/10.1000/ABC.` becomes `10.1000/abc`), an empty value removes the field
+  (a title cannot be removed), and a value the record already has records nothing, commits nothing and needs
+  no reason. A field that is not metadata is refused with the list of those that are. The record keeps its
+  id, as the specification has always said, and when a correction changes how it is identified (a DOI, or the
+  year of a record with none) the id the corrected identity gives becomes an alias of it: an export carrying
+  the corrected value, or still carrying the old one, is now matched to the record instead of being added as
+  a second record, and a correction that gives a record another record's identity names that record so
+  `strata dedup` can merge them. `strata why` and the record page show authors and dates as text.
+- **`strata assign` refuses a handle that is not an active actor of the review.** It used to record an
+  assignment to any handle, including a typo, which left records in a queue nobody could work. It now refuses
+  (exit 2, nothing written, with or without `--no-commit`) a handle that was never added or has been
+  deactivated, names each one, and lists the actors who can be assigned:
+  `error: cannot assign 'ghost' (not an actor of this review); eligible actors are ['ethan', 'sam']`. The web
+  form was already limited to these actors and now gives the same message.
+- Commands that change what the derived files show now regenerate all of them, not just the counts: a commit by
+  `strata import`, `dedup`, `fix`, `assign`, `retrieve` or `studies` can include changes to `derived/pool.tsv`,
+  `conflicts.tsv`, `stale.tsv` and `irr.json` as well as `counts.json`.
+
 ### Fixed
 
+- **`strata verify` did not notice a derived file that was out of date.** It checked only that the counts the
+  events would produce close, never that `derived/counts.json` (or `pool.tsv`, `conflicts.tsv`, `stale.tsv`,
+  `irr.json`) says what regenerating it would write, though the specification has always required it
+  (`E_DERIVED_DRIFT`). It now reports the file by name and fails. Making it check showed that four commands
+  left derived files wrong, each now fixed: `strata init` wrote `{}` for `irr.json` and `counts.json` (so a
+  brand-new review would have failed), `strata import` left `pool.tsv` without the new records, and `strata
+  dedup` and `strata fix` left it listing a merged-away record and the old title. Reviews made before this
+  version can show the same drift; `strata verify --fix` repairs it.
+- **`strata verify --fix` did nothing.** The flag was accepted and ignored, so it reported success whatever was
+  wrong. It now regenerates the derived files that drifted (leaving them uncommitted) and says which. It does
+  not yet re-link broken hash chains or truncate half-written lines; those problems are still reported and not
+  repaired. `strata verify --fast` and the pre-commit hook do not check drift yet, since regenerating the views
+  does not fit the two seconds that mode is allowed.
+- **Every form in the web interface was refused by a real browser.** The server sent `Referrer-Policy:
+  no-referrer`, under which browsers send `Origin: null` on every form post, even to the same site, and the
+  `Origin` check rejected it with `invalid Origin header`. Screening decisions, adjudication, criteria edits,
+  duplicate merges, extraction and risk-of-bias forms all failed in Chromium (the tests use an in-process
+  client that sends no `Origin`, so none could see it). The policy is now `same-origin`, which still sends
+  nothing to other sites.
+- After a duplicate merge in the web interface, the committed `derived/counts.json` still showed the old
+  number of duplicates removed (the command line regenerated it; the web route did not).
+- The dashboard's stage table scrolled sideways at a phone's width (320 px), which the accessibility
+  requirement forbids; it, and the tables on the new pages, now stack as labelled cards on a narrow screen.
+- `strata import` of a file with a long name (more than about 25 characters, such as
+  `medline-export-2026-10-01-final-v2.ris`) and `strata search add` for a database with a long name (such as
+  the Cochrane Central Register of Controlled Trials) failed with a `ValueError` traceback *after* writing and
+  staging their files, because the commit subject is limited to 72 characters and included the name. The
+  subject is now shortened to fit and the full id or file name stays in the commit trailers, the import
+  manifest and the stored file. Found while moving the two commands onto `strata.core.operations` (OpenSpec
+  change `add-web-ui-write-surfaces`), where every uploaded file name and database name is the user's.
 - Started by a path that is not on `PATH` (`/opt/venv/bin/strata ...`, or an environment that is not
   activated), `strata` made every commit fail: the hooks it triggers run `strata` by name and died with
   `exec: strata: not found`, and `strata init` left a repository with nothing committed and every file

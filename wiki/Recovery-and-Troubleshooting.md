@@ -23,7 +23,7 @@ chain, and a hand edit is exactly what `E_CHAIN` exists to catch.
 Decisions are appended to the event log and flushed as you make them; the commit is made when the session
 ends. If the process died (a crash, a closed terminal, a dead battery) every decision you saw accepted is on
 disk, uncommitted. Start `strata screen` again: it resumes with those records already done, and the commit
-comes at the end of that session. `git diff` shows exactly what is waiting to be committed.
+comes at the end of that session. `git diff` shows exactly what is waiting to be committed. `strata verify` may report `E_DERIVED_DRIFT` for the views under `derived/`, which are refreshed when a session ends; `strata verify --fix` (or finishing the next session) brings them up to date.
 
 ## `strata verify` says…
 
@@ -39,6 +39,7 @@ comes at the end of that session. `git diff` shows exactly what is waiting to be
 | `E_ORPHAN_EXTRACTION` | extraction data exists for a study that is not included | the study was excluded after extraction; the data is kept, not deleted. Re-include the study, or leave the warning |
 | `E_MISSING_EXTRACTION` | an included study has no consensus extraction | a warning until you analyse: `strata extract --missing` |
 | `E_COUNT_RECONCILE` | the PRISMA counts do not add up | records that no import manifest accounts for (hand-written records) or a hand-edited `derived/counts.json`; the message names the identity that fails. Every `strata` command that changes a count regenerates the file, so `strata prisma` rewrites it |
+| `E_DERIVED_DRIFT` | a file under `derived/` is not what regenerating it from the records and events would write | a hand edit, a merge done with plain `git`, a `strata screen` session that was killed before it ended (its decisions are safe; the views catch up when you screen again, or with `--fix`), or a `strata` older than the version that regenerates every derived file after each command (its `pool.tsv` could lag behind an import, a duplicate merge or a correction). `strata verify --fix` regenerates the files that drifted and leaves them uncommitted; `git diff derived/` shows what changed, and committing it keeps it. A file that is not there at all is not drift |
 | `E_UNIT`, `E_EFFECT_INPUTS` | an extracted value has a unit the schema does not accept, or an effect lacks the fields its design needs | `strata extract` the study again |
 
 ## "I made a wrong decision"
@@ -80,6 +81,8 @@ old copy by `git diff`/`git format-patch` of its unpushed commits.
 | `strata: command not found` | The program is installed but your shell cannot find it. `uv tool update-shell`, then open a new terminal ([Installation](Installation)) |
 | a commit fails with `.strata/hooks/pre-commit: ... strata: not found` | Git ran a hook that calls `strata`, and `strata` was not on the PATH of whatever ran git (an editor, a script, an absolute-path invocation). Run the command from a normal terminal where `strata --version` works |
 | `error: a rationale is required; pass --why or --why-file in a non-interactive context` | You ran a command that records a reason without a terminal to ask in. Add `--why "..."`. If the command had already changed files before it complained (some do), discard them with `git checkout . && git clean -fd` and run it again with `--why` |
+| `error: repository is locked (held by process 1234); timed out after 30s` | Another `strata` command, or `strata serve`, is writing to this review right now (the message names it). Wait for it to finish, or stop it, and run your command again. You never need to delete `.strata/lock` by hand: the lock belongs to the running program and is released the moment that program ends, however it ends |
+| `warning: the repository lock was left by process 1234, which is no longer running` | An earlier `strata` was killed, or the computer lost power, part-way through a write. Your command took over the lock and carried on. Run `strata verify`; if it reports nothing, nothing was left half-done (`strata status` shows a commit that never happened) |
 | `strata sync` says there are uncommitted changes | Something was changed but not committed: a hand edit, an interrupted screening session, or a `strata config` change (which does not commit yet). `git status` shows it; commit it (`git commit -am "..."`) or discard it |
 | `strata verify` prints a list of single letters and digits as unknown records, exits 4 | You are on a version before the fix for merged duplicates. Update `strata` ([Installation](Installation)); nothing is wrong with your data |
 | `strata analyze` exits with code 8 | A blocking guardrail fired. Read the message; either change the analysis or pass `--force` knowing the result will be labelled ([Analysis](Analysis)) |

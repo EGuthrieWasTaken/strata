@@ -35,6 +35,13 @@ _CONFLICTS_HEADER = ("record_id", "stage", "opinions", "criteria_cited", "first_
 _STAGE_COLUMN = {"title-abstract": "tiab", "full-text": "ft"}
 
 
+def _write_derived(repo: Repo, name: str, text: str) -> str:
+    path = repo.path("derived", name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return text
+
+
 def _tsv_escape(cell: str) -> str:
     """openspec:canonical-serialisation#tsv-rules: tabs/CR/LF become a single space."""
     return cell.replace("\t", " ").replace("\r", " ").replace("\n", " ")
@@ -59,8 +66,8 @@ def _stale_stages_by_record(repo: Repo) -> dict[str, set[str]]:
     return result
 
 
-def regenerate_pool_tsv(repo: Repo) -> str:
-    """Regenerate `derived/pool.tsv`: one row per canonical record."""
+def render_pool_tsv(repo: Repo) -> str:
+    """The text of `derived/pool.tsv`: one row per canonical record. Writes nothing."""
     records = records_mod.index_by_id(records_mod.read_records(repo))
     canonical_ids = sorted(
         record_id
@@ -114,15 +121,16 @@ def regenerate_pool_tsv(repo: Repo) -> str:
 
     lines = ["\t".join(_POOL_HEADER)]
     lines.extend("\t".join(_tsv_escape(cell) for cell in row) for row in rows)
-    text = "\n".join(lines) + "\n"
-    path = repo.path("derived", "pool.tsv")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-    return text
+    return "\n".join(lines) + "\n"
 
 
-def regenerate_conflicts_tsv(repo: Repo) -> str:
-    """Regenerate `derived/conflicts.tsv`: open screening disagreements."""
+def regenerate_pool_tsv(repo: Repo) -> str:
+    """Regenerate `derived/pool.tsv`."""
+    return _write_derived(repo, "pool.tsv", render_pool_tsv(repo))
+
+
+def render_conflicts_tsv(repo: Repo) -> str:
+    """The text of `derived/conflicts.tsv`: open screening disagreements. Writes nothing."""
     records = records_mod.index_by_id(records_mod.read_records(repo))
     canonical_ids = _canonical_ids(repo)
 
@@ -151,20 +159,47 @@ def regenerate_conflicts_tsv(repo: Repo) -> str:
     rows.sort(key=lambda row: (row[1], row[0]))
     lines = ["\t".join(_CONFLICTS_HEADER)]
     lines.extend("\t".join(_tsv_escape(cell) for cell in row) for row in rows)
-    text = "\n".join(lines) + "\n"
-    path = repo.path("derived", "conflicts.tsv")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-    return text
+    return "\n".join(lines) + "\n"
+
+
+def regenerate_conflicts_tsv(repo: Repo) -> str:
+    """Regenerate `derived/conflicts.tsv`."""
+    return _write_derived(repo, "conflicts.tsv", render_conflicts_tsv(repo))
+
+
+def derived_views(repo: Repo) -> dict[str, str]:
+    """Every file under `derived/`, as regenerating it now would write it. Writes nothing.
+
+    The file names are the keys. This is what `strata verify` compares the files on disk with
+    (openspec:repository-format: GENERATED files are regenerated and compared, never read as input).
+    """
+    # Imported here: the counts read modules that import this one.
+    from strata.report import counts as counts_mod
+
+    return {
+        "pool.tsv": render_pool_tsv(repo),
+        "conflicts.tsv": render_conflicts_tsv(repo),
+        "stale.tsv": rescreen_mod.render_stale_tsv(repo),
+        "irr.json": irr_mod.render_irr_json(repo),
+        "counts.json": counts_mod.render_counts_json(repo),
+    }
+
+
+def derived_drift(repo: Repo) -> list[str]:
+    """Names of the derived files that exist and differ from what regenerating them would write.
+
+    A file that is missing is not drift: commands regenerate what they need, and a review that has
+    not reached screening has none of them yet.
+    """
+    drifted = []
+    for name, expected in derived_views(repo).items():
+        path = repo.path("derived", name)
+        if path.is_file() and path.read_text(encoding="utf-8") != expected:
+            drifted.append(name)
+    return drifted
 
 
 def regenerate_all(repo: Repo) -> None:
     """Regenerate every screening-related derived view in one call."""
-    regenerate_pool_tsv(repo)
-    regenerate_conflicts_tsv(repo)
-    rescreen_mod.regenerate_stale_tsv(repo)
-    irr_mod.regenerate_irr_json(repo)
-    # Imported here: the counts read modules that import this one.
-    from strata.report import counts as counts_mod
-
-    counts_mod.regenerate_counts_json(repo)
+    for name, text in derived_views(repo).items():
+        _write_derived(repo, name, text)

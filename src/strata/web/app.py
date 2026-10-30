@@ -18,9 +18,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from strata.core.repo import Repo, open_repo
+from strata.web import uploads
 from strata.web.security import (
     CSRF_FIELD_NAME,
     DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
@@ -73,6 +75,7 @@ class AppState:
         port: int,
         inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
         public_url: PublicUrl | None = None,
+        max_upload_bytes: int = uploads.DEFAULT_MAX_UPLOAD_MB * uploads.MIB,
     ) -> None:
         self.repo_root = repo_root
         self.actor = actor
@@ -82,6 +85,8 @@ class AppState:
         self.public_url = public_url
         self.allowed_hosts = allowed_hosts(host, port, public_url)
         self.clock = InactivityClock(inactivity_timeout)
+        self.max_upload_bytes = max_upload_bytes
+        self.staging = uploads.UploadStaging(repo_root, max_total_bytes=max_upload_bytes)
 
     def open_repo(self) -> Repo:
         return open_repo(self.repo_root)
@@ -104,6 +109,7 @@ def create_app(
     port: int = 8000,
     inactivity_timeout: float = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
     public_url: PublicUrl | None = None,
+    max_upload_bytes: int = uploads.DEFAULT_MAX_UPLOAD_MB * uploads.MIB,
 ) -> FastAPI:
     state = AppState(
         repo_root=repo_root,
@@ -113,7 +119,10 @@ def create_app(
         port=port,
         inactivity_timeout=inactivity_timeout,
         public_url=public_url,
+        max_upload_bytes=max_upload_bytes,
     )
+    # Whatever an earlier server left staged is gone: nobody can come back to it.
+    state.staging.purge(everything=True)
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.strata = state
@@ -158,23 +167,47 @@ def create_app(
             if not authenticated:
                 return PlainTextResponse("missing or invalid session", status_code=403)
 
+            form = None
             if request.method in MUTATING_METHODS:
                 form_token = None
-                if "form" in request.headers.get("content-type", ""):
+                content_type = request.headers.get("content-type", "")
+                if "form" in content_type:
+                    # The size is checked from the declared length *before* the body is read
+                    # (openspec:web-uploads#upload-limits), and only after the session, Host and
+                    # Origin checks above (openspec:web-uploads#security-checks-come-first).
+                    try:
+                        uploads.check_declared_length(
+                            request.headers, content_type, max_upload_bytes=s.max_upload_bytes
+                        )
+                    except uploads.UploadRefused as refusal:
+                        return PlainTextResponse(refusal.message, status_code=refusal.status_code)
                     # Read the form here, once, and stash it on `request.state`
                     # (backed by `scope["state"]`, shared across every Request
                     # wrapper built from this same ASGI scope) for the route
                     # handler to reuse -- `BaseHTTPMiddleware` gives the
                     # downstream app its own `Request` instance, which cannot
                     # re-read a body this middleware already consumed.
-                    form = await request.form()
+                    try:
+                        form = await request.form(
+                            max_files=uploads.MAX_FILES_PER_REQUEST,
+                            max_fields=uploads.MAX_FIELDS_PER_REQUEST,
+                            max_part_size=uploads.MAX_FIELD_BYTES,
+                        )
+                    except HTTPException as exc:
+                        return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
                     request.state.form = form
                     form_token = form.get(CSRF_FIELD_NAME)
                 if form_token != s.session_token:
+                    if form is not None:
+                        await form.close()
                     return PlainTextResponse("missing or invalid CSRF token", status_code=403)
 
             s.clock.touch()
-            response = await call_next(request)
+            try:
+                response = await call_next(request)
+            finally:
+                if form is not None:
+                    await form.close()
 
             if cookie_token != s.session_token:
                 response.set_cookie(
@@ -189,7 +222,11 @@ def create_app(
             response.headers.setdefault("Content-Security-Policy", _CSP)
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["X-Frame-Options"] = "DENY"
-            response.headers["Referrer-Policy"] = "no-referrer"
+            # `same-origin`, not `no-referrer`: under `no-referrer` a browser sends `Origin: null`
+            # on *every* form post, same-origin ones included (Fetch: "append a request `Origin`
+            # header"), and the Origin check above then refuses all of the interface's own forms.
+            # `same-origin` sends the real Origin to this server and no referrer to anyone else.
+            response.headers["Referrer-Policy"] = "same-origin"
             return response
 
     app.add_middleware(SecurityMiddleware)
@@ -199,11 +236,19 @@ def create_app(
     from strata.web.analysis_routes import router as analysis_router
     from strata.web.extraction_routes import router as extraction_router
     from strata.web.report_routes import router as report_router
+    from strata.web.retrieval_routes import router as retrieval_router
     from strata.web.routes import router
+    from strata.web.search_routes import router as search_router
+    from strata.web.study_routes import router as study_router
+    from strata.web.workflow_routes import router as workflow_router
 
     app.include_router(router)
     app.include_router(extraction_router)
     app.include_router(analysis_router)
     app.include_router(report_router)
+    app.include_router(search_router)
+    app.include_router(workflow_router)
+    app.include_router(retrieval_router)
+    app.include_router(study_router)
 
     return app

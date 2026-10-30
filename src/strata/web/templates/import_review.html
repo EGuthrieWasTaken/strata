@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Review before importing{% endblock %}
+{% block content %}
+<h1>Review before importing</h1>
+<p>
+  {% if search %}
+  From search <a href="/searches/{{ search.id | urlencode }}">{{ search.id }}</a> ({{ search.database }} via {{ search.platform }}, run {{ search.executed }}).
+  {% else %}
+  Found by: {{ via_label }}.
+  {% endif %}
+  <strong>Nothing has been imported yet.</strong> This is what each file would do.
+</p>
+
+{% if error %}
+<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+{% endif %}
+
+{#- Choices about how to read a file live in their own form, which asks the server for a fresh
+    preview by GET, so that the session token is never put in an address. -#}
+{% if has_choices %}
+<form method="get" action="/import/review/{{ batch.id }}" id="preview-form">
+  {% for item in items %}
+  {% if item.layout and ((item.layout.sheets or []) | length > 1 or item.needs_mapping) %}
+  <fieldset class="review-choices">
+    <legend>How to read {{ item.label }}</legend>
+    {% if (item.layout.sheets or []) | length > 1 %}
+    <label class="note-field">
+      Sheet
+      <select name="sheet_{{ item.index }}">
+        {% for sheet in item.layout.sheets %}<option value="{{ sheet }}"{{ " selected" if sheet == item.layout.sheet else "" }}>{{ sheet }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    {% if item.needs_mapping %}
+    <p>The columns of this file match no known database export, so say which column holds what. The title is required.</p>
+    {% for field in mappable_fields %}
+    <label class="note-field">
+      {{ field_labels.get(field, field) }}{% if field == "title" %} (required){% endif %}
+      <select name="map_{{ item.index }}_{{ field }}">
+        <option value="">(none)</option>
+        {% for column in item.layout.columns %}<option value="{{ column }}"{{ " selected" if item.mapping.get(field) == column else "" }}>{{ column }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endfor %}
+    {% endif %}
+  </fieldset>
+  {% endif %}
+  {% endfor %}
+  <button type="submit" class="btn">Update preview</button>
+</form>
+{% endif %}
+
+{% for item in items %}
+<section class="review-file" aria-labelledby="file-{{ item.index }}" data-testid="review-file">
+  <h2 id="file-{{ item.index }}">{{ item.label }}</h2>
+  <p class="byline">{{ item.size_text }}{% if item.outcome %} &middot; read as {{ item.outcome.format }}{% elif item.layout %} &middot; read as {{ item.layout.format }}{% endif %}{% if item.layout and item.layout.platform %} &middot; recognised as a {{ item.layout.platform }} export{% endif %}</p>
+
+  {% if item.error %}
+  <p class="error" role="alert"><span aria-hidden="true">&#10007;</span> {{ item.error }}</p>
+  <p>This file will not be imported.</p>
+  {% elif item.outcome.already_imported %}
+  <p class="notice" data-testid="already-imported"><span aria-hidden="true">&#10003;</span> Already imported as <code>{{ item.outcome.import_id }}</code>. Importing it again changes nothing.</p>
+  {% else %}
+  <table class="stage-table stack-table">
+    <caption class="visually-hidden">What importing {{ item.label }} would do</caption>
+    <thead>
+      <tr>
+        <th scope="col">Rows read</th>
+        <th scope="col">New records</th>
+        <th scope="col">Matched existing</th>
+        <th scope="col">Rejected</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-label="Rows read">{{ item.outcome.rows_read }}</td>
+        <td data-label="New records">{{ item.outcome.records_created }}</td>
+        <td data-label="Matched existing">{{ item.outcome.existing_ids_appended }}</td>
+        <td data-label="Rejected">{{ item.outcome.rows_rejected }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% if item.outcome.rejected %}
+  <h3>Rows that cannot be used ({{ item.outcome.rows_rejected }})</h3>
+  <p>These are not imported; the rest of the file is. Each reason is kept with the import.</p>
+  <ul class="warning-list" data-testid="rejected-rows">
+    {% for row in item.shown_rejected %}
+    <li>{% if row.line is not none %}Row {{ row.line }}{% else %}Whole file{% endif %}: {{ row.error }}{% if row.raw %} <code class="muted">{{ row.raw[:120] }}</code>{% endif %}</li>
+    {% endfor %}
+    {% if item.hidden_rejected %}<li>&hellip; and {{ item.hidden_rejected }} more.</li>{% endif %}
+  </ul>
+  {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if can_import %}
+<form method="post" action="/import/review/{{ batch.id }}" id="confirm-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  {% for name, value in carried %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <label class="note-field">
+    Why are you importing {{ "these files" if items | length != 1 else "this file" }}?
+    <textarea name="rationale" rows="2">{{ rationale }}</textarea>
+    <span class="field-help">This goes in the permanent record.</span>
+  </label>
+  <button type="submit" class="btn btn-include">Import {{ importable_count }} file{{ "s" if importable_count != 1 else "" }}</button>
+</form>
+{% else %}
+<p class="done-note">Nothing here can be imported.</p>
+{% endif %}
+
+<form method="post" action="/import/review/{{ batch.id }}/discard" class="nav-links">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <button type="submit" class="btn">Discard these files</button>
+  {% if search %}<a href="/searches/{{ search.id | urlencode }}">Back to {{ search.id }}</a>{% else %}<a href="/import">Back</a>{% endif %}
+</form>
+{% endblock %}

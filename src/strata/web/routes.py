@@ -63,6 +63,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from strata import gitio
+from strata.core import fieldedit as fieldedit_mod
 from strata.core import filters as filters_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import provenance as provenance_mod
@@ -70,6 +71,7 @@ from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.dedup import engine as engine_mod
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
@@ -162,7 +164,15 @@ async def dashboard(request: Request) -> HTMLResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     report = status_mod.compute_status(repo)
-    return _render(request, "dashboard.html", {"report": report, "actor": state.actor})
+    return _render(
+        request,
+        "dashboard.html",
+        {
+            "report": report,
+            "actor": state.actor,
+            "awaiting_export": pipeline_mod.searches_awaiting_import(repo),
+        },
+    )
 
 
 def _canonical_ids(repo: Any) -> list[str]:
@@ -558,7 +568,12 @@ async def criteria_list(request: Request) -> HTMLResponse:
     repo = state.open_repo()
     criteria = sorted(criteria_mod.list_criteria(repo), key=lambda c: c["id"])
     version = criteria_mod.read_criteria_doc(repo)["version"]
-    return _render(request, "criteria.html", {"criteria": criteria, "version": version})
+    added = request.query_params.get("added")
+    if added is not None and criteria_mod.get_criterion(repo, added) is None:
+        added = None  # the note only names a criterion that exists, whatever the link said
+    return _render(
+        request, "criteria.html", {"criteria": criteria, "version": version, "added": added}
+    )
 
 
 def _criteria_edit_context(
@@ -766,6 +781,9 @@ def _commit_dedup_change(
         body=rationale,
         trailers={"Op": op, "Actor": actor, **(extra_trailers or {})},
     )
+    # The pool and the identified and duplicate counts move with every merge, as they do for
+    # `strata dedup`.
+    pool_mod.regenerate_all(repo)
     gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
@@ -984,6 +1002,38 @@ async def records_list_view(request: Request) -> HTMLResponse:
     )
 
 
+def record_detail_context(
+    state: AppState,
+    repo: Any,
+    record: dict[str, Any],
+    *,
+    error: str | None = None,
+    fix_values: dict[str, str] | None = None,
+    unchanged: bool = False,
+) -> dict[str, Any]:
+    """What `record_detail.html` shows; also what the correction form re-renders with when it is
+    turned away (openspec:web-ui#correcting-a-record)."""
+    return {
+        "record": record,
+        "authors": _author_display(record),
+        "year": _record_year(record),
+        "provenance": provenance_mod.build_provenance(repo, record["id"]),
+        "editable_fields": sorted(fieldedit_mod.EDITABLE_FIELDS),
+        "current_values": {
+            name: fieldedit_mod.format_field_value(
+                "issued" if name == "year" else name,
+                record.get("issued" if name == "year" else name),
+            )
+            for name in fieldedit_mod.EDITABLE_FIELDS
+        },
+        "shares_identity": records_mod.records_sharing_identity(repo, record),
+        "unchanged": unchanged,
+        "session_token": state.session_token,
+        "error": error,
+        "fix_values": fix_values or {"field": "title", "value": "", "rationale": ""},
+    }
+
+
 @router.get("/records/{record_id}", response_class=HTMLResponse, response_model=None)
 async def record_detail_view(request: Request, record_id: str) -> HTMLResponse | PlainTextResponse:
     """Record detail + provenance timeline (`strata why`'s data,
@@ -993,16 +1043,12 @@ async def record_detail_view(request: Request, record_id: str) -> HTMLResponse |
     record = records_mod.get_record(repo, record_id)
     if record is None:
         return _error(f"unknown record {record_id!r}", status_code=404)
-    provenance = provenance_mod.build_provenance(repo, record_id)
     return _render(
         request,
         "record_detail.html",
-        {
-            "record": record,
-            "authors": _author_display(record),
-            "year": _record_year(record),
-            "provenance": provenance,
-        },
+        record_detail_context(
+            state, repo, record, unchanged=request.query_params.get("unchanged") == "1"
+        ),
     )
 
 
