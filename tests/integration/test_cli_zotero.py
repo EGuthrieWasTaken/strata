@@ -603,3 +603,116 @@ def test_no_zotero_command_is_needed_for_a_review_to_verify(tmp_path: Path) -> N
     result = _run(repo.root, "verify")
 
     assert result.exit_code == EXIT_OK, result.output
+
+
+# ---------------------------------------------------------------------- more of what is printed
+
+
+def test_link_lists_a_close_item_as_a_possible_match_and_does_not_link_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    near = {**CEPEDA, "title": CEPEDA["title"].replace("ridgeline", "ridge-line")}
+    near.pop("DOI")
+    repo, ids = review_with(tmp_path, near)
+    _install(monkeypatch, FakeZotero("7"))
+
+    result = _run(repo.root, "zotero", "link", "--by", "ethan", "--library", LIB)
+
+    assert result.exit_code == EXIT_OK, result.output
+    assert "possible match, not linked AB3D9XYZ" in _text(result)
+    assert f"-> {ids[0]}" in _text(result)
+    assert "matched 0 of 4 library items" in _text(result)
+
+
+def test_status_says_so_when_nothing_is_stale_and_when_zotero_cannot_be_asked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = review_with(tmp_path, CEPEDA)
+    _install(monkeypatch, FakeZotero("7"))
+    _linked(repo.root)
+
+    fine = _run(repo.root, "zotero", "status")
+    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    down = _run(repo.root, "zotero", "status")
+
+    assert fine.exit_code == down.exit_code == EXIT_OK
+    assert "no stale links" in _text(fine)
+    assert "stale links not checked: Zotero could not be reached" in _text(down)
+    assert "1 of 1 records mapped" in _text(down)  # the counts need no Zotero
+
+
+def test_open_and_push_as_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
+    decide(repo, "title-abstract", ids)
+    decide(repo, "full-text", ids)
+    _install(monkeypatch, FakeZotero("7"))
+    _web_linked(repo.root)
+
+    opened = runner.invoke(app, ["--json", "-C", str(repo.root), "zotero", "open", ids[0]])
+    pushed = runner.invoke(
+        app,
+        ["--json", "--why", WHY, "-C", str(repo.root), "zotero", "push", "--collection",
+         "Included studies", "--by", "ethan"],
+    )  # fmt: skip
+
+    assert json.loads(opened.stdout) == {
+        "record": ids[0],
+        "kind": "attachment",
+        "uri": "zotero://open-pdf/library/items/PDF1AAAA",
+    }
+    payload = json.loads(pushed.stdout)
+    assert (payload["created"], payload["added"], payload["unchanged"]) == (1, 1, 0)
+    assert payload["problems"] == [] and payload["committed"] is True
+
+
+def test_full_text_screening_says_when_zotero_has_the_item_but_no_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, ids = review_with(tmp_path, SMITH)
+    decide(repo, "title-abstract", ids)
+    _install(monkeypatch, FakeZotero("7"))
+    _linked(repo.root)
+
+    result = _run(repo.root, "screen", "full-text", "--by", "ethan", input="i\n\n")
+
+    assert result.exit_code == EXIT_OK, result.output
+    assert "Full text: in Zotero, but no file is attached" in _text(result)
+
+
+def test_retrieved_from_zotero_needs_a_link_and_a_reachable_zotero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, ids = review_with(tmp_path, CEPEDA)
+    decide(repo, "title-abstract", ids)
+    report = "rpt_" + ids[0][len("rec_") :]
+    args = ("retrieve", "--by", "ethan", "--report", report, "--outcome", "retrieved", "--zotero")
+    _install(monkeypatch, FakeZotero("7"))
+
+    unlinked = _run(repo.root, *args)
+    _linked(repo.root)
+    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    unreachable = _run(repo.root, *args)
+
+    assert unlinked.exit_code == EXIT_USAGE and "needs a Zotero link" in _text(unlinked)
+    assert unreachable.exit_code == EXIT_GENERIC
+    assert "Zotero could not be asked" in _text(unreachable)
+    assert fulltext.read_manifest(repo) == []
+
+
+def test_a_pull_says_what_it_could_not_import(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _ = review_with(tmp_path)
+    fake = FakeZotero("7")
+    fake.add_item(LIB, "NOTITLE1", "", collections=("HANDPICK",))
+    _install(monkeypatch, fake)
+    _linked(repo.root)
+
+    result = _run(
+        repo.root, "zotero", "pull", "--collection", "Hand-searched trials", "--by", "ethan",
+        "--via", "website",
+    )  # fmt: skip
+
+    assert result.exit_code == EXIT_OK, result.output
+    assert "not imported item" in _text(result) and "missing or empty title" in _text(result)
+    assert "not linked NOTITLE1" in _text(result)

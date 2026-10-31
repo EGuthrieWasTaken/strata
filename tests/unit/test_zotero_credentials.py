@@ -118,3 +118,45 @@ def test_the_real_keyring_store_round_trips_through_a_working_backend(
 
     assert store.get() == "secret"
     assert backend.saved == {(credentials.SERVICE, credentials.ACCOUNT): "secret"}
+
+
+def test_a_keychain_that_errors_when_read_is_treated_as_holding_no_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import keyring
+    from keyring.backend import KeyringBackend
+    from keyring.errors import KeyringLocked
+
+    class Locked(KeyringBackend):
+        priority = 1  # type: ignore[assignment]
+
+        def get_password(self, service: str, username: str) -> str | None:
+            raise KeyringLocked("the keychain is locked")
+
+        def set_password(self, service: str, username: str, password: str) -> None:
+            raise KeyringLocked("the keychain is locked")
+
+        def delete_password(self, service: str, username: str) -> None: ...
+
+    backend = Locked()
+    monkeypatch.setattr(keyring, "get_keyring", lambda: backend)
+    monkeypatch.setattr(keyring, "get_password", backend.get_password)
+
+    store = KeyringStore()
+
+    assert store.available() is True
+    assert store.get() is None  # not an error: the environment variable is the fallback
+
+
+def test_without_the_keyring_package_there_is_simply_no_keychain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+
+    monkeypatch.setitem(sys.modules, "keyring", None)  # `import keyring` now fails
+
+    store = KeyringStore()
+
+    assert store.available() is False
+    assert store.get() is None
+    assert save_key(store, "secret") is False  # nothing to keep it in, and nothing raised

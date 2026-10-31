@@ -178,3 +178,53 @@ def test_the_web_api_can_be_chosen_outright() -> None:
 def test_an_unknown_transport_is_a_programming_error() -> None:
     with pytest.raises(ValueError, match="transport must be one of"):
         connect("carrier-pigeon", http=FakeZotero(), sleep=Sleeper())
+
+
+class _Scripted:
+    """A server that answers every request with the same response."""
+
+    def __init__(self, status: int, body: bytes, headers: dict[str, str] | None = None) -> None:
+        from strata.integrations.zotero.http import HttpResponse
+
+        self.response = HttpResponse(status, headers or {}, body)
+
+    def request(self, method, url, headers, body, timeout):  # type: ignore[no-untyped-def]
+        return self.response
+
+
+_ITEM = {"key": "AB3D9XYZ", "version": 1, "data": {}, "csljson": {}}
+
+
+@pytest.mark.parametrize(
+    ("server", "words"),
+    [
+        (_Scripted(500, b"boom"), "answered with an error"),
+        (_Scripted(200, b"[]", {"zotero-api-version": "2"}), "speaks Zotero API v2"),
+        (_Scripted(200, b"<html>"), "the reply is not JSON"),
+        (_Scripted(200, b'{"items": []}'), "no list of items"),
+        (_Scripted(200, b'[{"key": "A", "version": 1}]'), "does not provide items with their CSL"),
+    ],
+    ids=["server-error", "other-api-version", "not-json", "not-a-list", "no-csljson"],
+)
+def test_a_local_api_that_answers_oddly_is_not_used_and_says_why(
+    server: _Scripted, words: str
+) -> None:
+    api, reason = probe_local(server)
+
+    assert api is None and words in reason
+
+
+def test_an_empty_library_is_usable_and_is_the_local_users_library() -> None:
+    api, reason = probe_local(_Scripted(200, b"[]"))
+
+    assert reason == "" and api is not None and api.library == "users/0"
+
+
+def test_an_account_less_zotero_reports_the_local_users_library() -> None:
+    import json
+
+    item = {**_ITEM, "library": {"type": "user", "id": 0}}
+
+    api, _ = probe_local(_Scripted(200, json.dumps([item]).encode()))
+
+    assert api is not None and api.library == "users/0"

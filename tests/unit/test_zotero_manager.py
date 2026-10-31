@@ -448,3 +448,42 @@ def test_a_key_reply_that_is_not_a_mapping_is_an_error_that_says_so() -> None:
 
     with pytest.raises(ZoteroError):
         key_info(api)
+
+
+def test_a_corporate_author_is_sent_as_a_single_field_name_and_a_nameless_one_is_dropped() -> None:
+    fake = FakeZotero()
+    csl = _journal_csl(author=[{"literal": "World Health Organization"}, {"given": "Nameless"}])
+
+    web_manager(fake).push([PushItem("rec_a", csl)], "Included studies")
+
+    (sent,) = fake.writes()[0].body
+    assert sent["creators"] == [{"creatorType": "author", "name": "World Health Organization"}]
+
+
+def test_a_write_zotero_will_not_accept_is_reported_as_failed_with_its_reason() -> None:
+    class Rejecting:
+        def request(self, method, url, headers, body, timeout):  # type: ignore[no-untyped-def]
+            import json
+
+            from strata.integrations.zotero.http import HttpResponse
+
+            if url.endswith("/collections") or "limit" in url:
+                return HttpResponse(
+                    200, {}, json.dumps([{"key": "INCLUDED", "data": {"name": "In"}}]).encode()
+                )
+            if "/items/new" in url:
+                return HttpResponse(
+                    200, {}, json.dumps(FakeZotero().templates["document"]).encode()
+                )
+            failed = {"failed": {"0": {"code": 400, "message": "title is too long"}}}
+            return HttpResponse(200, {}, json.dumps(failed).encode())
+
+    from strata.integrations.zotero.api import WEB_BASE_URL, ZoteroApi
+
+    manager = ZoteroManager(
+        ZoteroApi(WEB_BASE_URL, Rejecting(), api_key="K"), LIB, local=False, writable=True
+    )
+
+    (outcome,) = manager.push([PushItem("rec_a", _journal_csl())], "INCLUDED")
+
+    assert (outcome.status, outcome.detail) == ("failed", "title is too long")

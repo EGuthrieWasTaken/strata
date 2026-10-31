@@ -193,3 +193,21 @@ def test_every_item_lands_in_exactly_one_list() -> None:
         + [u.ref.key for u in report.unmatched]
     )
     assert sorted(placed) == ["AAAAAAAA", "BBBBBBBB"]
+
+
+def test_the_pmcid_and_arxiv_rungs_are_part_of_the_ladder_in_identity_order() -> None:
+    rungs = ladder({"title": "T", "PMCID": "pmc123", "arXiv": "arXiv:2101.00001", **_CEPEDA})
+
+    assert [r for r in rungs if r[0] in ("pmcid", "arxiv")] == [
+        ("pmcid", "PMC123"),
+        ("arxiv", "2101.00001"),
+    ]
+    assert [name for name, _ in rungs] == ["pmcid", "arxiv", "signature"]
+
+
+def test_an_item_matches_a_record_on_its_arxiv_id() -> None:
+    record = _record("A preprint", arXiv="2101.00001", **_CEPEDA)
+
+    report = _match([_item("AAAAAAAA", "A preprint, retitled", arXiv="arxiv:2101.00001")], [record])
+
+    assert [(m.record_id, m.via) for m in report.matched] == [(record["id"], "arxiv")]
