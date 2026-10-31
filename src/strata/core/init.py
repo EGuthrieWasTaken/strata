@@ -29,6 +29,7 @@ events/**/*.ndjson     merge=union    -diff=nodiff
 records/records.ndjson merge=strata-records
 records/aliases.ndjson merge=union
 fulltext/manifest.ndjson merge=union
+integrations/*.ndjson  merge=union
 derived/**             merge=strata-regenerate linguist-generated=true
 reports/**             merge=strata-regenerate linguist-generated=true
 analysis/results/**    merge=strata-regenerate linguist-generated=true

@@ -28,6 +28,7 @@ my-review/
 ├── derived/                     generated views: the pool, stale decisions, counts, conflicts
 ├── reports/                     generated: PRISMA diagram, Methods, Results, checklist
 ├── fulltext/manifest.ndjson     identifiers and versions of retrieved full texts (the PDFs are not kept here)
+├── integrations/zotero.ndjson   which Zotero item each record is (only if you link a Zotero library)
 └── .strata/                     git hooks, format version, caches
 ```
 

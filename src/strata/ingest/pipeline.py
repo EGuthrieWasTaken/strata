@@ -313,7 +313,14 @@ def import_file(
     mapping: dict[str, str] | None = None,
     sheet: str | None = None,
     dry_run: bool = False,
+    collection: dict[str, str] | None = None,
 ) -> ImportOutcome:
+    """Import one export file.
+
+    `collection` names the reference-manager collection the file was built from (`manager`,
+    `library`, `key`, `name`) and is kept in the import manifest, so a report can say which
+    collection a count came from; the day it was pulled is the manifest's `imported`.
+    """
     source_path = Path(source_path)
     if not source_path.is_file():
         raise ImportPipelineError(f"no such file: {source_path}")
@@ -431,6 +438,27 @@ def import_file(
         nondeterministic_rows=nondeterministic_rows,
         column_mapping=resolved_mapping,
     )
+    # Built and checked before anything is written, so a manifest that cannot be recorded (a
+    # malformed `collection`, say) refuses the import instead of leaving it half-done.
+    manifest_data: dict[str, Any] = {
+        "id": import_id,
+        "search": search_id,
+        "via": via,
+        "source_file": source_path.name,
+        "digest": digest,
+        "format": resolved_format,
+        "encoding": encoding,
+        "column_mapping": resolved_mapping,
+        **({"sheet": sheet_name} if sheet_name is not None else {}),
+        **({"collection": dict(collection)} if collection is not None else {}),
+        "rows_read": outcome.rows_read,
+        "records_created": outcome.records_created,
+        "rows_rejected": outcome.rows_rejected,
+        "existing_ids_appended": outcome.existing_ids_appended,
+        "imported": date.today().isoformat(),
+        "imported_by": imported_by,
+    }
+    validate("import-manifest", manifest_data)
     if dry_run:
         return outcome
 
@@ -442,24 +470,6 @@ def import_file(
     if parsed.rejected:
         _write_rejected(import_dir / "rejected.txt", parsed.rejected)
 
-    manifest_data: dict[str, Any] = {
-        "id": import_id,
-        "search": search_id,
-        "via": via,
-        "source_file": source_path.name,
-        "digest": digest,
-        "format": resolved_format,
-        "encoding": encoding,
-        "column_mapping": resolved_mapping,
-        **({"sheet": sheet_name} if sheet_name is not None else {}),
-        "rows_read": outcome.rows_read,
-        "records_created": outcome.records_created,
-        "rows_rejected": outcome.rows_rejected,
-        "existing_ids_appended": outcome.existing_ids_appended,
-        "imported": date.today().isoformat(),
-        "imported_by": imported_by,
-    }
-    validate("import-manifest", manifest_data)
     import_manifest_path(repo, import_id).write_text(dump_yaml_str(manifest_data), encoding="utf-8")
 
     events_path = repo.path("events", "import", f"{imported_by}.ndjson")

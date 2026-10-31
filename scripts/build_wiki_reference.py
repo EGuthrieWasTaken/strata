@@ -56,8 +56,8 @@ PAGES: list[tuple[str, str, str, list[str]]] = [
     (
         "Commands-Full-Texts-and-Extraction",
         "Commands: full texts, studies, extraction and risk of bias",
-        "Retrieval, grouping reports into studies, data extraction, risk of bias.",
-        ["retrieve", "studies", "extract", "rob"],
+        "Retrieval, Zotero, grouping reports into studies, data extraction, risk of bias.",
+        ["retrieve", "zotero", "studies", "extract", "rob"],
     ),
     (
         "Commands-Analysis-and-Reporting",
@@ -120,6 +120,7 @@ GUIDES: dict[str, list[tuple[str, str]]] = {
     "irr": [("Adjudication-and-Agreement", "Adjudication and agreement")],
     "audit": [("Adjudication-and-Agreement", "Adjudication and agreement")],
     "retrieve": [("Retrieving-Full-Texts", "Retrieving full texts")],
+    "zotero": [("Using-Zotero", "Using Zotero")],
     "studies": [("Grouping-Reports-into-Studies", "Grouping reports into studies")],
     "extract": [("Extracting-Data", "Extracting data")],
     "rob": [("Risk-of-Bias", "Risk of bias")],

@@ -7,6 +7,24 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **Zotero integration** (`strata zotero link | pull | push | status | open`; OpenSpec change
+  `add-zotero-integration`). Optional, and nothing in a review needs it: Zotero holds the documents,
+  `strata` holds the decisions, and no screening decision ever crosses. `link` uses Zotero's local API when
+  the desktop app offers it (no key, nothing leaves the machine) and the Web API otherwise, and maps the
+  records to Zotero items by DOI, then PMID, then title, year and first author, in the committed
+  `integrations/zotero.ndjson`; an item that matches nothing is listed, a close one is offered as a
+  candidate, and neither is guessed at. `pull` brings a collection in as an import source (`--search` for a
+  database search's results, `--via` for a hand-built collection, which PRISMA counts as another method) and
+  keeps the collection's name in the import manifest; where Zotero's bibliographic metadata has improved
+  for a linked record the correction is an ordinary `record-amend` event. `push` puts the included studies
+  in a collection: it creates what Zotero lacks, otherwise only adds items to the collection, refuses an
+  item edited in Zotero since `strata` last saw it, and never deletes or overwrites. `strata retrieve` shows
+  which reports have a file in Zotero, opens it, and records the Zotero item key in the full-text manifest
+  instead of a path; `strata screen` at a full-text stage says where the full text is, and a deleted item or a
+  Zotero that is not running changes only that line. A Web API key lives in the operating system keychain
+  (optional `strata-review[zotero]`) or in `STRATA_ZOTERO_API_KEY`, never in the repository. Written
+  against Zotero's documentation and tested against a stand-in for Zotero 6 and 7; **not yet run against a
+  real Zotero**. See [Using Zotero](wiki/Using-Zotero.md).
 - **Searches and imports in the web interface** (OpenSpec change `add-web-ui-write-surfaces`). `/searches`
   lists the recorded searches with their dates, hits, whether their query is missing and what has been
   imported from each; `/searches/new` records one (the date defaults to today; blank query is recorded as
@@ -311,6 +329,10 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- The interactive `strata retrieve` menu printed without its key letters (`I have the file`, `open DOI in
+  browser`, ...): Rich read `[f]`, `[u]`, `[n]` as markup and dropped them.
+- `strata import` checked the import manifest after it had written the records, so a manifest that could not
+  be recorded left a half-made import; it is now built and checked before anything is written.
 - **`strata verify` did not notice a derived file that was out of date.** It checked only that the counts the
   events would produce close, never that `derived/counts.json` (or `pool.tsv`, `conflicts.tsv`, `stale.tsv`,
   `irr.json`) says what regenerating it would write, though the specification has always required it

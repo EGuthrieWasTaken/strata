@@ -9,19 +9,21 @@ layer the (future) web UI will call.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
 import json as json_mod
 import re
 import shutil
 import sys
 import webbrowser
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 from pathlib import Path
 from typing import Any, NoReturn
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from strata import __version__, gitio
 from strata.analysis import engine as analysis_engine
@@ -67,6 +69,10 @@ from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.ingest.enrich import unpaywall as unpaywall_mod
+from strata.integrations.reference_manager import ReferenceManagerError
+from strata.integrations.zotero import connect as zotero_connect
+from strata.integrations.zotero import operations as zotero_ops
+from strata.integrations.zotero import retrieval as zotero_retrieval
 from strata.mcpserver import server as mcp_server_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import audit as audit_mod
@@ -135,6 +141,11 @@ ci_app = typer.Typer(
     help="Helpers the review-repository CI workflow uses.",
     no_args_is_help=True,
 )
+zotero_app = typer.Typer(
+    name="zotero",
+    help="Optional: link a review to Zotero (it holds the documents, strata holds the decisions).",
+    no_args_is_help=True,
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(search_app, name="search")
@@ -142,6 +153,7 @@ app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
 app.add_typer(export_app, name="export")
 app.add_typer(ci_app, name="ci")
+app.add_typer(zotero_app, name="zotero")
 app.add_typer(internal_app, name="internal")
 
 err_console = Console(stderr=True)
@@ -1687,6 +1699,7 @@ def _render_screen_record(
     stage: str,
     record: dict[str, Any],
     active_criteria: list[dict[str, Any]],
+    full_text_note: str | None = None,
 ) -> str:
     year = _record_year(record)
     authors = _author_display(record)
@@ -1699,6 +1712,9 @@ def _render_screen_record(
         lines.append(byline)
     lines.append("")
     lines.append(record.get("abstract") or "[yellow](no abstract)[/]")
+    if full_text_note:
+        lines.append("")
+        lines.append(full_text_note)
     if active_criteria:
         lines.append("")
         lines.append("Criteria:")
@@ -1764,13 +1780,26 @@ def screen_command(
         c for c in criteria_mod.list_criteria(repo, at=stage) if c["status"] == "active"
     ]
 
+    full_text_notes = (
+        _zotero_full_text_notes(ctx, repo, queue)
+        if stage != screening_mod.configured_stages(repo)[0]
+        else {}
+    )
+
     decided = 0
     last_decided_index: int | None = None
     index = 0
     while index < len(queue):
         record_id = queue[index]
         out_console.print(
-            _render_screen_record(index, len(queue), stage, records[record_id], active_criteria)
+            _render_screen_record(
+                index,
+                len(queue),
+                stage,
+                records[record_id],
+                active_criteria,
+                full_text_notes.get(record_id),
+            )
         )
         choice = typer.prompt("[i]nclude [e]xclude [m]aybe [s]kip [u]ndo [q]uit", default="s")
         choice = choice.strip().lower()
@@ -2156,19 +2185,44 @@ def _parse_locator_options(raw: list[str] | None) -> dict[str, str] | None:
     return locator
 
 
-def _render_report(index: int, total: int, report: str, record: dict[str, Any]) -> str:
+def _render_report(
+    index: int,
+    total: int,
+    report: str,
+    record: dict[str, Any],
+    zotero: zotero_retrieval.ZoteroDocument | None = None,
+) -> str:
     journal = record.get("container-title") or ""
     lines = [f"{report}  {records_mod.short_citation(record)}  {journal}".rstrip()]
     for kind, label in (("DOI", "doi"), ("PMID", "pmid"), ("URL", "url")):
         if record.get(kind):
             lines.append(f"  {label}:{record[kind]}")
+    if zotero is not None and zotero.state != "unlinked":
+        lines.append(f"  Zotero: {_zotero_state_text(zotero)}")
     lines.append("")
     lines.append(f"({index + 1} of {total})")
-    lines.append(
+    menu = (
         "[f] I have the file   [u] open DOI in browser   [i] interlibrary loan requested\n"
         "[n] not retrievable   [s] skip   [q] quit"
     )
+    if zotero is not None and zotero.attachment_present:
+        menu = (
+            "[o] open in Zotero   [z] record it as retrieved from Zotero\n"
+            "[f] I have the file   [u] open DOI in browser   [i] interlibrary loan requested\n"
+            "[n] not retrievable   [s] skip   [q] quit"
+        )
+    lines.append(escape(menu))  # the key letters are in [brackets], which Rich would read as tags
     return "\n".join(lines)
+
+
+def _zotero_state_text(document: zotero_retrieval.ZoteroDocument) -> str:
+    return {
+        "pdf": "PDF attachment present",
+        "files": "attachment present (not a PDF)",
+        "none": "in the library, no file attached",
+        "stale": "full text unavailable (the item no longer exists in Zotero)",
+        "unlinked": "not linked",
+    }[document.state]
 
 
 @app.command("retrieve")
@@ -2188,6 +2242,11 @@ def retrieve_command(
     reason: str | None = typer.Option(None, "--reason", help="Why it could not be retrieved"),
     reason_text: str | None = typer.Option(None, "--reason-text", help="Required for 'other'"),
     list_only: bool = typer.Option(False, "--list", help="List outstanding reports and exit"),
+    from_zotero: bool = typer.Option(
+        False,
+        "--zotero",
+        help="With --outcome retrieved: record the document as held in Zotero, by its item key",
+    ),
 ) -> None:
     """Work the queue of reports sought for retrieval: openspec:full-text-retrieval.
 
@@ -2205,6 +2264,10 @@ def retrieve_command(
             err_console.print("[red]error:[/] --report needs --outcome")
             raise typer.Exit(EXIT_USAGE)
         _preflight_rationale(ctx, repo)
+        zotero_ref: dict[str, str] | None = None
+        if from_zotero:
+            zotero_ref = _zotero_manifest_ref(ctx, repo, ids_mod.record_id_for_report(report))
+            source = source or "zotero"
         try:
             outcome_recorded = ops_mod.record_retrieval(
                 repo,
@@ -2217,6 +2280,7 @@ def retrieve_command(
                 reason=reason,
                 reason_text=reason_text,
                 path=path,
+                zotero=zotero_ref,
                 commit=not ctx.obj["no_commit"],
                 rationale=lambda: _get_rationale(ctx, repo, f"You {outcome}: {report}."),
             )
@@ -2236,6 +2300,8 @@ def retrieve_command(
 
     queue = retrieval_mod.outstanding_reports(repo)
     counts = retrieval_mod.retrieval_counts(repo)
+    zotero_found = _zotero_lookup(ctx, repo, retrieval_mod.sought_reports(repo))
+    zotero_line = _zotero_header(zotero_found)
     if list_only or ctx.obj["json"]:
         items = [
             {
@@ -2245,33 +2311,62 @@ def retrieve_command(
                     records.get(ids_mod.record_id_for_report(r), {})
                 ),
                 "doi": records.get(ids_mod.record_id_for_report(r), {}).get("DOI"),
+                **_zotero_json(zotero_found, ids_mod.record_id_for_report(r)),
             }
             for r in queue
         ]
         if ctx.obj["json"]:
             _print_json(
-                {"sought": counts.sought, "outstanding": counts.outstanding, "reports": items}
+                {
+                    "sought": counts.sought,
+                    "outstanding": counts.outstanding,
+                    **(
+                        {"zotero_attachments_found": zotero_found.attachments_found}
+                        if zotero_found is not None and zotero_found.unavailable is None
+                        else {}
+                    ),
+                    "reports": items,
+                }
             )
         else:
-            out_console.print(f"{counts.sought} reports sought. {counts.outstanding} outstanding.")
+            out_console.print(
+                f"{counts.sought} reports sought. {counts.outstanding} outstanding.{zotero_line}"
+            )
             for item in items:
-                out_console.print(f"  {item['report']}  {item['citation']}")
+                note = ""
+                if "zotero" in item:
+                    note = f"  [Zotero: {item['zotero']['state']}]"
+                out_console.print(f"  {item['report']}  {item['citation']}{note}")
         return
 
     if queue:
         _preflight_rationale(ctx, repo)
-    out_console.print(f"\n  {counts.sought} reports sought. {counts.outstanding} outstanding.\n")
+    out_console.print(
+        f"\n  {counts.sought} reports sought. {counts.outstanding} outstanding.{zotero_line}\n"
+    )
     recorded = 0
     index = 0
     while index < len(queue):
         current = queue[index]
         record = records.get(ids_mod.record_id_for_report(current), {})
-        out_console.print(_render_report(index, len(queue), current, record))
+        document = (
+            zotero_found.get(ids_mod.record_id_for_report(current))
+            if zotero_found is not None and zotero_found.unavailable is None
+            else None
+        )
+        out_console.print(_render_report(index, len(queue), current, record, document))
         choice = typer.prompt("Outcome", default="s").strip().lower()
         if choice == "q":
             break
         if choice == "s":
             index += 1
+            continue
+        if choice == "o" and document is not None and document.uri is not None:
+            out_console.print(f"opening {document.uri}")
+            if not webbrowser.open(document.uri):
+                out_console.print(
+                    "[yellow]could not open it; paste the link above into a browser[/]"
+                )
             continue
         if choice == "u":
             doi = record.get("DOI")
@@ -2288,7 +2383,18 @@ def retrieve_command(
                     out_console.print(f"[green]open access copy:[/] {link.url}")
             continue
         try:
-            if choice == "f":
+            if choice == "z" and document is not None and document.attachment_present:
+                entered_version = typer.prompt("Version", default="version-of-record").strip()
+                retrieval_mod.record_retrieval(
+                    repo,
+                    report=current,
+                    status="retrieved",
+                    actor=by,
+                    source="zotero",
+                    version=entered_version,
+                    zotero=document.manifest_ref,
+                )
+            elif choice == "f":
                 entered_path = typer.prompt("Path to the file (optional)", default="").strip()
                 entered_source = typer.prompt("Source", default="institutional-access").strip()
                 entered_version = typer.prompt("Version", default="version-of-record").strip()
@@ -2336,6 +2442,497 @@ def retrieve_command(
             ctx, repo, op="retrieve", scope=None, summary=f"recorded {recorded} outcome(s)", by=by
         )
     out_console.print(f"[green]done[/] -- {recorded} outcome(s) recorded")
+
+
+# ------------------------------------------------------------------------------------ zotero
+
+
+def _zotero_connector(ctx: typer.Context, *, prompt: bool = True) -> zotero_ops.Connector:
+    """Connections to Zotero for one command.
+
+    A key is asked for (hidden) only on an interactive terminal, only when the Web API is the one
+    needed, and only when there is a keychain to keep it in; it is never typed in to be thrown away
+    and never written anywhere but that keychain (openspec:zotero-integration).
+    """
+
+    def prompt_key() -> str | None:
+        if ctx.obj["json"] or not sys.stdin.isatty():
+            return None
+        return str(
+            typer.prompt(
+                "Zotero API key (kept in your keychain, never in the repository)", hide_input=True
+            )
+        )
+
+    def connector(preference: str, need_write: bool) -> zotero_connect.Connection:
+        return zotero_connect.connect(
+            preference, need_write=need_write, prompt_key=prompt_key if prompt else None
+        )
+
+    return connector
+
+
+def _zotero_notices(notices: Sequence[str]) -> None:
+    for notice in notices:
+        err_console.print(f"[yellow]note:[/] {notice}")
+
+
+@contextlib.contextmanager
+def _zotero_errors() -> Iterator[None]:
+    """Report what can go wrong with a `zotero` command as an error and an exit code."""
+    try:
+        yield
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    except RationaleRejectedError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_RATIONALE_REFUSED) from None
+    except (
+        zotero_ops.ZoteroOperationError,
+        pipeline_mod.ImportPipelineError,
+        records_mod.RecordNotFoundError,
+        records_mod.AmbiguousRecordIdError,
+        SchemaValidationError,
+    ) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except ReferenceManagerError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_GENERIC) from None
+
+
+def _zotero_rationale(ctx: typer.Context, repo: Repo, context: str) -> ops_mod.RationaleSource:
+    """The rationale for an operation that works out, after reading Zotero, whether it has
+    anything to commit: the text given with `--why` (checked now), a prompt on a terminal, or
+    nothing, in which case the operation refuses before writing if it has something to record."""
+    supplied = _read_supplied_rationale(ctx)
+    if supplied is not None:
+        return _validate_or_exit(supplied)
+    if sys.stdin.isatty():
+        return lambda: _get_rationale(ctx, repo, context)
+    return None
+
+
+def _zotero_lookup(
+    ctx: typer.Context, repo: Repo, reports: Sequence[str]
+) -> zotero_retrieval.DocumentLookup | None:
+    """Where the full texts of some reports are in Zotero, or `None` if the review is not linked.
+
+    Never fails the command: a Zotero that cannot be reached is said once, and the work carries on.
+    """
+    lookup = zotero_retrieval.lookup(
+        repo,
+        [ids_mod.record_id_for_report(r) for r in reports],
+        connector=_zotero_connector(ctx, prompt=False),
+    )
+    if lookup is not None:
+        _zotero_notices(lookup.notices)
+        if lookup.unavailable is not None:
+            err_console.print(
+                f"[yellow]note:[/] Zotero could not be asked about full texts "
+                f"({lookup.unavailable}); carrying on without it"
+            )
+    return lookup
+
+
+def _zotero_header(lookup: zotero_retrieval.DocumentLookup | None) -> str:
+    if lookup is None:
+        return ""
+    if lookup.unavailable is not None:
+        return " Zotero: not reachable."
+    return f" Zotero: {lookup.attachments_found} attachments found."
+
+
+def _zotero_json(lookup: zotero_retrieval.DocumentLookup | None, record_id: str) -> dict[str, Any]:
+    if lookup is None or lookup.unavailable is not None:
+        return {}
+    document = lookup.get(record_id)
+    return {
+        "zotero": {
+            "state": document.state,
+            "item_key": document.ref.key if document.ref is not None else None,
+        }
+    }
+
+
+def _zotero_manifest_ref(ctx: typer.Context, repo: Repo, record_id: str) -> dict[str, str]:
+    """The Zotero item to record for `--zotero`, or an error saying why there is none."""
+    lookup = zotero_retrieval.lookup(
+        repo, [record_id], connector=_zotero_connector(ctx, prompt=False)
+    )
+    if lookup is None:
+        err_console.print(
+            "[red]error:[/] --zotero needs a Zotero link; run `strata zotero link` first"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    if lookup.unavailable is not None:
+        err_console.print(f"[red]error:[/] Zotero could not be asked: {lookup.unavailable}")
+        raise typer.Exit(EXIT_GENERIC)
+    document = lookup.get(record_id)
+    ref = document.manifest_ref
+    if not document.attachment_present or ref is None:
+        err_console.print(
+            f"[red]error:[/] Zotero has no attachment for this report "
+            f"({_zotero_state_text(document)}); nothing to record"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    return ref
+
+
+def _zotero_full_text_notes(
+    ctx: typer.Context, repo: Repo, record_ids: Sequence[str]
+) -> dict[str, str]:
+    """A line per record on where its full text is in Zotero, for screening at a full-text stage.
+
+    Whatever is wrong with Zotero or a link only changes the line; it never stops a decision being
+    recorded (openspec:zotero-integration#identity-mapping).
+    """
+    lookup = zotero_retrieval.lookup(
+        repo, list(record_ids), connector=_zotero_connector(ctx, prompt=False)
+    )
+    if lookup is None:
+        return {}
+    _zotero_notices(lookup.notices)
+    if lookup.unavailable is not None:
+        err_console.print(
+            f"[yellow]note:[/] Zotero could not be asked about full texts "
+            f"({lookup.unavailable}); screening carries on without it"
+        )
+        return {}
+    notes: dict[str, str] = {}
+    for record_id, document in lookup.documents.items():
+        if document.state in ("pdf", "files"):
+            notes[record_id] = (
+                f"Full text: {_zotero_state_text(document)} in Zotero "
+                f"(strata zotero open {record_id})"
+            )
+        elif document.state == "none":
+            notes[record_id] = "Full text: in Zotero, but no file is attached"
+        elif document.state == "stale":
+            notes[record_id] = "[yellow]Full text unavailable:[/] its Zotero item no longer exists"
+    return notes
+
+
+def _citation_of(csl: dict[str, Any]) -> str:
+    return f"{records_mod.short_citation(csl)}  {csl.get('title') or ''}".strip()
+
+
+@zotero_app.command("link")
+def zotero_link_command(
+    ctx: typer.Context,
+    by: str = typer.Option(..., "--by", help="Actor handle linking the review"),
+    library: str | None = typer.Option(
+        None, "--library", help="users/<id> or groups/<id>; asked for if there is a choice"
+    ),
+    web: bool = typer.Option(
+        False,
+        "--web",
+        help="Use the Web API (needs an API key) so included studies can be pushed to Zotero",
+    ),
+) -> None:
+    """Link this review to a Zotero library and map the records it already has to its items.
+
+    Uses Zotero's local API when the desktop app offers it (no key, nothing leaves this computer),
+    and the Web API otherwise. Records are matched to items by DOI, then PMID, then title, year and
+    first author; an item that matches nothing is listed, never forced onto the nearest record. An
+    API key is kept only in your operating system's keychain, or read from $STRATA_ZOTERO_API_KEY.
+    """
+    repo = _resolve_repo(ctx)
+
+    def choose(libraries: Sequence[Any]) -> str:
+        if ctx.obj["json"] or not sys.stdin.isatty():
+            return ""
+        for number, lib in enumerate(libraries, start=1):
+            out_console.print(f"  {number}  {lib.library}  {lib.name}")
+        picked = typer.prompt("Library number", default="1").strip()
+        return str(libraries[int(picked) - 1].library) if picked.isdigit() else ""
+
+    with _zotero_errors():
+        result = zotero_ops.link(
+            repo,
+            actor=by,
+            connector=_zotero_connector(ctx),
+            library=library,
+            web=web,
+            choose_library=choose,
+            commit=not ctx.obj["no_commit"],
+            rationale=_zotero_rationale(ctx, repo, "You linked this review to Zotero."),
+        )
+    _zotero_notices(result.notices)
+    _warn_lock_reclaimed(result.lock_reclaimed_from)
+    report = result.report
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "library": result.library,
+                "transport": result.transport,
+                "write": result.write,
+                "write_note": result.write_note,
+                "rows_written": result.rows_written,
+                "matched": len(report.matched),
+                "ambiguous": [
+                    {"item": a.item.ref.key, "via": a.via, "records": list(a.record_ids)}
+                    for a in report.ambiguous
+                ],
+                "candidates": [
+                    {
+                        "item": c.item.ref.key,
+                        "records": [
+                            {"record": x.record_id, "score": round(x.score, 3)}
+                            for x in c.candidates
+                        ],
+                    }
+                    for c in report.candidates
+                ],
+                "unmatched": [i.ref.key for i in report.unmatched],
+                "committed": result.committed,
+            }
+        )
+        return
+    how = "the local API" if result.transport == "local" else "the Web API"
+    out_console.print(f"[green]linked[/] {result.library} through {how}")
+    if result.write_note:
+        out_console.print(f"  [yellow]{result.write_note}[/]")
+    total = (
+        len(report.matched) + len(report.ambiguous) + len(report.candidates) + len(report.unmatched)
+    )
+    out_console.print(
+        f"  matched {len(report.matched)} of {total} library items to records "
+        f"({result.rows_written} new or updated links)"
+    )
+    for ambiguous in report.ambiguous:
+        out_console.print(
+            f"  [yellow]ambiguous[/] {ambiguous.item.ref.key} {_citation_of(ambiguous.item.csl)}: "
+            f"{len(ambiguous.record_ids)} records share its {ambiguous.via} "
+            f"({', '.join(ambiguous.record_ids)}); not linked"
+        )
+    for candidate in report.candidates:
+        best = candidate.candidates[0]
+        out_console.print(
+            f"  [yellow]possible match, not linked[/] {candidate.item.ref.key} "
+            f"{_citation_of(candidate.item.csl)} -> {best.record_id} (score {best.score:.2f}); "
+            "check them, then `strata fix` or `strata dedup` as needed"
+        )
+    for item in report.unmatched:
+        out_console.print(
+            f"  not in this review: {item.ref.key} {_citation_of(item.csl)} "
+            "(`strata zotero pull` brings it in)"
+        )
+
+
+@zotero_app.command("pull")
+def zotero_pull_command(
+    ctx: typer.Context,
+    collection: str = typer.Option(..., "--collection", help="A Zotero collection, by name or key"),
+    by: str = typer.Option(..., "--by", help="Actor handle running the pull"),
+    search_id: str | None = typer.Option(
+        None, "--search", help="Id of the recorded search whose results the collection holds"
+    ),
+    via: str | None = typer.Option(
+        None,
+        "--via",
+        help="For a hand-built collection: citation-searching | website | organisation | "
+        "registry | contact",
+    ),
+) -> None:
+    """Pull a Zotero collection as an import source.
+
+    Exactly one of --search (the collection holds the results of a recorded database search) and
+    --via (a hand-built collection, counted by PRISMA as another method) is required. The
+    collection's name and the day it was pulled are kept for the PRISMA report. Items already
+    linked to a record correct it where Zotero's bibliographic metadata differs, each correction a
+    `record-amend` event; no screening decision ever crosses.
+    """
+    repo = _resolve_repo(ctx)
+    with _zotero_errors():
+        result = zotero_ops.pull(
+            repo,
+            actor=by,
+            connector=_zotero_connector(ctx),
+            collection=collection,
+            search_id=search_id,
+            via=via,
+            commit=not ctx.obj["no_commit"],
+            rationale=_zotero_rationale(ctx, repo, f"You pulled {collection!r} from Zotero."),
+        )
+    _zotero_notices(result.notices)
+    _warn_lock_reclaimed(result.lock_reclaimed_from)
+    corrected = [a for a in result.amendments if a.changed]
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "collection": result.collection.name,
+                "key": result.collection.key,
+                "items": result.items_pulled,
+                "already_linked": result.already_linked,
+                "records_created": result.records_created,
+                "existing_records_appended": result.existing_records_appended,
+                "links_written": result.rows_written,
+                "import": result.import_id,
+                "corrected": [
+                    {"record": a.record_id, "field": a.field, "old": a.old, "new": a.new}
+                    for a in corrected
+                ],
+                "rejected": [{"line": r.line, "error": r.error} for r in result.rejected],
+                "unmatched": [i.ref.key for i in result.unmatched],
+                "ambiguous": [i.item.ref.key for i in result.ambiguous],
+                "vanished": list(result.vanished),
+                "committed": result.committed,
+            }
+        )
+        return
+    out_console.print(
+        f"[green]pulled[/] {result.items_pulled} items from {result.collection.name!r}: "
+        f"{result.records_created} new records, {result.existing_records_appended} matched "
+        f"records already in the review, {result.already_linked} already linked, "
+        f"{len(corrected)} correction(s)"
+    )
+    if result.import_id:
+        out_console.print(f"  import {result.import_id}")
+    for amendment in corrected[:20]:
+        out_console.print(
+            f"  corrected {amendment.record_id} {amendment.field}: "
+            f"{amendment.old!r} -> {amendment.new!r}"
+        )
+    if len(corrected) > 20:
+        out_console.print(f"  ... and {len(corrected) - 20} more (see `strata why <record>`)")
+    for rejected in result.rejected:
+        out_console.print(f"  [yellow]not imported[/] item {rejected.line}: {rejected.error}")
+    for item in result.unmatched:
+        out_console.print(f"  [yellow]not linked[/] {item.ref.key} {_citation_of(item.csl)}")
+    for ambiguous in result.ambiguous:
+        out_console.print(
+            f"  [yellow]ambiguous[/] {ambiguous.item.ref.key}: "
+            f"{', '.join(ambiguous.record_ids)} share its {ambiguous.via}; not linked"
+        )
+    for key in result.vanished:
+        out_console.print(
+            f"  [yellow]skipped[/] {key}: it is linked to a record that is no longer in the review"
+        )
+
+
+@zotero_app.command("push")
+def zotero_push_command(
+    ctx: typer.Context,
+    collection: str = typer.Option(..., "--collection", help="A Zotero collection, by name or key"),
+    by: str = typer.Option(..., "--by", help="Actor handle running the push"),
+    set_name: str = typer.Option("included", "--set", help="Which records to push: included"),
+) -> None:
+    """Put the included studies in a Zotero collection, so you can cite them while writing.
+
+    Creates Zotero items for studies Zotero lacks and adds the ones it has to the collection. It
+    never deletes anything, never changes an item it did not create beyond adding it to the
+    collection, and refuses (item by item) any item edited in Zotero since strata last saw it: pull
+    first. Needs a link made with --web and an API key that can write.
+    """
+    repo = _resolve_repo(ctx)
+    with _zotero_errors():
+        result = zotero_ops.push(
+            repo,
+            actor=by,
+            connector=_zotero_connector(ctx),
+            set_name=set_name,
+            collection=collection,
+            commit=not ctx.obj["no_commit"],
+            rationale=_zotero_rationale(
+                ctx, repo, f"You pushed the {set_name} studies to {collection!r} in Zotero."
+            ),
+        )
+    _zotero_notices(result.notices)
+    _warn_lock_reclaimed(result.lock_reclaimed_from)
+    problems = [o for o in result.outcomes if o.status in ("refused", "stale", "failed")]
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "collection": collection,
+                "created": result.count("created"),
+                "added": result.count("added"),
+                "unchanged": result.count("unchanged"),
+                "problems": [
+                    {"record": o.record_id, "status": o.status, "detail": o.detail}
+                    for o in problems
+                ],
+                "committed": result.committed,
+            }
+        )
+    else:
+        out_console.print(
+            f"[green]pushed[/] to {collection!r}: {result.count('created')} created, "
+            f"{result.count('added')} added, {result.count('unchanged')} already there"
+        )
+        for outcome in problems:
+            detail = f": {outcome.detail}" if outcome.detail else ""
+            out_console.print(f"  [yellow]{outcome.status}[/] {outcome.record_id}{detail}")
+    if problems:
+        raise typer.Exit(EXIT_CONFLICT)
+
+
+@zotero_app.command("status")
+def zotero_status_command(ctx: typer.Context) -> None:
+    """Which records are linked to Zotero, which are not, and which links have gone stale."""
+    repo = _resolve_repo(ctx)
+    with _zotero_errors():
+        report = zotero_ops.status(repo, connector=_zotero_connector(ctx, prompt=False))
+    _zotero_notices(report.notices)
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "library": report.library,
+                "records": report.records,
+                "mapped": report.mapped,
+                "unmapped": list(report.unmapped),
+                "stale": (
+                    None
+                    if report.stale is None
+                    else [{"record": r, "item": k} for r, k in report.stale]
+                ),
+                "orphaned": list(report.orphaned),
+                "unreachable": report.unreachable,
+            }
+        )
+        return
+    out_console.print(f"linked to {report.library}" + ("" if report.write else " (read-only)"))
+    out_console.print(f"  {report.mapped} of {report.records} records mapped to a Zotero item")
+    if report.unmapped:
+        out_console.print(f"  {len(report.unmapped)} not mapped")
+    if report.stale is None:
+        reason = f" ({report.unreachable})" if report.unreachable else ""
+        out_console.print(
+            f"  [yellow]stale links not checked: Zotero could not be reached{reason}[/]"
+        )
+    elif report.stale:
+        out_console.print(
+            f"  [yellow]{len(report.stale)} stale link(s)[/] -- the item was deleted:"
+        )
+        for record_id, key in report.stale:
+            out_console.print(f"    {record_id}  item {key}  (full text unavailable)")
+    else:
+        out_console.print("  no stale links")
+    if report.orphaned:
+        out_console.print(f"  {len(report.orphaned)} link(s) to records no longer in the review")
+
+
+@zotero_app.command("open")
+def zotero_open_command(
+    ctx: typer.Context,
+    record: str = typer.Argument(..., help="A record id, or any unambiguous prefix of one"),
+    print_only: bool = typer.Option(
+        False, "--print-only", help="Print the zotero:// link instead of opening it"
+    ),
+) -> None:
+    """Open a record's PDF (or, with no PDF, its item) in Zotero."""
+    repo = _resolve_repo(ctx)
+    with _zotero_errors():
+        record_id = records_mod.resolve_id_prefix(repo, record)
+        target = zotero_ops.open_target(
+            repo, record_id, connector=_zotero_connector(ctx, prompt=False)
+        )
+    if ctx.obj["json"]:
+        _print_json({"record": target.record_id, "kind": target.kind, "uri": target.uri})
+        return
+    out_console.print(target.uri, soft_wrap=True, markup=False, highlight=False)
+    if not print_only and not webbrowser.open(target.uri):
+        err_console.print("[yellow]note:[/] could not launch Zotero from here; use the link above")
 
 
 def _render_study_record(report: str, record: dict[str, Any]) -> str:

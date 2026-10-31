@@ -135,6 +135,19 @@ Off by default. With `enabled = true`, `strata` may ask Unpaywall for a legal op
 are seeking; set `contact_email` to your address, which Unpaywall requires. Nothing is downloaded
 automatically, and nothing else is looked up.
 
+### `[zotero]`
+
+Written by `strata zotero link`; you will rarely edit it. Nothing secret belongs here: an API key lives in
+your operating system's keychain, or in `STRATA_ZOTERO_API_KEY`. A key typed into this table anyway is
+reported by `strata verify` (`E_SCHEMA`), so it is noticed before it is shared. See
+[Using Zotero](Using-Zotero).
+
+| Key | Meaning |
+|---|---|
+| `library` | `users/<id>` or `groups/<id>`: the library the review is linked to |
+| `transport` | `auto` (the local API when Zotero offers it, else the Web API), `local`, or `web` |
+| `write` | Whether pushes can write, as checked when the link was made |
+
 ### `[analysis]`
 
 | Key | Default | Meaning |

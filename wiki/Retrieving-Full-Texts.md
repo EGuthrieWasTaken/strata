@@ -24,6 +24,9 @@ strata retrieve --by ada --list
 Work through them interactively (no `--list`): for each report you can press `f` (I have the file), `u`
 (open the DOI in a browser), `i` (interlibrary loan requested), `n` (not retrievable), `s` (skip) or `q`.
 
+If you keep your papers in Zotero, the queue can show which reports it already has a file for and open them:
+[Using Zotero](Using-Zotero).
+
 ## In the browser
 
 `strata serve` has the same queue at `/retrieve`: the reports sought with their status, and for each a page

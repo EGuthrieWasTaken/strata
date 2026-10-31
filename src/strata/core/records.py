@@ -8,15 +8,17 @@ byte-wise; new records land in hash order rather than at the end).
 
 from __future__ import annotations
 
+import dataclasses
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from strata.core import aliases as aliases_mod
+from strata.core import fieldedit as fieldedit_mod
 from strata.core.canon import canonical_json
-from strata.core.events import append_new_event
+from strata.core.events import append_new_event, append_new_events
 from strata.core.fieldedit import parse_value
 from strata.core.filters import FieldResolver, FilterEvaluationError
 from strata.core.ids import canonical_key, normalise_year
@@ -221,6 +223,8 @@ class Amendment:
     alias: str | None = None
     #: Another record that already has the identity this one now has (run `strata dedup`).
     shares_identity_with: str | None = None
+    #: The record corrected, set by `amend_fields` where one result covers many records.
+    record_id: str | None = None
 
 
 def preview_amendment(repo: Repo, *, record_id: str, field: str, value: str) -> bool:
@@ -234,6 +238,140 @@ def preview_amendment(repo: Repo, *, record_id: str, field: str, value: str) -> 
 
 def _same_value(old: Any, new: Any) -> bool:
     return canonical_json(old) == canonical_json(new)
+
+
+def _amended_record(
+    repo: Repo,
+    by_id: dict[str, dict[str, Any]],
+    record_id: str,
+    stored_field: str,
+    new_value: Any,
+) -> tuple[dict[str, Any], str | None, str | None]:
+    """The record with one field changed, and what that does to its identity.
+
+    Returns `(updated, alias, shares_identity_with)`. A change that moves the canonical key keeps
+    the record's id, which is permanent, and offers the id the new key would give as an alias
+    (openspec:record-identity#identifiers-are-permanent); if another record already has that
+    identity no alias is offered and that record is named instead. Nothing is written.
+    """
+    record = by_id[record_id]
+    updated = {k: v for k, v in record.items() if k != stored_field}
+    if new_value is not None:
+        updated[stored_field] = new_value
+
+    alias: str | None = None
+    shares: str | None = None
+    old_key, _ = canonical_key(record)
+    new_key, _ = canonical_key(updated)
+    if new_key != old_key:
+        updated["strata"] = {**record.get("strata", {}), "canonical_key": new_key}
+        new_id = record_id_for_key(new_key)
+        if record.get("strata", {}).get("canonical", True) and new_id != record_id:
+            holder = aliases_mod.resolve(repo, new_id) if new_id not in by_id else new_id
+            if holder in by_id and holder != record_id:
+                shares = holder
+            elif new_id not in by_id and holder != record_id:
+                alias = new_id
+    return updated, alias, shares
+
+
+@dataclass(frozen=True)
+class FieldChange:
+    """One field of one record to set to an already-structured value (`None` removes it)."""
+
+    record_id: str
+    field: str
+    value: Any
+
+
+def amend_fields(
+    repo: Repo, changes: Sequence[FieldChange], *, actor: str, source: str
+) -> list[Amendment]:
+    """Apply corrections that arrive as structured values, one `record-amend` event apiece.
+
+    The batch form of `amend_field` for a source other than a person at a keyboard (a reference
+    manager pull): values are stored as given, not read from text, and `source` names where they
+    came from in each event. Records are read and written once however many changes there are. A
+    change to a record's identity is handled exactly as `amend_field` handles it. Changes are
+    checked before anything is written, so a record that does not exist or a field that cannot be
+    corrected leaves the tree as it was. One `Amendment` is returned per change, in order; one whose
+    value the record already has is `changed=False` and writes nothing.
+    """
+    for change in changes:
+        if change.field not in fieldedit_mod.EDITABLE_FIELDS - {"year"}:
+            raise fieldedit_mod.FixFieldError(
+                f"field {change.field!r} cannot be corrected; it can correct: "
+                f"{', '.join(sorted(fieldedit_mod.EDITABLE_FIELDS - {'year'}))}"
+            )
+    by_id = index_by_id(read_records(repo))
+    for change in changes:
+        if change.record_id not in by_id:
+            raise RecordNotFoundError(f"no record with id {change.record_id!r}")
+
+    amendments: list[Amendment] = []
+    entries: list[tuple[str, str, dict[str, Any]]] = []
+    pending_aliases: list[tuple[int, str, str]] = []  # (entry index, alias, record id)
+    for change in changes:
+        old_value = by_id[change.record_id].get(change.field)
+        if _same_value(old_value, change.value):
+            amendments.append(
+                Amendment(
+                    field=change.field,
+                    old=old_value,
+                    new=change.value,
+                    changed=False,
+                    record_id=change.record_id,
+                )
+            )
+            continue
+        updated, alias, shares = _amended_record(
+            repo, by_id, change.record_id, change.field, change.value
+        )
+        by_id[change.record_id] = updated
+        if alias is not None:
+            pending_aliases.append((len(entries), alias, change.record_id))
+        entries.append(
+            (
+                "record-amend",
+                actor,
+                {
+                    "record": change.record_id,
+                    "field": change.field,
+                    "old": old_value,
+                    "new": change.value,
+                    "source": source,
+                },
+            )
+        )
+        amendments.append(
+            Amendment(
+                field=change.field,
+                old=old_value,
+                new=change.value,
+                changed=True,
+                alias=alias,
+                shares_identity_with=shares,
+                record_id=change.record_id,
+            )
+        )
+    if not entries:
+        return amendments
+
+    write_records(repo, list(by_id.values()))
+    events = append_new_events(repo.path("events", "fix", f"{actor}.ndjson"), entries)
+    for entry_index, alias, canonical_id in pending_aliases:
+        aliases_mod.append_alias(
+            repo,
+            alias=alias,
+            canonical=canonical_id,
+            reason="correction",
+            event=str(events[entry_index]["id"]),
+        )
+    written = iter(events)
+    return [
+        dataclasses.replace(amendment, event=next(written)) if amendment.changed else amendment
+        for amendment in amendments
+    ]
 
 
 def amend_field(repo: Repo, *, record_id: str, field: str, value: str, actor: str) -> Amendment:
@@ -269,24 +407,7 @@ def amend_field(repo: Repo, *, record_id: str, field: str, value: str, actor: st
     if _same_value(old_value, new_value):
         return Amendment(field=stored_field, old=old_value, new=new_value, changed=False)
 
-    updated = {k: v for k, v in record.items() if k != stored_field}
-    if new_value is not None:
-        updated[stored_field] = new_value
-
-    alias: str | None = None
-    shares: str | None = None
-    old_key, _ = canonical_key(record)
-    new_key, _ = canonical_key(updated)
-    if new_key != old_key:
-        updated["strata"] = {**record.get("strata", {}), "canonical_key": new_key}
-        new_id = record_id_for_key(new_key)
-        if record.get("strata", {}).get("canonical", True) and new_id != record_id:
-            holder = aliases_mod.resolve(repo, new_id) if new_id not in by_id else new_id
-            if holder in by_id and holder != record_id:
-                shares = holder
-            elif new_id not in by_id and holder != record_id:
-                alias = new_id
-
+    updated, alias, shares = _amended_record(repo, by_id, record_id, stored_field, new_value)
     by_id[record_id] = updated
     write_records(repo, list(by_id.values()))
 

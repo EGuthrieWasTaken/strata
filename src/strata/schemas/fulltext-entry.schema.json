@@ -24,7 +24,17 @@
     "source": { "type": "string", "minLength": 1 },
     "actor": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
     "related": { "type": "array", "items": { "$ref": "#/$defs/locator" } },
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "zotero": {
+      "description": "openspec:zotero-integration#retrieval-through-zotero — the Zotero item the document is held as, recorded alongside the locator instead of a local path",
+      "type": "object",
+      "required": ["library", "item_key"],
+      "additionalProperties": false,
+      "properties": {
+        "library": { "type": "string", "pattern": "^(users|groups)/[0-9]+$" },
+        "item_key": { "type": "string", "pattern": "^[0-9A-Z]{8}$" }
+      }
+    }
   },
   "$defs": {
     "locator": {

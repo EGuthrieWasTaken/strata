@@ -108,6 +108,17 @@ def _check_up_front(
     validate_rationale(source)
 
 
+def check_rationale_up_front(
+    repo: Repo, source: RationaleSource, *, commit: bool, needed: bool = True
+) -> None:
+    """Refuse, before anything is written, a rationale that cannot be used.
+
+    For operations defined outside this module that commit through `commit_domain_work`; see
+    `_check_up_front` for exactly what is checked.
+    """
+    _check_up_front(repo, source, commit=commit, needed=needed)
+
+
 def _commit(
     repo: Repo,
     *,
@@ -127,12 +138,14 @@ def _commit(
 
 
 #: Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
-COUNT_NEUTRAL_OPS = frozenset({"extract", "reconcile", "rob", "analyze", "prisma", "report"})
+COUNT_NEUTRAL_OPS = frozenset(
+    {"extract", "reconcile", "rob", "analyze", "prisma", "report", "zotero-link", "zotero-push"}
+)
 
 #: Where the work of a domain operation can land (those that exist are what gets committed).
 _DOMAIN_PATHS = (
     "records", "events", "derived", "fulltext/manifest.ndjson", "extraction", "rob", "analysis",
-    "reports",
+    "reports", "integrations",
 )  # fmt: skip
 
 
@@ -144,6 +157,7 @@ def commit_domain_work(
     summary: str,
     actor: str,
     extra_trailers: dict[str, str] | None = None,
+    extra_paths: Sequence[str] = (),
     commit: bool = True,
     rationale: RationaleSource = None,
 ) -> bool:
@@ -159,7 +173,7 @@ def commit_domain_work(
         pool_mod.regenerate_all(repo)  # whatever this changed, the derived views follow it
     if not commit:
         return False
-    paths = [p for p in _DOMAIN_PATHS if repo.path(*p.split("/")).exists()]
+    paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
     if not gitio.has_changes(repo.root, paths):
         return False
     text = _resolve_rationale(repo, rationale)
@@ -307,6 +321,7 @@ def import_file(
     mapping: dict[str, str] | None = None,
     sheet: str | None = None,
     dry_run: bool = False,
+    collection: dict[str, str] | None = None,
     commit: bool = True,
     rationale: RationaleSource = None,
     on_written: Callable[[ImportResult], None] | None = None,
@@ -330,6 +345,7 @@ def import_file(
             mapping=mapping,
             sheet=sheet,
             dry_run=True,
+            collection=collection,
         )
         result = ImportResult(outcome=outcome, committed=False)
         if on_written is not None:
@@ -352,6 +368,7 @@ def import_file(
             fmt=fmt,
             mapping=mapping,
             sheet=sheet,
+            collection=collection,
         )
         result = ImportResult(
             outcome=outcome, committed=False, lock_reclaimed_from=held.reclaimed_from
@@ -748,6 +765,7 @@ def record_retrieval(
     reason: str | None = None,
     reason_text: str | None = None,
     path: str | None = None,
+    zotero: dict[str, str] | None = None,
     commit: bool = True,
     rationale: RationaleSource = None,
     lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
@@ -772,6 +790,7 @@ def record_retrieval(
             reason=reason,
             reason_text=reason_text,
             path=path,
+            zotero=zotero,
         )
         committed = commit_domain_work(
             repo,

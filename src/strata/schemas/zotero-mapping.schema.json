@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://strata-review.org/schemas/zotero-mapping.schema.json",
+  "title": "Zotero identity mapping row",
+  "description": "openspec:zotero-integration#identity-mapping — one line of integrations/zotero.ndjson",
+  "type": "object",
+  "required": ["record", "library", "item_key", "item_version", "linked", "via"],
+  "additionalProperties": false,
+  "properties": {
+    "record": { "type": "string", "pattern": "^rec_[0-9a-hjkmnp-tv-z]{16}$" },
+    "library": { "type": "string", "pattern": "^(users|groups)/[0-9]+$" },
+    "item_key": { "type": "string", "pattern": "^[0-9A-Z]{8}$" },
+    "item_version": { "type": "integer", "minimum": 0 },
+    "linked": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "via": {
+      "description": "The rung of the canonical-key ladder the item was matched by, or `created` for an item strata itself created in Zotero",
+      "enum": ["doi", "pmid", "pmcid", "arxiv", "isbn", "signature", "created"]
+    }
+  }
+}

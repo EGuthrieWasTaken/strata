@@ -40,12 +40,26 @@ items are fixed.
 - **Performance** targets (50,000 records imported in about 20 seconds and deduplicated in about two minutes)
   are met on the project's reference machine; very large reviews on slow disks have not been measured.
 
+## Zotero
+
+- **Never tried against a running Zotero.** The link is tested against a stand-in written from Zotero's
+  published API documentation, for Zotero 6 and 7. The local API in particular has not been seen answering,
+  so how Zotero 7 actually replies, and whether its replies carry what `strata` reads, is unconfirmed. If
+  `strata zotero link` says the local API "did not answer as Zotero's API does", `strata` falls back to the
+  Web API; please report what you saw.
+- The local API is read-only, so pushing always goes through the Web API and needs a key.
+- A pull brings in journal articles, books and the like but not notes or attachments as records of their own.
+- Pushing creates a plain item (title, authors, journal, date, abstract, identifiers) and attaches no
+  files.
+- Mirroring screening state as Zotero tags, and reading PDF highlights as extraction sources, are not built.
+- The web interface does not show Zotero's state; the command line does.
+
 ## Not built yet (planned)
 
 - Packaging on PyPI, Homebrew and conda-forge.
 - A hosted multi-user instance with sign-in (OpenID Connect) for teams that would rather not run anything
   themselves.
-- Import from Zotero and a Covidence/Rayyan migration path.
+- A Covidence/Rayyan migration path.
 - Screening-state filters, as above.
 
 ## Reporting a problem
