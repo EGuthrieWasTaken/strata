@@ -1,0 +1,274 @@
+{
+  "libraries": {
+    "users/12345": {
+      "meta": {
+        "type": "user",
+        "id": 12345,
+        "name": "ethan"
+      },
+      "collections": [
+        {
+          "key": "INCLUDED",
+          "name": "Included studies"
+        },
+        {
+          "key": "HANDPICK",
+          "name": "Hand-searched trials"
+        },
+        {
+          "key": "SAMENAME",
+          "name": "Reading list"
+        },
+        {
+          "key": "SAMENAM2",
+          "name": "Reading list"
+        }
+      ],
+      "items": [
+        {
+          "key": "AB3D9XYZ",
+          "version": 8842,
+          "collections": [
+            "HANDPICK"
+          ],
+          "csl": {
+            "type": "article-journal",
+            "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+            "author": [
+              {
+                "family": "Cepeda",
+                "given": "Nicholas J."
+              },
+              {
+                "family": "Vul",
+                "given": "Edward"
+              },
+              {
+                "family": "Rohrer",
+                "given": "Doug"
+              },
+              {
+                "family": "Wixted",
+                "given": "John T."
+              },
+              {
+                "family": "Pashler",
+                "given": "Harold"
+              }
+            ],
+            "container-title": "Psychological Science",
+            "volume": "19",
+            "issue": "11",
+            "page": "1095-1102",
+            "DOI": "10.1111/j.1467-9280.2008.02209.x",
+            "issued": {
+              "date-parts": [
+                [
+                  2008,
+                  11
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "key": "CD4E5FGH",
+          "version": 9001,
+          "collections": [
+            "HANDPICK",
+            "INCLUDED"
+          ],
+          "csl": {
+            "type": "article-journal",
+            "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+            "author": [
+              {
+                "family": "Roediger",
+                "given": "Henry L."
+              },
+              {
+                "family": "Karpicke",
+                "given": "Jeffrey D."
+              }
+            ],
+            "container-title": "Psychological Science",
+            "volume": "17",
+            "issue": "3",
+            "page": "249-255",
+            "DOI": "10.1111/j.1467-9280.2006.01693.x",
+            "issued": {
+              "date-parts": [
+                [
+                  2006,
+                  3
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "key": "JK6L7MNP",
+          "version": 7000,
+          "collections": [
+            "HANDPICK"
+          ],
+          "csl": {
+            "type": "article-journal",
+            "title": "Spacing effects in a classroom: a quasi-experiment",
+            "author": [
+              {
+                "family": "Smith",
+                "given": "Anna"
+              }
+            ],
+            "container-title": "Journal of Classroom Studies",
+            "issued": {
+              "date-parts": [
+                [
+                  2010
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "key": "QR8S2TUV",
+          "version": 7100,
+          "collections": [],
+          "csl": {
+            "type": "article-journal",
+            "title": "Retrieval practice in secondary school science: a cluster trial",
+            "author": [
+              {
+                "family": "Okafor",
+                "given": "Ngozi"
+              }
+            ],
+            "container-title": "Journal of Applied Learning",
+            "DOI": "10.1000/okafor.2017",
+            "issued": {
+              "date-parts": [
+                [
+                  2017
+                ]
+              ]
+            }
+          }
+        }
+      ],
+      "attachments": [
+        {
+          "key": "PDF1AAAA",
+          "version": 8843,
+          "parent": "AB3D9XYZ",
+          "linkMode": "imported_file",
+          "contentType": "application/pdf",
+          "title": "Full Text PDF"
+        },
+        {
+          "key": "HTM2BBBB",
+          "version": 9002,
+          "parent": "CD4E5FGH",
+          "linkMode": "imported_url",
+          "contentType": "text/html",
+          "title": "Snapshot"
+        },
+        {
+          "key": "LNK3CCCC",
+          "version": 9003,
+          "parent": "CD4E5FGH",
+          "linkMode": "linked_url",
+          "contentType": "application/pdf",
+          "title": "Publisher page"
+        }
+      ]
+    },
+    "groups/777": {
+      "meta": {
+        "type": "group",
+        "id": 777,
+        "name": "Lab reading group"
+      },
+      "collections": [
+        {
+          "key": "GROUPCOL",
+          "name": "Shared trials"
+        }
+      ],
+      "items": [
+        {
+          "key": "GR0UPAAA",
+          "version": 55,
+          "collections": [
+            "GROUPCOL"
+          ],
+          "csl": {
+            "type": "article-journal",
+            "title": "A trial held only in the group library",
+            "author": [
+              {
+                "family": "Lindqvist",
+                "given": "Sofia"
+              }
+            ],
+            "DOI": "10.1000/group.1",
+            "issued": {
+              "date-parts": [
+                [
+                  2019
+                ]
+              ]
+            }
+          }
+        }
+      ],
+      "attachments": []
+    }
+  },
+  "templates": {
+    "journalArticle": {
+      "itemType": "journalArticle",
+      "title": "",
+      "creators": [
+        {
+          "creatorType": "author",
+          "firstName": "",
+          "lastName": ""
+        }
+      ],
+      "abstractNote": "",
+      "publicationTitle": "",
+      "volume": "",
+      "issue": "",
+      "pages": "",
+      "date": "",
+      "language": "",
+      "DOI": "",
+      "url": "",
+      "extra": "",
+      "tags": [],
+      "collections": [],
+      "relations": {}
+    },
+    "document": {
+      "itemType": "document",
+      "title": "",
+      "creators": [
+        {
+          "creatorType": "author",
+          "firstName": "",
+          "lastName": ""
+        }
+      ],
+      "abstractNote": "",
+      "publisher": "",
+      "date": "",
+      "language": "",
+      "url": "",
+      "extra": "",
+      "tags": [],
+      "collections": [],
+      "relations": {}
+    }
+  }
+}

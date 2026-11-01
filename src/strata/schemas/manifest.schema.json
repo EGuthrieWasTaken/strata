@@ -114,6 +114,16 @@
       "properties": {
         "engine": { "type": "string", "enum": ["native", "metafor"] }
       }
+    },
+    "zotero": {
+      "description": "openspec:zotero-integration — which Zotero library this review is linked to. Closed on purpose: an API key never belongs in strata.toml (openspec:zotero-integration#api-keys-are-never-stored-in-the-repository).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "library": { "type": "string", "pattern": "^(users|groups)/[0-9]+$" },
+        "transport": { "type": "string", "enum": ["auto", "local", "web"] },
+        "write": { "type": "boolean" }
+      }
     }
   }
 }

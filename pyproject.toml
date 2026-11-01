@@ -25,6 +25,11 @@ dependencies = [
     "mcp>=1.12",
 ]
 
+[project.optional-dependencies]
+# The OS keychain for a Zotero Web API key (openspec:zotero-integration#api-keys-are-never-stored-in-the-repository).
+# Without it a key is read from an environment variable and is not persisted.
+zotero = ["keyring>=25.0"]
+
 [project.scripts]
 strata = "strata.cli.main:app"
 
@@ -47,6 +52,7 @@ dev = [
     "types-jsonschema>=4.21",
     "httpx2>=2.13.1",
     "pytest-xdist>=3.8.0",
+    "keyring>=25.0",
 ]
 
 [tool.ruff]

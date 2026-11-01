@@ -9,7 +9,7 @@ what is deliberately partial.
 |---|---|---|
 | `add-review-repository-ci` | `strata init --ci`, the reusable workflow `.github/workflows/review-ci.yml`, the `actions/verify` composite action, `strata ci amendment` and `strata ci comment` | written and tested locally; 5 of 8 tasks open until it runs on GitHub (see below) |
 | `add-web-ui-write-surfaces` | Write screens in the browser: record a dated search and attach its export by file chooser or drag and drop with a review before anything is imported; correct a record; add a criterion; assign reviewers; record retrieval outcomes; group and split studies. A shared operations layer under the command line and the web | all tasks written and tested; the full local gate is green (2,889 tests, coverage 94.96 %, diff coverage 96 %, determinism identical) but it has not run in CI on macOS and Windows (task 7.3), and the manual gate (task 7.4: someone who has never used the command line does it unaided) has not been run by a person |
-| `add-zotero-integration` | | not started |
+| `add-zotero-integration` | `strata zotero link\|pull\|push\|status\|open`, the local and Web API clients, the identity mapping `integrations/zotero.ndjson`, full texts through Zotero in `retrieve` and `screen`, a keychain-or-environment key | all tasks but 5.1 written and tested against a stand-in for Zotero 6 and 7; **never run against a real Zotero** (see below), so 5.1 is open |
 | `add-distribution-and-adoption` | task 2.4: EndNote XML, Excel and plain-text citation-list import | done; the rest (PyPI/binaries/Homebrew, Covidence/Rayyan/EPPI imports, worked example, translations) not started |
 
 ## add-review-repository-ci
@@ -62,6 +62,62 @@ what is deliberately partial.
   number of a billion would have yielded a billion blank rows; both now end in a clean refusal.
 - **Not done**: the Covidence, Rayyan and EPPI-Reviewer migration imports (2.1-2.3), which need real export
   samples this project does not have; the XLS (legacy) format; reading dates formatted as dates.
+
+## add-zotero-integration: what was built and what was found
+
+- **Layout.** `strata.integrations.reference_manager` is the generic boundary (resolve, pull, push, open) and
+  imports nothing else. `strata.integrations.zotero` implements it: `http` (the one place a socket is
+  opened; loopback never goes through a proxy), `api` (`Backoff` and `Retry-After`; a wait over two minutes
+  is refused, not slept), `probe` (is the local API there and shaped as read), `connect` (local first, Web
+  for writes or on mismatch), `credentials`, `mapping`, `matching` (the canonical-key ladder), `manager`,
+  `operations` (what each command does) and `retrieval`. The command line only gathers arguments and
+  presents results.
+- **Never run against a real Zotero.** Everything is tested against `tests/zotero_fake.py`, which serves
+  `tests/fixtures/zotero/` the way the API v3 documentation says Zotero does, for Zotero 6 (no local API) and
+  Zotero 7 (read-only local API). The assumptions are listed in the change's `tasks.md`. Until a person has
+  run `strata zotero link` against a running Zotero 7 and a real Web API key and compared a capture with
+  `library.json`, task 5.1 stays open.
+- **The rules, and the test that holds each.** Core workflows reach neither Zotero nor the keychain
+  (`test_every_core_workflow_runs_with_zotero_absent_and_never_mentions_it`); a push sends only a
+  collection list for an item it did not create and never a DELETE
+  (`test_a_push_never_deletes_and_never_sends_more_than_membership_for_an_existing_item`, and the same
+  through `link --web` and `push` in `test_zotero_operations.py`); an item edited since `strata` last saw
+  it is refused, including in the instant between the check and the write (Zotero's own per-object 412); no
+  key reaches the repository or its history (`test_link_never_puts_the_api_key_in_the_repository`).
+- **Defects found on the way**, each now fixed: the `strata retrieve` menu had never shown its key letters
+  (Rich dropped `[f]`, `[u]`, `[n]` as markup), which would have hidden the new `o` and `z`; `strata import`
+  validated the import manifest after writing the records, so a manifest it could not record left a
+  half-made import; and a first version of `link` and `pull` demanded a rationale before knowing whether
+  they had anything to commit, refusing a harmless rerun.
+- **Decisions to confirm.** A pull takes exactly one of `--search` and `--via`, as `strata import` does (the
+  specification says both "requires a `--search` id" and "tagged with the correct `--via`"). Zotero never
+  *removes* a field a record has; a pull only adds or corrects. A push never writes the fields of an
+  existing item, even one `strata` created, because Zotero wins on bibliographic metadata.
+- **Changes to existing capabilities** the proposal did not list (import manifest `collection`, full-text
+  manifest `zotero`, `[zotero]` in `strata.toml`, `integrations/*.ndjson merge=union`) are named in the
+  change's `tasks.md` for `/opsx:update`.
+- **Not done.** An on-disk cache of items by version; Zotero state in the web interface; mirroring
+  screening state as tags and reading PDF annotations (post-1.0 in the design).
+
+## add-zotero-integration: manual checks with a real Zotero
+
+None of these has been run.
+
+- [ ] **Zotero 7, local API on**: `strata zotero link` says "through the local API", asks for no key, and
+      matches the records the library holds; with the setting off it names the setting; with Zotero closed it
+      says Zotero is not running and (with a key) falls back to the Web API.
+- [ ] **A collection of a real size** (a few thousand items): `strata zotero pull` finishes, and a second
+      pull changes nothing.
+- [ ] **A group library**: `link --library groups/<id> --web` with a key that can write, and one that
+      cannot, report the permission at link time; a push to the group adds to the collection.
+- [ ] **A push over an edited item**: edit an item in Zotero after linking, push, and see that one item
+      refused and the rest added; pull it, push again, and see it added.
+- [ ] **Attachments**: a library item with a PDF, one with only a snapshot, one with a link, one with
+      nothing: the queue's lines match, `o` opens the PDF in Zotero, and `strata zotero open` does the same.
+- [ ] **A keychain**: on macOS, Windows and Linux with a Secret Service, the key is asked for once and then
+      found; on a machine with none, `STRATA_ZOTERO_API_KEY` works and the not-stored notice appears.
+- [ ] **Rate limits**: a pull from a large library through the Web API waits when Zotero says `Backoff`
+      or `Retry-After`.
 
 ## add-web-ui-write-surfaces: what was built and what was found
 
