@@ -150,15 +150,27 @@ def record_retrieval(
     sha256: str | None = None,
     retrieved_on: str | None = None,
     note: str | None = None,
+    zotero: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Record one outcome for a report: a `retrieval` event, plus a manifest entry if retrieved.
 
     `sought` reopens a report (the appended correction that undoes an earlier outcome).
     Everything is validated before anything is written, so a rejected manifest entry never
     leaves a stray event behind.
+
+    `zotero` (`library`, `item_key`) says the document is held as that Zotero item. It is kept in
+    the manifest entry beside the locator and instead of a local path
+    (openspec:zotero-integration#retrieval-through-zotero).
     """
     if status not in STATUSES:
         raise RetrievalError(f"status must be one of {STATUSES}, got {status!r}")
+    if zotero is not None:
+        if status != RETRIEVAL_RETRIEVED:
+            raise RetrievalError("a Zotero item is recorded only with the 'retrieved' outcome")
+        if path:
+            raise RetrievalError(
+                "a Zotero item key is recorded instead of a local path; pass one or the other"
+            )
     if report not in set(sought_reports(repo)):
         raise RetrievalError(
             f"{report!r} is not a report sought (its record must be included at "
@@ -192,6 +204,8 @@ def record_retrieval(
             manifest_entry["related"] = related
         if sha256:
             manifest_entry["sha256"] = sha256
+        if zotero is not None:
+            manifest_entry["zotero"] = dict(zotero)
         validate("fulltext-entry", manifest_entry)
         body.update(source=source, locator=resolved, version=resolved_version)
     elif status == NOT_RETRIEVED:

@@ -14,6 +14,7 @@
 - [Adjudication and agreement](Adjudication-and-Agreement)
 - [Changing criteria mid-review](Changing-Criteria-Mid-Review)
 - [Retrieving full texts](Retrieving-Full-Texts)
+- [Using Zotero](Using-Zotero)
 - [Grouping reports into studies](Grouping-Reports-into-Studies)
 - [Extracting data](Extracting-Data)
 - [Risk of bias](Risk-of-Bias)

@@ -30,6 +30,18 @@
       "type": ["string", "null"]
     },
     "column_mapping": { "type": ["object", "null"] },
+    "collection": {
+      "description": "openspec:zotero-integration#commands — the reference-manager collection a pull imported, kept for PRISMA reporting; the pull date is `imported`",
+      "type": "object",
+      "required": ["manager", "library", "key", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "manager": { "type": "string", "minLength": 1 },
+        "library": { "type": "string", "minLength": 1 },
+        "key": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
     "rows_read": { "type": "integer", "minimum": 0 },
     "records_created": { "type": "integer", "minimum": 0 },
     "rows_rejected": { "type": "integer", "minimum": 0 },

@@ -1,0 +1,6 @@
+{
+  "major": 7,
+  "local_api": true,
+  "local_api_writable": false,
+  "local_api_needs_preference": true
+}
