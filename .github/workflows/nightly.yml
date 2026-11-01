@@ -25,11 +25,23 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
       - run: uv sync
+      # Two apt packages beyond r-base-core are needed, and --no-install-recommends hides both:
+      #  - r-recommended supplies Matrix (also nlme, lattice), which metafor depends on. install.packages
+      #    cannot fetch Matrix for Ubuntu's R from the mirror ("dependency 'Matrix' is not available for
+      #    package 'metafor'"), so the apt copy must be present.
+      #  - r-base-dev supplies libblas-dev, liblapack-dev and gfortran. Packages are built from source,
+      #    and mvtnorm fails to link without the development libraries ("cannot find -llapack").
+      # install.packages only warns when a package fails, so the loop below makes a failure stop this step.
       - name: Install R with the current metafor, clubSandwich and mvtnorm
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends r-base-core
-          sudo Rscript -e 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest")); install.packages(c("metafor", "clubSandwich", "mvtnorm"))'
+          sudo apt-get install -y --no-install-recommends r-base-core r-base-dev r-recommended
+          sudo Rscript -e '
+            options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest"))
+            pkgs <- c("metafor", "clubSandwich", "mvtnorm")
+            install.packages(pkgs)
+            failed <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+            if (length(failed)) stop("failed to install: ", paste(failed, collapse = ", "), call. = FALSE)'
           Rscript -e 'suppressMessages(library(metafor)); cat("metafor", as.character(packageVersion("metafor")), "\n")'
       - name: Regenerate statistical fixtures against current metafor
         run: STRATA_FIXTURE_DIR="$RUNNER_TEMP/fresh-fixtures" Rscript tests/statistical/generate.R
