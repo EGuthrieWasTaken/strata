@@ -35,8 +35,13 @@ conventions that emerged, and what is deliberately partial.
   estimates, the study table and the plots do not depend on them.
 - **The nightly drift job** installs the current `metafor`, `clubSandwich` and `mvtnorm` from the
   Posit package mirror, regenerates the fixtures into a scratch directory and fails when a number
-  moves by more than 1e-9 relative (`tests/statistical/compare_fixtures.py`). It has not run on
-  GitHub yet; the same steps were run here against `metafor` 4.4.0.
+  moves by more than 1e-9 relative (`tests/statistical/compare_fixtures.py`). Its first scheduled
+  runs failed in the R install, before any fixture was regenerated: `r-base-core` alone leaves
+  Ubuntu's R without `Matrix` (which `metafor` depends on) and without the BLAS and LAPACK
+  development libraries (which `mvtnorm` links to when built from source). The install now adds
+  `r-recommended` and `r-base-dev`, and stops at once if any of the three packages is missing;
+  `tests/integration/test_nightly_metafor_install.py` pins this. Until a scheduled run passes, no
+  regenerated number has been compared with a committed fixture on GitHub.
 - **PNG output** needs the optional `cairosvg` package; without it `--plot-format png` is a specific
   error that suggests SVG or PDF.
 - **`strata report` plots.** Robvis-style risk-of-bias plots are M5.
