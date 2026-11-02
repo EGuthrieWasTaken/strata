@@ -7,7 +7,8 @@ Used by the nightly `metafor-live` job (openspec:ci-gate#nightly-checks). A diff
 `metafor` release moves the last digits of a float without any change in meaning, so byte
 equality would raise false alarms every time a runner image updates; the comparison instead
 fails when a number moves by more than `RTOL`/`ATOL` (tighter than the tolerances the test suite
-itself applies), or when a key, a length or a type differs. Exit code 0 means no drift.
+itself applies), or when a key, a length or a type differs. The models fitted by an optimizer get
+the looser `OPTIMIZER_RTOL`, explained below. Exit code 0 means no drift.
 """
 
 from __future__ import annotations
@@ -15,14 +16,44 @@ from __future__ import annotations
 import json
 import math
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 RTOL = 1e-9
 ATOL = 1e-12
 
+# `rma.mv` finds the variance components of the multilevel models with an optimizer, and the
+# likelihood is almost flat around its optimum. Refitting the CHE model on the committed data from
+# other starting values, or with another optimizer, moves a variance component by up to about 1e-7
+# relative and its standard error by about 4e-8, while the log-likelihood agrees to 1e-15: the fit
+# is determined no more finely than that. The first live run, with `metafor` 5.2-1 against the
+# 4.4.0 that wrote the fixtures, moved three values of the CHE fit by 1e-9 to 4e-9, which RTOL
+# reported as drift. These models therefore use 1e-6, the tolerance `tests/statistical` applies to
+# their coefficients and standard errors (it allows 1e-5 for their variance components and CR2
+# values); a change of method or convention moves them by far more. Every other value keeps RTOL.
+OPTIMIZER_RTOL = 1e-6
+OPTIMIZER_FITS: dict[str, tuple[str, ...]] = {
+    "dependence.json": ("assink_che", "konstantopoulos_three_level"),
+}
 
-def differences(committed: Any, fresh: Any, where: str = "$") -> list[str]:
+Tolerance = Callable[[str], float]
+
+
+def _top_key(where: str) -> str:
+    """The first key of a `$.key...` path: `$.assink_che.results.0.5.se[0]` is `assink_che`."""
+    return where.removeprefix("$.").split(".", 1)[0].split("[", 1)[0]
+
+
+def tolerance_for(name: str) -> Tolerance:
+    """The relative tolerance for each value of the fixture file `name`, by its path."""
+    fitted = OPTIMIZER_FITS.get(name, ())
+    return lambda where: OPTIMIZER_RTOL if _top_key(where) in fitted else RTOL
+
+
+def differences(
+    committed: Any, fresh: Any, where: str = "$", tolerance: Tolerance | None = None
+) -> list[str]:
     """Every place `fresh` departs from `committed`, as a short human-readable line each."""
     if isinstance(committed, dict) and isinstance(fresh, dict):
         found = []
@@ -32,14 +63,14 @@ def differences(committed: Any, fresh: Any, where: str = "$") -> list[str]:
             elif key not in fresh:
                 found.append(f"{where}.{key}: missing from the regenerated fixture")
             else:
-                found.extend(differences(committed[key], fresh[key], f"{where}.{key}"))
+                found.extend(differences(committed[key], fresh[key], f"{where}.{key}", tolerance))
         return found
     if isinstance(committed, list) and isinstance(fresh, list):
         if len(committed) != len(fresh):
             return [f"{where}: length {len(committed)} became {len(fresh)}"]
         found = []
         for index, (a, b) in enumerate(zip(committed, fresh, strict=True)):
-            found.extend(differences(a, b, f"{where}[{index}]"))
+            found.extend(differences(a, b, f"{where}[{index}]", tolerance))
         return found
     numbers = (int, float)
     if (
@@ -48,7 +79,8 @@ def differences(committed: Any, fresh: Any, where: str = "$") -> list[str]:
         and not isinstance(committed, bool)
         and not isinstance(fresh, bool)
     ):
-        if math.isclose(committed, fresh, rel_tol=RTOL, abs_tol=ATOL):
+        rel_tol = tolerance(where) if tolerance else RTOL
+        if math.isclose(committed, fresh, rel_tol=rel_tol, abs_tol=ATOL):
             return []
         return [f"{where}: {committed!r} became {fresh!r}"]
     if committed == fresh:
@@ -67,7 +99,7 @@ def compare(committed_dir: Path, fresh_dir: Path) -> list[str]:
     for name in sorted(committed & fresh):
         a = json.loads((committed_dir / name).read_text(encoding="utf-8"))
         b = json.loads((fresh_dir / name).read_text(encoding="utf-8"))
-        found.extend(f"{name} {line}" for line in differences(a, b))
+        found.extend(f"{name} {line}" for line in differences(a, b, tolerance=tolerance_for(name)))
     return found
 
 
