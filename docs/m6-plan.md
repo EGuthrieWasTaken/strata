@@ -8,7 +8,7 @@ what is deliberately partial.
 | Change | What | Status |
 |---|---|---|
 | `add-review-repository-ci` | `strata init --ci`, the reusable workflow `.github/workflows/review-ci.yml`, the `actions/verify` composite action, `strata ci amendment` and `strata ci comment` | written and tested locally; 5 of 8 tasks open until it runs on GitHub (see below) |
-| `add-web-ui-write-surfaces` | Write screens in the browser: record a dated search and attach its export by file chooser or drag and drop with a review before anything is imported; correct a record; add a criterion; assign reviewers; record retrieval outcomes; group and split studies. A shared operations layer under the command line and the web | all tasks written and tested; the full local gate is green (2,889 tests, coverage 94.96 %, diff coverage 96 %, determinism identical) but it has not run in CI on macOS and Windows (task 7.3), and the manual gate (task 7.4: someone who has never used the command line does it unaided) has not been run by a person |
+| `add-web-ui-write-surfaces` | Write screens in the browser: record a dated search and attach its export by file chooser or drag and drop with a review before anything is imported; correct a record; add a criterion; assign reviewers; record retrieval outcomes; group and split studies. A shared operations layer under the command line and the web | all tasks written and tested; the full local gate is green (2,889 tests, coverage 94.96 %, diff coverage 96 %, determinism identical) and the pull-request gate has passed in CI on Linux, macOS and Windows (task 7.3); the manual gate (task 7.4: someone who has never used the command line does it unaided) has not been run by a person |
 | `add-zotero-integration` | `strata zotero link\|pull\|push\|status\|open`, the local and Web API clients, the identity mapping `integrations/zotero.ndjson`, full texts through Zotero in `retrieve` and `screen`, a keychain-or-environment key | all tasks but 5.1 written and tested against a stand-in for Zotero 6 and 7; **never run against a real Zotero** (see below), so 5.1 is open |
 | `add-distribution-and-adoption` | task 2.4: EndNote XML, Excel and plain-text citation-list import | done; the rest (PyPI/binaries/Homebrew, Covidence/Rayyan/EPPI imports, worked example, translations) not started |
 
@@ -140,8 +140,8 @@ None of these has been run.
     labelled cards at that width; the older tables elsewhere (for example on `/records` and `/history`) were
     not checked and may still overflow.
   - The repository lock was a file whose existence meant "held": a killed `strata` locked everyone out until
-    the file was deleted, and nothing took it. It is now an operating-system lock. The Windows branch is
-    written and has only been exercised on Linux.
+    the file was deleted, and nothing took it. It is now an operating-system lock. Its tests run on
+    Windows and macOS as well as Linux in CI, and pass.
 - **Known gaps, deliberate.** Dismissing a study-grouping suggestion ("keep separate", "keep as one") is
   command line only. The interactive sessions of `strata retrieve` and `strata studies` stay on the command
   line. `strata verify --fast` (the pre-commit hook) does not check derived drift, and `strata verify --fix`

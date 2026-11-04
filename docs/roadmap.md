@@ -13,10 +13,10 @@ change is archived into the specs and this page is updated.
 | M2 — Screening and staleness | done (`0.1.0`) | specs |
 | M2.1 — Wiki and local MCP server | ongoing (MCP server done) | specs: `mcp-server`, `project-documentation` |
 | M3 — Full text and extraction | done | specs: `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias` |
-| M4 — Analysis | planned | `add-meta-analysis` |
-| M5 — Reporting (`1.0.0`) | planned | `add-prisma-reporting` |
-| M5.1 — Collaboration and hosting | planned; parts can start now | `add-container-image`, `add-hosted-team-deployment` |
-| M6 — Hardening and adoption | ongoing | `add-distribution-and-adoption`, `add-zotero-integration`, `add-review-repository-ci` |
+| M4 — Analysis | implemented; one worked example open | `add-meta-analysis` |
+| M5 — Reporting (`1.0.0`) | implemented; one manual gate open | `add-prisma-reporting` |
+| M5.1 — Collaboration and hosting | in progress (`strata sync` done, container image built, hosted instance not started) | `add-container-image`, `add-hosted-team-deployment` |
+| M6 — Hardening and adoption | ongoing | `add-distribution-and-adoption`, `add-zotero-integration`, `add-review-repository-ci`, `add-web-ui-write-surfaces` |
 
 ## Sequencing principle
 
@@ -197,7 +197,7 @@ established or lost.
 
 ---
 
-## M5 — Reporting *(implemented; `add-prisma-reporting` stays open for two items — see [`m5-plan.md`](m5-plan.md))*
+## M5 — Reporting *(implemented; `add-prisma-reporting` stays open for one item, a methodologist's reading of the generated Methods — see [`m5-plan.md`](m5-plan.md))*
 
 **Scope**: PRISMA flow diagram and count reconciliation; checklist generation;
 Methods/Results/characteristics/amendments prose; manuscript export via pandoc;
@@ -222,7 +222,7 @@ FOSS tool.
 
 ---
 
-## M5.1 — Collaboration and hosting *(planned: `add-container-image`, `add-hosted-team-deployment`)*
+## M5.1 — Collaboration and hosting *(in progress: `strata sync` and the container image are built; `add-hosted-team-deployment` is not started)*
 
 **Decision (project lead):** `strata` supports a hosted, web-based mode so that
 people who know little about git can collaborate as easily as they would in
@@ -247,9 +247,11 @@ can start immediately:
 1. **`strata sync`** — *built*: the shared-remote workflow
    (`openspec:collaboration-sync`) and the engine of the hosted sync loop; see
    [`m5-1-plan.md`](m5-1-plan.md) for what it does and what is deliberately partial.
-2. **Container image** (`add-container-image`) — *written and tested without a
-   container runtime; the image has not been built or run, see
-   [`container.md`](container.md)*. One image that runs every
+2. **Container image** (`add-container-image`) — *built and smoke-tested by CI on
+   amd64 and arm64, with the base image pinned by digest, rebuilt from scratch
+   nightly and described in the wiki; not yet done: the release-tag publish with
+   cosign signing, and trying it by hand on Docker Desktop, with an SSH agent and
+   with `compose.yaml`, see [`container.md`](container.md)*. One image that runs every
    `strata` command and the local web UI against a mounted repository, with
    host-supplied git credentials, a public-URL setting for header validation, a
    health endpoint, multi-architecture builds published to GHCR, and

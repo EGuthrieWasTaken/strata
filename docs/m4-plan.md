@@ -30,7 +30,7 @@ conventions that emerged, and what is deliberately partial.
   pooled odds ratio), not a published pooled value.
 - **Cross-platform byte identity** is asserted by comparing the plots with committed files
   (`tests/golden/plots/`) on every platform in the CI matrix, and across hash seeds locally. It has
-  been run on Linux only; the first CI run on macOS and Windows is the real check. `run.json` records
+  passed on Linux, macOS and Windows in CI. `run.json` records
   the Python, numpy and scipy versions, so it is byte-identical only for the same versions; the
   estimates, the study table and the plots do not depend on them.
 - **The nightly drift job** installs the current `metafor`, `clubSandwich` and `mvtnorm` from the

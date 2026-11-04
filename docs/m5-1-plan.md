@@ -2,9 +2,10 @@
 
 A working note modelled on [`m5-plan.md`](m5-plan.md). The normative text is the capability
 [`collaboration-sync`](../openspec/specs/collaboration-sync/spec.md) and the merge-driver requirement of
-[`git-integration`](../openspec/specs/git-integration/spec.md). M5.1 also plans a container image
-(`add-container-image`) and a hosted instance (`add-hosted-team-deployment`); only the first of the three
-pieces the [roadmap](roadmap.md) lists, `strata sync`, is built here.
+[`git-integration`](../openspec/specs/git-integration/spec.md). M5.1 also covers a container image
+(`add-container-image`, built; see [`container.md`](container.md)) and a hosted instance
+(`add-hosted-team-deployment`, not started); this note is about the first of the three pieces the
+[roadmap](roadmap.md) lists, `strata sync`.
 
 ## Status
 
@@ -15,7 +16,7 @@ pieces the [roadmap](roadmap.md) lists, `strata sync`, is built here.
 | Conflict presentation | human-authored files shown as `mine` / `theirs` (criteria summarised by id and field); `--resolve mine\|theirs`, an interactive prompt, or an editor | done, editor path untested |
 | Event normalisation | after a divergent merge, changed event files are put in `(ts, id)` order, duplicate ids dropped, `seq` renumbered, `prev`/digest chain re-linked, and a `relink` event written under `events/relink/<actor>.ndjson` | done |
 | E2E-02 | two clones screen concurrently through the CLI and `strata sync` repeatedly, with no manual conflict step, ending at one head with identical events and derived views | done |
-| Container image | `add-container-image`: `Dockerfile`, entrypoint, `compose.yaml`, `serve --public-url` / `STRATA_TOKEN` / `GET /healthz`, `strata --version`, CI/release/nightly jobs | written and tested without a container runtime; **never built or run**, base image not pinned by digest, no cosign signing; see [`container.md`](container.md) and the notes in the change's `tasks.md` |
+| Container image | `add-container-image`: `Dockerfile`, entrypoint, `compose.yaml`, `serve --public-url` / `STRATA_TOKEN` / `GET /healthz`, `strata --version`, CI/release/nightly jobs | built and smoke-tested by CI on amd64 and arm64, base image pinned by digest, published to GHCR from pull requests and `main`, rebuilt from scratch nightly; the release-tag publish has not run (no release is tagged), cosign signing is not done, and it has not been tried by hand on Docker Desktop, with an SSH agent or with `compose.yaml`; see [`container.md`](container.md) and the notes in the change's `tasks.md` |
 | Hosted instance | `add-hosted-team-deployment` | not started |
 
 ## Conventions that emerged

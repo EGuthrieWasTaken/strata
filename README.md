@@ -135,6 +135,16 @@ builds the supplement PRISMA item 27 asks for with no full text in it. One item
 is open: a methodologist has not yet read the generated Methods; see
 [`docs/m5-plan.md`](docs/m5-plan.md).
 
+M5.1 and M6 are under way alongside. `strata sync` shares a review through a git remote in one command (dual
+screening never conflicts; a criterion two people reworded is settled with `--resolve mine|theirs`). A container
+image is built and smoke-tested by CI on amd64 and arm64 but not yet released
+([`docs/container.md`](docs/container.md)). `strata zotero link|pull|push|status|open` is an optional Zotero
+integration, tested against a stand-in for Zotero 6 and 7 and not yet against a real Zotero. `strata init --ci`
+installs a pull-request workflow that runs `strata verify`, comments on what a change does to the review and
+labels criteria changes `protocol-amendment`; it has not yet run on GitHub. The hosted multi-user instance
+(`strata host`) is planned and not started; see [`docs/m5-1-plan.md`](docs/m5-1-plan.md) and
+[`docs/m6-plan.md`](docs/m6-plan.md).
+
 The practical guide, stage by stage, is [the wiki](https://github.com/EGuthrieWasTaken/strata/wiki) (its pages
 are in [`wiki/`](wiki/) and are published from there); start with its Quickstart.
 
@@ -176,8 +186,8 @@ strata --help
 running from a checkout instead.)
 
 Or, without installing Python at all, in a container (see
-[`docs/container.md`](docs/container.md); no image is published yet, so build it from the checkout
-with `docker build -t strata .`):
+[`docs/container.md`](docs/container.md); there is no released image yet, though CI builds and smoke-tests
+it on amd64 and arm64, so build it from the checkout with `docker build -t strata .`):
 
 ```
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/review strata status
@@ -229,8 +239,9 @@ any decision after the fact.
 What `strata` must do is specified with [OpenSpec](openspec/README.md):
 [`openspec/specs/`](openspec/specs/) holds one spec per capability — the
 requirements, each with WHEN/THEN scenarios, for everything that has shipped —
-and [`openspec/changes/`](openspec/changes/) holds the remaining roadmap
-milestones (M3 onwards) as change proposals. Behaviour changes are proposed
+and [`openspec/changes/`](openspec/changes/) holds the changes still in flight
+(M4 onwards: each is either not started or built with an item left open) as
+change proposals. Behaviour changes are proposed
 there first; `openspec validate --all --strict` runs on every pull request.
 
 Each capability has a `spec.md` (the requirements) and a `design.md` (the
