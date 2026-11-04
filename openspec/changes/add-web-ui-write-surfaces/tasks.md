@@ -57,7 +57,7 @@ that.
 
 - [x] 7.1 Verify `openspec validate add-web-ui-write-surfaces --strict` passes with no warning from this change, and that no `openspec:` reference in code, tests or docs fails `scripts/check_docs.py`
 - [x] 7.2 Add a note to `openspec/changes/add-hosted-team-deployment/design.md` that browser imports come from this change, and update `README.md` (status), `docs/roadmap.md` (M6 and M5.1) and `docs/m6-plan.md`; verify the documentation checks pass
-- [ ] 7.3 Run the full local gate (`ruff`, `mypy --strict`, `pytest` with the coverage floors and diff coverage, and the determinism check) and verify it is green on Linux, macOS and Windows in CI
+- [x] 7.3 Run the full local gate (`ruff`, `mypy --strict`, `pytest` with the coverage floors and diff coverage, and the determinism check) and verify it is green on Linux, macOS and Windows in CI
 - [ ] 7.4 Have someone who has never used the command line record a search and import its export in the browser, unaided, and record the outcome in `docs/m6-plan.md` (a manual gate, like the M2 usability session; it is not claimed until a person has done it)
 
 ## 8. Follow-up after review: assignment and verification

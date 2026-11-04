@@ -248,10 +248,10 @@ can start immediately:
    (`openspec:collaboration-sync`) and the engine of the hosted sync loop; see
    [`m5-1-plan.md`](m5-1-plan.md) for what it does and what is deliberately partial.
 2. **Container image** (`add-container-image`) — *built and smoke-tested by CI on
-   amd64 and arm64, with the base image pinned by digest; not yet done: the
-   release-tag publish with cosign signing, the nightly cold-install run, the wiki
-   page, and trying it by hand on Docker Desktop or with an SSH agent, see
-   [`container.md`](container.md)*. One image that runs every
+   amd64 and arm64, with the base image pinned by digest, rebuilt from scratch
+   nightly and described in the wiki; not yet done: the release-tag publish with
+   cosign signing, and trying it by hand on Docker Desktop, with an SSH agent and
+   with `compose.yaml`, see [`container.md`](container.md)*. One image that runs every
    `strata` command and the local web UI against a mounted repository, with
    host-supplied git credentials, a public-URL setting for header validation, a
    health endpoint, multi-architecture builds published to GHCR, and

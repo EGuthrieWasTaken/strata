@@ -135,6 +135,16 @@ builds the supplement PRISMA item 27 asks for with no full text in it. One item
 is open: a methodologist has not yet read the generated Methods; see
 [`docs/m5-plan.md`](docs/m5-plan.md).
 
+M5.1 and M6 are under way alongside. `strata sync` shares a review through a git remote in one command (dual
+screening never conflicts; a criterion two people reworded is settled with `--resolve mine|theirs`). A container
+image is built and smoke-tested by CI on amd64 and arm64 but not yet released
+([`docs/container.md`](docs/container.md)). `strata zotero link|pull|push|status|open` is an optional Zotero
+integration, tested against a stand-in for Zotero 6 and 7 and not yet against a real Zotero. `strata init --ci`
+installs a pull-request workflow that runs `strata verify`, comments on what a change does to the review and
+labels criteria changes `protocol-amendment`; it has not yet run on GitHub. The hosted multi-user instance
+(`strata host`) is planned and not started; see [`docs/m5-1-plan.md`](docs/m5-1-plan.md) and
+[`docs/m6-plan.md`](docs/m6-plan.md).
+
 The practical guide, stage by stage, is [the wiki](https://github.com/EGuthrieWasTaken/strata/wiki) (its pages
 are in [`wiki/`](wiki/) and are published from there); start with its Quickstart.
 

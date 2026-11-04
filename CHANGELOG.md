@@ -61,18 +61,18 @@ All notable changes to `strata` are documented here. Format follows
   `.strata/tmp/uploads/<id>/` under an unguessable id until confirmed, and are deleted on confirm, discard,
   start-up and after an hour. Only bibliographic exports are accepted, by the detection `strata import` uses; a
   PDF is refused with the reason. A new review's `.gitignore` now ignores `/.strata/tmp/` and `/.strata/lock`;
-  for existing reviews the staging area is excluded locally (`.git/info/exclude`), which needs no commit. No
-  upload screen uses this yet (searches and imports in the browser come next in the same change).
+  for existing reviews the staging area is excluded locally (`.git/info/exclude`), which needs no commit. The
+  search and import screens above use it.
 - **The repository lock is the operating system's** (`strata.core.lockfile`; OpenSpec change
   `add-web-ui-write-surfaces`). It was a file whose existence meant "held", so a `strata` killed mid-write left
   it behind and every later write failed after 30 seconds until someone deleted `.strata/lock`; and nothing
   actually took it. It is now a `flock` (a byte-range lock on Windows), so a holder that dies, however it dies,
   holds nothing. A command that finds a lock its holder died holding takes it over and says so. `strata search
   add` and `strata import` now take it for the length of their write and commit, so a terminal and `strata
-  serve` cannot interleave; a command that cannot get it in 30 seconds names the process that has it. The
-  Windows branch is written but has only been exercised on Linux so far.
+  serve` cannot interleave; a command that cannot get it in 30 seconds names the process that has it. Its
+  tests run on Windows and macOS as well as Linux in CI, and pass.
 
-- **The wiki** (`wiki/`, 40 pages; the `project-documentation` spec). A home page with Installation,
+- **The wiki** (`wiki/`, 41 pages; the `project-documentation` spec). A home page with Installation,
   Quickstart (a whole single-reviewer review run on invented example data), Git for reviewers and a practical
   guide for every stage (setting up, searching and importing, duplicates, screening, adjudication and
   agreement, changing criteria mid-review, full texts, study grouping, extraction, risk of bias, analysis,
@@ -97,18 +97,20 @@ All notable changes to `strata` are documented here. Format follows
   them for a person). Golden fixtures, unit, integration and fuzz tests; the fuzzing found four ways a
   corrupt workbook could escape as the wrong exception, all fixed. Not built: the Covidence, Rayyan and
   EPPI-Reviewer migration imports.
-- **M5.1: container image** (OpenSpec change `add-container-image`, in flight). A multi-stage `Dockerfile`
-  (locked dependencies, `git`, non-root uid 10001, `safe.directory = *` in the system git config, a
-  `/healthz` health check), `.dockerignore`, an entrypoint that makes `serve` container-ready (all
-  interfaces, a generated token, a localhost public URL, no browser), `compose.yaml`, CI `container` jobs
-  on amd64 and arm64 with hadolint, a smoke test (`scripts/container_smoke.sh`) and a native-versus-image
-  determinism comparison, GHCR publishing with an SBOM and provenance on release tags, and a nightly
-  from-scratch build. `strata serve` gained `--public-url` / `STRATA_PUBLIC_URL` (Host and Origin are
-  validated against it; DNS-rebinding protection stays), `STRATA_TOKEN`, and an unauthenticated
-  `GET /healthz`; `strata --version` now exists. **The image has not been built or run** (no container
-  runtime in the build environment; CI built and smoke-tested it on amd64 and arm64 on the first run), the
-  base image is pinned by digest, and cosign signing is not done. `.github/workflows/container.yml` builds both architectures, publishes them to GHCR and smoke-tests
-  what was published. See `docs/container.md`.
+- **M5.1: container image** (OpenSpec change `add-container-image`, in flight until its release-tag
+  publish and signing are done). A multi-stage `Dockerfile` (locked dependencies, `git`, non-root uid
+  10001, `safe.directory = *` in the system git config, a `/healthz` health check, the base image pinned
+  by digest), `.dockerignore`, an entrypoint that makes `serve` container-ready (all interfaces, a
+  generated token, a localhost public URL, no browser), `compose.yaml`, CI `container` jobs on amd64 and
+  arm64 with hadolint, a smoke test (`scripts/container_smoke.sh`) and a native-versus-image determinism
+  comparison, `.github/workflows/container.yml` (builds both architectures, publishes to GHCR as
+  `sha-<commit>`, `pr-<n>` or `edge`, and smoke-tests what was published), GHCR publishing with an SBOM
+  and provenance on release tags, and a nightly from-scratch build. `strata serve` gained `--public-url`
+  / `STRATA_PUBLIC_URL` (Host and Origin are validated against it; DNS-rebinding protection stays),
+  `STRATA_TOKEN`, and an unauthenticated `GET /healthz`; `strata --version` now exists. CI builds and
+  smoke-tests the image on both architectures. Not yet done: the release-tag publish (no release is
+  tagged), cosign signing, and trying it by hand on Docker Desktop, with an SSH agent and with
+  `compose.yaml`. See `docs/container.md` and [Running in a container](wiki/Running-in-a-Container.md).
 - **M6: CI for review repositories** (OpenSpec change `add-review-repository-ci`, in flight). `strata
   init --ci [--ci-ref REF] [--methodologist LOGIN]` installs a workflow that, on pull requests, runs `strata
   verify`, comments what the change does to the review (records entering and leaving, decisions invalidated,
@@ -130,8 +132,8 @@ All notable changes to `strata` are documented here. Format follows
   driver merges field by field and its decisions become `record-amend` events. A clone without
   the drivers still syncs. E2E-02 now runs two CLI-driven collaborators through repeated syncs.
   Partial: the rebase strategy and the editor option are lightly tested; see `docs/m5-1-plan.md`.
-- **M5: reporting** (OpenSpec change `add-prisma-reporting`, in flight until its two open
-  items close). `derived/counts.json` holds every PRISMA 2020 count, derived from the
+- **M5: reporting** (OpenSpec change `add-prisma-reporting`, in flight until its open
+  item closes). `derived/counts.json` holds every PRISMA 2020 count, derived from the
   import manifests, records, decisions, retrievals and study grouping and partitioned by
   where each record was found, with the reconciliation identities asserted
   (`E_COUNT_RECONCILE` in `strata verify` and before any report). `strata prisma` draws
@@ -175,9 +177,9 @@ All notable changes to `strata` are documented here. Format follows
   committed pooled estimate), analyses in `strata status` and `strata verify`,
   the `/analysis` and `/analysis/<id>` web screens, a `single-group-proportion`
   extraction design, and a nightly `metafor-live` job that installs R and fails
-  when a regenerated number drifts. Open: the Hedges & Olkin worked example;
-  macOS and Windows byte-identity and the nightly job have not yet run on
-  GitHub. See `docs/m4-plan.md`.
+  when a regenerated number drifts. Open: the Hedges & Olkin worked example.
+  The macOS and Windows byte-identity runs and the nightly `metafor-live` job have
+  both run on GitHub and pass. See `docs/m4-plan.md`.
 - **M3: full text and extraction** (archived OpenSpec change
   `add-full-text-and-extraction`; four new capability specs —
   `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias`).
@@ -224,11 +226,11 @@ All notable changes to `strata` are documented here. Format follows
   `docs` CI job also runs `openspec validate --all --strict` (OpenSpec 1.13.2,
   telemetry disabled). The OpenSpec Claude Code skills and `/opsx:*`
   commands are installed under `.claude/`.
-- Planned (OpenSpec changes, not yet implemented): a container image
-  (`add-container-image`) and a self-hosted team instance with per-user
-  accounts and an automatic git sync loop (`add-hosted-team-deployment`),
-  following the decision to support hosted collaboration with git as the
-  backend (`docs/open-questions.md`, Q11).
+- Planned (OpenSpec change, not yet implemented): a self-hosted team instance
+  with per-user accounts and an automatic git sync loop
+  (`add-hosted-team-deployment`), following the decision to support hosted
+  collaboration with git as the backend (`docs/open-questions.md`, Q11). It
+  builds on the container image described above.
 
 - A fuzz corpus for `ingest.parsers` (`tests/fuzz/`, `hypothesis`-driven
   mutation of the real fixture corpus, wired into the nightly `fuzz` job)
