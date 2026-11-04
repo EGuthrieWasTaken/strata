@@ -176,8 +176,8 @@ strata --help
 running from a checkout instead.)
 
 Or, without installing Python at all, in a container (see
-[`docs/container.md`](docs/container.md); no image is published yet, so build it from the checkout
-with `docker build -t strata .`):
+[`docs/container.md`](docs/container.md); there is no released image yet, though CI builds and smoke-tests
+it on amd64 and arm64, so build it from the checkout with `docker build -t strata .`):
 
 ```
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/review strata status
@@ -229,8 +229,9 @@ any decision after the fact.
 What `strata` must do is specified with [OpenSpec](openspec/README.md):
 [`openspec/specs/`](openspec/specs/) holds one spec per capability — the
 requirements, each with WHEN/THEN scenarios, for everything that has shipped —
-and [`openspec/changes/`](openspec/changes/) holds the remaining roadmap
-milestones (M3 onwards) as change proposals. Behaviour changes are proposed
+and [`openspec/changes/`](openspec/changes/) holds the changes still in flight
+(M4 onwards: each is either not started or built with an item left open) as
+change proposals. Behaviour changes are proposed
 there first; `openspec validate --all --strict` runs on every pull request.
 
 Each capability has a `spec.md` (the requirements) and a `design.md` (the

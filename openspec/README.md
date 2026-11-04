@@ -109,6 +109,8 @@ review (`openspec:repository-format#format-versioning`).
 | `add-distribution-and-adoption` | M6 |
 | `add-zotero-integration` | M6 |
 | `add-review-repository-ci` | M6 |
+| `add-web-ui-write-surfaces` | M6 |
+| `add-ai-participation` | M6 (proposed; not yet on the roadmap, does not gate `1.0.0`) |
 
 ## Known gaps in shipped capabilities
 
