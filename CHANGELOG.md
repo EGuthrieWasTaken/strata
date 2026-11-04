@@ -307,6 +307,18 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Changed
 
+- **A pull request that changes only documentation skips the test jobs** (OpenSpec change
+  `skip-tests-for-docs-only-prs`, capability `ci-gate`). The `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md` at
+  the root and everything under `docs/`, `wiki/` and `openspec/` count as documentation; a new `code-changes`
+  job (`scripts/ci_changes.py`) reads the changed files and `test-fast`, with every job that waits for it
+  (`test`, `statistical`, `determinism`, `coverage`, `benchmark`, `traceability`), runs only if something else
+  changed. `lint`, `docs` and `gate` always run, a push to `main` runs everything, and anything the script cannot
+  tell (a missing base commit, a `git` that fails, no changed files) runs everything too. A rename counts as a
+  deletion and an addition, so moving a source file into `docs/` is still a change to code. `gate` waits for
+  `code-changes`, so a classifier that did not run fails the gate instead of skipping the tests. Before this, a
+  README edit waited about two hours for the full matrix. Written and tested locally (against real `git`, with
+  each guarantee checked to fail when broken); the first documentation-only pull request after it merges is the
+  check on GitHub.
 - **`strata fix` corrects authors and years, keeps a record's identity in step, and skips no-ops.** It could
   only edit plain-text fields; it now also takes `--field author` (`Family, Given; Family, Given`, a name with
   no comma kept whole), `--field year` (four digits; the month and day are kept) and `--field issued` (`YYYY`,
