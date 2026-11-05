@@ -263,6 +263,14 @@ did.
 - **The model name is the agent's own claim**, and an agent with a shell bypasses the policy: both are stated
   in the wiki and in `Known-Limitations`, and neither can be fixed from here.
 
+### What the local gate measured
+
+On Linux only: `ruff` and `mypy --strict` are clean. The whole suite passed (3,614 tests, 95.02 % total
+coverage) before the last round of tests, which was added to close the diff-coverage gap. A targeted run of
+the 537 tests that exercise this change then measured diff coverage of 99 % against the base (CI needs 95 %).
+The whole suite was not run again after that round, which also removed two properties nothing used
+(`Ledger.suggestions` and `PrismaRendered.draft`); CI is the check on the final tree.
+
 ### Manual gate (task 5.4)
 
 **Not done, and not claimed.** A methodologist reads the generated disclosure for (a) a review that used
