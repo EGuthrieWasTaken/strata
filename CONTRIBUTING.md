@@ -45,6 +45,11 @@ the requirement linked to its test, does the spec change, and does the user-faci
 | `tests/fuzz/` | mutation fuzzing of every parser, run nightly |
 | `tests/benchmark/` | performance targets; timing-sensitive, so run them alone |
 
+A test that builds two reviews and compares what each committed (`committed_snapshot`, as the command-line/web
+equivalence tests do) pins the day with the `same_day` fixture (`pytestmark = pytest.mark.usefixtures("same_day")`):
+imports, retrievals, searches and `init` stamp it, and the slow legs of CI cross midnight. `committed_snapshot`
+refuses to run without it. Pin the day; do not mask it out of the comparison, which could hide a real difference.
+
 ## Conventions
 
 - **Everything recorded is an event or a derived view.** Events are appended to per-actor NDJSON files and

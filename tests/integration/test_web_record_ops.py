@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -29,6 +30,8 @@ from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.web.app import create_app
 from tests.integration._equivalence import committed_snapshot
+
+pytestmark = pytest.mark.usefixtures("same_day")  # two reviews built apart are compared
 
 runner = CliRunner()
 _TOKEN = "test-session-token-0123456789"
