@@ -16,7 +16,9 @@ This module reads the configuration and answers questions about it. Writing the 
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import contextlib
+import contextvars
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,6 +26,7 @@ import tomlkit
 from tomlkit import items as tomlkit_items
 
 from strata.core import manifest as manifest_mod
+from strata.core.events import agent_scope
 from strata.core.repo import Repo
 
 #: The kinds of work a policy sets a mode for
@@ -242,6 +245,45 @@ class AgentContext:
             value["client"] = client
         return value
 
+    def commit_author(self) -> str:
+        """`Name <address>` for the commit's author: the agent, and whose session it was.
+
+        The address is on the reserved `.invalid` domain, which can never be delivered to or matched
+        to a hosting account, so nothing is credited to a stranger or to the person.
+        """
+        return f"{self.actor} (via {self.invoked_by}) <{self.actor}@agents.invalid>"
+
+    def commit_trailers(self) -> dict[str, str]:
+        """The trailers an agent's commit carries so that `strata log` can find it."""
+        return {
+            "Agent": self.actor,
+            "Invoked-By": self.invoked_by,
+            "Via": "mcp",
+            "Model": self.model,
+        }
+
+
+_ACTING: contextvars.ContextVar[AgentContext | None] = contextvars.ContextVar(
+    "strata_acting_agent", default=None
+)
+
+
+@contextlib.contextmanager
+def acting_as(context: AgentContext) -> Iterator[None]:
+    """Run a block as the agent `context` describes: every event is the agent's, with its `agent`
+    key, and every commit is authored by the agent and committed by the person."""
+    token = _ACTING.set(context)
+    try:
+        with agent_scope(context.actor, context.envelope_value()):
+            yield
+    finally:
+        _ACTING.reset(token)
+
+
+def current_context() -> AgentContext | None:
+    """The agent whose write is in progress, if one is."""
+    return _ACTING.get()
+
 
 @dataclass(frozen=True)
 class Authorised:
@@ -249,6 +291,42 @@ class Authorised:
 
     context: AgentContext
     mode: str
+
+
+def agent_for_model(repo: Repo, model: str | None) -> dict[str, Any]:
+    """The active agent actor registered for the model an agent reports, or `AgentRefused`.
+
+    The match is exact: a model name that differs in case, by a suffix or by a version is a
+    different model and is refused with the way to accept it. A deactivated agent is refused as
+    such. Used by every write and by the reads that are about the agent itself.
+    """
+    reported = (model or "").strip()
+    if not reported:
+        raise AgentRefused(
+            REFUSED_NO_MODEL,
+            "a model name is required: every write must say which model is acting, as the agent "
+            "itself reports it",
+        )
+    registered = [a for a in agent_actors(repo) if a.get("model") == reported]
+    active = [a for a in registered if a.get("role") != "inactive"]
+    if active:
+        return active[0]
+    if registered:
+        raise AgentRefused(
+            REFUSED_DEACTIVATED,
+            f"the agent {registered[0]['handle']!r} registered for the model {reported!r} "
+            "has been deactivated, so its work is no longer accepted by this review",
+        )
+    accepted = accepted_models(repo)
+    accepted_text = (
+        f" This review accepts: {', '.join(accepted)}." if accepted else " It accepts no model yet."
+    )
+    raise AgentRefused(
+        REFUSED_UNKNOWN_MODEL,
+        f"the model {reported!r} is not one this review accepts.{accepted_text} A lead can "
+        f"accept it with `strata actor add NAME --kind agent --model {reported} "
+        "--role screener`.",
+    )
 
 
 def authorise(
@@ -274,13 +352,8 @@ def authorise(
             "AI participation is not enabled for this review, so no agent may write to it. "
             "A lead enables it with `strata ai enable`.",
         )
-    reported = (model or "").strip()
-    if not reported:
-        raise AgentRefused(
-            REFUSED_NO_MODEL,
-            "a model name is required: every write must say which model is acting, as the agent "
-            "itself reports it",
-        )
+    registered_agent = agent_for_model(repo, model)
+    reported = str(registered_agent["model"])
     mode = mode_for(repo, kind)
     if mode == MODE_OFF:
         raise AgentRefused(
@@ -288,28 +361,6 @@ def authorise(
             f'this review\'s AI policy has {kind!r} set to "off" ([ai.policy] {kind}), so an '
             f"agent cannot do this kind of work here. A lead can change it with "
             f"`strata ai policy {kind} suggest`.",
-        )
-
-    registered = [a for a in agent_actors(repo) if a.get("model") == reported]
-    active = [a for a in registered if a.get("role") != "inactive"]
-    if not active:
-        if registered:
-            raise AgentRefused(
-                REFUSED_DEACTIVATED,
-                f"the agent {registered[0]['handle']!r} registered for the model {reported!r} "
-                "has been deactivated, so its work is no longer accepted by this review",
-            )
-        accepted = accepted_models(repo)
-        accepted_text = (
-            f" This review accepts: {', '.join(accepted)}."
-            if accepted
-            else " It accepts no model yet."
-        )
-        raise AgentRefused(
-            REFUSED_UNKNOWN_MODEL,
-            f"the model {reported!r} is not one this review accepts.{accepted_text} A lead can "
-            f"accept it with `strata actor add NAME --kind agent --model {reported} "
-            "--role screener`.",
         )
 
     if not invoked_by:
@@ -324,7 +375,7 @@ def authorise(
 
     return Authorised(
         context=AgentContext(
-            actor=str(active[0]["handle"]),
+            actor=str(registered_agent["handle"]),
             model=reported,
             invoked_by=invoker.handle,
             client_name=client_name,

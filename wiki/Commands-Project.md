@@ -159,6 +159,38 @@ strata ai policy [KIND] [MODE]
 | `kind` | optional | A kind of work; omit to list them all |
 | `mode` | optional | off, suggest or count; omit to show the mode |
 
+### `strata ai report`
+
+The AI ledger: for each agent and kind of work, what it suggested (and what became of each
+suggestion), what took effect as its own, what a person later changed, who ran it and when.
+
+Read from the record, so it cannot disagree with the generated Methods text, which is written
+from the same figures. The model name is the agent's own report; `strata` cannot verify it.
+
+```
+strata ai report
+```
+
+### `strata ai revoke`
+
+Withdraw an agent's standing: it is deactivated, and every screening decision of its that
+still counted goes in the stale queue (reason agent-revoked) for people to look at again.
+
+Its history stays in the record. Your rationale (--why) is part of the commit. No agent can do
+this, or anything else that changes who takes part.
+
+```
+strata ai revoke [OPTIONS] AGENT
+```
+
+| Argument | | Meaning |
+|---|---|---|
+| `agent` | required |  |
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--by` (required) | str |  | The lead revoking the agent |
+
 Guide: [Using AI in a review](Using-AI-in-a-Review)
 
 ## `strata suggestions`

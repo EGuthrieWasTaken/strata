@@ -28,6 +28,7 @@ own terms.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,10 +52,13 @@ from strata.extract import rob as rob_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
+from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.report import counts as counts_mod
+from strata.report import flow as flow_mod
 
 #: What a caller can hand an operation as its rationale: the text, nothing, or a function that
 #: produces it once the work is written (the interactive prompt).
@@ -133,11 +137,16 @@ def _commit(
     paths: list[str],
 ) -> None:
     fitted_scope, fitted_summary = fit_subject(op, scope, summary)
+    acting = agents_mod.current_context()
     message = StructuredCommit(
-        op=op, scope=fitted_scope, summary=fitted_summary, body=rationale, trailers=trailers
+        op=op,
+        scope=fitted_scope,
+        summary=fitted_summary,
+        body=rationale,
+        trailers={**trailers, **(acting.commit_trailers() if acting else {})},
     ).message()
     gitio.add(repo.root, paths)
-    gitio.commit(repo.root, message)
+    gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
 
 
 #: Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
@@ -1068,4 +1077,144 @@ def set_ai_policy(
                 committed = True
     return AiPolicySet(
         kind=kind, old=old, new=new, committed=committed, lock_reclaimed_from=held.reclaimed_from
+    )
+
+
+# ------------------------------------------------------------------------------ PRISMA diagram
+
+
+@dataclass(frozen=True)
+class PrismaRendered:
+    """The diagram's bytes and the counts it was drawn from."""
+
+    payload: bytes
+    counts: counts_mod.Counts
+
+    @property
+    def draft(self) -> bool:
+        """Whether screening is unfinished, so the diagram is watermarked as a draft."""
+        return not self.counts.complete
+
+
+def render_prisma(
+    repo: Repo, *, fmt: str = "svg", columns: str = "one", allow_stale: bool = False
+) -> PrismaRendered:
+    """Draw the PRISMA 2020 flow diagram from the event log (`strata prisma`): nothing is written.
+
+    Regenerates `derived/counts.json`, then asserts every reconciliation identity
+    (`counts.CountReconcileError`) and, unless `allow_stale`, that no decision is stale
+    (`flow.StaleDecisionsError`); `flow.FlowError` for a format or layout it cannot draw.
+    """
+    counts = counts_mod.compute(repo)
+    counts_mod.regenerate_counts_json(repo, counts)
+    counts_mod.require_reconciled(counts)
+    flow_mod.require_final(counts, allow_stale=allow_stale)
+    if fmt == "json":
+        names = {str(s["id"]): str(s["database"]) for s in searches_mod.list_searches(repo)}
+        document = flow_mod.flow_json(counts, names, columns=columns)
+        payload = (json.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    else:
+        payload = flow_mod.render(counts, fmt=fmt, columns=columns)
+    return PrismaRendered(payload=payload, counts=counts)
+
+
+def write_prisma(
+    repo: Repo, rendered: PrismaRendered, *, fmt: str, target: Path | None
+) -> list[Path]:
+    """Write a rendered diagram to `target` (default `reports/prisma.<fmt>`) and, when reasons were
+    collapsed into "other", the table that spells them out; the files written."""
+    path = target if target is not None else repo.path("reports", f"prisma.{fmt}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(rendered.payload)
+    written = [path]
+    _, collapsed = flow_mod.collapse_reasons(rendered.counts.exclusion_reasons)
+    if collapsed and fmt != "json":
+        table = path.with_name("prisma-exclusion-reasons.tsv")
+        table.write_text(flow_mod.reasons_table(rendered.counts), encoding="utf-8", newline="\n")
+        written.append(table)
+    return written
+
+
+@dataclass(frozen=True)
+class AgentRevoked:
+    agent: str
+    #: Decisions the agent contributed that now wait in the stale queue as `agent-revoked`.
+    marked: int
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def counted_decisions(repo: Repo, handle: str) -> list[tuple[str, str]]:
+    """`(stage, record)` for every screening decision `handle` contributed that still counts: its
+    opinion is one the record is resolved from and no adjudication has taken the decision over."""
+    found = []
+    for stage in screening_mod.configured_stages(repo):
+        for record_id, state in sorted(screening_mod.stage_states(repo, stage).items()):
+            if handle in state.opinions and state.adjudication is None:
+                found.append((stage, record_id))
+    return found
+
+
+def revoke_agent(
+    repo: Repo,
+    *,
+    handle: str,
+    actor: str,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> AgentRevoked:
+    """Withdraw an agent's standing (`strata ai revoke`), one commit.
+
+    Deactivates the agent and puts every screening decision of its that still counted in the stale
+    queue with the reason `agent-revoked`, exactly as `strata rescreen --mark` would, so that people
+    look at them again with the agent's decision shown (G2: deciding AI was a mistake is as cheap
+    as changing a criterion). Its history stays; it can write nothing more. `actor` is the lead
+    who does it and who the marks are recorded as.
+    """
+    if not agents_mod.is_agent(repo, handle):
+        raise actor_mod.ActorError(f"{handle!r} is not an AI agent of this review")
+    if any(a["handle"] == handle and a.get("role") == "inactive" for a in repo.config["actors"]):
+        raise actor_mod.ActorError(f"the agent {handle!r} has already been revoked")
+    _check_up_front(repo, rationale, commit=commit)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        decisions = counted_decisions(repo, handle)
+        text = (
+            _resolve_rationale(repo, rationale)
+            if commit
+            else (rationale if isinstance(rationale, str) else "")
+        )
+        for stage, record_id in decisions:
+            rescreen_mod.mark_manual_stale(
+                repo,
+                stage=stage,
+                record_id=record_id,
+                actor=actor,
+                rationale=text or f"{handle} was revoked",
+                reason="agent-revoked",
+            )
+        actor_mod.deactivate_actor(repo, handle, revoking=True)
+        pool_mod.regenerate_all(repo)
+        committed = False
+        if commit:
+            _commit(
+                repo,
+                op="ai-revoke",
+                scope=handle,
+                summary=f"revoke {handle}",
+                rationale=text,
+                trailers={
+                    "Op": "ai-revoke",
+                    "Revoked": handle,
+                    "Marked": str(len(decisions)),
+                    "Actor": actor,
+                },
+                paths=["strata.toml", "events", "derived"],
+            )
+            committed = True
+    return AgentRevoked(
+        agent=handle,
+        marked=len(decisions),
+        committed=committed,
+        lock_reclaimed_from=held.reclaimed_from,
     )

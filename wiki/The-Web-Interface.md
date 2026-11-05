@@ -180,9 +180,15 @@ is committed when you leave the screen. Recording a search and importing its fil
 `strata search add` and `strata import`: the search file, the import, the commit messages and the PRISMA
 counts come out identical, whichever you used.
 
-## Also available to AI assistants (read only)
+## Also available to AI assistants
 
-`strata mcp` runs a **read-only** [Model Context Protocol](https://modelcontextprotocol.io/) server over
-standard input and output, exposing status, provenance, log, records, criteria diffs and the impact preview of
-a criteria change, to an MCP-aware assistant you point at a review (`strata -C /path/to/review mcp`). It can
-read; nothing it offers can write.
+`strata mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io/) server over standard input and
+output, for an MCP-aware assistant you point at a review (`strata -C /path/to/review mcp --as ada`).
+
+- **It always offers reads:** status, provenance, log, records, criteria diffs, the impact preview of a change
+  to the criteria, the assistant's own screening queue, the coding forms, the retrieval queue, study
+  suggestions and the review's AI policy. None reveals what [blinding](Blinding-and-Independence) hides.
+- **It offers writes only if your review has asked for them.** Until a lead runs `strata ai enable` there is
+  no tool that writes. After that, an assistant can propose or do each kind of work the review's policy lets
+  it, and every write is attributed to the model it reports and to the person named with `--as`. See
+  [Using AI in a review](Using-AI-in-a-Review).

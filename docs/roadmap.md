@@ -136,17 +136,20 @@ current.
 
 ### Local MCP server *(done)*
 
-`strata mcp` (`openspec:mcp-server`): a read-only MCP server over stdio exposing
-`status`, `why`, `log`, `records`, `criteria_diff`, and the criteria editor's
-non-mutating impact preview. No MCP tool records a screening or criteria
-decision.
+`strata mcp` (`openspec:mcp-server`): an MCP server over stdio. It always exposes
+`status`, `why`, `log`, `records`, `criteria_diff`, the criteria editor's
+non-mutating impact preview, and the reads an agent needs. Until a lead enables
+AI participation (`openspec:ai-participation`, change `add-ai-participation`) it
+offers nothing that writes; when they do, every write is attributed to a named
+model and person and obeys the review's policy.
 
 **Acceptance**
 
 - An MCP-aware client can query status, staleness, provenance, and history
   against a real repository, with the MCP server containing no domain logic
   beyond argument marshalling.
-- No MCP tool commits a screening or criteria decision on its own.
+- No MCP tool commits a screening or criteria decision unattributed, or at all
+  unless the review enabled AI participation and its policy allows that kind of work.
 
 ---
 

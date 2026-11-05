@@ -145,6 +145,17 @@ labels criteria changes `protocol-amendment`; it has not yet run on GitHub. The 
 (`strata host`) is planned and not started; see [`docs/m5-1-plan.md`](docs/m5-1-plan.md) and
 [`docs/m6-plan.md`](docs/m6-plan.md).
 
+`strata` is open to AI assistants without being an AI product: it ships no model and makes no network call.
+Whether, where and how far an assistant may take part is a per-review policy, off by default and changed only
+by a person (`strata ai enable`, `strata ai policy`); a model the review accepts is registered like a person;
+`strata mcp --as <you>` lets it propose (`suggest`, a person adopts or rejects each) or act (`count`, recorded
+under its own handle). Everything it does names the model it reported (a claim `strata` cannot verify) and the
+person who started it, its commits are authored by it and committed by that person, agreement with it is
+reported apart, and the generated Methods text and PRISMA checklist are written from a ledger of what it did
+(`strata ai report`), so they cannot say no automation was used when it was. It is being added in stages
+(OpenSpec change `add-ai-participation`; see [`docs/m6-plan.md`](docs/m6-plan.md) for what is built and what is
+not) and is documented in the wiki page [Using AI in a review](wiki/Using-AI-in-a-Review.md).
+
 The practical guide, stage by stage, is [the wiki](https://github.com/EGuthrieWasTaken/strata/wiki) (its pages
 are in [`wiki/`](wiki/) and are published from there); start with its Quickstart.
 

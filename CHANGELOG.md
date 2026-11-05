@@ -23,6 +23,39 @@ All notable changes to `strata` are documented here. Format follows
   Agreement pairs that involve an agent are labelled `involves_agent` in `derived/irr.json` and in
   `strata irr`, and person-to-person figures are unchanged. See
   [Using AI in a review](wiki/Using-AI-in-a-Review.md).
+- **MCP write tools, attributed and policy-governed** (`strata mcp --as HANDLE [--allow-dir DIR]`; OpenSpec
+  change `add-ai-participation`, group 3). `strata mcp` always offers reads (now also the assistant's own
+  screening queue, the active criteria, the coding forms, the retrieval queue, study suggestions and
+  `ai_policy`) and, only when a lead has enabled AI participation and the person agents act for is known,
+  a write tool for each family of work the command line can write: screening, adjudication, extraction, risk
+  of bias, retrieval, studies, record corrections and notes, deduplication, searches and imports, criteria,
+  and running an analysis or drawing the PRISMA diagram. There is deliberately no tool for the policy,
+  actors, assignment, configuration, `init`, `clone`, `doctor`, `sync` or the merge commands, and a test
+  holds every mutating command to either a tool or a reserved list. Each write names the model as the agent
+  reports it and gives a rationale, and the policy for its kind of work is checked on every call: `off` is
+  refused and records nothing, `suggest` records a suggestion that changes nothing, `count` carries the work
+  out under the agent's own handle with the `agent` key on every event. A commit made for an agent is
+  **authored by the agent and committed by the person** (`claude-opus (via ada)` at an `agents.invalid`
+  address) with `Strata-Agent`, `Strata-Invoked-By`, `Strata-Via` and `Strata-Model` trailers, which
+  `strata log --actor` finds. File arguments are resolved and confined to the review and `--allow-dir`;
+  `run_analysis` cannot force past a guardrail or acknowledge a warning. A result never says whether anyone
+  else has decided a record or agrees. The server's instructions state the policy in force; the old "writes
+  are for humans only" wording, the `mcp-server` design's "Why read-only", overview non-goal N5 and the
+  `openspec/config.yaml` proposal rule are rewritten to match. The PRISMA diagram is now drawn by a shared
+  operation (`strata.core.operations.render_prisma`) that the command and the tool both call.
+- **The AI ledger, disclosure that cannot go stale, revoking and auditing** (`strata ai report | revoke`,
+  `strata audit --ai`, an AI line in `strata status`; OpenSpec change `add-ai-participation`, group 4).
+  `strata ai report` gives, for each agent and kind of work, the suggestions made and what became of them,
+  the decisions that took effect as the agent's own (and how many filled a reviewer's place), how many a
+  person later changed, who ran it, through which client and when, from the event log and the commits. The
+  generated Methods text and PRISMA 2020 checklist items 8, 9 and 11 are written from the same ledger:
+  they name each model (as self-reported, not verified), the kinds of work and the mode, how many suggestions
+  were adopted and rejected, how many decisions counted, and count people and models apart ("two people and
+  one AI model"); they no longer assert that no automation tools were used when one was, and a review that used
+  no AI gets exactly the wording it had. `strata ai revoke AGENT --by LEAD` deactivates an agent and puts every
+  screening decision of its that still counted in the stale queue with the reason `agent-revoked`; its history
+  stays. `strata audit --ai --sample N --seed S` re-presents a reproducible sample of agent decisions no
+  person has independently decided.
 - **Suggestions** (`strata suggestions list | show | adopt | reject`, `/suggestions`; OpenSpec change
   `add-ai-participation`, group 2). In `suggest` mode an assistant proposes and a person decides. A
   suggestion is validated by the real operation's own checks without its write (a `dry_run` on the screening,

@@ -142,7 +142,10 @@ GUIDES: dict[str, list[tuple[str, str]]] = {
         ("The-Web-Interface", "The web interface"),
         ("Running-in-a-Container", "Running in a container"),
     ],
-    "mcp": [("The-Web-Interface", "The web interface")],
+    "mcp": [
+        ("The-Web-Interface", "The web interface"),
+        ("Using-AI-in-a-Review", "Using AI in a review"),
+    ],
     "ci": [("Working-with-Others", "Working with others")],
     "version": [("Installation", "Installation")],
 }

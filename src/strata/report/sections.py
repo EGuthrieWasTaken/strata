@@ -28,6 +28,7 @@ from strata.extract import records as extraction_records
 from strata.extract import rob as rob_mod
 from strata.protocol import studies as studies_mod
 from strata.report import amendments as amendments_mod
+from strata.report import disclosure
 from strata.report.facts import AnalysisFacts, Facts
 from strata.stats import canvas as cv
 
@@ -228,27 +229,40 @@ def methods(facts: Facts) -> str:
     out += ["### Selection process", ""]
     mode = s.get("mode", "single")
     sel = f"Records were screened at {_list(facts.stages)}"
+    # People and AI models are counted apart: a model that acted as a counted reviewer is named as one.
+    with_ai = disclosure.reviewer_clause(reviewers, facts.ledger)
     if mode == "single":
-        sel += f" by one reviewer ({_list(reviewers)})"
+        sel += f" by {with_ai or f'one reviewer ({_list(reviewers)})'}"
     else:
+        who = with_ai or f"two reviewers ({_list(reviewers)})"
         sel += (
-            f" by two reviewers ({_list(reviewers)}) working independently"
-            if s.get("blind_reviewers", True)
-            else f" by two reviewers ({_list(reviewers)})"
+            f" by {who} working independently" if s.get("blind_reviewers", True) else f" by {who}"
         )
         if s.get("adjudicators"):
             sel += (
                 f"; disagreements were resolved by adjudication ({_list(list(s['adjudicators']))})"
             )
+    others = (
+        "automation tools other than the AI described below"
+        if disclosure.automation_sentence(facts.ledger, disclosure.SELECTION)
+        else "other automation tools"
+    )
     out += [
         sel
-        + ". Duplicate records were identified and merged with strata's deduplication; no records were removed by other automation tools.",
+        + f". Duplicate records were identified and merged with strata's deduplication; no records were removed by {others}.",
         "",
     ]
+    selection_ai = disclosure.area_text(facts.ledger, disclosure.SELECTION, "selection")
+    if selection_ai:
+        out += [selection_ai, ""]
+    agent_names = {str(a["handle"]) for a in facts.actors if a.get("kind") == "agent"}
     for stage, pairs in facts.irr.items():
         for p in pairs:
+            first, second = (
+                f"{h} (an AI model)" if h in agent_names else h for h in (p.actor_a, p.actor_b)
+            )
             out += [
-                f"Agreement between {p.actor_a} and {p.actor_b} at {stage} was {p.raw_agreement:.0%} (Cohen's kappa {p.kappa:.2f}, n = {p.n}).",
+                f"Agreement between {first} and {second} at {stage} was {p.raw_agreement:.0%} (Cohen's kappa {p.kappa:.2f}, n = {p.n}).",
                 "",
             ]
     if facts.extraction_schema is not None:
@@ -265,6 +279,9 @@ def methods(facts: Facts) -> str:
                 f"One reviewer ({who}) extracted data with a versioned coding form, recording a source for every value.",
                 "",
             ]
+        collection_ai = disclosure.area_text(facts.ledger, disclosure.COLLECTION, "data collection")
+        if collection_ai:
+            out += [collection_ai, ""]
         if facts.extraction_schema.outcomes:
             out += ["Outcomes sought: " + _list(facts.extraction_schema.outcomes) + ".", ""]
     if facts.instrument is not None:
@@ -281,6 +298,11 @@ def methods(facts: Facts) -> str:
             + ". Where the instrument defines an algorithm for the overall judgement the suggestion was recorded, and each departure from it is recorded with a justification.",
             "",
         ]
+        rob_ai = disclosure.area_text(
+            facts.ledger, disclosure.RISK_OF_BIAS, "the risk-of-bias assessment"
+        )
+        if rob_ai:
+            out += [rob_ai, ""]
     if facts.analyses:
         out += ["### Synthesis", ""]
         out += [_analysis_methods(a) + "\n" for a in facts.analyses]
@@ -288,6 +310,9 @@ def methods(facts: Facts) -> str:
             f"Analyses were run with strata {facts.version}, whose estimators are validated against R's `metafor` and `clubSandwich` packages to a relative tolerance of 1e-8.",
             "",
         ]
+        synthesis_ai = disclosure.area_text(facts.ledger, disclosure.SYNTHESIS, "the synthesis")
+        if synthesis_ai:
+            out += [synthesis_ai, ""]
     return "\n".join(out).rstrip() + "\n"
 
 

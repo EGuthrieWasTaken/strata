@@ -25,6 +25,7 @@ from mcp_types import CallToolResult
 from typer.testing import CliRunner
 
 from strata.cli.main import EXIT_OK, app
+from strata.mcpserver.server import READ_TOOLS, WRITE_TOOLS
 
 runner = CliRunner()
 
@@ -55,7 +56,7 @@ async def _call(root: Path, name: str, arguments: dict[str, object]) -> CallTool
         return await session.call_tool(name, arguments)
 
 
-def test_mcp_lists_the_scoped_read_only_tools(tmp_path: Path) -> None:
+def test_mcp_lists_only_reads_while_ai_participation_is_off(tmp_path: Path) -> None:
     root = _init(tmp_path)
 
     async def run() -> set[str]:
@@ -68,14 +69,8 @@ def test_mcp_lists_the_scoped_read_only_tools(tmp_path: Path) -> None:
             return {t.name for t in tools.tools}
 
     names = asyncio.run(run())
-    assert names == {
-        "status",
-        "why",
-        "log",
-        "records",
-        "criteria_diff",
-        "preview_criterion_change_impact",
-    }
+    assert names == set(READ_TOOLS)
+    assert not names & set(WRITE_TOOLS)
 
 
 def test_mcp_status_tool_reflects_the_real_repository(tmp_path: Path) -> None:

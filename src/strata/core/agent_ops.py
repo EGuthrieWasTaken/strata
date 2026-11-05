@@ -17,21 +17,32 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from strata import gitio
+from strata.analysis import run as analysis_run
 from strata.core import agents as agents_mod
 from strata.core import operations as ops_mod
 from strata.core import records as records_mod
 from strata.core.commit import validate_rationale
-from strata.core.events import collect_event_ids
+from strata.core.events import append_new_event, collect_event_ids
 from strata.core.repo import DEFAULT_LOCK_TIMEOUT, Repo, repo_lock
+from strata.dedup import engine as dedup_engine
+from strata.dedup import scoring as dedup_scoring
+from strata.extract import records as extraction_records_mod
+from strata.extract import rob as rob_mod
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
+from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
 from strata.protocol import suggestions as sugg
 from strata.protocol.suggestions import Suggestion
+from strata.report import counts as counts_mod
+from strata.report import flow as flow_mod
 
 #: Kinds of work whose validity or meaning depends on the criteria, so a change of criteria since a
 #: suggestion was made means the person should look again before adopting it.
@@ -204,6 +215,109 @@ def _write_criteria_retire(
     )
 
 
+def _write_note(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> CommitShape:
+    del rationale
+    append_new_event(
+        repo.path("events", "note", f"{actor}.ndjson"),
+        ev="note",
+        actor=actor,
+        body={"subject": args["record"], "text": str(args["text"]).strip()},
+    )
+    return CommitShape("note", args["record"], f"noted {args['record']}")
+
+
+def _write_extract_field(
+    repo: Repo, args: Mapping[str, Any], actor: str, rationale: str
+) -> CommitShape:
+    del rationale
+    extraction_records_mod.set_field(
+        repo,
+        study=args["study"],
+        handle=actor,
+        name=args["field"],
+        raw=str(args["value"]),
+        source=args.get("source"),
+    )
+    return CommitShape("extract", None, f"set {args['field']} of {args['study']}")
+
+
+def _write_rob_judgement(
+    repo: Repo, args: Mapping[str, Any], actor: str, rationale: str
+) -> CommitShape:
+    del rationale
+    rob_mod.record_judgement(
+        repo,
+        study=args["study"],
+        handle=actor,
+        domain=args["domain"],
+        judgement=args["judgement"],
+        support=args.get("support") or "",
+        source=args.get("source"),
+        override_justification=args.get("override_justification"),
+    )
+    return CommitShape("rob", None, f"judged {args['domain']} of {args['study']}")
+
+
+def _write_dedup_decide(
+    repo: Repo, args: Mapping[str, Any], actor: str, rationale: str
+) -> CommitShape:
+    del rationale
+    first = records_mod.get_record(repo, args["a"])
+    second = records_mod.get_record(repo, args["b"])
+    assert first is not None and second is not None  # checked by the operation's validation
+    dedup_engine.apply_review_decision(
+        repo,
+        record_a_id=args["a"],
+        record_b_id=args["b"],
+        result=dedup_scoring.score_pair(first, second),
+        decision=args["decision"],
+        actor=actor,
+    )
+    return CommitShape("dedup", None, f"{args['decision']} {args['a']} and {args['b']}")
+
+
+def _write_search_add(
+    repo: Repo, args: Mapping[str, Any], actor: str, rationale: str
+) -> CommitShape:
+    del rationale
+    record = searches_mod.add_search(
+        repo,
+        database=args["database"],
+        platform=args["platform"],
+        executed=args["executed"],
+        executed_by=actor,
+        search_id=args.get("search_id"),
+        query=args.get("query"),
+        hits=args.get("hits"),
+        notes=args.get("notes"),
+    )
+    return CommitShape(
+        "search-add",
+        record["id"],
+        f"record search {record['id']}",
+        extra_paths=("protocol/searches",),
+        trailers=(("Search", record["id"]),),
+    )
+
+
+def _write_import(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> CommitShape:
+    del rationale
+    pipeline_mod.import_file(
+        repo,
+        args["path"],
+        imported_by=actor,
+        search_id=args.get("search"),
+        via=args.get("via"),
+        fmt=args.get("format"),
+    )
+    return CommitShape(
+        "import",
+        None,
+        f"import {Path(args['path']).name}",
+        extra_paths=("imports", "protocol/searches"),
+    )
+
+
 WRITERS: dict[str, Writer] = {
     "screen": _write_screen,
     "adjudicate": _write_adjudicate,
@@ -214,12 +328,88 @@ WRITERS: dict[str, Writer] = {
     "criteria-add": _write_criteria_add,
     "criteria-edit": _write_criteria_edit,
     "criteria-retire": _write_criteria_retire,
+    "note": _write_note,
+    "extract-field": _write_extract_field,
+    "rob-judgement": _write_rob_judgement,
+    "dedup-decide": _write_dedup_decide,
+    "search-add": _write_search_add,
+    "import": _write_import,
 }
 
 
 def register_writer(op: str, writer: Writer) -> None:
     """Add the writer of an operation registered in `strata.protocol.suggestions`."""
     WRITERS[op] = writer
+
+
+# ---------------------------------------------------------------------------- analysis (kind)
+#
+# These operations write generated files, so they register here rather than in
+# `strata.protocol.suggestions`, which knows nothing of the report and analysis layers. An agent can
+# run an analysis and draw the diagram; it cannot `--force` past a guardrail or acknowledge a
+# warning, because deciding that a warning does not matter is a person's judgement.
+
+_PRISMA_FORMATS = ("svg", "png", "pdf", "json")
+
+
+def _check_analyze(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del actor, rationale
+    analysis_run.run_analysis(repo, args["analysis"], write=False)
+
+
+def _check_prisma(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del actor, rationale
+    fmt = args.get("format", "svg")
+    columns = args.get("columns", "one")
+    if fmt not in _PRISMA_FORMATS:
+        raise sugg.SuggestionError(f"format must be one of {', '.join(_PRISMA_FORMATS)}")
+    if columns not in flow_mod.COLUMNS:
+        raise sugg.SuggestionError(f"columns must be one of {', '.join(flow_mod.COLUMNS)}")
+    counts = counts_mod.compute(repo)  # computes and checks; regenerates nothing
+    counts_mod.require_reconciled(counts)
+    flow_mod.require_final(counts, allow_stale=False)
+
+
+def _write_analyze(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> CommitShape:
+    del actor, rationale
+    analysis_run.run_analysis(repo, args["analysis"], force=False, acknowledged=[])
+    return CommitShape("analyze", None, f"ran {args['analysis']}")
+
+
+def _write_prisma(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> CommitShape:
+    del actor, rationale
+    fmt = args.get("format", "svg")
+    rendered = ops_mod.render_prisma(
+        repo, fmt=fmt, columns=args.get("columns", "one"), allow_stale=False
+    )
+    ops_mod.write_prisma(repo, rendered, fmt=fmt, target=None)
+    return CommitShape("prisma", None, f"drew the PRISMA flow diagram ({fmt})")
+
+
+sugg.register(
+    sugg.OpSpec(
+        name="analyze",
+        kind="analysis",
+        required=("analysis",),
+        optional=(),
+        check=_check_analyze,
+        target=lambda a: f"analyze:{a['analysis']}",
+        summary=lambda a: f"run analysis {a['analysis']}",
+    )
+)
+sugg.register(
+    sugg.OpSpec(
+        name="prisma",
+        kind="analysis",
+        required=(),
+        optional=("format", "columns"),
+        check=_check_prisma,
+        target=lambda a: f"prisma:{a.get('format', 'svg')}:{a.get('columns', 'one')}",
+        summary=lambda a: f"draw the PRISMA flow diagram ({a.get('format', 'svg')})",
+    )
+)
+WRITERS["analyze"] = _write_analyze
+WRITERS["prisma"] = _write_prisma
 
 
 @dataclass(frozen=True)
@@ -266,6 +456,129 @@ def apply_operation(
             rationale=text,
         )
     return Applied(tuple(ids), committed, held.reclaimed_from)
+
+
+# ----------------------------------------------------------------------------- an agent's write
+
+
+class PathNotAllowed(ValueError):
+    """A file argument lies outside the repository and every directory the person allowed."""
+
+
+def confine_path(repo: Repo, raw: str, allow_dirs: Sequence[Path] = ()) -> Path:
+    """The real path of a file argument, or `PathNotAllowed`.
+
+    Links are resolved first, so a link inside the repository that points outside it does not
+    pass. A relative path is taken from the repository's root. The path is accepted only inside the
+    repository or inside a directory the person allowed with `strata mcp --allow-dir`
+    (openspec:mcp-server#file-arguments-are-confined).
+    """
+    base = repo.root.resolve()
+    candidate = Path(raw).expanduser()
+    resolved = (candidate if candidate.is_absolute() else base / candidate).resolve()
+    roots = [base, *(d.expanduser().resolve() for d in allow_dirs)]
+    if not any(resolved.is_relative_to(root) for root in roots):
+        raise PathNotAllowed(
+            f"{raw!r} is outside this review and the directories the person running the server "
+            "allowed (`strata mcp --allow-dir DIR`), so it was not read"
+        )
+    return resolved
+
+
+@dataclass(frozen=True)
+class Acted:
+    """What an agent's write did, for the tool result: a suggestion or an event, and its id.
+
+    Deliberately says nothing about the record's state, whether anyone else has decided it, or
+    whether they agree: a write must not reveal what blinding hides.
+    """
+
+    mode: str
+    #: "suggestion" (nothing changed; a person decides), "event" (it took effect, as the agent's) or
+    #: "work" (it took effect and wrote files rather than events: an analysis, a diagram).
+    recorded: str
+    id: str
+    event_ids: tuple[str, ...]
+    committed: bool
+    preview: dict[str, Any] | None
+    message: str
+
+
+def act(
+    repo: Repo,
+    *,
+    op: str,
+    args: Mapping[str, Any],
+    model: str | None,
+    rationale: str | None,
+    invoked_by: str | None,
+    client_name: str | None = None,
+    client_version: str | None = None,
+    allow_dirs: Sequence[Path] = (),
+) -> Acted:
+    """An agent asks to do `op`: refuse it, record it as a suggestion, or carry it out as the agent.
+
+    The policy for the operation's kind of work decides, checked now and not at some earlier time
+    (`agents.authorise` raises `AgentRefused`, recording nothing, when the kind is off, the model is
+    not one the review accepts or no person is named). `suggest` records a suggestion that changes
+    no review state; `count` carries the operation out as the agent: its events carry the `agent`
+    key and its commit is authored by the agent and committed by the person who started the
+    server. Raises the operation's own error for anything it would refuse.
+    """
+    spec = sugg.spec_for(op)
+    authorised = agents_mod.authorise(
+        repo,
+        kind=spec.kind,
+        model=model,
+        invoked_by=invoked_by,
+        client_name=client_name,
+        client_version=client_version,
+    )
+    context = authorised.context
+    text = validate_rationale(rationale)
+    clean = {k: v for k, v in dict(args).items() if v is not None}
+    sugg.check_arguments(spec, clean)
+    if "path" in clean:
+        clean["path"] = str(confine_path(repo, str(clean["path"]), allow_dirs))
+
+    if authorised.mode == agents_mod.MODE_SUGGEST:
+        event = sugg.make_suggestion(repo, context=context, op=op, args=clean, rationale=text)
+        return Acted(
+            mode=authorised.mode,
+            recorded="suggestion",
+            id=event["id"],
+            event_ids=(event["id"],),
+            committed=False,
+            preview=event["body"].get("preview"),
+            message=(
+                "Recorded as a suggestion; nothing in the review changed. A person decides "
+                "whether to adopt it."
+            ),
+        )
+
+    preview = sugg.validate_operation(repo, op, clean, actor=context.actor, rationale=text)
+    trailers = {}
+    if preview is not None:
+        trailers["Impact"] = f"{preview['stale_decisions']} decision(s) made stale"
+    with agents_mod.acting_as(context):
+        applied = apply_operation(
+            repo, op, clean, actor=context.actor, rationale=text, extra_trailers=trailers
+        )
+    wrote_events = bool(applied.event_ids)
+    return Acted(
+        mode=authorised.mode,
+        recorded="event" if wrote_events else "work",
+        id=applied.event_ids[0] if wrote_events else gitio.current_commit(repo.root),
+        event_ids=applied.event_ids,
+        committed=applied.committed,
+        preview=preview,
+        message=(
+            "Recorded as the agent's own work, with the model and the person who started it."
+            if wrote_events
+            else "Carried out as the agent's work; the commit is authored by the agent, with the "
+            "model and the person who started it in its trailers, and committed by that person."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------------- visibility

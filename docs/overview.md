@@ -152,10 +152,15 @@ the decisions**.
 meta-analytic toolkit well and correctly. It exports clean data for anything
 beyond that.
 
-**N5 — Not an AI screening product (in v1).** Machine-assisted prioritisation is
-a legitimate accelerator, but it interacts badly with auditability if bolted on
-carelessly. The plugin boundary (`openspec:architecture#plugin-boundaries`) is
-defined; nothing ships behind it.
+**N5 — Ships no model; open to the ones reviewers choose.** `strata` is not an
+AI screening product: it ships no model, no prompt, no key and makes no network
+call, and a `Prioritiser` (`openspec:architecture#plugin-boundaries`) still only
+reorders. It is open to the AI assistants a review's reviewers decide to bring,
+through MCP: whether, where and how far is a per-review policy, off by default
+and changed only by a person (`openspec:ai-participation`); what an assistant
+does is recorded under its own handle with the model it reported and the person
+who started it, kept apart from the people's work, and carried into the generated
+Methods text so that it cannot go stale.
 
 **N6 — Not a service the project operates.** `strata` is self-hostable
 software, not a SaaS. The project will not run a multi-tenant service holding

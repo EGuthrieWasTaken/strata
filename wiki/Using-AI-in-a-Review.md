@@ -9,10 +9,10 @@ Methods text.
 AI participation is **off by default**. A review that never turns it on behaves exactly as it always has,
 and nothing in it changes format.
 
-> **This page grows with the feature.** The policy, registering a model, the second file format, the
-> labelling of agreement and **suggestions** are in this version. The assistant's own tools (proposing and
-> recording decisions over MCP) and the generated disclosure arrive in later stages of the same change, and
-> this page will cover them as they do. Until then an assistant cannot write to a review through `strata`.
+> **Scope.** This page covers the policy, registering a model, suggestions, counting an assistant as a
+> reviewer, the generated disclosure, the audit and revoking. How an assistant is connected is
+> [The web interface](The-Web-Interface#also-available-to-ai-assistants); what this cannot do is in
+> [Known limitations](Known-Limitations).
 
 ## What is and is not recorded
 
@@ -105,6 +105,40 @@ history of the policy is the history of the review's stance on AI. **Only a pers
 command line or the web interface.** No assistant can widen its own permissions.
 
 A policy needs AI to be enabled first. Setting a mode before `strata ai enable` is refused and says so.
+
+### Some policies
+
+These are stances, not recommendations: the review decides. Each is a few `strata ai policy` commands, and
+each can be changed later.
+
+**Suggestions only, on screening.** The most common starting point. The assistant proposes; a person decides
+every record, and nothing the assistant says can change a count.
+
+```
+strata --why "Piloting AI suggestions on screening" ai policy screening suggest
+```
+
+**Suggestions on screening, a helper on retrieval.** Recording whether a full text was obtained is clerical,
+and there is no judgement to protect.
+
+```
+strata --why "Screening suggestions only; retrieval is clerical" ai policy screening suggest
+strata --why "Let the assistant record retrieval outcomes" ai policy retrieval count
+```
+
+**An assistant as the second screener.** The assistant's screening takes effect as its own. It fills a
+reviewer's place only on the records a person assigns it to, so a disagreement with a person goes to an
+adjudicator like any other, and every figure that involves it is reported apart.
+
+```
+strata --why "Second screener for the pilot batch, with a human adjudicator" ai policy screening count
+strata --why "Assign the assistant to the pilot batch" assign title-abstract --actors ethan,claude-opus --by ethan
+```
+
+Some things are deliberately not in a policy: whether to let an assistant change the criteria or adjudicate
+(`criteria` and `adjudication` can be set to `count`, and a change to the criteria is still a protocol
+amendment that the review-repository CI labels), and whether AI is acceptable at all. That is the reviewers'
+call; `strata` makes it visible and reportable.
 
 ## Registering the models you accept
 
@@ -208,6 +242,119 @@ came from adopting one, as **informed by it**, and leaves it out of agreement be
 reviewers. `derived/irr.json` and `strata irr` count the records left out (`excluded_informed`). Under the
 default, a reviewer's first opinion is made before they can see anything, so it stays independent.
 
+## Connecting an assistant
+
+An assistant connects through `strata mcp`. Start it with the person who is responsible for it:
+
+```
+strata -C /path/to/review mcp --as ada
+```
+
+`--as` names the active, non-observer person on whose behalf the assistant acts; it is recorded on everything
+the assistant does. Without it the server uses the review's only active person; with several people and no
+`--as` it offers reads only and says why. `--allow-dir DIR` (repeatable) lets the import tool read from a
+directory outside the review; every path is resolved first, so a link that points elsewhere does not pass, and
+anything outside the review and the allowed directories is refused and not read.
+
+What the assistant sees, every time it connects:
+
+| Review state | The assistant is offered |
+|---|---|
+| AI not enabled | Read tools only, and an `ai_policy` tool that says AI is not enabled |
+| Enabled, the person named | Reads, and a write tool for each family of work (below) |
+| Enabled, but several people and no `--as`, or `--as` names an observer | Reads only, and `ai_policy` says what is needed |
+
+| Family | Write tools |
+|---|---|
+| Screening, adjudication | `screen_record`, `adjudicate_conflict` |
+| Extraction, risk of bias | `set_extraction_field`, `record_risk_of_bias` |
+| Retrieval, studies | `record_retrieval`, `group_reports`, `split_report` |
+| Records, deduplication | `correct_record`, `add_note`, `decide_duplicate` |
+| Searches and imports | `record_search`, `import_records` |
+| Criteria | `add_criterion`, `edit_criterion`, `retire_criterion` |
+| Analysis | `run_analysis`, `draw_prisma` |
+
+Each takes the assistant's `model` and a `rationale`, and the policy is checked **on the call itself**, so a
+lead changing it takes effect on the next write. A kind that is `off` is refused and nothing is recorded; the
+refusal names the policy. A model the review has not accepted is refused with the command that accepts it. In
+`suggest` mode the result says "recorded as a suggestion", in `count` mode that it took effect as the
+assistant's own work, and in both gives the id. A write never says whether anyone else has decided the record
+or whether they agree. A criteria change carries what it would make stale, and in `count` mode that figure is
+recorded in the commit.
+
+There is no tool for the policy, for registering or deactivating an actor, for assignment, for configuration,
+for creating or cloning a review, for repair or for syncing. A test lists every command that changes a review
+and fails until each is either available to assistants or reserved for people, so a new command cannot become
+reachable by omission.
+
+An assistant cannot get past a guardrail: `run_analysis` has no way to force a run or to acknowledge a warning.
+
+## What an assistant's commit looks like
+
+A commit made for an assistant is **authored by the assistant and committed by the person**:
+
+```
+strata log --actor claude-opus
+```
+
+The author reads `claude-opus (via ada)` at an address on the reserved `agents.invalid` domain, so nothing is
+credited to a stranger or to Ada; the committer is whoever's git identity ran the server and is the one
+responsible to the remote. The commit carries the trailers `Strata-Agent`, `Strata-Invoked-By`, `Strata-Via:
+mcp` and `Strata-Model`, and `strata log --actor` finds it. The history screen in the browser marks it with the
+same icon and the words "AI".
+
+## Reading the ledger
+
+```
+strata ai report
+```
+
+```
+claude-opus model claude-opus-5-5 (self-reported)
+  active 2026-11-05; invoked by ethan, sam; via claude-code 2.1.3
+  screening      suggested 1 (adopted 1, rejected 0, superseded 0, waiting 0); counted 3 (3 as a reviewer, 1 later changed by a person)
+```
+
+For each assistant and kind of work: the suggestions made and what became of each, the decisions that took
+effect as its own (and how many of those filled a reviewer's place), how many a person later changed, who
+ran it, through which client, and the dates. `--json` gives the same figures. The generated Methods text and
+PRISMA checklist items 8, 9 and 11 are written from this ledger, so they cannot disagree with it, and cannot
+claim that no automation tool was used when one was.
+
+```
+strata status
+```
+
+```
+AI participation is on (screening: count, criteria: suggest) · 3 agent event(s) · 0 suggestion(s) waiting
+```
+
+## Checking what an assistant decided alone
+
+```
+strata audit --ai --sample 20 --seed 7
+```
+
+re-presents a random sample of the assistant's decisions **that no person has independently decided** (not
+those a person also screened, and not those an adjudicator settled). The same seed gives the same sample, so a
+second reader can look at the same twenty. A correction found this way goes through the usual route: change a
+decision and it is a new decision.
+
+## Revoking an assistant
+
+```
+strata --why "We no longer want AI in this review" ai revoke claude-opus --by ethan
+```
+
+```
+revoked claude-opus: 3 decision(s) now wait in the stale queue (`strata rescreen`); its history is unchanged
+```
+
+Revoking deactivates the assistant and puts every decision of its that still counted in the stale queue with
+the reason `agent-revoked`, exactly as a change of criteria does, so people look at them again with the
+assistant's decision shown. Only a lead can do it. Its events stay in the record, it can write nothing more,
+and the Methods text still discloses that it took part.
+
 ## An assistant is not a reviewer until you assign it
 
 Registering a model does not put it on the review. **Assignment decides who counts**, and only a person can
@@ -284,6 +431,6 @@ A review that never enables AI may stay in format 1 for good, and is never nagge
 
 ## If you decide AI was a mistake
 
-Abandoning AI means removing the assistants and setting every kind of work back to `off` with
-`strata ai policy`. The history stays: what the assistants did, and that you later stopped, are both part of
-the record.
+Revoke the assistants (above) and set every kind of work back to `off` with `strata ai policy`. The history
+stays: what the assistants did, and that you later stopped, are both part of the record. There is no way back
+to format 1.

@@ -27,11 +27,16 @@ from strata.core.events import agent_scope, append_new_event, read_events
 from strata.core.fold import sort_events
 from strata.core.repo import Repo
 from strata.core.validate import validate_event_body
+from strata.dedup import engine as dedup_engine
+from strata.extract import records as extraction_records_mod
+from strata.extract import rob as rob_mod
+from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
+from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
 
 SUGGESTION = "suggestion"
@@ -199,6 +204,14 @@ def _check_record_amend(repo: Repo, args: Mapping[str, Any], actor: str, rationa
     )
 
 
+def _check_note(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del actor, rationale
+    if records_mod.get_record(repo, args["record"]) is None:
+        raise SuggestionError(f"no record {args['record']!r}")
+    if not str(args["text"]).strip():
+        raise SuggestionError("a note needs some text")
+
+
 def _check_adjudicate(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
     adjudication_mod.record_adjudication(
         repo,
@@ -208,6 +221,82 @@ def _check_adjudicate(repo: Repo, args: Mapping[str, Any], actor: str, rationale
         actor=actor,
         rationale=rationale,
         cited=list(args.get("criteria") or []),
+        dry_run=True,
+    )
+
+
+def _check_extract_field(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del rationale
+    extraction_records_mod.set_field(
+        repo,
+        study=args["study"],
+        handle=actor,
+        name=args["field"],
+        raw=str(args["value"]),
+        source=args.get("source"),
+        dry_run=True,
+    )
+
+
+def _check_rob_judgement(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del rationale
+    rob_mod.record_judgement(
+        repo,
+        study=args["study"],
+        handle=actor,
+        domain=args["domain"],
+        judgement=args["judgement"],
+        support=args.get("support") or "",
+        source=args.get("source"),
+        override_justification=args.get("override_justification"),
+        dry_run=True,
+    )
+
+
+def _check_dedup_decide(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del actor, rationale
+    if args["decision"] not in ("merge", "distinct"):
+        raise SuggestionError("decision must be 'merge' or 'distinct'")
+    if args["a"] == args["b"]:
+        raise SuggestionError("a record cannot be compared with itself")
+    for key in ("a", "b"):
+        record = records_mod.get_record(repo, args[key])
+        if record is None:
+            raise SuggestionError(f"no record {args[key]!r}")
+        if not record.get("strata", {}).get("canonical", True):
+            raise SuggestionError(f"{args[key]} has already been merged into another record")
+    pair = tuple(sorted((args["a"], args["b"])))
+    if pair in dedup_engine.judged_pairs(repo):
+        raise SuggestionError(
+            "that pair has already been judged; `strata dedup --undo` reverses a merge"
+        )
+
+
+def _check_search_add(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del rationale
+    searches_mod.add_search(
+        repo,
+        database=args["database"],
+        platform=args["platform"],
+        executed=args["executed"],
+        executed_by=actor,
+        search_id=args.get("search_id"),
+        query=args.get("query"),
+        hits=args.get("hits"),
+        notes=args.get("notes"),
+        dry_run=True,
+    )
+
+
+def _check_import(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del rationale
+    pipeline_mod.import_file(
+        repo,
+        args["path"],
+        imported_by=actor,
+        search_id=args.get("search"),
+        via=args.get("via"),
+        fmt=args.get("format"),
         dry_run=True,
     )
 
@@ -272,6 +361,61 @@ OPS: dict[str, OpSpec] = {
             check=_check_record_amend,
             target=lambda a: f"record-amend:{a['record']}:{a['field']}",
             summary=lambda a: f"correct {a['field']} of {a['record']}",
+            record=lambda a: str(a["record"]),
+        ),
+        OpSpec(
+            name="extract-field",
+            kind="extraction",
+            required=("study", "field", "value"),
+            optional=("source",),
+            check=_check_extract_field,
+            target=lambda a: f"extract-field:{a['study']}:{a['field']}",
+            summary=lambda a: f"set {a['field']} of {a['study']}",
+        ),
+        OpSpec(
+            name="rob-judgement",
+            kind="risk-of-bias",
+            required=("study", "domain", "judgement"),
+            optional=("support", "source", "override_justification"),
+            check=_check_rob_judgement,
+            target=lambda a: f"rob-judgement:{a['study']}:{a['domain']}",
+            summary=lambda a: f"judge {a['domain']} of {a['study']} as {a['judgement']}",
+        ),
+        OpSpec(
+            name="dedup-decide",
+            kind="dedup",
+            required=("a", "b", "decision"),
+            optional=(),
+            check=_check_dedup_decide,
+            target=lambda a: f"dedup-decide:{'/'.join(sorted((a['a'], a['b'])))}",
+            summary=lambda a: f"{a['decision']} {a['a']} and {a['b']}",
+        ),
+        OpSpec(
+            name="search-add",
+            kind="search-import",
+            required=("database", "platform", "executed"),
+            optional=("search_id", "query", "hits", "notes"),
+            check=_check_search_add,
+            target=lambda a: f"search-add:{a['database']}:{a['executed']}",
+            summary=lambda a: f"record a {a['database']} search run {a['executed']}",
+        ),
+        OpSpec(
+            name="import",
+            kind="search-import",
+            required=("path",),
+            optional=("search", "via", "format"),
+            check=_check_import,
+            target=lambda a: f"import:{a['path']}",
+            summary=lambda a: f"import {a['path']}",
+        ),
+        OpSpec(
+            name="note",
+            kind="records",
+            required=("record", "text"),
+            optional=(),
+            check=_check_note,
+            target=lambda a: f"note:{a['record']}",
+            summary=lambda a: f"note on {a['record']}",
             record=lambda a: str(a["record"]),
         ),
         OpSpec(

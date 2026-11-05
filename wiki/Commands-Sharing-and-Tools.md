@@ -51,18 +51,25 @@ Guide: [The web interface](The-Web-Interface), [Running in a container](Running-
 
 ## `strata mcp`
 
-Run the local, read-only MCP server over stdio.
+Run the local MCP server over stdio.
 
-Exposes status/why/log/records/criteria-diff/impact-preview as MCP tools --
-nothing that writes. Spawned by an MCP-aware client (Claude Code, Claude
-Desktop, or any other) against this repository, the same way the client
-would spawn any other local stdio server, e.g. `strata -C <path> mcp`.
+Always offers read tools: status, why, log, records, criteria, queues and the AI policy.
+Offers write tools only if a lead has enabled AI participation (`strata ai enable`) and the
+person agents act for is known: `--as HANDLE`, or the review's only person. Every write names
+the model (as the agent reports it) and that person, and obeys the policy for its kind of work
+(`strata ai policy`). Spawned by an MCP-aware client (Claude Code, Claude Desktop, or any
+other), e.g. `strata -C <path> mcp --as ada`.
 
 ```
-strata mcp
+strata mcp [OPTIONS]
 ```
 
-Guide: [The web interface](The-Web-Interface)
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--as` | str |  | The person on whose behalf agents act; recorded on everything they do |
+| `--allow-dir` | str, repeatable |  | A directory outside the review that import tools may read from; repeatable |
+
+Guide: [The web interface](The-Web-Interface), [Using AI in a review](Using-AI-in-a-Review)
 
 ## `strata ci`
 

@@ -43,6 +43,7 @@ from strata.core import doctor as doctor_mod
 from strata.core import fieldedit as fieldedit_mod
 from strata.core import ids as ids_mod
 from strata.core import init as init_mod
+from strata.core import ledger as ledger_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import merge as merge_mod
@@ -613,6 +614,17 @@ def status(ctx: typer.Context) -> None:
         out_console.print(
             f"format {s.schema_version}; format {MAX_SCHEMA_VERSION} is available "
             "(`strata migrate`; AI participation needs it)"
+        )
+    if s.ai is not None:
+        in_force = (
+            ", ".join(f"{kind}: {mode}" for kind, mode in s.ai.policy.items())
+            or "every kind of work is off"
+        )
+        out_console.print(
+            escape(
+                f"AI participation is on ({in_force}) · {s.ai.agent_events} agent event(s) · "
+                f"{s.ai.suggestions_waiting} suggestion(s) waiting"
+            )
         )
     for search_id in s.pending_searches:
         out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
@@ -4815,17 +4827,8 @@ def prisma_command(
         raise typer.Exit(EXIT_USAGE)
     if not out:  # --out writes elsewhere and commits nothing
         _preflight_rationale(ctx, repo)
-    counts = counts_mod.compute(repo)
-    counts_mod.regenerate_counts_json(repo, counts)
     try:
-        counts_mod.require_reconciled(counts)
-        flow_mod.require_final(counts, allow_stale=allow_stale)
-        names = {str(s["id"]): str(s["database"]) for s in searches_mod.list_searches(repo)}
-        if fmt == "json":
-            document = flow_mod.flow_json(counts, names, columns=columns)
-            payload = (json_mod.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
-        else:
-            payload = flow_mod.render(counts, fmt=fmt, columns=columns)
+        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
     except counts_mod.CountReconcileError as exc:
         err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
         raise typer.Exit(EXIT_VALIDATION) from None
@@ -4835,18 +4838,14 @@ def prisma_command(
     except flow_mod.FlowError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    counts = rendered.counts
     if out == "-":
-        sys.stdout.write(payload.decode("utf-8"))
+        sys.stdout.write(rendered.payload.decode("utf-8"))
         return
-    target = Path(out) if out else repo.path("reports", f"prisma.{fmt}")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(payload)
-    written = [str(target)]
-    _, collapsed = flow_mod.collapse_reasons(counts.exclusion_reasons)
-    if collapsed and fmt != "json":
-        table = target.with_name("prisma-exclusion-reasons.tsv")
-        table.write_text(flow_mod.reasons_table(counts), encoding="utf-8", newline="\n")
-        written.append(str(table))
+    written = [
+        str(p)
+        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
+    ]
     if not out:
         _commit_domain_op(
             ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
@@ -5239,23 +5238,134 @@ def merge_records_command(
     )
 
 
+def _kind_line(kind: str, k: ledger_mod.KindLedger) -> str:
+    parts = []
+    if k.suggested:
+        parts.append(
+            f"suggested {k.suggested} (adopted {k.adopted}, rejected {k.rejected}, "
+            f"superseded {k.superseded}, waiting {k.pending})"
+        )
+    if k.counted:
+        extra = []
+        if k.reviewing:
+            extra.append(f"{k.reviewing} as a reviewer")
+        extra.append(f"{k.changed_by_people} later changed by a person")
+        parts.append(f"counted {k.counted} ({', '.join(extra)})")
+    if k.file_work:
+        parts.append(f"{k.file_work} piece(s) of work committed")
+    return f"  {kind:<14} " + "; ".join(parts)
+
+
+@ai_app.command("report")
+def ai_report(ctx: typer.Context) -> None:
+    """The AI ledger: for each agent and kind of work, what it suggested (and what became of each
+    suggestion), what took effect as its own, what a person later changed, who ran it and when.
+
+    Read from the record, so it cannot disagree with the generated Methods text, which is written
+    from the same figures. The model name is the agent's own report; `strata` cannot verify it."""
+    repo = _resolve_repo(ctx)
+    found = ledger_mod.compute_ledger(repo)
+    if ctx.obj["json"]:
+        _print_json(dataclasses.asdict(found))
+        return
+    if not found.agents:
+        out_console.print("no AI agent is registered in this review")
+        return
+    for agent in found.agents:
+        state = " [revoked]" if agent.revoked else ""
+        out_console.print(
+            escape(f"{agent.actor}{state}  model {agent.model} (self-reported)"), highlight=False
+        )
+        if not agent.active_kinds:
+            out_console.print("  has done nothing yet")
+            continue
+        when = (
+            agent.first_active
+            if agent.first_active == agent.last_active
+            else f"{agent.first_active} to {agent.last_active}"
+        )
+        out_console.print(
+            escape(
+                f"  active {when}; invoked by {', '.join(agent.invokers) or 'no one recorded'}"
+                + (f"; via {', '.join(agent.clients)}" if agent.clients else "")
+            )
+        )
+        for kind, k in agent.active_kinds.items():
+            out_console.print(escape(_kind_line(kind, k)))
+
+
+@ai_app.command("revoke")
+def ai_revoke(
+    ctx: typer.Context,
+    agent: str,
+    by: str = typer.Option(..., "--by", help="The lead revoking the agent"),
+) -> None:
+    """Withdraw an agent's standing: it is deactivated, and every screening decision of its that
+    still counted goes in the stale queue (reason agent-revoked) for people to look at again.
+
+    Its history stays in the record. Your rationale (--why) is part of the commit. No agent can do
+    this, or anything else that changes who takes part."""
+    repo = _resolve_repo(ctx)
+    lead = next((a for a in repo.config.get("actors", []) if a.get("handle") == by), None)
+    if lead is None or lead.get("role") != "lead" or lead.get("kind") == "agent":
+        err_console.print(f"[red]error:[/] {by!r} is not a lead of this review")
+        raise typer.Exit(EXIT_USAGE)
+    _preflight_rationale(ctx, repo)
+    try:
+        done = ops_mod.revoke_agent(
+            repo,
+            handle=agent,
+            actor=by,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, f"You revoked the AI agent {agent}."),
+        )
+    except actor_mod.ActorError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if ctx.obj["json"]:
+        _print_json({"agent": done.agent, "marked_stale": done.marked, "committed": done.committed})
+        return
+    out_console.print(
+        f"[yellow]revoked[/] {agent}: {done.marked} decision(s) now wait in the stale queue "
+        "(`strata rescreen`); its history is unchanged"
+        + ("" if done.committed else " (not committed)")
+    )
+
+
+_DECISION_VERBS = {"include": "included", "exclude": "excluded", "maybe": "marked maybe"}
+
+
 @app.command("audit")
 def audit_command(
     ctx: typer.Context,
     criteria: bool = typer.Option(
         False, "--criteria", help="Sample past exclusions for criterion-citation review"
     ),
+    ai: bool = typer.Option(
+        False,
+        "--ai",
+        help="Sample decisions an AI agent made that no person has independently decided",
+    ),
     sample: int = typer.Option(20, "--sample", help="Sample size"),
     seed: int | None = typer.Option(None, "--seed", help="Reproduce a specific sample"),
 ) -> None:
-    """Re-present a random sample of past exclusions for verification
-    (openspec:staleness#mitigations-for-miscited-criteria)."""
-    if not criteria:
-        err_console.print("[red]error:[/] strata audit currently only supports --criteria")
+    """Re-present a random sample for verification: past exclusions (`--criteria`,
+    openspec:staleness#mitigations-for-miscited-criteria) or AI decisions nobody else has
+    decided (`--ai`, openspec:ai-participation#the-ai-ledger-and-audit)."""
+    if criteria == ai:
+        err_console.print("[red]error:[/] give exactly one of --criteria and --ai")
         raise typer.Exit(EXIT_USAGE)
 
     repo = _resolve_repo(ctx)
-    sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+    if ai:
+        sampled, used_seed = audit_mod.sample_agent_decisions(repo, sample_size=sample, seed=seed)
+        what = "AI decision(s) no person has independently decided"
+    else:
+        sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+        what = "exclusion(s)"
 
     if ctx.obj["json"]:
         _print_json(
@@ -5269,6 +5379,7 @@ def audit_command(
                         "criteria": list(item.criteria),
                         "note": item.note,
                     }
+                    | ({"decision": item.decision} if ai else {})
                     for item in sampled
                 ],
             }
@@ -5276,21 +5387,34 @@ def audit_command(
         return
 
     if not sampled:
-        out_console.print("no exclusion decisions recorded yet to audit")
+        out_console.print(
+            "no AI decisions recorded yet that nobody else has decided"
+            if ai
+            else "no exclusion decisions recorded yet to audit"
+        )
         return
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     out_console.print(
-        f"Sampling {len(sampled)} exclusion(s) (seed {used_seed}; "
+        f"Sampling {len(sampled)} {what} (seed {used_seed}; "
         f"rerun with --seed {used_seed} to reproduce)"
     )
     for item in sampled:
         record = records.get(item.record_id)
         title = record.get("title") if record else "(unknown record)"
         criteria_list = ", ".join(item.criteria) or "(none)"
-        out_console.print(
-            f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
-        )
+        if ai:
+            out_console.print(
+                escape(
+                    f"\n{item.record_id}  {item.stage}  "
+                    f"{_DECISION_VERBS.get(item.decision, item.decision)} by {item.actor} "
+                    f"(AI, model self-reported) citing {criteria_list}"
+                )
+            )
+        else:
+            out_console.print(
+                f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
+            )
         out_console.print(f"  {title}")
         if item.note:
             out_console.print(f'  note: "{item.note}"')
@@ -5412,16 +5536,39 @@ def serve_command(
     asyncio.run(web_server_mod.serve_until_idle_or_interrupted(params))
 
 
-@app.command("mcp")
-def mcp_command(ctx: typer.Context) -> None:
-    """Run the local, read-only MCP server over stdio (openspec:mcp-server).
+_ALLOW_DIR_OPTION = typer.Option(
+    None,
+    "--allow-dir",
+    help="A directory outside the review that import tools may read from; repeatable",
+)
 
-    Exposes status/why/log/records/criteria-diff/impact-preview as MCP tools --
-    nothing that writes. Spawned by an MCP-aware client (Claude Code, Claude
-    Desktop, or any other) against this repository, the same way the client
-    would spawn any other local stdio server, e.g. `strata -C <path> mcp`."""
+
+@app.command("mcp")
+def mcp_command(
+    ctx: typer.Context,
+    as_handle: str | None = typer.Option(
+        None,
+        "--as",
+        help="The person on whose behalf agents act; recorded on everything they do",
+    ),
+    allow_dir: list[str] | None = _ALLOW_DIR_OPTION,
+) -> None:
+    """Run the local MCP server over stdio (openspec:mcp-server).
+
+    Always offers read tools: status, why, log, records, criteria, queues and the AI policy.
+    Offers write tools only if a lead has enabled AI participation (`strata ai enable`) and the
+    person agents act for is known: `--as HANDLE`, or the review's only person. Every write names
+    the model (as the agent reports it) and that person, and obeys the policy for its kind of work
+    (`strata ai policy`). Spawned by an MCP-aware client (Claude Code, Claude Desktop, or any
+    other), e.g. `strata -C <path> mcp --as ada`."""
     repo = _resolve_repo(ctx)
-    mcp_server_mod.create_mcp_server(repo_root=repo.root).run(transport="stdio")
+    invoker = agents_mod.resolve_invoker(repo, as_handle)
+    if as_handle is not None and invoker.handle is None and agents_mod.is_enabled(repo):
+        err_console.print(f"[red]error:[/] {invoker.problem}")
+        raise typer.Exit(EXIT_USAGE)
+    mcp_server_mod.create_mcp_server(
+        repo_root=repo.root, invoker=as_handle, allow_dirs=[Path(d) for d in allow_dir or []]
+    ).run(transport="stdio")
 
 
 @internal_app.command("hook-pre-commit")
