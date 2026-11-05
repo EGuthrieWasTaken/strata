@@ -96,8 +96,14 @@ def _default_assignment(repo: Repo, stage: str) -> frozenset[str]:
     configured = repo.config.get("screening", {}).get("assignment", {}).get(stage)
     if configured:
         return frozenset(configured)
-    actors = repo.config.get("actors", [])
-    return frozenset(a["handle"] for a in actors if a.get("role") in ("screener", "lead"))
+    # An agent never reviews by default: assignment is what lets an agent's opinion count, and it
+    # is a person's decision
+    # (openspec:ai-participation#agents-count-toward-a-record-only-when-assigned).
+    return frozenset(
+        a["handle"]
+        for a in repo.config.get("actors", [])
+        if a.get("role") in ("screener", "lead") and a.get("kind", "human") != "agent"
+    )
 
 
 def assigned_actors(

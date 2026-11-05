@@ -3,8 +3,10 @@ from pathlib import Path
 
 import pytest
 
+from strata.core import repo as repo_module
 from strata.core.repo import (
-    CURRENT_SCHEMA_VERSION,
+    MAX_SCHEMA_VERSION,
+    MIN_SCHEMA_VERSION,
     LockTimeoutError,
     Repo,
     RepoNotFoundError,
@@ -62,10 +64,51 @@ def test_open_repo_refuses_schema_too_new(tmp_path: Path) -> None:
     _write_minimal_manifest(tmp_path)
     (tmp_path / ".strata").mkdir()
     (tmp_path / ".strata" / "schema-version").write_text(
-        str(CURRENT_SCHEMA_VERSION + 1), encoding="utf-8"
+        str(MAX_SCHEMA_VERSION + 1), encoding="utf-8"
     )
     with pytest.raises(SchemaTooNewError):
         open_repo(tmp_path)
+
+
+def _with_version(root: Path, version: int) -> None:
+    _write_minimal_manifest(root, version)
+    (root / ".strata").mkdir(exist_ok=True)
+    (root / ".strata" / "schema-version").write_text(f"{version}\n", encoding="utf-8")
+
+
+@pytest.mark.req("E_SCHEMA_TOO_NEW")
+def test_a_build_limited_to_version_1_refuses_a_version_2_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tool that predates AI participation must not fold an agent's events as a person's
+    (openspec:repository-format#format-versioning)."""
+    _with_version(tmp_path, 2)
+    monkeypatch.setattr(repo_module, "MAX_SCHEMA_VERSION", 1)
+    with pytest.raises(SchemaTooNewError, match=r"newer than this build.*\(1\)"):
+        open_repo(tmp_path)
+
+
+def test_this_build_operates_on_every_version_in_its_range(tmp_path: Path) -> None:
+    for version in range(MIN_SCHEMA_VERSION, MAX_SCHEMA_VERSION + 1):
+        root = tmp_path / f"v{version}"
+        _with_version(root, version)
+        assert open_repo(root).schema_version == version
+
+
+def test_migration_is_available_below_the_newest_version_only(tmp_path: Path) -> None:
+    _with_version(tmp_path / "old", MIN_SCHEMA_VERSION)
+    _with_version(tmp_path / "new", MAX_SCHEMA_VERSION)
+    _write_minimal_manifest(tmp_path / "unmarked")
+    assert open_repo(tmp_path / "old").migration_available
+    assert not open_repo(tmp_path / "new").migration_available
+    assert not open_repo(tmp_path / "unmarked").migration_available  # no version: nothing to offer
+
+
+def test_only_format_2_and_up_supports_ai(tmp_path: Path) -> None:
+    _with_version(tmp_path / "v1", 1)
+    _with_version(tmp_path / "v2", 2)
+    assert not open_repo(tmp_path / "v1").supports_ai
+    assert open_repo(tmp_path / "v2").supports_ai
 
 
 def test_repo_lock_acquires_and_releases(tmp_path: Path) -> None:

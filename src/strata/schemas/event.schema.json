@@ -42,6 +42,24 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
     },
+    "agent": {
+      "description": "openspec:event-log#event-envelope: present only on events an AI agent caused. The model name is the agent's own claim; strata cannot verify it.",
+      "type": "object",
+      "required": ["model", "invoked_by"],
+      "additionalProperties": false,
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "client": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "invoked_by": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" }
+      }
+    },
     "seq": {
       "type": "integer",
       "minimum": 1

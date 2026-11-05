@@ -35,7 +35,10 @@ from typing import Any, TypeAlias
 
 from strata import gitio
 from strata.core import actor as actor_mod
+from strata.core import agents as agents_mod
 from strata.core import filters as filters_mod
+from strata.core import manifest as manifest_mod
+from strata.core import migrate as migrate_mod
 from strata.core import records as records_mod
 from strata.core.commit import (
     RationaleRejectedError,
@@ -901,4 +904,168 @@ def split_report(
         commit=commit,
         lock_timeout=lock_timeout,
         write=write,
+    )
+
+
+# ------------------------------------------------------------------- format and AI participation
+
+
+@dataclass(frozen=True)
+class Migrated:
+    result: migrate_mod.MigrationResult
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def _migration_trailers(result: migrate_mod.MigrationResult) -> dict[str, str]:
+    return {"Schema-Version": str(result.to_version), "Schema-From": str(result.from_version)}
+
+
+def migrate_repository(
+    repo: Repo,
+    *,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> Migrated:
+    """Take the repository to the newest format this build knows (`strata migrate`), one commit.
+
+    Idempotent: a repository already there is left alone, no commit is made and no rationale is
+    asked for (openspec:repository-format#format-versioning). History is never rewritten.
+    """
+    _check_up_front(repo, rationale, commit=commit, needed=migrate_mod.pending(repo))
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        result = migrate_mod.migrate_files(repo)
+        committed = False
+        if result.changed and commit:
+            text = _resolve_rationale(repo, rationale)
+            _commit(
+                repo,
+                op="migrate",
+                scope=None,
+                summary=f"upgrade to format {result.to_version}",
+                rationale=text,
+                trailers={"Op": "migrate", **_migration_trailers(result)},
+                paths=list(result.paths),
+            )
+            committed = True
+    return Migrated(result=result, committed=committed, lock_reclaimed_from=held.reclaimed_from)
+
+
+@dataclass(frozen=True)
+class AiEnabled:
+    #: False when AI participation was already on and nothing was done.
+    changed: bool
+    migration: migrate_mod.MigrationResult
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def enable_ai(
+    repo: Repo,
+    *,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> AiEnabled:
+    """Turn AI participation on (`strata ai enable`): format 2 and `[ai] enabled`, one commit.
+
+    Every kind of work starts `off`. A review still in format 1 is migrated in the same commit, so
+    there is never a repository that has AI enabled in a format that does not permit it
+    (openspec:ai-participation#off-by-default). Idempotent.
+    """
+    already = agents_mod.is_enabled(repo)
+    _check_up_front(repo, rationale, commit=commit, needed=not already)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        if already:
+            unchanged = migrate_mod.MigrationResult(repo.schema_version, repo.schema_version)
+            return AiEnabled(
+                changed=False,
+                migration=unchanged,
+                committed=False,
+                lock_reclaimed_from=held.reclaimed_from,
+            )
+        migration = migrate_mod.migrate_files(repo)
+        doc = manifest_mod.load_manifest_doc(repo.root)
+        agents_mod.enable_in_doc(doc)
+        manifest_mod.validate_config(doc.unwrap())
+        manifest_mod.write_manifest(repo.root, doc)
+        committed = False
+        if commit:
+            text = _resolve_rationale(repo, rationale)
+            trailers = {"Op": "ai-enable"}
+            if migration.changed:
+                trailers.update(_migration_trailers(migration))
+            _commit(
+                repo,
+                op="ai-enable",
+                scope=None,
+                summary="enable AI participation",
+                rationale=text,
+                trailers=trailers,
+                paths=[*migration.paths, "strata.toml"] if migration.changed else ["strata.toml"],
+            )
+            committed = True
+    return AiEnabled(
+        changed=True,
+        migration=migration,
+        committed=committed,
+        lock_reclaimed_from=held.reclaimed_from,
+    )
+
+
+@dataclass(frozen=True)
+class AiPolicySet:
+    kind: str
+    old: str
+    new: str
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+    @property
+    def changed(self) -> bool:
+        return self.old != self.new
+
+
+def set_ai_policy(
+    repo: Repo,
+    *,
+    kind: str,
+    mode: str,
+    commit: bool = True,
+    rationale: RationaleSource = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> AiPolicySet:
+    """Set the mode for one kind of work (`strata ai policy KIND MODE`), one commit.
+
+    Raises `ValueError` for an unknown kind or mode (naming the valid ones) and
+    `manifest.ConfigError` when AI participation is not enabled. Setting a kind to the mode it
+    already has records nothing. Only a person can do this: no MCP tool and no suggestion reaches it
+    (openspec:ai-participation#policy-changes-are-for-people).
+    """
+    preview = manifest_mod.load_manifest_doc(repo.root)
+    old, _ = agents_mod.set_policy_in_doc(preview, kind, mode)
+    manifest_mod.validate_config(preview.unwrap())
+    _check_up_front(repo, rationale, commit=commit, needed=old != mode)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        doc = manifest_mod.load_manifest_doc(repo.root)
+        old, new = agents_mod.set_policy_in_doc(doc, kind, mode)
+        committed = False
+        if old != new:
+            manifest_mod.validate_config(doc.unwrap())
+            manifest_mod.write_manifest(repo.root, doc)
+            if commit:
+                text = _resolve_rationale(repo, rationale)
+                _commit(
+                    repo,
+                    op="ai-policy",
+                    scope=kind,
+                    summary=f"set {kind} to {new}",
+                    rationale=text,
+                    trailers={"Op": "ai-policy", "Kind": kind, "From": old, "To": new},
+                    paths=["strata.toml"],
+                )
+                committed = True
+    return AiPolicySet(
+        kind=kind, old=old, new=new, committed=committed, lock_reclaimed_from=held.reclaimed_from
     )

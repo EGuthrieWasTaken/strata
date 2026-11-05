@@ -81,6 +81,10 @@ class StatusReport:
     retrieval: retrieval_mod.RetrievalCounts | None = None
     extraction: ExtractionStatus | None = None
     analyses: list[AnalysisStatus] = field(default_factory=list)
+    #: The file format the repository is in, and whether this build knows a newer one
+    #: (openspec:repository-format#format-versioning: offered, never applied implicitly).
+    schema_version: int = 0
+    migration_available: bool = False
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -251,4 +255,6 @@ def compute_status(repo: Repo) -> StatusReport:
         retrieval=retrieval,
         extraction=extraction,
         analyses=analyses,
+        schema_version=repo.schema_version,
+        migration_available=repo.migration_available,
     )

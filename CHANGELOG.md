@@ -7,6 +7,29 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **AI participation: the policy, agents as actors, and format 2** (OpenSpec change
+  `add-ai-participation`, groups 1; in progress). `strata` still ships no model and makes no network call.
+  What is new is the accounting for the ones a review brings. `strata ai enable` turns AI participation on
+  for a review (a lead's decision, one commit with their rationale; every kind of work starts `off`) and
+  `strata ai policy [KIND [MODE]]` shows or sets what agents may do for each kind of work: `off`, `suggest`
+  or `count`. A model the review accepts is registered like a person
+  (`strata actor add NAME --kind agent --model MODEL`) and may not hold the role `lead`; its events will live
+  in its own files and carry an optional `agent` envelope key naming the model as the agent reported it
+  (a claim `strata` cannot verify), the client, and the person who started the server. The key sits
+  between `actor` and `seq` and is covered by the digest; an event without it serialises exactly as before.
+  `strata verify` rejects an `agent` key anywhere it should not be (format 1, AI not enabled, a person's
+  event, a model other than the registered one) and an event under an agent's handle without one. Agents
+  are never reviewers by default: a registered agent counts toward a record only when a person assigns it.
+  Agreement pairs that involve an agent are labelled `involves_agent` in `derived/irr.json` and in
+  `strata irr`, and person-to-person figures are unchanged. See
+  [Using AI in a review](wiki/Using-AI-in-a-Review.md).
+- **`strata migrate` and format 2.** Required by the repository format since it was written and never
+  needed until now. A review stays in format 1 and behaves exactly as before until its lead asks for a
+  feature that needs format 2 (`strata ai enable` runs the migration in the same commit) or runs
+  `strata migrate`: forward-only, idempotent, one commit with a rationale, no history rewritten. `strata
+  status` says when a newer format is available and changes nothing; a build that predates format 2
+  refuses such a repository (`E_SCHEMA_TOO_NEW`) instead of folding an agent's opinion as a person's.
+
 - **Zotero integration** (`strata zotero link | pull | push | status | open`; OpenSpec change
   `add-zotero-integration`). Optional, and nothing in a review needs it: Zotero holds the documents,
   `strata` holds the decisions, and no screening decision ever crosses. `link` uses Zotero's local API when
@@ -306,6 +329,17 @@ All notable changes to `strata` are documented here. Format follows
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
 
 ### Changed
+
+- **Only the opinions of the actors assigned to a record resolve it.** The specification has always said
+  `opinions = latest event per assigned actor`, but the fold reduced every actor's events and compared
+  their number with the number assigned, so an actor who was never assigned (decisions imported for them,
+  an adjudicator who screened) could stand in for an assigned reviewer. For people that was an edge case;
+  for AI agents it would have made an unassigned model a free second reviewer. The fold now follows the
+  specification: an unassigned actor's opinion stays in the log, in provenance and in
+  `ScreeningState.unassigned`, and counts for nothing. **A review that contains such an opinion may resolve
+  differently than it did.** `strata verify` warns (`W_UNASSIGNED_OPINION`) and names the records where the
+  result would have been different; `strata assign` makes an opinion count. The default assignment (every
+  active `screener` and `lead`) never includes an agent.
 
 - **A pull request that changes only documentation skips the test jobs** (OpenSpec change
   `skip-tests-for-docs-only-prs`, capability `ci-gate`). The `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md` at

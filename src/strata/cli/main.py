@@ -36,6 +36,7 @@ from strata.ci import amendment as ci_amendment_mod
 from strata.ci import comment as ci_comment_mod
 from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
+from strata.core import agents as agents_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
 from strata.core import fieldedit as fieldedit_mod
@@ -44,6 +45,7 @@ from strata.core import init as init_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import merge as merge_mod
+from strata.core import migrate as migrate_mod
 from strata.core import operations as ops_mod
 from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
@@ -53,6 +55,7 @@ from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import (
+    MAX_SCHEMA_VERSION,
     LockTimeoutError,
     Repo,
     RepoNotFoundError,
@@ -146,8 +149,14 @@ zotero_app = typer.Typer(
     help="Optional: link a review to Zotero (it holds the documents, strata holds the decisions).",
     no_args_is_help=True,
 )
+ai_app = typer.Typer(
+    name="ai",
+    help="Optional: decide whether, where and how far AI agents may take part in this review.",
+    no_args_is_help=True,
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
+app.add_typer(ai_app, name="ai")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
@@ -592,6 +601,11 @@ def status(ctx: typer.Context) -> None:
     clean = "clean" if s.is_clean else "dirty"
     out_console.print(f"{s.commit_count} commits · {s.actor_count} actors · {clean}")
     out_console.print(f"{s.record_count} records · {s.search_count} searches recorded")
+    if s.migration_available:
+        out_console.print(
+            f"format {s.schema_version}; format {MAX_SCHEMA_VERSION} is available "
+            "(`strata migrate`; AI participation needs it)"
+        )
     for search_id in s.pending_searches:
         out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
     for stage in s.stages:
@@ -744,21 +758,35 @@ def actor_add(
     name: str,
     email: str | None = typer.Option(None, "--email"),
     role: str = typer.Option("screener", "--role"),
+    kind: str = typer.Option(
+        "human",
+        "--kind",
+        help="human (the default), or agent: an AI model the review accepts "
+        "(needs `strata ai enable`)",
+    ),
+    model: str | None = typer.Option(
+        None, "--model", help="For --kind agent: the model name the agent reports about itself"
+    ),
 ) -> None:
     repo = _resolve_repo(ctx)
     _preflight_rationale(ctx, repo)
     try:
-        actor_mod.add_actor(repo, handle=handle, name=name, email=email, role=role)
+        actor_mod.add_actor(
+            repo, handle=handle, name=name, email=email, role=role, kind=kind, model=model
+        )
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    trailers = {"Op": "actor-add", "Actor": handle, "Role": role}
+    if kind == agents_mod.KIND_AGENT:
+        trailers.update({"Kind": "agent", "Model": str(model)})
     _commit_manifest_op(
         ctx,
         repo,
         op="actor-add",
         scope=handle,
         summary=f"add actor {handle}",
-        trailers={"Op": "actor-add", "Actor": handle, "Role": role},
+        trailers=trailers,
     )
     out_console.print(f"[green]added[/] actor {handle}")
 
@@ -771,7 +799,10 @@ def actor_list(ctx: typer.Context) -> None:
         _print_json(actors)
         return
     for a in actors:
-        out_console.print(f"{a['handle']:<16} {a.get('name', ''):<24} {a.get('role', '')}")
+        line = f"{a['handle']:<16} {a.get('name', ''):<24} {a.get('role', '')}"
+        if a.get("kind") == agents_mod.KIND_AGENT:
+            line += f"  [AI agent; model {a.get('model', '?')} (self-reported)]"
+        out_console.print(escape(line))
 
 
 @actor_app.command("deactivate")
@@ -792,6 +823,148 @@ def actor_deactivate(ctx: typer.Context, handle: str) -> None:
         trailers={"Op": "actor-deactivate", "Actor": handle},
     )
     out_console.print(f"[green]deactivated[/] actor {handle}")
+
+
+@app.command("migrate")
+def migrate_command(ctx: typer.Context) -> None:
+    """Upgrade this review to the newest file format this version of strata knows.
+
+    Forward-only and idempotent: one commit with your rationale, nothing rewritten, and a second
+    run changes nothing. A review stays in the format it is in until you ask; the next format
+    permits AI participation (`strata ai enable` runs this for you)."""
+    repo = _resolve_repo(ctx)
+    if not migrate_mod.pending(repo):
+        out_console.print(
+            f"[green]ok[/] — already in format {repo.schema_version}; nothing to migrate"
+        )
+        return
+    _preflight_rationale(ctx, repo)
+    try:
+        done = ops_mod.migrate_repository(
+            repo,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You upgraded this review to format {MAX_SCHEMA_VERSION}."
+            ),
+        )
+    except migrate_mod.MigrationError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    out_console.print(
+        f"[green]migrated[/] from format {done.result.from_version} to {done.result.to_version}"
+        + ("" if done.committed else " (not committed)")
+    )
+
+
+@ai_app.command("enable")
+def ai_enable(ctx: typer.Context) -> None:
+    """Turn AI participation on for this review (a lead's decision; every kind of work starts off).
+
+    Upgrades the review to format 2 in the same commit if it is not there yet. Nothing changes for
+    anyone until `strata ai policy` lets a kind of work be suggested or counted, and an agent must
+    still be registered (`strata actor add NAME --kind agent --model MODEL`)."""
+    repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo, needed=lambda: not agents_mod.is_enabled(repo))
+    try:
+        done = ops_mod.enable_ai(
+            repo,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, "You enabled AI participation."),
+        )
+    except (migrate_mod.MigrationError, manifest_mod.ConfigError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if not done.changed:
+        out_console.print("[green]ok[/] — AI participation is already enabled")
+        return
+    migrated = (
+        f" (upgraded from format {done.migration.from_version})" if done.migration.changed else ""
+    )
+    out_console.print(
+        f"[green]enabled[/] AI participation{migrated}; every kind of work is off. Next: "
+        "`strata ai policy KIND suggest` and `strata actor add NAME --kind agent --model MODEL`"
+    )
+
+
+def _ai_policy_payload(repo: Repo) -> dict[str, Any]:
+    return {
+        "enabled": agents_mod.is_enabled(repo),
+        "show_suggestions": agents_mod.show_suggestions(repo),
+        "policy": agents_mod.policy(repo),
+        "models": agents_mod.accepted_models(repo),
+    }
+
+
+@ai_app.command("policy")
+def ai_policy(
+    ctx: typer.Context,
+    kind: str | None = typer.Argument(None, help="A kind of work; omit to list them all"),
+    mode: str | None = typer.Argument(None, help="off, suggest or count; omit to show the mode"),
+) -> None:
+    """Show, or set, what AI agents may do for each kind of work: off, suggest or count.
+
+    off: nothing. suggest: an agent may propose, and a person decides. count: an agent's work
+    takes effect, recorded as the agent's and reported as such. Setting a mode is a commit with
+    your rationale; no agent can do it."""
+    repo = _resolve_repo(ctx)
+    if kind is not None and kind not in agents_mod.KINDS_OF_WORK:
+        err_console.print(f"[red]error:[/] {agents_mod.unknown_kind_message(kind)}")
+        raise typer.Exit(EXIT_USAGE)
+
+    if mode is None:
+        payload = _ai_policy_payload(repo)
+        if ctx.obj["json"]:
+            _print_json(
+                payload if kind is None else {"kind": kind, "mode": payload["policy"][kind]}
+            )
+            return
+        if kind is not None:
+            out_console.print(payload["policy"][kind])
+            return
+        if payload["enabled"]:
+            out_console.print("AI participation is [green]enabled[/] for this review")
+        else:
+            out_console.print(
+                "AI participation is [yellow]not enabled[/] for this review "
+                "(`strata ai enable` turns it on); every kind of work is off"
+            )
+        for name, current in payload["policy"].items():
+            out_console.print(f"  {name:<14} {current}")
+        if payload["enabled"]:
+            out_console.print(f"  suggestions are shown {payload['show_suggestions']}")
+        return
+
+    assert kind is not None  # typer cannot give a mode without a kind
+    _preflight_rationale(ctx, repo, needed=lambda: agents_mod.policy(repo).get(kind) != mode)
+    try:
+        done = ops_mod.set_ai_policy(
+            repo,
+            kind=kind,
+            mode=mode,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You set AI participation in {kind} to {mode}."
+            ),
+        )
+    except (ValueError, manifest_mod.ConfigError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if not done.changed:
+        out_console.print(f"[green]ok[/] — {kind} is already {done.new}")
+        return
+    out_console.print(
+        f"[green]set[/] {kind}: {done.old} -> {done.new}"
+        + ("" if done.committed else " (not committed)")
+    )
 
 
 @search_app.command("add")
@@ -4398,8 +4571,8 @@ def analyze_command(
 
 
 def _acting_handle(repo: Repo) -> str:
-    """The handle recorded as the actor of an analysis run: the first active actor."""
-    for actor in repo.config.get("actors", []):
+    """The handle recorded as the actor of an analysis run: the first active person."""
+    for actor in agents_mod.human_actors(repo):
         if actor.get("role") != "inactive":
             return str(actor["handle"])
     return "strata"
@@ -4947,22 +5120,7 @@ def irr_command(
     irr_mod.regenerate_irr_json(repo)
 
     if ctx.obj["json"]:
-        _print_json(
-            [
-                {
-                    "stage": p.stage,
-                    "actor_a": p.actor_a,
-                    "actor_b": p.actor_b,
-                    "n": p.n,
-                    "excluded_maybe": p.excluded_maybe,
-                    "table": p.table,
-                    "raw_agreement": p.raw_agreement,
-                    "kappa": p.kappa,
-                    "pabak": p.pabak,
-                }
-                for p in all_pairs
-            ]
-        )
+        _print_json([{"stage": p.stage, **irr_mod.pair_payload(p)} for p in all_pairs])
         return
 
     if not all_pairs:
@@ -4972,6 +5130,7 @@ def irr_command(
         out_console.print(
             f"{p.stage:<16} {p.actor_a} x {p.actor_b}   n={p.n}   "
             f"agreement={p.raw_agreement:.2f}   kappa={p.kappa:.2f}   pabak={p.pabak:.2f}"
+            + ("   (AI: involves an agent)" if p.involves_agent else "")
         )
 
 

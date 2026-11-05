@@ -4,6 +4,9 @@ A review shared between people is a git repository on a shared server (a *remote
 one command for sharing it. If git is new to you, read [Git for reviewers](Git-for-Reviewers) first for the
 one-time setup (creating the remote, cloning, credentials); this page is about the day-to-day.
 
+If an AI assistant takes part in the review, that is the whole team's decision and is visible to all of it:
+see [Using AI in a review](Using-AI-in-a-Review).
+
 ## The daily rhythm
 
 ```

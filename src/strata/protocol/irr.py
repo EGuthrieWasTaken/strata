@@ -22,6 +22,7 @@ import itertools
 from dataclasses import dataclass, field
 from typing import Any
 
+from strata.core import agents as agents_mod
 from strata.core.canon import canonical_json
 from strata.core.fold import fold_first_write
 from strata.core.repo import Repo
@@ -46,6 +47,9 @@ class PairIrr:
     raw_agreement: float = 0.0
     kappa: float = 0.0
     pabak: float = 0.0
+    #: Whether either side is an AI agent. Agreement with a model is reported, never mixed into
+    #: agreement between people (openspec:ai-participation#people-and-agents-are-counted-apart).
+    involves_agent: bool = False
 
 
 def _first_opinions_by_actor(repo: Repo, stage: str) -> dict[str, dict[str, dict[str, Any]]]:
@@ -103,10 +107,12 @@ def compute_pair_irr(repo: Repo, stage: str, actor_a: str, actor_b: str) -> Pair
         both_include, a_include_b_exclude, a_exclude_b_include, both_exclude
     )
     n = both_include + a_include_b_exclude + a_exclude_b_include + both_exclude
+    agents = agents_mod.agent_handles(repo)
     return PairIrr(
         stage=stage,
         actor_a=actor_a,
         actor_b=actor_b,
+        involves_agent=actor_a in agents or actor_b in agents,
         n=n,
         excluded_maybe=excluded_maybe,
         table={
@@ -136,24 +142,33 @@ def compute_stage_irr(repo: Repo, stage: str) -> list[PairIrr]:
     ]
 
 
+def pair_payload(pair: PairIrr) -> dict[str, Any]:
+    """One pair as `derived/irr.json` records it.
+
+    `involves_agent` appears only when it is true, so a review without agents writes exactly the
+    bytes it wrote before agents existed.
+    """
+    payload: dict[str, Any] = {
+        "actor_a": pair.actor_a,
+        "actor_b": pair.actor_b,
+        "n": pair.n,
+        "excluded_maybe": pair.excluded_maybe,
+        "table": pair.table,
+        "raw_agreement": pair.raw_agreement,
+        "kappa": pair.kappa,
+        "pabak": pair.pabak,
+    }
+    if pair.involves_agent:
+        payload["involves_agent"] = True
+    return payload
+
+
 def render_irr_json(repo: Repo) -> str:
     """The text of `derived/irr.json` (openspec:derived-views#inter-rater-reliability-view).
     Writes nothing."""
     payload: dict[str, list[dict[str, Any]]] = {}
     for stage in screening_mod.configured_stages(repo):
-        payload[stage] = [
-            {
-                "actor_a": pair.actor_a,
-                "actor_b": pair.actor_b,
-                "n": pair.n,
-                "excluded_maybe": pair.excluded_maybe,
-                "table": pair.table,
-                "raw_agreement": pair.raw_agreement,
-                "kappa": pair.kappa,
-                "pabak": pair.pabak,
-            }
-            for pair in compute_stage_irr(repo, stage)
-        ]
+        payload[stage] = [pair_payload(pair) for pair in compute_stage_irr(repo, stage)]
     return canonical_json(payload) + "\n"
 
 

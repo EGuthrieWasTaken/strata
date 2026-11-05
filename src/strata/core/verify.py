@@ -16,9 +16,13 @@ from typing import Any
 
 from ruamel.yaml.error import YAMLError
 
+from strata.core import agents as agents_mod
 from strata.core import events as events_mod
 from strata.core import fulltext as fulltext_mod
+from strata.core import manifest as manifest_mod
+from strata.core import records as records_mod
 from strata.core.canon import load_yaml_str
+from strata.core.fold import resolve_screening
 from strata.core.ids import record_id_for_report, report_id, singleton_study_id
 from strata.core.repo import Repo
 from strata.core.validate import SchemaValidationError, validate
@@ -26,6 +30,7 @@ from strata.extract import records as extraction_records_mod
 from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
 from strata.protocol import criteria as criteria_mod
+from strata.protocol import screening as screening_mod
 from strata.protocol import studies as studies_mod
 
 
@@ -57,6 +62,58 @@ def _verify_manifest(repo: Repo, report: VerifyReport) -> None:
     except SchemaValidationError as exc:
         for error in exc.errors:
             report.add("E_SCHEMA", error, path="strata.toml")
+    for problem in manifest_mod.config_problems(repo.config):
+        report.add("E_CONFIG", problem, path="strata.toml")
+    if repo.config.get("ai", {}).get("enabled") and not repo.supports_ai:
+        report.add(
+            "E_CONFIG",
+            f"[ai] enabled is set but the repository is in format {repo.schema_version}, which "
+            "does not permit AI participation; `strata migrate` upgrades it",
+            path="strata.toml",
+        )
+
+
+def _agent_problems(
+    repo: Repo,
+    envelope: dict[str, Any],
+    agents: dict[str, dict[str, Any]],
+    people: set[str],
+) -> list[str]:
+    """Why an event's `agent` key (or the lack of one) is wrong, in words; empty when it is right.
+
+    The key is valid only at format 2 with AI enabled, on an event by a registered agent actor
+    whose registered model it names, and with `invoked_by` a registered person. An event under an
+    agent's handle without the key is just as wrong: it would leave an agent's work unattributed
+    (openspec:ai-participation#every-agent-event-is-attributed).
+    """
+    actor = envelope.get("actor")
+    key = envelope.get("agent")
+    if key is None:
+        if actor in agents:
+            return [f"recorded under the AI agent {actor!r} but carries no agent key"]
+        return []
+    if not isinstance(key, dict):
+        return []  # the schema check reports a malformed key
+    problems = []
+    if not repo.supports_ai:
+        problems.append(
+            f"has an agent key but the repository is in format {repo.schema_version} "
+            "(AI participation needs format 2)"
+        )
+    elif not repo.config.get("ai", {}).get("enabled", False):
+        problems.append("has an agent key but AI participation is not enabled for this review")
+    registered = agents.get(str(actor))
+    if registered is None:
+        problems.append(f"has an agent key but {actor!r} is not a registered AI agent")
+    elif key.get("model") != registered.get("model"):
+        problems.append(
+            f"reports the model {key.get('model')!r}, but {actor!r} is registered for "
+            f"{registered.get('model')!r}"
+        )
+    invoker = key.get("invoked_by")
+    if invoker is not None and invoker not in people:
+        problems.append(f"was invoked by {invoker!r}, who is not a registered person")
+    return problems
 
 
 def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> tuple[set[str], set[str]]:
@@ -66,6 +123,8 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> tuple[set
     """
     referenced_records: set[str] = set()
     referenced_studies: set[str] = set()
+    agents = {str(a["handle"]): a for a in agents_mod.agent_actors(repo)}
+    people = {str(a["handle"]) for a in agents_mod.human_actors(repo)}
     for path in events_mod.iter_event_files(repo.root):
         rel = path.relative_to(repo.root).as_posix()
         raw_events = events_mod.read_events(path)
@@ -75,6 +134,8 @@ def _verify_events(repo: Repo, report: VerifyReport, *, fast: bool) -> tuple[set
             except SchemaValidationError as exc:
                 for error in exc.errors:
                     report.add("E_SCHEMA", f"line {i + 1}: {error}", path=rel)
+            for problem in _agent_problems(repo, envelope, agents, people):
+                report.add("E_AGENT_ATTRIBUTION", f"line {i + 1}: {problem}", path=rel)
             body = envelope.get("body", {})
             record = body.get("record") or body.get("canonical")
             if isinstance(record, str):
@@ -296,6 +357,63 @@ def _verify_screen_events(repo: Repo, report: VerifyReport) -> None:
                         f"{criterion_id!r} does not apply at stage {stage!r} (criteria v{version})",
                         path=rel,
                     )
+
+
+def _verify_unassigned_opinions(repo: Repo, report: VerifyReport) -> None:
+    """`W_UNASSIGNED_OPINION`: records that an opinion from someone not assigned to them used to
+    help resolve, and no longer does
+    (openspec:event-log#only-assigned-actors-opinions-resolve-a-record).
+
+    The fold once counted every actor's opinion on a record; it now counts only those of the actors
+    assigned to it. A review that recorded, say, decisions imported for an actor who was never
+    assigned may therefore resolve differently than it did. An unassigned agent is expected to be
+    ignored, so only people are looked at here. Full-mode only: it folds every screening event.
+    """
+    agents = agents_mod.agent_handles(repo)
+    canonical = {
+        str(r["id"])
+        for r in records_mod.read_records(repo)
+        if r.get("strata", {}).get("canonical", True)
+    }
+    assign_events = screening_mod.all_assign_events(repo)
+    for stage in screening_mod.configured_stages(repo):
+        by_record: dict[str, list[dict[str, Any]]] = {}
+        for event in screening_mod.all_screen_events(repo, stage):
+            by_record.setdefault(event["body"]["record"], []).append(event)
+        adjudications: dict[str, list[dict[str, Any]]] = {}
+        for event in screening_mod.all_adjudicate_events(repo, stage):
+            adjudications.setdefault(event["body"]["record"], []).append(event)
+        affected: list[str] = []
+        for record_id, events in sorted(by_record.items()):
+            if record_id not in canonical:
+                continue
+            assigned = screening_mod.assigned_actors(
+                repo, stage, record_id, assign_events=assign_events
+            )
+            if not ({e["actor"] for e in events} - assigned - agents):
+                continue
+            adjudicate = adjudications.get(record_id, [])
+            now = resolve_screening(
+                assigned=assigned, screen_events=events, adjudicate_events=adjudicate
+            )
+            before = resolve_screening(
+                assigned=assigned,
+                screen_events=events,
+                adjudicate_events=adjudicate,
+                count_unassigned=True,
+            )
+            if now.status != before.status:
+                affected.append(record_id)
+        if affected:
+            shown = ", ".join(affected[:5]) + (" ..." if len(affected) > 5 else "")
+            report.add(
+                "W_UNASSIGNED_OPINION",
+                f"{len(affected)} record(s) at {stage} were resolved with the help of an opinion "
+                f"from someone not assigned to them, which no longer counts ({shown}); assign "
+                "the reviewer with `strata assign` if their opinion should",
+                path=f"events/screen/{stage}.*.ndjson",
+                severity="warning",
+            )
 
 
 def _verify_aliases(repo: Repo, report: VerifyReport) -> None:
@@ -553,6 +671,7 @@ def verify_repository(repo: Repo, *, fast: bool = False) -> VerifyReport:
     _verify_criteria(repo, report)
     if not fast:
         _verify_screen_events(repo, report)
+        _verify_unassigned_opinions(repo, report)
         _verify_aliases(repo, report)
         _verify_dangling_refs(repo, report, referenced_records)
         _verify_studies(

@@ -7,10 +7,12 @@ state lives in `strata.core.fold`.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import hashlib
 import json
 import os
-from collections.abc import Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +26,46 @@ TOOL_VERSION = "strata/0.1.0"
 
 class ChainError(ValueError):
     """The hash chain of an event file is broken (`E_CHAIN`)."""
+
+
+class AgentScopeError(ValueError):
+    """An event was built inside an agent's write under a handle that is not the agent's."""
+
+
+@dataclass(frozen=True)
+class _AgentScope:
+    actor: str
+    value: dict[str, Any]
+
+
+_AGENT_SCOPE: contextvars.ContextVar[_AgentScope | None] = contextvars.ContextVar(
+    "strata_agent_scope", default=None
+)
+
+
+@contextlib.contextmanager
+def agent_scope(actor: str, agent: Mapping[str, Any]) -> Iterator[None]:
+    """Mark every event built inside the block as caused by an agent.
+
+    `actor` is the agent's own handle and `agent` the `agent` envelope key
+    (`strata.core.agents.AgentContext.envelope_value`). Inside the block, `build_envelope` adds
+    the key to every event, and refuses one written under any other handle: an agent's events are
+    its own, never a person's (openspec:ai-participation#agents-are-registered-actors).
+
+    Attribution is carried by the scope rather than passed down, so that no write path an agent can
+    reach can record an unattributed event by forgetting an argument.
+    """
+    token = _AGENT_SCOPE.set(_AgentScope(actor=actor, value=dict(agent)))
+    try:
+        yield
+    finally:
+        _AGENT_SCOPE.reset(token)
+
+
+def current_agent_actor() -> str | None:
+    """The handle of the agent whose write is in progress, if one is."""
+    scope = _AGENT_SCOPE.get()
+    return scope.actor if scope else None
 
 
 def utc_now_iso() -> str:
@@ -47,15 +89,32 @@ def build_envelope(
     ts: str | None = None,
     event_id: str | None = None,
     tool: str = TOOL_VERSION,
+    agent: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Construct a fully-formed, digested event envelope ready to append."""
+    """Construct a fully-formed, digested event envelope ready to append.
+
+    `agent` is the optional `agent` key. Without it, inside an `agent_scope` the scope's is used;
+    outside one the event is a person's and its bytes are exactly what they were before the key
+    existed.
+    """
+    scope = _AGENT_SCOPE.get()
+    if scope is not None:
+        if actor != scope.actor:
+            raise AgentScopeError(
+                f"an agent's write may only record events as the agent {scope.actor!r}, "
+                f"not as {actor!r}"
+            )
+        if agent is None:
+            agent = scope.value
     envelope: dict[str, Any] = {
         "ev": ev,
         "id": event_id or new_event_id(),
         "ts": ts or utc_now_iso(),
         "actor": actor,
-        "seq": seq,
     }
+    if agent is not None:
+        envelope["agent"] = dict(agent)
+    envelope["seq"] = seq
     envelope["body"] = body
     envelope["tool"] = tool
     if prev is not None:
