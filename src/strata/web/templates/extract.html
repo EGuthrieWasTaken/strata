@@ -6,14 +6,14 @@
 <p class="field-meta"><code>{{ study }}</code></p>
 {% if dual %}
 <p class="notice">Dual extraction: you are working into your own record.
-  <a href="/extract/{{ study }}/reconcile">Reconcile &rarr;</a></p>
+  <a href="{{ root }}/extract/{{ study }}/reconcile">Reconcile &rarr;</a></p>
 {% endif %}
 
 {% if open_warnings %}
 <section aria-labelledby="warnings-h">
   <h2 id="warnings-h">Data-quality warnings</h2>
   {% for w in open_warnings %}
-  <form method="post" action="/extract/{{ study }}" class="warning-row">
+  <form method="post" action="{{ root }}/extract/{{ study }}" class="warning-row">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <input type="hidden" name="action" value="ack">
     <input type="hidden" name="effect" value="{{ w.key }}">
@@ -28,7 +28,7 @@
 {% endif %}
 
 <h2>Fields</h2>
-<form method="post" action="/extract/{{ study }}" id="extract-form">
+<form method="post" action="{{ root }}/extract/{{ study }}" id="extract-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="action" value="save">
   <p class="field-help">Leave a field blank to keep it. Type <kbd>NR</kbd> if the paper does not report it.
@@ -100,7 +100,7 @@
 {% endif %}
 
 <h3>Add an effect</h3>
-<form method="get" action="/extract/{{ study }}" id="effect-preview">
+<form method="get" action="{{ root }}/extract/{{ study }}" id="effect-preview">
   <label>Design
     <select name="design">
       <option value="">(choose)</option>
@@ -133,7 +133,7 @@
 <p class="notice"><strong>{{ w.code }}</strong> {{ w.message }}</p>
 {% endfor %}
 {% if preview.computed %}
-<form method="post" action="/extract/{{ study }}" id="effect-save">
+<form method="post" action="{{ root }}/extract/{{ study }}" id="effect-save">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="action" value="save">
   <input type="hidden" name="effect_design" value="{{ design }}">
@@ -150,5 +150,5 @@
 </form>
 {% endif %}
 {% endif %}
-<p><a href="/extract">&larr; All studies</a></p>
+<p><a href="{{ root }}/extract">&larr; All studies</a></p>
 {% endblock %}

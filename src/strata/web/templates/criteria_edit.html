@@ -2,7 +2,7 @@
 {% block title %}{{ "Retire" if mode == "retire" else "Edit" }} {{ criterion.id }}{% endblock %}
 {% block content %}
 <h1>{{ "Retiring" if mode == "retire" else "Editing" }} {{ criterion.id }} &middot; {{ criterion.label }}</h1>
-<p><a href="/criteria">&larr; Back to criteria</a></p>
+<p><a href="{{ root }}/criteria">&larr; Back to criteria</a></p>
 
 {% if error %}
 <p class="error" role="alert">{{ error }}</p>
@@ -15,7 +15,7 @@
 
 <form
   method="post"
-  action="/criteria/{{ criterion.id }}/{{ mode }}"
+  action="{{ root }}/criteria/{{ criterion.id }}/{{ mode }}"
   id="criteria-form"
   data-auto-submit-on-change="direction"
 >

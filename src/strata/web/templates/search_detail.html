@@ -3,7 +3,7 @@
 {% block title %}{{ search.id }}{% endblock %}
 {% block content %}
 <h1>{{ search.id }}</h1>
-<p><a href="/searches">&larr; All searches</a></p>
+<p><a href="{{ root }}/searches">&larr; All searches</a></p>
 
 {% if error %}
 <p class="error" role="alert">{{ error }}</p>
@@ -30,8 +30,8 @@
 {% endif %}
 
 {% if search.peer_reviewed_by %}<p>Strategy peer reviewed by {{ search.peer_reviewed_by }}.</p>{% endif %}
-{% if search.supersedes %}<p>Replaces <a href="/searches/{{ search.supersedes | urlencode }}">{{ search.supersedes }}</a>.</p>{% endif %}
-{% if replaced_by %}<p class="notice">This search was re-run as <a href="/searches/{{ replaced_by | urlencode }}">{{ replaced_by }}</a>.</p>{% endif %}
+{% if search.supersedes %}<p>Replaces <a href="{{ root }}/searches/{{ search.supersedes | urlencode }}">{{ search.supersedes }}</a>.</p>{% endif %}
+{% if replaced_by %}<p class="notice">This search was re-run as <a href="{{ root }}/searches/{{ replaced_by | urlencode }}">{{ replaced_by }}</a>.</p>{% endif %}
 {% if search.export_files %}
 <p>Export files named when it was recorded: {{ search.export_files | join(", ") }}.</p>
 {% endif %}
@@ -71,13 +71,13 @@
 
 {% if not replaced_by %}
 <h2>Add export files</h2>
-<form method="post" action="/searches/{{ search.id | urlencode }}/files" enctype="multipart/form-data">
+<form method="post" action="{{ root }}/searches/{{ search.id | urlencode }}/files" enctype="multipart/form-data">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   {{ file_picker("export-files", "files", "Export files from this search", max_upload_mb, "(RIS, BibTeX, CSL-JSON, PubMed, EndNote XML, CSV, TSV or Excel)") }}
   <button type="submit" class="btn btn-include">Upload and review</button>
 </form>
 {% endif %}
 
-<p class="actions"><a href="/searches/new?supersedes={{ search.id | urlencode }}">Re-run this search (record a new version) &rarr;</a></p>
+<p class="actions"><a href="{{ root }}/searches/new?supersedes={{ search.id | urlencode }}">Re-run this search (record a new version) &rarr;</a></p>
 {% endblock %}
-{% block scripts %}<script src="/static/dropzone.js"></script>{% endblock %}
+{% block scripts %}<script src="{{ root }}/static/dropzone.js"></script>{% endblock %}

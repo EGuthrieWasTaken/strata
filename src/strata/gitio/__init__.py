@@ -9,12 +9,15 @@ swappable.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import io
 import os
 import shutil
 import subprocess
 import sys
 import tarfile
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 GIT_TIMEOUT_SECONDS = 60
@@ -43,6 +46,43 @@ def _own_script_dir() -> Path | None:
     return None
 
 
+#: Extra environment for every git command run in this context: the author and committer a hosted
+#: instance commits as, and how it authenticates to a project's remote
+#: (openspec:hosted-deployment#commit-attribution,
+#: openspec:hosted-deployment#instance-secrets-never-reach-a-repository). A context variable, not a
+#: process-wide setting, because one hosted process commits for several people at once; each
+#: request (and each background sync) sets its own.
+_EXTRA_ENV: contextvars.ContextVar[Mapping[str, str] | None] = contextvars.ContextVar(
+    "strata_git_extra_env", default=None
+)
+
+
+@contextlib.contextmanager
+def environment(extra: Mapping[str, str]) -> Iterator[None]:
+    """Run the git commands inside this block with `extra` added to their environment.
+
+    Nested blocks combine, the inner one winning for a name both set. The values reach git's
+    environment only, never its command line, so a credential passed here does not show up in a
+    process listing.
+    """
+    merged = {**(_EXTRA_ENV.get() or {}), **extra}
+    token = _EXTRA_ENV.set(merged)
+    try:
+        yield
+    finally:
+        _EXTRA_ENV.reset(token)
+
+
+def identity_env(*, author: tuple[str, str], committer: tuple[str, str]) -> dict[str, str]:
+    """The environment that makes git record `author` and `committer` (name, email) on a commit."""
+    return {
+        "GIT_AUTHOR_NAME": author[0],
+        "GIT_AUTHOR_EMAIL": author[1],
+        "GIT_COMMITTER_NAME": committer[0],
+        "GIT_COMMITTER_EMAIL": committer[1],
+    }
+
+
 def _env_for_hooks() -> dict[str, str] | None:
     """The environment to run git in, or `None` to inherit this process's.
 
@@ -63,6 +103,15 @@ def _env_for_hooks() -> dict[str, str] | None:
     return env
 
 
+def _command_env() -> dict[str, str] | None:
+    """The environment for one git command: the hook `PATH` fix, plus this context's extras."""
+    base = _env_for_hooks()
+    extra = _EXTRA_ENV.get()
+    if not extra:
+        return base
+    return {**(base if base is not None else os.environ), **extra}
+
+
 def run(
     args: list[str],
     *,
@@ -76,7 +125,7 @@ def run(
         capture_output=True,
         text=True,
         timeout=timeout,
-        env=_env_for_hooks(),
+        env=_command_env(),
     )
     if check and result.returncode != 0:
         # `git commit` says "nothing to commit" on stdout, so a failure can have an empty stderr.
@@ -205,6 +254,7 @@ def export_tree(path: Path, commit: str, dest: Path) -> None:
         cwd=path,
         capture_output=True,
         timeout=GIT_TIMEOUT_SECONDS,
+        env=_command_env(),
     )
     if archived.returncode != 0:
         raise GitError(

@@ -19,7 +19,7 @@ import difflib
 import json
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -42,7 +42,18 @@ _NETWORK_HINTS = (
     "couldn't connect", "could not read from remote", "ssl", "tls",
 )  # fmt: skip
 
-Resolver = Callable[["Conflict"], str | None]
+Resolver = Callable[["Conflict"], "str | Edited | None"]
+
+
+@dataclass(frozen=True)
+class Edited:
+    """A resolver's answer that is neither side but text a person wrote: the file's new content.
+
+    What the hosted instance's "edit" option returns, where there is no terminal editor to open
+    (openspec:hosted-deployment#automatic-git-sync-loop).
+    """
+
+    text: str
 
 
 class SyncError(Exception):
@@ -115,8 +126,18 @@ def _is_network_failure(stderr: str) -> bool:
     return any(hint in text for hint in _NETWORK_HINTS)
 
 
-def _retrying(action: Callable[[], Any], what: str, sleep: Callable[[float], None]) -> Any:
-    """Run a network step, retrying network failures up to four times with 2, 4, 8, 16 s backoff."""
+class NetworkError(SyncError):
+    """The remote could not be reached, after every retry the caller allowed."""
+
+
+def _retrying(
+    action: Callable[[], Any],
+    what: str,
+    sleep: Callable[[float], None],
+    backoff: Sequence[float] = BACKOFF,
+) -> Any:
+    """Run a network step, retrying network failures once per `backoff` delay (by default four
+    times, after 2, 4, 8 and 16 s)."""
     attempt = 0
     while True:
         try:
@@ -124,12 +145,13 @@ def _retrying(action: Callable[[], Any], what: str, sleep: Callable[[float], Non
         except gitio.GitError as exc:
             if not _is_network_failure(exc.stderr):
                 raise SyncError(f"{what} failed: {exc.stderr.strip()}") from None
-            if attempt >= len(BACKOFF):
-                tries = len(BACKOFF) + 1
-                raise SyncError(
-                    f"{what} failed after {tries} attempts (network): {exc.stderr.strip()}"
+            if attempt >= len(backoff):
+                tries = len(backoff) + 1
+                raise NetworkError(
+                    f"{what} failed after {tries} attempt{'s' if tries != 1 else ''} (network): "
+                    f"{exc.stderr.strip()}"
                 ) from None
-            sleep(BACKOFF[attempt])
+            sleep(backoff[attempt])
             attempt += 1
 
 
@@ -236,6 +258,16 @@ def _resolve_conflicts(repo: Repo, resolver: Resolver | None, report: SyncReport
         raise ConflictError("a human-authored file was edited differently by two people", conflicts)
     for conflict in conflicts:
         choice = resolver(conflict)
+        if isinstance(choice, Edited):
+            if any(marker in choice.text for marker in ("<<<<<<< ", "\n=======\n", ">>>>>>> ")):
+                raise ConflictError(
+                    f"the edited {conflict.path} still has conflict markers in it", [conflict]
+                )
+            target = repo.path(*conflict.path.split("/"))
+            target.write_text(choice.text, encoding="utf-8", newline="\n")
+            _git(repo, "add", "--", conflict.path)
+            report.resolved_conflicts.append((conflict.path, "edited"))
+            continue
         if choice == "mine":
             _git(repo, "checkout", "--ours", "--", conflict.path)
         elif choice == "theirs":
@@ -408,13 +440,14 @@ def _sync_round(
     sleep: Callable[[float], None],
     log: Callable[[str], None],
     report: SyncReport,
+    backoff: Sequence[float] = BACKOFF,
 ) -> bool:
     """One fetch-integrate-verify-commit pass; True when something was integrated or is to push."""
     branch = gitio.current_branch(repo.root)
     if branch == "HEAD":
         raise SyncError("the repository is not on a branch; switch to one before syncing")
     log("Fetching " + remote)
-    _retrying(lambda: gitio.fetch(repo.root, remote), "fetching", sleep)
+    _retrying(lambda: gitio.fetch(repo.root, remote), "fetching", sleep, backoff)
     upstream = f"refs/remotes/{remote}/{branch}"
     has_upstream = (
         _git(repo, "rev-parse", "--verify", "--quiet", upstream, check=False).returncode == 0
@@ -504,8 +537,14 @@ def sync(
     resolver: Resolver | None = None,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = lambda message: None,
+    backoff: Sequence[float] = BACKOFF,
 ) -> SyncReport:
-    """Run `strata sync` on `repo` as `actor`; returns what happened."""
+    """Run `strata sync` on `repo` as `actor`; returns what happened.
+
+    `backoff` is the delay before each retry of a network step; an empty one makes a single
+    attempt, for a caller that would rather report an unreachable remote at once and try again
+    later itself (the hosted instance's pull before a page).
+    """
     if gitio.is_dirty(repo.root):
         raise DirtyTreeError(
             "there are uncommitted changes; finish or record them with `strata` first (every "
@@ -525,6 +564,7 @@ def sync(
             sleep=sleep,
             log=log,
             report=report,
+            backoff=backoff,
         )
         if not push:
             return report
@@ -534,6 +574,7 @@ def sync(
                 lambda: _git(repo, "push", "-u", name, f"HEAD:refs/heads/{branch}"),
                 "pushing",
                 sleep,
+                backoff,
             )
         except SyncError as exc:
             if (

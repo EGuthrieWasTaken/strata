@@ -2,7 +2,7 @@
 {% block title %}Retrieve full texts{% endblock %}
 {% block content %}
 <h1>Retrieve full texts</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 <p data-testid="retrieval-counts">{{ counts.sought }} report{{ "s" if counts.sought != 1 else "" }} sought: {{ counts.retrieved }} retrieved, {{ counts.not_retrieved }} not retrievable, {{ counts.outstanding }} outstanding{% if counts.ill_requested %} ({{ counts.ill_requested }} on interlibrary loan){% endif %}.</p>
 <p class="field-help">strata records where each document came from and whether you could get it. It does not store the documents themselves.</p>
@@ -19,7 +19,7 @@
       <th scope="row">{{ r.citation }}</th>
       <td data-label="Title">{{ r.title }}</td>
       <td data-label="Status">{{ r.status_words }}</td>
-      <td data-label="Action"><a href="/retrieve/{{ r.report }}">Record what happened &rarr;</a></td>
+      <td data-label="Action"><a href="{{ root }}/retrieve/{{ r.report }}">Record what happened &rarr;</a></td>
     </tr>
     {% endfor %}
   </tbody>
@@ -40,7 +40,7 @@
       <th scope="row">{{ r.citation }}</th>
       <td data-label="Title">{{ r.title }}</td>
       <td data-label="Status">{{ r.status_words }}</td>
-      <td data-label="Action"><a href="/retrieve/{{ r.report }}">Change &rarr;</a></td>
+      <td data-label="Action"><a href="{{ root }}/retrieve/{{ r.report }}">Change &rarr;</a></td>
     </tr>
     {% endfor %}
   </tbody>

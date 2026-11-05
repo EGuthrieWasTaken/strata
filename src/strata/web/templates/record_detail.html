@@ -2,7 +2,7 @@
 {% block title %}{{ record.id }}{% endblock %}
 {% block content %}
 <h1>{{ record.id }}</h1>
-<p><a href="/records">&larr; Back to records</a></p>
+<p><a href="{{ root }}/records">&larr; Back to records</a></p>
 
 <article class="record-card">
   <h2>{{ record.title or "" }}</h2>
@@ -30,12 +30,12 @@
 <p class="notice" role="status" data-testid="unchanged-note">The record already has that value, so nothing was changed.</p>
 {% endif %}
 {% if shares_identity %}
-<p class="notice flag" data-testid="shares-identity"><span aria-hidden="true">&#9888;</span> This record is now identified the same way as {% for other in shares_identity %}<a href="/records/{{ other }}">{{ other }}</a>{{ ", " if not loop.last else "" }}{% endfor %}. They are probably the same paper: review them under <a href="/dedup">Duplicates</a>, or run <code>strata dedup</code>.</p>
+<p class="notice flag" data-testid="shares-identity"><span aria-hidden="true">&#9888;</span> This record is now identified the same way as {% for other in shares_identity %}<a href="{{ root }}/records/{{ other }}">{{ other }}</a>{{ ", " if not loop.last else "" }}{% endfor %}. They are probably the same paper: review them under <a href="{{ root }}/dedup">Duplicates</a>, or run <code>strata dedup</code>.</p>
 {% endif %}
 {% if error %}
 <p class="error" role="alert" data-testid="form-error">{{ error }}</p>
 {% endif %}
-<form method="post" action="/records/{{ record.id }}/fix" id="fix-form">
+<form method="post" action="{{ root }}/records/{{ record.id }}/fix" id="fix-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <label class="note-field">
     Field

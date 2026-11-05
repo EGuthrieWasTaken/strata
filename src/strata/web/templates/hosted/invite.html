@@ -1,0 +1,17 @@
+{% extends "hosted/base.html" %}
+{% block title %}Accept invitation{% endblock %}
+{% block content %}
+<h1>Welcome, {{ invited.display_name }}</h1>
+<p>You have been invited to this strata instance as <strong>{{ invited.username }}</strong>. Choose a password{% if providers %}, or sign in with a provider to link it to this account{% endif %}.</p>
+{% if error %}<p class="notice flag" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/invite/{{ token | urlencode }}" class="stacked-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+  <label for="password">Password (at least {{ min_length }} characters)</label>
+  <input id="password" name="password" type="password" autocomplete="new-password" required minlength="{{ min_length }}">
+  <button type="submit">Set password and sign in</button>
+</form>
+{% if providers %}
+<p>Or link a sign-in:
+  {% for p in providers %}<a href="/auth/{{ p.id | urlencode }}/start?invite={{ token | urlencode }}">{{ p.label }}</a>{{ " &middot; " | safe if not loop.last else "" }}{% endfor %}</p>
+{% endif %}
+{% endblock %}

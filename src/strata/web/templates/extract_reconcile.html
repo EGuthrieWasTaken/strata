@@ -6,7 +6,7 @@
 <p class="field-meta"><code>{{ study }}</code> &middot; reviewers: {{ handles | join(", ") }}</p>
 
 {% if agreed %}
-<form method="post" action="/extract/{{ study }}/reconcile">
+<form method="post" action="{{ root }}/extract/{{ study }}/reconcile">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="action" value="accept-agreements">
   <input type="hidden" name="commit_rationale" value="Accepted the values both reviewers agree on.">
@@ -38,7 +38,7 @@
 </table>
 
 {% for i in items %}{% if not i.agree and not i.resolved %}
-<form method="post" action="/extract/{{ study }}/reconcile" class="reconcile-item">
+<form method="post" action="{{ root }}/extract/{{ study }}/reconcile" class="reconcile-item">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="item" value="{{ i.id }}">
   <fieldset>
@@ -59,5 +59,5 @@
   <button type="submit" class="btn">Reconcile</button>
 </form>
 {% endif %}{% endfor %}
-<p><a href="/extract/{{ study }}">&larr; Back to the coding form</a></p>
+<p><a href="{{ root }}/extract/{{ study }}">&larr; Back to the coding form</a></p>
 {% endblock %}

@@ -131,8 +131,8 @@
   <h2 id="plots-h">Plots</h2>
   {% for plot in plots %}
   <figure class="plot-figure">
-    <img src="/analysis/{{ id }}/plots/{{ plot }}" alt="{{ plot[:-4] | capitalize }} plot of {{ estimates.k_studies }} studies, {{ estimates.measure }}">
-    <figcaption>{{ plot[:-4] | capitalize }} plot &middot; <a href="/analysis/{{ id }}/plots/{{ plot }}">open the SVG</a></figcaption>
+    <img src="{{ root }}/analysis/{{ id }}/plots/{{ plot }}" alt="{{ plot[:-4] | capitalize }} plot of {{ estimates.k_studies }} studies, {{ estimates.measure }}">
+    <figcaption>{{ plot[:-4] | capitalize }} plot &middot; <a href="{{ root }}/analysis/{{ id }}/plots/{{ plot }}">open the SVG</a></figcaption>
   </figure>
   {% endfor %}
 </section>
@@ -160,5 +160,5 @@
 </section>
 {% endif %}
 
-<p><a href="/analysis">&larr; All analyses</a> &middot; <a href="/">Dashboard</a></p>
+<p><a href="{{ root }}/analysis">&larr; All analyses</a> &middot; <a href="{{ root }}/">Dashboard</a></p>
 {% endblock %}

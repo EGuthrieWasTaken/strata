@@ -3,17 +3,17 @@
 {% block title %}Record a search{% endblock %}
 {% block content %}
 <h1>Record a search</h1>
-<p><a href="/searches">&larr; All searches</a></p>
+<p><a href="{{ root }}/searches">&larr; All searches</a></p>
 
 {% if error %}
 <p class="error" role="alert" data-testid="form-error">{{ error }}</p>
 {% endif %}
 
 {% if values.supersedes %}
-<p class="notice">A new version of <a href="/searches/{{ values.supersedes | urlencode }}">{{ values.supersedes }}</a>. The earlier record is kept as it is.</p>
+<p class="notice">A new version of <a href="{{ root }}/searches/{{ values.supersedes | urlencode }}">{{ values.supersedes }}</a>. The earlier record is kept as it is.</p>
 {% endif %}
 
-<form method="post" action="/searches" enctype="multipart/form-data" id="search-form">
+<form method="post" action="{{ root }}/searches" enctype="multipart/form-data" id="search-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="supersedes" value="{{ values.supersedes }}">
 
@@ -75,4 +75,4 @@
   <button type="submit" class="btn btn-include">Record the search</button>
 </form>
 {% endblock %}
-{% block scripts %}<script src="/static/dropzone.js"></script>{% endblock %}
+{% block scripts %}<script src="{{ root }}/static/dropzone.js"></script>{% endblock %}

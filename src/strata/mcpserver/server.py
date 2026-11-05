@@ -36,6 +36,7 @@ from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.repo import Repo, open_repo
+from strata.protocol import blinding as blinding_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import rescreen as rescreen_mod
 
@@ -161,7 +162,63 @@ class RepoTools:
         return [dataclasses.asdict(s) for s in stale]
 
 
-def create_mcp_server(*, repo_root: Path) -> MCPServer:
+class HostedRepoTools(RepoTools):
+    """`RepoTools` for one member of a hosted project, who may be blinded to their colleagues'
+    opinions (openspec:hosted-deployment#blinding-between-users).
+
+    The tools that can name a reviewer's opinion on a record leave out what the member must not
+    see yet: the stale decisions an impact preview lists, and history entries about one record at
+    one stage (an adjudication). The rest return nothing about any single reviewer's opinion.
+    """
+
+    def __init__(self, repo_root: Path, actor: str) -> None:
+        super().__init__(repo_root)
+        self._actor = actor
+
+    def log(
+        self,
+        criteria: bool = False,
+        stage: str | None = None,
+        actor: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Domain-level commit history read from `Strata-` commit trailers,
+        not raw commit messages -- the data behind `strata log`."""
+        entries = super().log(criteria=criteria, stage=stage, actor=actor)
+        blinded = blinding_mod.blinded_records(self._open(), self._actor)
+        return [
+            entry
+            for entry in entries
+            if entry["trailers"].get("Actor") == self._actor
+            or not blinding_mod.is_blinded(
+                blinded, entry["trailers"].get("Stage"), entry["trailers"].get("Record")
+            )
+        ]
+
+    def preview_criterion_change_impact(
+        self,
+        criterion_id: str,
+        direction: str,
+        origin: str = "edited",
+    ) -> list[dict[str, Any]]:
+        """Non-mutating preview of what changing one criterion this way
+        would stale, without writing anything -- the same computation
+        behind the web criteria editor's live impact panel
+        (openspec:web-ui#criteria-editor-impact-preview). `direction` is one of `tightened`,
+        `loosened`, `both`, or `editorial`; pass `origin="retired"` to
+        preview a retirement instead of an edit (direction is then
+        ignored, matching `strata criteria retire`'s own behaviour)."""
+        stale = super().preview_criterion_change_impact(criterion_id, direction, origin)
+        return blinding_mod.visible(stale, blinding_mod.blinded_records(self._open(), self._actor))
+
+
+def create_hosted_mcp_server(*, repo_root: Path, actor: str) -> MCPServer:
+    """The MCP server one hosted member's HTTP request is answered by
+    (openspec:hosted-deployment#remote-mcp-access): the same read-only tools, scoped to the member's
+    project and blinded for them."""
+    return create_mcp_server(repo_root=repo_root, tools=HostedRepoTools(repo_root, actor))
+
+
+def create_mcp_server(*, repo_root: Path, tools: RepoTools | None = None) -> MCPServer:
     """Build the stdio MCP server for the repository at `repo_root`.
 
     Every tool is registered straight off a bound `RepoTools` method, so
@@ -170,7 +227,7 @@ def create_mcp_server(*, repo_root: Path) -> MCPServer:
     method's docstring -- no separate schema to keep in sync by hand.
     """
     mcp: MCPServer[None] = MCPServer("strata", instructions=_INSTRUCTIONS)
-    tools = RepoTools(repo_root)
+    tools = tools if tools is not None else RepoTools(repo_root)
 
     mcp.tool()(tools.status)
     mcp.tool()(tools.why)

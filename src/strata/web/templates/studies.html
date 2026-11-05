@@ -2,7 +2,7 @@
 {% block title %}Group reports into studies{% endblock %}
 {% block content %}
 <h1>Group reports into studies</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 <p data-testid="study-counts">{{ report_count }} included report{{ "s" if report_count != 1 else "" }} &rarr; {{ study_count }} stud{{ "ies" if study_count != 1 else "y" }}.</p>
 <p class="field-help">Nothing is grouped for you. The suggestions below are evidence to weigh; each decision needs your reason and is recorded as its own commit.</p>
@@ -23,7 +23,7 @@
   </ul>
   <p>Why they may be one study:</p>
   <ul>{% for line in g.evidence %}<li>{{ line }}</li>{% endfor %}</ul>
-  <form method="post" action="/studies/group">
+  <form method="post" action="{{ root }}/studies/group">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     {% for r in g.reports %}<input type="hidden" name="reports" value="{{ r.report }}">{% endfor %}
     <label class="note-field">
@@ -44,7 +44,7 @@
 <section class="record-card" data-testid="split-suggestion">
   <p><strong>{{ s.citation }}</strong> &mdash; {{ s.title }} <span class="field-help">({{ s.report }})</span></p>
   <p>It may report {{ s.parts }} studies: &ldquo;{{ s.evidence }}&rdquo;.</p>
-  <form method="post" action="/studies/split">
+  <form method="post" action="{{ root }}/studies/split">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <input type="hidden" name="report" value="{{ s.report }}">
     <input type="hidden" name="parts" value="{{ s.parts }}">
@@ -61,7 +61,7 @@
 {% endif %}
 
 <h2>Group reports yourself</h2>
-<form method="post" action="/studies/group" id="group-form">
+<form method="post" action="{{ root }}/studies/group" id="group-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <fieldset class="criteria-list">
     <legend>Reports that belong to one study</legend>
@@ -80,7 +80,7 @@
 </form>
 
 <h2>Split a report yourself</h2>
-<form method="post" action="/studies/split" id="split-form">
+<form method="post" action="{{ root }}/studies/split" id="split-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <label class="note-field">
     Report

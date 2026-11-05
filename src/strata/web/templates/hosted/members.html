@@ -1,0 +1,36 @@
+{% extends "hosted/base.html" %}
+{% block title %}Members of {{ project.title }}{% endblock %}
+{% block content %}
+<p><a href="/p/{{ project.id | urlencode }}/">&larr; {{ project.title }}</a></p>
+<h1>Members</h1>
+{% if error %}<p class="notice flag" role="alert" data-testid="members-error">{{ error }}</p>{% endif %}
+<table data-testid="member-list">
+  <thead><tr><th scope="col">User</th><th scope="col">Actor</th><th scope="col">Role</th><th scope="col"></th></tr></thead>
+  <tbody>
+  {% for m in memberships %}
+  <tr>
+    <td>{{ m.username }}</td><td>{{ m.actor }}</td><td>{{ m.role }}</td>
+    <td>
+      <form method="post" action="/p/{{ project.id | urlencode }}/-/members/remove" class="inline-form">
+        <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+        <input type="hidden" name="username" value="{{ m.username }}">
+        <button type="submit">Remove</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<h2>Add or change a member</h2>
+<form method="post" action="/p/{{ project.id | urlencode }}/-/members" class="stacked-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+  <label for="username">User name on this instance</label>
+  <input id="username" name="username" required>
+  <label for="actor">Actor in strata.toml</label>
+  <select id="actor" name="actor">{% for a in actors %}<option value="{{ a.handle }}">{{ a.handle }} ({{ a.name }})</option>{% endfor %}</select>
+  <label for="role">Role</label>
+  <select id="role" name="role">{% for r in roles %}<option value="{{ r }}"{% if r == "screener" %} selected{% endif %}>{{ r }}</option>{% endfor %}</select>
+  <button type="submit">Save membership</button>
+</form>
+<p>An actor is added to the review itself (its <code>strata.toml</code>) with <code>strata actor add</code>; a membership only says which person on this instance acts as them.</p>
+{% endblock %}

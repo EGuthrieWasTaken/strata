@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Import results</h1>
 <p>
-  {% if search %}From search <a href="/searches/{{ search.id | urlencode }}">{{ search.id }}</a>.{% else %}Found by: {{ via_label }}.{% endif %}
+  {% if search %}From search <a href="{{ root }}/searches/{{ search.id | urlencode }}">{{ search.id }}</a>.{% else %}Found by: {{ via_label }}.{% endif %}
 </p>
 
 {% if error %}
@@ -37,9 +37,9 @@
 </table>
 
 <p class="actions">
-  {% if search %}<a href="/searches/{{ search.id | urlencode }}">Back to {{ search.id }} &rarr;</a>{% endif %}
-  <a href="/dedup">Check for duplicates &rarr;</a>
-  <a href="/records">Records &rarr;</a>
-  <a href="/">Dashboard &rarr;</a>
+  {% if search %}<a href="{{ root }}/searches/{{ search.id | urlencode }}">Back to {{ search.id }} &rarr;</a>{% endif %}
+  <a href="{{ root }}/dedup">Check for duplicates &rarr;</a>
+  <a href="{{ root }}/records">Records &rarr;</a>
+  <a href="{{ root }}/">Dashboard &rarr;</a>
 </p>
 {% endblock %}

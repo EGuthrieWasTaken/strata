@@ -35,6 +35,7 @@ from strata.analysis import spec as analysis_mod_spec
 from strata.ci import amendment as ci_amendment_mod
 from strata.ci import comment as ci_comment_mod
 from strata.ci import workflows as ci_workflows
+from strata.cli.host import host_app
 from strata.core import actor as actor_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
@@ -155,6 +156,7 @@ app.add_typer(export_app, name="export")
 app.add_typer(ci_app, name="ci")
 app.add_typer(zotero_app, name="zotero")
 app.add_typer(internal_app, name="internal")
+app.add_typer(host_app, name="host")
 
 err_console = Console(stderr=True)
 out_console = Console()
