@@ -172,7 +172,10 @@ class SyncLoop:
         project = self.instance.get_project(project_id)
         if project is None or project.remote is None:
             return
-        self._update(project_id, push_pending=1, pending_actor=actor, next_retry=None)
+        values: dict[str, Any] = {"push_pending": 1, "pending_actor": actor}
+        if self.status(project_id).failures == 0:
+            values["next_retry"] = None  # push now; after a failure, the backoff stands
+        self._update(project_id, **values)
         if self._on_change is not None:
             self._on_change()
 

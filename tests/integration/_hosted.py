@@ -52,14 +52,27 @@ class FakeClock:
         self.now += seconds
 
 
-def seed_review(tmp_path: Path, name: str = "seed", *, title: str = "Spacing review", records: int = 6) -> Repo:
+def seed_review(
+    tmp_path: Path,
+    name: str = "seed",
+    *,
+    title: str = "Spacing review",
+    records: int = 6,
+    first: int = 1,
+) -> Repo:
     """A review with a lead, two screeners and an observer, criteria and imported records."""
     root = tmp_path / name
     init_repository(root, title=title, actor_handle="ethan", actor_name="Ethan Guthrie",
                     actor_email="ethan@example.org")  # fmt: skip
     repo = open_repo(root)
     add_actor(repo, handle="sam", name="Sam Okonkwo", email="sam@example.org", role="screener")
-    add_actor(open_repo(root), handle="priya", name="Priya Raman", email="priya@example.org", role="screener")
+    add_actor(
+        open_repo(root),
+        handle="priya",
+        name="Priya Raman",
+        email="priya@example.org",
+        role="screener",
+    )
     add_actor(open_repo(root), handle="olive", name="Olive Observer", role="observer")
     repo = open_repo(root)
     for kind, label in (("inclusion", "Human participants"), ("exclusion", "Wrong population")):
@@ -67,7 +80,13 @@ def seed_review(tmp_path: Path, name: str = "seed", *, title: str = "Spacing rev
             repo, kind=kind, label=label, definition=label + ".",  # type: ignore[arg-type]
             applies_at=["title-abstract", "full-text"], actor="ethan", rationale="Protocol.",
         )  # fmt: skip
-    import_into(repo, tmp_path, f"{name}-export.json", list(range(1, records + 1)), search_id=search(repo, "MEDLINE"))
+    import_into(
+        repo,
+        tmp_path,
+        f"{name}-export.json",
+        list(range(first, first + records)),
+        search_id=search(repo, "MEDLINE"),
+    )
     gitio.add_all(repo.root)
     gitio.commit(repo.root, "seed: the shared review\n\nStrata-Op: test\nStrata-Actor: ethan\n")
     return open_repo(root)
@@ -111,13 +130,17 @@ class Hosted:
         return self.clients[username]
 
 
-def make_instance(tmp_path: Path, *, clock: FakeClock | None = None, environ: dict[str, str] | None = None) -> Instance:
+def make_instance(
+    tmp_path: Path, *, clock: FakeClock | None = None, environ: dict[str, str] | None = None
+) -> Instance:
     instance = Instance(tmp_path / "data", environ=environ if environ is not None else {})
     instance.initialise(public_url=PUBLIC_URL)
     return instance
 
 
-def hosted(tmp_path: Path, *, records: int = 6, users: dict[str, tuple[str, str]] | None = None) -> Hosted:
+def hosted(
+    tmp_path: Path, *, records: int = 6, users: dict[str, tuple[str, str]] | None = None
+) -> Hosted:
     """An instance serving one project, `spacing`, cloned from a bare remote, with accounts for
     `USERS` (and any others given)."""
     clock = FakeClock()
@@ -126,9 +149,13 @@ def hosted(tmp_path: Path, *, records: int = 6, users: dict[str, tuple[str, str]
     instance = make_instance(tmp_path)
     instance.add_project("spacing", remote=str(bare))
     for username, (actor, role) in (users or USERS).items():
-        accounts.add_user(instance.store, username, display_name=username.title(), password=PASSWORD)
+        accounts.add_user(
+            instance.store, username, display_name=username.title(), password=PASSWORD
+        )
         members_mod.add_member(instance, "spacing", username, actor=actor, role=role)
-    server = HostedServer(instance, public_url=parse_public_url(PUBLIC_URL), background=False, clock=clock)
+    server = HostedServer(
+        instance, public_url=parse_public_url(PUBLIC_URL), background=False, clock=clock
+    )
     return Hosted(instance=instance, server=server, clock=clock, bare=bare)
 
 
@@ -143,7 +170,12 @@ def sign_in(client: TestClient, username: str, password: str = PASSWORD) -> Test
     assert page.status_code == 200, page.text
     response = client.post(
         "/signin",
-        data={"csrf_token": csrf_from(page.text), "username": username, "password": password, "next": "/"},
+        data={
+            "csrf_token": csrf_from(page.text),
+            "username": username,
+            "password": password,
+            "next": "/",
+        },
     )
     assert response.status_code == 303, response.text
     return client
@@ -156,12 +188,16 @@ def session_csrf(client: TestClient, project: str = "spacing") -> str:
 
 
 def post(client: TestClient, path: str, data: dict[str, Any], *, project: str = "spacing") -> Any:
-    return client.post(f"/p/{project}{path}", data={"csrf_token": session_csrf(client, project), **data})
+    return client.post(
+        f"/p/{project}{path}", data={"csrf_token": session_csrf(client, project), **data}
+    )
 
 
 def event_lines(repo: Repo) -> dict[str, list[str]]:
     """Every event file's lines, by path: what must be identical everywhere after a sync."""
     found = {}
     for path in sorted(repo.path("events").rglob("*.ndjson")):
-        found[path.relative_to(repo.root).as_posix()] = sorted(path.read_text(encoding="utf-8").splitlines())
+        found[path.relative_to(repo.root).as_posix()] = sorted(
+            path.read_text(encoding="utf-8").splitlines()
+        )
     return found

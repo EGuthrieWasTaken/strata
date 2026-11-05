@@ -32,7 +32,9 @@ def _record_ids(h) -> list[str]:  # type: ignore[no-untyped-def]
 
 
 def _screen_events(h, actor: str) -> list[dict]:  # type: ignore[no-untyped-def]
-    return [e for e in screening_mod.all_screen_events(h.repo, "title-abstract") if e["actor"] == actor]
+    return [
+        e for e in screening_mod.all_screen_events(h.repo, "title-abstract") if e["actor"] == actor
+    ]
 
 
 # ------------------------------------------------------------------------ security baseline
@@ -56,7 +58,9 @@ def test_plain_http_public_url_needs_local_testing_mode(tmp_path: Path) -> None:
 
     h = hosted(tmp_path)
     with pytest.raises(HostedConfigError):
-        HostedServer(h.instance, public_url=parse_public_url("http://localhost:8000"), background=False)
+        HostedServer(
+            h.instance, public_url=parse_public_url("http://localhost:8000"), background=False
+        )
     server = HostedServer(
         h.instance, public_url=parse_public_url("http://localhost:8000"), allow_plain_http=True,
         background=False,
@@ -65,7 +69,9 @@ def test_plain_http_public_url_needs_local_testing_mode(tmp_path: Path) -> None:
 
     from strata.web.hosted import create_hosted_app
 
-    client = TestClient(create_hosted_app(server), base_url="http://localhost:8000", follow_redirects=False)
+    client = TestClient(
+        create_hosted_app(server), base_url="http://localhost:8000", follow_redirects=False
+    )
     sign_in(client, "sam.okonkwo")
     assert client.get("/p/spacing/").status_code == 200
 
@@ -75,7 +81,9 @@ def test_host_and_origin_are_checked_against_the_public_url(tmp_path: Path) -> N
     client = h.client()
     assert client.get("/signin", headers={"host": "evil.example"}).status_code == 400
     assert client.get("/signin", headers={"origin": "https://evil.example"}).status_code == 400
-    assert client.get("/signin", headers={"origin": "https://strata.example.test"}).status_code == 200
+    assert (
+        client.get("/signin", headers={"origin": "https://strata.example.test"}).status_code == 200
+    )
     # The health probe answers whatever address the orchestrator uses, and says nothing else.
     health = client.get("/healthz", headers={"host": "10.0.0.5:8000"})
     assert health.status_code == 200
@@ -87,10 +95,15 @@ def test_session_cookie_is_secure_httponly_strict_and_expires(tmp_path: Path) ->
     client = h.client()
     page = client.get("/signin")
     response = client.post(
-        "/signin", data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD}
+        "/signin",
+        data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD},
     )
     assert response.status_code == 303
-    cookie = next(v for k, v in response.headers.multi_items() if k == "set-cookie" and "__Host-strata_session" in v)
+    cookie = next(
+        v
+        for k, v in response.headers.multi_items()
+        if k == "set-cookie" and "__Host-strata_session" in v
+    )
     lowered = cookie.lower()
     assert "secure" in lowered and "httponly" in lowered and "samesite=strict" in lowered
     assert "max-age=43200" in lowered and "path=/" in lowered
@@ -106,7 +119,9 @@ def test_signin_form_needs_its_csrf_token(tmp_path: Path) -> None:
     h = hosted(tmp_path)
     client = h.client()
     client.get("/signin")
-    response = client.post("/signin", data={"csrf_token": "forged", "username": "sam.okonkwo", "password": PASSWORD})
+    response = client.post(
+        "/signin", data={"csrf_token": "forged", "username": "sam.okonkwo", "password": PASSWORD}
+    )
     assert response.status_code == 403
 
 
@@ -116,12 +131,18 @@ def test_password_guessing_is_cooled_off_and_logged(tmp_path: Path) -> None:
     for _ in range(accounts.MAX_FAILURES_PER_ACCOUNT):
         page = client.get("/signin")
         response = client.post(
-            "/signin", data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": "wrong password!"}
+            "/signin",
+            data={
+                "csrf_token": csrf_from(page.text),
+                "username": "sam.okonkwo",
+                "password": "wrong password!",
+            },
         )
         assert response.status_code == 401
     page = client.get("/signin")
     response = client.post(
-        "/signin", data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD}
+        "/signin",
+        data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD},
     )
     assert response.status_code == 429
     assert "__Host-strata_session" not in response.headers.get("set-cookie", "")
@@ -131,7 +152,8 @@ def test_password_guessing_is_cooled_off_and_logged(tmp_path: Path) -> None:
     h.clock.advance(accounts.LOCKOUT + 1)
     page = client.get("/signin")
     response = client.post(
-        "/signin", data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD}
+        "/signin",
+        data={"csrf_token": csrf_from(page.text), "username": "sam.okonkwo", "password": PASSWORD},
     )
     assert response.status_code == 303
 
@@ -174,7 +196,9 @@ def test_unauthenticated_requests_cannot_record_a_decision(tmp_path: Path) -> No
     h = hosted(tmp_path)
     client = h.client()
     record = _record_ids(h)[0]
-    response = client.post("/p/spacing/screen/title-abstract", data={"record_id": record, "decision": "include"})
+    response = client.post(
+        "/p/spacing/screen/title-abstract", data={"record_id": record, "decision": "include"}
+    )
     assert response.status_code == 401
     assert client.get("/p/spacing/").status_code == 303
     assert screening_mod.all_screen_events(h.repo, "title-abstract") == []
@@ -199,7 +223,10 @@ def test_invitation_sets_a_password_once(tmp_path: Path) -> None:
     client = h.client()
     page = client.get(f"/invite/{token}")
     assert page.status_code == 200 and "Priya" in page.text
-    response = client.post(f"/invite/{token}", data={"csrf_token": csrf_from(page.text), "password": "a brand new password"})
+    response = client.post(
+        f"/invite/{token}",
+        data={"csrf_token": csrf_from(page.text), "password": "a brand new password"},
+    )
     assert response.status_code == 303
     assert client.get("/").status_code == 200
     assert h.client().get(f"/invite/{token}").status_code == 404
@@ -245,9 +272,21 @@ def test_roles_are_enforced_on_every_route(tmp_path: Path) -> None:
     sam = h.signed_in("sam.okonkwo")
     # Only adjudicators (and leads) see or resolve the adjudication queue.
     assert sam.get("/p/spacing/adjudicate/title-abstract").status_code == 403
-    assert post(sam, "/adjudicate/title-abstract", {"record_id": "x", "decision": "include"}).status_code == 403
+    assert (
+        post(
+            sam, "/adjudicate/title-abstract", {"record_id": "x", "decision": "include"}
+        ).status_code
+        == 403
+    )
     # A screener cannot change the protocol, import, or manage members.
-    assert post(sam, "/criteria/INC-01/edit", {"direction": "editorial", "rationale": "Tidying the wording."}).status_code == 403
+    assert (
+        post(
+            sam,
+            "/criteria/INC-01/edit",
+            {"direction": "editorial", "rationale": "Tidying the wording."},
+        ).status_code
+        == 403
+    )
     assert post(sam, "/dedup/run", {"rationale": "Merging duplicates now."}).status_code == 403
     assert sam.get("/p/spacing/-/members").status_code == 403
     ethan = h.signed_in("ethan.g")
@@ -263,7 +302,9 @@ def test_matrix_of_capabilities() -> None:
     assert need("POST", "/criteria") == members_mod.LEAD
     assert need("POST", "/something-new") == members_mod.LEAD  # default deny
     assert not may("observer", members_mod.SCREEN)
-    assert may("adjudicator", members_mod.ADJUDICATE) and not may("screener", members_mod.ADJUDICATE)
+    assert may("adjudicator", members_mod.ADJUDICATE) and not may(
+        "screener", members_mod.ADJUDICATE
+    )
     assert may("extractor", members_mod.EXTRACT) and not may("extractor", members_mod.SCREEN)
     assert may("lead", members_mod.LEAD)
 
@@ -274,14 +315,24 @@ def test_lead_manages_members_in_the_browser(tmp_path: Path) -> None:
     ethan = h.signed_in("ethan.g")
     page = ethan.get("/p/spacing/-/members")
     csrf = csrf_from(page.text)
-    added = ethan.post("/p/spacing/-/members", data={"csrf_token": csrf, "username": "priya", "actor": "priya", "role": "screener"})
+    added = ethan.post(
+        "/p/spacing/-/members",
+        data={"csrf_token": csrf, "username": "priya", "actor": "priya", "role": "screener"},
+    )
     assert added.status_code == 303
     assert members_mod.membership(h.instance, "spacing", "priya") is not None
-    taken = ethan.post("/p/spacing/-/members", data={"csrf_token": csrf, "username": "priya", "actor": "sam", "role": "screener"})
+    taken = ethan.post(
+        "/p/spacing/-/members",
+        data={"csrf_token": csrf, "username": "priya", "actor": "sam", "role": "screener"},
+    )
     assert taken.status_code == 422 and "already belongs" in taken.text
-    lone_lead = ethan.post("/p/spacing/-/members/remove", data={"csrf_token": csrf, "username": "ethan.g"})
+    lone_lead = ethan.post(
+        "/p/spacing/-/members/remove", data={"csrf_token": csrf, "username": "ethan.g"}
+    )
     assert lone_lead.status_code == 422
-    removed = ethan.post("/p/spacing/-/members/remove", data={"csrf_token": csrf, "username": "priya"})
+    removed = ethan.post(
+        "/p/spacing/-/members/remove", data={"csrf_token": csrf, "username": "priya"}
+    )
     assert removed.status_code == 303
     assert members_mod.membership(h.instance, "spacing", "priya") is None
 
