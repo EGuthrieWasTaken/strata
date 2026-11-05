@@ -27,7 +27,7 @@ from tests.integration.test_mcp_agents import (
     _server,
     _write,
 )
-from tests.unit._m5 import finished_review
+from tests.unit._m5 import canonical_ids, finished_review
 from tests.unit._m6 import AGENT, MODEL
 from tests.unit.test_extract_records import FORM
 
@@ -187,3 +187,174 @@ def test_items_9_and_11_name_the_model_that_extracted_and_assessed(
         "in count mode 1 risk-of-bias judgement took effect as the model's own work" in items["11"]
     )
     assert "No automation tools" not in items["9"] + items["11"]
+
+
+# ------------------------------------------------ the remaining families, in each mode
+
+
+def test_grouping_and_splitting_studies_obey_the_modes(world: tuple[Repo, list[str]]) -> None:
+    repo, _ = world
+    reports = studies_mod.included_reports(repo)
+    free = [r for r in reports if len(studies_mod.study_map(repo).studies_of[r]) == 1]
+    repo = _policy(repo, studies="suggest")
+    suggested = _write(repo, "group_reports", reports=free[:2])
+    assert suggested["recorded"] == "suggestion" and not _agent_events(repo, "study")
+    repo = _policy(repo, studies="count")
+    grouped = _write(repo, "group_reports", reports=free[:2])
+    assert grouped["recorded"] == "event"
+    (group_event,) = _agent_events(repo, "study")
+    assert group_event["agent"]["model"] == MODEL and group_event["body"]["reports"] == sorted(
+        free[:2]
+    )
+    split = _write(repo, "split_report", report=free[-1], parts=2)
+    assert split["recorded"] == "event"
+    split_event = [e for e in _agent_events(repo, "study") if e["ev"] == "study-split"][0]
+    assert len(split_event["body"]["studies"]) == 2
+
+
+def test_a_study_operation_the_real_one_would_refuse_is_refused(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    repo = _policy(repo, studies="count")
+    one = _call(
+        _server(repo),
+        "split_report",
+        {"model": MODEL, "rationale": WHY, "report": "rpt_0000000000000000", "parts": 2},
+    )
+    assert one.is_error and "not an included report" in one.text
+    few = _call(
+        _server(repo),
+        "group_reports",
+        {"model": MODEL, "rationale": WHY, "reports": ["rpt_0000000000000000"]},
+    )
+    assert few.is_error and "not included reports" in few.text
+    assert not _agent_events(repo, "study")
+
+
+def test_adding_and_retiring_a_criterion_in_count_mode(world: tuple[Repo, list[str]]) -> None:
+    from strata.protocol import criteria as criteria_mod
+
+    repo, _ = world
+    repo = _policy(repo, criteria="count")
+    before = int(criteria_mod.read_criteria_doc(repo)["version"])
+    added = _write(
+        repo,
+        "add_criterion",
+        kind="exclusion",
+        label="Animal study",
+        definition="Not on people.",
+        applies_at=["title-abstract"],
+    )
+    assert added["recorded"] == "event" and added["preview"]["stale_decisions"] >= 0
+    repo = open_repo(repo.root)
+    assert int(criteria_mod.read_criteria_doc(repo)["version"]) == before + 1
+    new_id = max(c["id"] for c in criteria_mod.list_criteria(repo) if c["label"] == "Animal study")
+    retired = _write(repo, "retire_criterion", criterion=new_id)
+    assert retired["recorded"] == "event"
+    assert criteria_mod.get_criterion(open_repo(repo.root), new_id)["status"] == "retired"
+    changes = [e for e in _agent_events(repo, "criteria") if e["ev"] == "criteria-change"]
+    assert len(changes) == 2 and all(e["agent"]["model"] == MODEL for e in changes)
+
+
+def test_deduplication_decisions_in_count_mode(world: tuple[Repo, list[str]]) -> None:
+    repo, _ = world
+    repo = _policy(repo, dedup="count")
+    first, second, third = canonical_ids(repo)[:3]
+    kept = _write(repo, "decide_duplicate", a=first, b=second, decision="distinct")
+    assert kept["recorded"] == "event"
+    (distinct,) = _agent_events(repo, "dedup")
+    assert distinct["ev"] == "dedup-distinct" and distinct["agent"]["invoked_by"] == "sam"
+    again = _call(
+        _server(repo),
+        "decide_duplicate",
+        {"model": MODEL, "rationale": WHY, "a": first, "b": second, "decision": "merge"},
+    )
+    assert again.is_error and "already been judged" in again.text
+    merged = _write(repo, "decide_duplicate", a=second, b=third, decision="merge")
+    assert merged["recorded"] == "event"
+    assert {e["ev"] for e in _agent_events(repo, "dedup")} == {"dedup-distinct", "dedup-merge"}
+
+
+def test_a_duplicate_decision_about_nothing_is_refused_for_the_real_reason(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    repo = _policy(repo, dedup="count")
+    only = canonical_ids(repo)[0]
+    server = _server(repo)
+    for args, needle in (
+        ({"a": only, "b": only, "decision": "merge"}, "itself"),
+        ({"a": only, "b": "rec_0000000000000000", "decision": "merge"}, "no record"),
+        ({"a": only, "b": canonical_ids(repo)[1], "decision": "maybe"}, "'merge' or 'distinct'"),
+    ):
+        reply = _call(server, "decide_duplicate", {"model": MODEL, "rationale": WHY, **args})
+        assert reply.is_error and needle in reply.text
+    assert not _has_events(repo, "dedup")
+
+
+def test_recording_a_search_in_count_mode_commits_it_as_the_agents_work(
+    world: tuple[Repo, list[str]],
+) -> None:
+    from strata import gitio
+
+    repo, _ = world
+    repo = _policy(repo, search_import="count")
+    result = _write(
+        repo, "record_search", database="PsycINFO", platform="EBSCO", executed="2026-01-05",
+        query="spaced practice AND recall",
+    )  # fmt: skip
+    assert result["recorded"] == "work" and result["committed"] is True
+    assert list(repo.path("protocol", "searches").glob("*psycinfo*.yaml"))
+    message = gitio.commit_message(repo.root, "HEAD")
+    assert "Strata-Op: search-add" in message and f"Strata-Agent: {AGENT}" in message
+    duplicate = _call(
+        _server(repo),
+        "record_search",
+        {
+            "model": MODEL,
+            "rationale": WHY,
+            "database": "PsycINFO",
+            "platform": "EBSCO",
+            "executed": "2026-01-05",
+            "search_id": result_id(repo),
+        },
+    )
+    assert duplicate.is_error and "already exists" in duplicate.text
+
+
+def result_id(repo: Repo) -> str:
+    return sorted(p.stem for p in repo.path("protocol", "searches").glob("*psycinfo*.yaml"))[0]
+
+
+def test_the_diagram_tool_refuses_a_format_or_layout_it_cannot_draw(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    repo = _policy(repo, analysis="count")
+    server = _server(repo)
+    bad_format = _call(server, "draw_prisma", {"model": MODEL, "rationale": WHY, "format": "gif"})
+    assert bad_format.is_error and "format must be one of" in bad_format.text
+    bad_columns = _call(
+        server, "draw_prisma", {"model": MODEL, "rationale": WHY, "columns": "three"}
+    )
+    assert bad_columns.is_error and "columns must be one of" in bad_columns.text
+    assert not (repo.root / "reports" / "prisma.svg").exists()
+
+
+def test_a_note_and_a_correction_need_something_real_to_say(world: tuple[Repo, list[str]]) -> None:
+    repo, _ = world
+    repo = _policy(repo, records="count")
+    record = canonical_ids(repo)[0]
+    server = _server(repo)
+    empty = _call(
+        server, "add_note", {"model": MODEL, "rationale": WHY, "record": record, "text": "   "}
+    )
+    assert empty.is_error and "needs some text" in empty.text
+    nobody = _call(
+        server,
+        "add_note",
+        {"model": MODEL, "rationale": WHY, "record": "rec_0000000000000000", "text": "x"},
+    )
+    assert nobody.is_error and "no record" in nobody.text
+    assert not _has_events(repo, "note")
