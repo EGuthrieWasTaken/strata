@@ -841,3 +841,78 @@ def test_an_agent_has_no_way_to_force_past_a_guardrail_or_acknowledge_a_warning(
 
     schema = asyncio.run(run())["run_analysis"]
     assert set(schema["properties"]) == {"model", "rationale", "analysis"}
+
+
+# ------------------------------------------------------------------------- adjudication
+
+
+def _conflict(repo: Repo, ids: list[str]) -> Repo:
+    """`ethan` and `sam` disagree about the first record."""
+    decide(repo, STAGE, ids[:1], "include", actors=("sam",))
+    screening_mod.record_screen_decision(
+        repo, stage=STAGE, record_id=ids[0], decision="exclude", actor="ethan", cited=["EXC-01"]
+    )
+    pool_mod.regenerate_all(repo)
+    return open_repo(repo.root)
+
+
+def test_adjudication_is_a_suggestion_a_person_with_the_authority_can_adopt(
+    world: tuple[Repo, list[str]],
+) -> None:
+    from strata.core import agent_ops
+
+    repo, ids = world
+    repo = _policy(_conflict(repo, ids), adjudication="suggest")
+    result = _write(repo, "adjudicate_conflict", stage=STAGE, record=ids[0], decision="include")
+    assert result["recorded"] == "suggestion"
+    assert screening_mod.resolve_record_state(repo, STAGE, ids[0]).status == "conflict"
+    done = agent_ops.adopt(
+        open_repo(repo.root), result["id"], by="ethan", rationale="Agree: the trial is eligible."
+    )
+    after = open_repo(repo.root)
+    assert screening_mod.resolve_record_state(after, STAGE, ids[0]).status == "include"
+    (event,) = [e for e in after_adjudications(after) if e["id"] in done.event_ids]
+    assert event["actor"] == "ethan" and "agent" not in event
+
+
+def after_adjudications(repo: Repo) -> list[dict[str, Any]]:
+    return screening_mod.all_adjudicate_events(repo, STAGE)
+
+
+def test_an_agent_that_is_an_adjudicator_resolves_a_conflict_in_count_mode(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, ids = world
+    repo = _conflict(repo, ids)
+    doc = load_manifest_doc(repo.root)
+    doc["screening"]["adjudicators"] = ["ethan", AGENT]  # a person's decision, in the manifest
+    write_manifest(repo.root, doc)
+    repo = _policy(open_repo(repo.root), adjudication="count")
+    result = _write(
+        repo,
+        "adjudicate_conflict",
+        stage=STAGE,
+        record=ids[0],
+        decision="exclude",
+        criteria=["EXC-01"],
+    )
+    assert (result["mode"], result["recorded"]) == ("count", "event")
+    (event,) = [e for e in after_adjudications(open_repo(repo.root)) if e["actor"] == AGENT]
+    assert event["agent"]["model"] == MODEL and event["body"]["decision"] == "exclude"
+    assert (
+        screening_mod.resolve_record_state(open_repo(repo.root), STAGE, ids[0]).status == "exclude"
+    )
+
+
+def test_an_agent_that_is_not_an_adjudicator_is_refused_for_the_real_reason(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, ids = world
+    repo = _policy(_conflict(repo, ids), adjudication="count")
+    reply = _call(
+        _server(repo),
+        "adjudicate_conflict",
+        {"model": MODEL, "rationale": WHY, "stage": STAGE, "record": ids[0], "decision": "include"},
+    )
+    assert reply.is_error and "is not an adjudicator" in reply.text
+    assert not after_adjudications(repo)

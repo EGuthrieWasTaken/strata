@@ -73,6 +73,10 @@ class OpSpec:
     summary: Callable[[Mapping[str, Any]], str]
     record: Callable[[Mapping[str, Any]], str | None] = lambda _args: None
     stage: Callable[[Mapping[str, Any]], str | None] = lambda _args: None
+    #: For an operation only some people may perform: who to validate a *proposal* as. A suggestion
+    #: is a proposal to someone with that authority, who is checked again when they adopt it; the
+    #: agent making it is checked only when it acts itself (`count`). `None`: validate as the agent.
+    proposal_actor: Callable[[Repo], str | None] | None = None
 
 
 def _impact(stale: Sequence[rescreen_mod.StaleRecord]) -> dict[str, Any]:
@@ -212,6 +216,17 @@ def _check_note(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str)
         raise SuggestionError("a note needs some text")
 
 
+def _an_adjudicator(repo: Repo) -> str | None:
+    """An active person who may adjudicate in this review, to validate a proposal as."""
+    configured = set(repo.config.get("screening", {}).get("adjudicators") or [])
+    for actor in repo.config.get("actors", []):
+        if actor.get("kind", "human") == "agent" or actor.get("role") == "inactive":
+            continue
+        if actor["handle"] in configured or actor.get("role") in ("adjudicator", "lead"):
+            return str(actor["handle"])
+    return None
+
+
 def _check_adjudicate(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
     adjudication_mod.record_adjudication(
         repo,
@@ -325,6 +340,7 @@ OPS: dict[str, OpSpec] = {
             summary=lambda a: f"adjudicate {a['record']} as {a['decision']} at {a['stage']}",
             record=lambda a: str(a["record"]),
             stage=lambda a: str(a["stage"]),
+            proposal_actor=_an_adjudicator,
         ),
         OpSpec(
             name="retrieval",
@@ -477,15 +493,26 @@ def check_arguments(spec: OpSpec, args: Mapping[str, Any]) -> None:
 
 
 def validate_operation(
-    repo: Repo, op: str, args: Mapping[str, Any], *, actor: str, rationale: str
+    repo: Repo,
+    op: str,
+    args: Mapping[str, Any],
+    *,
+    actor: str,
+    rationale: str,
+    proposal: bool = False,
 ) -> dict[str, Any] | None:
     """Run the real operation's checks without writing; the impact preview of a criteria change.
 
     Raises the operation's own error (a `ScreeningError`, `CriteriaError`, and so on) for what it
-    would refuse, so a suggestion is refused for the same reason a real decision would be.
+    would refuse, so a suggestion is refused for the same reason a real decision would be. With
+    `proposal`, an operation reserved to people with some authority is checked as one of them
+    (`OpSpec.proposal_actor`), because the agent only proposes and the person who adopts it is
+    checked again.
     """
     spec = spec_for(op)
     check_arguments(spec, args)
+    if proposal and spec.proposal_actor is not None:
+        actor = spec.proposal_actor(repo) or actor
     return spec.check(repo, args, actor, rationale)
 
 
@@ -627,7 +654,9 @@ def make_suggestion(
     if not text:
         raise SuggestionError("a rationale is required: say why the agent suggests this")
     clean = {k: v for k, v in dict(args).items() if v is not None}
-    preview = validate_operation(repo, op, clean, actor=context.actor, rationale=text)
+    preview = validate_operation(
+        repo, op, clean, actor=context.actor, rationale=text, proposal=True
+    )
     spec = spec_for(op)
     target = spec.target(clean)
     body: dict[str, Any] = {

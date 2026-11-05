@@ -157,7 +157,7 @@ def test_the_lists_name_no_command_that_does_not_exist() -> None:
     listed = (
         set(AGENT_COMMANDS) | RESERVED_FOR_PEOPLE | READ_ONLY | set(NOT_YET_AVAILABLE_TO_AGENTS)
     )
-    assert listed - commands == {"ai revoke", "ai report"}  # arrive with the ledger (group 4)
+    assert listed - commands == set()
 
 
 def test_every_write_tool_is_the_tool_for_some_command_and_the_other_way_round() -> None:
