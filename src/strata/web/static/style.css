@@ -464,3 +464,15 @@ fieldset.review-choices {
     font-weight: 600;
   }
 }
+
+/* Agent work is labelled with an icon and words, never colour alone. */
+.ai-label, .person-label {
+  display: inline-flex;
+  gap: 0.35em;
+  align-items: baseline;
+  padding: 0.05em 0.5em;
+  border: 1px solid currentColor;
+  border-radius: 0.6em;
+  font-size: 0.9em;
+}
+.ai-label .ai-detail { font-weight: normal; }

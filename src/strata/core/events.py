@@ -62,6 +62,26 @@ def agent_scope(actor: str, agent: Mapping[str, Any]) -> Iterator[None]:
         _AGENT_SCOPE.reset(token)
 
 
+_COLLECTED: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar(
+    "strata_collected_events", default=None
+)
+
+
+@contextlib.contextmanager
+def collect_event_ids() -> Iterator[list[str]]:
+    """Collect the id of every event built inside the block, in order.
+
+    For an operation that must say which events it produced (adopting a suggestion links the
+    suggestion to them) without every protocol function threading its result back up.
+    """
+    ids: list[str] = []
+    token = _COLLECTED.set(ids)
+    try:
+        yield ids
+    finally:
+        _COLLECTED.reset(token)
+
+
 def current_agent_actor() -> str | None:
     """The handle of the agent whose write is in progress, if one is."""
     scope = _AGENT_SCOPE.get()
@@ -120,6 +140,9 @@ def build_envelope(
     if prev is not None:
         envelope["prev"] = prev
     envelope["digest"] = compute_digest(envelope)
+    collected = _COLLECTED.get()
+    if collected is not None:
+        collected.append(str(envelope["id"]))
     return envelope
 
 

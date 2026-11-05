@@ -27,7 +27,9 @@
         "rob",
         "criteria-change",
         "relink",
-        "note"
+        "note",
+        "suggestion",
+        "suggestion-resolve"
       ]
     },
     "id": {
@@ -80,6 +82,7 @@
     }
   },
   "$defs": {
+    "event_id": { "type": "string", "pattern": "^ev_[0-9a-hjkmnp-tv-z]{26}$" },
     "report_id": { "type": "string", "pattern": "^rpt_[0-9a-z]{16}$" },
     "study_id": { "type": "string", "pattern": "^std_[0-9a-z]{16}$" },
     "retrieval_version": {
@@ -97,6 +100,42 @@
     }
   },
   "allOf": [
+    {
+      "if": { "properties": { "ev": { "const": "suggestion" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "description": "openspec:event-log#suggestion-events: an operation an agent proposes, with its exact arguments. Takes no part in any fold, count or view.",
+            "type": "object",
+            "required": ["op", "args", "rationale", "criteria_version"],
+            "properties": {
+              "op": { "type": "string", "minLength": 1 },
+              "args": { "type": "object" },
+              "rationale": { "type": "string", "minLength": 1 },
+              "criteria_version": { "type": "integer", "minimum": 0 },
+              "preview": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "ev": { "const": "suggestion-resolve" } }, "required": ["ev"] },
+      "then": {
+        "properties": {
+          "body": {
+            "type": "object",
+            "required": ["suggestion", "outcome", "reason"],
+            "properties": {
+              "suggestion": { "$ref": "#/$defs/event_id" },
+              "outcome": { "enum": ["adopted", "rejected", "superseded"] },
+              "reason": { "type": "string", "minLength": 1 },
+              "result": { "type": "array", "items": { "$ref": "#/$defs/event_id" } }
+            }
+          }
+        }
+      }
+    },
     {
       "if": { "properties": { "ev": { "const": "retrieval" } }, "required": ["ev"] },
       "then": {

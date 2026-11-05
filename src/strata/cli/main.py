@@ -36,6 +36,7 @@ from strata.ci import amendment as ci_amendment_mod
 from strata.ci import comment as ci_comment_mod
 from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
+from strata.core import agent_ops as agent_ops_mod
 from strata.core import agents as agents_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
@@ -87,6 +88,7 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.protocol import suggestions as suggestions_mod
 from strata.report import bibliography as bibliography_mod
 from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
@@ -154,9 +156,15 @@ ai_app = typer.Typer(
     help="Optional: decide whether, where and how far AI agents may take part in this review.",
     no_args_is_help=True,
 )
+suggestions_app = typer.Typer(
+    name="suggestions",
+    help="Optional: what an AI agent has proposed, for a person to adopt or reject.",
+    no_args_is_help=True,
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
 app.add_typer(ai_app, name="ai")
+app.add_typer(suggestions_app, name="suggestions")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
@@ -967,6 +975,194 @@ def ai_policy(
     )
 
 
+def _suggestion_payload(item: suggestions_mod.Suggestion) -> dict[str, Any]:
+    """A suggestion as `--json` prints it: who proposed it (the model as reported, and the person
+    who started the agent), what, and where it stands."""
+    client = item.agent.get("client") or {}
+    payload: dict[str, Any] = {
+        "id": item.id,
+        "ts": item.ts,
+        "status": item.status,
+        "agent": item.actor,
+        "model": item.agent.get("model"),
+        "model_is_self_reported": True,
+        "client": client or None,
+        "invoked_by": item.agent.get("invoked_by"),
+        "op": item.op,
+        "kind": item.kind,
+        "target": item.target,
+        "summary": item.summary,
+        "args": item.args,
+        "rationale": item.rationale,
+        "criteria_version": item.criteria_version,
+    }
+    if item.record:
+        payload["record"] = item.record
+    if item.stage:
+        payload["stage"] = item.stage
+    if item.preview is not None:
+        payload["preview"] = item.preview
+    if item.resolution is not None:
+        payload["resolution"] = item.resolution
+    return payload
+
+
+def _suggestion_line(item: suggestions_mod.Suggestion) -> str:
+    model = item.agent.get("model", "?")
+    return (
+        f"{item.id}  {item.kind or item.op:<12} {item.summary}\n"
+        f"    by {item.actor} (model {model}, self-reported; invoked by "
+        f"{item.agent.get('invoked_by', '?')})"
+    )
+
+
+@suggestions_app.command("list")
+def suggestions_list(
+    ctx: typer.Context,
+    all_statuses: bool = typer.Option(False, "--all", help="Include adopted, rejected, superseded"),
+    by: str | None = typer.Option(
+        None, "--by", help="Who is looking: suggestions hidden from them by blinding are left out"
+    ),
+) -> None:
+    """List the suggestions waiting for a person (the pending ones; `--all` for the rest).
+
+    While reviewers are blinded, a suggestion about a record is not shown to a reviewer assigned to
+    it until they have recorded their own opinion; with no `--by` the list is the one safe to show
+    anyone."""
+    repo = _resolve_repo(ctx)
+    items = (
+        suggestions_mod.suggestions(repo)
+        if all_statuses
+        else agent_ops_mod.visible_pending(repo, by)
+    )
+    if all_statuses and agent_ops_mod.is_blinded(repo):
+        hidden = {s.id for s in suggestions_mod.pending(repo)} - {
+            s.id for s in agent_ops_mod.visible_pending(repo, by)
+        }
+        items = [s for s in items if s.id not in hidden]
+    if ctx.obj["json"]:
+        _print_json([_suggestion_payload(s) for s in items])
+        return
+    if not items:
+        out_console.print("no suggestions waiting")
+        return
+    for item in items:
+        out_console.print(escape(_suggestion_line(item)))
+
+
+def _find_suggestion(repo: Repo, suggestion_id: str) -> suggestions_mod.Suggestion:
+    try:
+        return suggestions_mod.get_suggestion(repo, suggestion_id)
+    except suggestions_mod.SuggestionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+
+@suggestions_app.command("show")
+def suggestions_show(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="Who is looking: a suggestion blinding hides from them is not shown"
+    ),
+) -> None:
+    """Show one suggestion in full: the proposal, the agent's reasons and what became of it."""
+    repo = _resolve_repo(ctx)
+    item = _find_suggestion(repo, suggestion_id)
+    hidden = item.status == suggestions_mod.PENDING and item.id not in {
+        s.id for s in agent_ops_mod.visible_pending(repo, by)
+    }
+    if hidden:
+        err_console.print(
+            "[red]error:[/] this suggestion is about a record that has not been decided yet, and "
+            "reviewers are blinded; it is shown once the record is decided"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    if ctx.obj["json"]:
+        _print_json(_suggestion_payload(item))
+        return
+    out_console.print(escape(_suggestion_line(item)))
+    out_console.print(escape(f"    status: {item.status}"))
+    out_console.print(
+        escape(f"    suggested: {item.op} {json_mod.dumps(item.args, sort_keys=True)}")
+    )
+    out_console.print(escape(f"    reason given: {item.rationale}"))
+    out_console.print(escape(f"    made under criteria v{item.criteria_version}"))
+    if item.preview is not None:
+        out_console.print(escape(f"    impact: {json_mod.dumps(item.preview, sort_keys=True)}"))
+    if item.resolution is not None:
+        by = item.resolution.get("by", "?")
+        out_console.print(escape(f"    {item.status} by {by}: {item.resolution.get('reason', '')}"))
+        for event_id in item.result:
+            out_console.print(f"    -> {event_id}")
+
+
+@suggestions_app.command("adopt")
+def suggestions_adopt(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="The person adopting (default: the review's only active person)"
+    ),
+    confirm: bool = typer.Option(
+        False, "--confirm", help="Adopt even though the review changed since it was suggested"
+    ),
+) -> None:
+    """Adopt a suggestion: the operation is recorded as yours, with your rationale (--why).
+
+    The suggestion is checked again against the review as it is now. The events written are your
+    opinion, not the agent's, and the suggestion is linked to them."""
+    repo = _resolve_repo(ctx)
+    if ctx.obj["no_commit"]:
+        err_console.print("[red]error:[/] adopting a suggestion always commits; drop --no-commit")
+        raise typer.Exit(EXIT_USAGE)
+    item = _find_suggestion(repo, suggestion_id)
+    _preflight_rationale(ctx, repo, always=True)
+    rationale = _get_required_rationale(ctx, repo, f"You are adopting: {item.summary}.")
+    try:
+        done = agent_ops_mod.adopt(repo, item.id, by=by, rationale=rationale, confirm_moved=confirm)
+    except agent_ops_mod.AdoptionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(
+            EXIT_CONFLICT if isinstance(exc, agent_ops_mod.StateMoved) else EXIT_USAGE
+        ) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json({"suggestion": done.suggestion, "by": done.person, "events": done.event_ids})
+        return
+    out_console.print(
+        f"[green]adopted[/] {done.suggestion}: recorded as {done.person}'s own "
+        f"({len(done.event_ids)} event(s))"
+    )
+
+
+@suggestions_app.command("reject")
+def suggestions_reject(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="The person rejecting (default: the review's only active person)"
+    ),
+) -> None:
+    """Reject a suggestion; your reason (--why) is kept with it and it is not offered again."""
+    repo = _resolve_repo(ctx)
+    item = _find_suggestion(repo, suggestion_id)
+    _preflight_rationale(ctx, repo, always=True)
+    reason = _get_required_rationale(ctx, repo, f"You are rejecting: {item.summary}.")
+    try:
+        done = agent_ops_mod.reject(repo, item.id, by=by, reason=reason)
+    except agent_ops_mod.AdoptionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json(_suggestion_payload(done))
+        return
+    out_console.print(f"[green]rejected[/] {done.id}")
+
+
 @search_app.command("add")
 def search_add(
     ctx: typer.Context,
@@ -1548,7 +1744,11 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
 
     if ctx.obj["json"]:
         _print_json(
-            [{"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail} for e in entries]
+            [
+                {"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail}
+                | ({"agent": e.agent} if e.agent else {})
+                for e in entries
+            ]
         )
         return
 
@@ -1561,6 +1761,8 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
         ts = f" {entry.ts}" if entry.ts else ""
         actor = f" by {entry.actor}" if entry.actor else ""
         out_console.print(f"\n[bold]{entry.kind.upper()}[/]{ts}{actor}")
+        if entry.agent:
+            out_console.print(f"  [bold]{escape(provenance_mod.ai_label(entry.agent))}[/]")
         for key, value in entry.detail.items():
             out_console.print(f"  {key}: {value}")
 

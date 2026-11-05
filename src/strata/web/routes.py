@@ -63,6 +63,8 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from strata import gitio
+from strata.core import agent_ops as agent_ops_mod
+from strata.core import agents as agents_mod
 from strata.core import fieldedit as fieldedit_mod
 from strata.core import filters as filters_mod
 from strata.core import logcmd as logcmd_mod
@@ -164,6 +166,7 @@ async def dashboard(request: Request) -> HTMLResponse:
     state: AppState = request.app.state.strata
     repo = state.open_repo()
     report = status_mod.compute_status(repo)
+    enabled = agents_mod.is_enabled(repo)
     return _render(
         request,
         "dashboard.html",
@@ -171,6 +174,11 @@ async def dashboard(request: Request) -> HTMLResponse:
             "report": report,
             "actor": state.actor,
             "awaiting_export": pipeline_mod.searches_awaiting_import(repo),
+            "ai_enabled": enabled,
+            "ai_policy": {
+                kind: mode for kind, mode in agents_mod.policy(repo).items() if mode != "off"
+            },
+            "ai_pending": len(agent_ops_mod.visible_pending(repo, state.actor)) if enabled else 0,
         },
     )
 

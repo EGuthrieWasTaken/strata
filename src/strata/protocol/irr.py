@@ -27,6 +27,7 @@ from strata.core.canon import canonical_json
 from strata.core.fold import fold_first_write
 from strata.core.repo import Repo
 from strata.protocol import screening as screening_mod
+from strata.protocol import suggestions as suggestions_mod
 
 _BINARY = frozenset({"include", "exclude"})
 _ROUND_DP = 6
@@ -50,6 +51,9 @@ class PairIrr:
     #: Whether either side is an AI agent. Agreement with a model is reported, never mixed into
     #: agreement between people (openspec:ai-participation#people-and-agents-are-counted-apart).
     involves_agent: bool = False
+    #: Records left out because a suggestion may have informed either reviewer's first opinion
+    #: (openspec:ai-suggestions#suggestions-respect-blinding). Reported when there are any.
+    excluded_informed: int = 0
 
 
 def _first_opinions_by_actor(repo: Repo, stage: str) -> dict[str, dict[str, dict[str, Any]]]:
@@ -86,10 +90,15 @@ def compute_pair_irr(repo: Repo, stage: str, actor_a: str, actor_b: str) -> Pair
     a_opinions = first.get(actor_a, {})
     b_opinions = first.get(actor_b, {})
     common_ids = sorted(set(a_opinions) & set(b_opinions))
+    informed = suggestions_mod.informed_opinions(repo, stage)
+    excluded_informed = 0
 
     both_include = a_include_b_exclude = a_exclude_b_include = both_exclude = 0
     excluded_maybe = 0
     for record_id in common_ids:
+        if a_opinions[record_id]["id"] in informed or b_opinions[record_id]["id"] in informed:
+            excluded_informed += 1
+            continue
         decision_a = a_opinions[record_id]["body"]["decision"]
         decision_b = b_opinions[record_id]["body"]["decision"]
         if decision_a not in _BINARY or decision_b not in _BINARY:
@@ -113,6 +122,7 @@ def compute_pair_irr(repo: Repo, stage: str, actor_a: str, actor_b: str) -> Pair
         actor_a=actor_a,
         actor_b=actor_b,
         involves_agent=actor_a in agents or actor_b in agents,
+        excluded_informed=excluded_informed,
         n=n,
         excluded_maybe=excluded_maybe,
         table={
@@ -160,6 +170,8 @@ def pair_payload(pair: PairIrr) -> dict[str, Any]:
     }
     if pair.involves_agent:
         payload["involves_agent"] = True
+    if pair.excluded_informed:
+        payload["excluded_informed"] = pair.excluded_informed
     return payload
 
 

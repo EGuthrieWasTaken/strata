@@ -99,9 +99,13 @@ def group_reports(
     actor: str,
     rationale: str,
     study: str | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Make `reports` one study. With `study`, redefine that existing study instead of minting
-    a new id (ids are permanent: openspec:record-identity#identifiers-for-other-entities)."""
+    a new id (ids are permanent: openspec:record-identity#identifiers-for-other-entities).
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been written
+    is returned as `{"dry_run": True, "body": ...}`."""
     text = _require_rationale(rationale)
     unique = sorted(set(reports))
     if not unique:
@@ -115,13 +119,18 @@ def group_reports(
         raise StudyError(f"no study {study!r}")
     body = {"study": study or new_study_id(), "reports": unique, "rationale": text}
     validate_event_body("study-group", body)
+    if dry_run:
+        return {"dry_run": True, "body": body}
     return append_new_event(_events_path(repo, actor), ev="study-group", actor=actor, body=body)
 
 
 def split_report(
-    repo: Repo, *, report: str, parts: int, actor: str, rationale: str
+    repo: Repo, *, report: str, parts: int, actor: str, rationale: str, dry_run: bool = False
 ) -> dict[str, Any]:
-    """Split one report into `parts` independent studies (a multi-experiment paper)."""
+    """Split one report into `parts` independent studies (a multi-experiment paper).
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been written
+    is returned as `{"dry_run": True, "body": ...}`."""
     text = _require_rationale(rationale)
     if parts < 2:
         raise StudyError("a report is split into at least 2 studies")
@@ -129,6 +138,8 @@ def split_report(
         raise StudyError(f"not an included report: {report}")
     body = {"report": report, "studies": [new_study_id() for _ in range(parts)], "rationale": text}
     validate_event_body("study-split", body)
+    if dry_run:
+        return {"dry_run": True, "body": body}
     return append_new_event(_events_path(repo, actor), ev="study-split", actor=actor, body=body)
 
 

@@ -311,12 +311,17 @@ def record_screen_decision(
     cited: list[str] | None = None,
     note: str | None = None,
     confidence: str | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Append one `screen` event: openspec:event-log#event-types.
 
     A reviewer who changes their mind simply calls this again for the same
     `(stage, record_id, actor)` -- last-write-wins already handles the
     correction (`u`ndo in the CLI/web UI is exactly this, not a delete).
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been
+    written is returned as `{"dry_run": True, "body": ...}`. That is how a suggestion is validated
+    exactly as the real decision would be (openspec:ai-suggestions#a-suggestion-changes-nothing).
     """
     body = _validate_and_build_body(
         repo,
@@ -328,6 +333,8 @@ def record_screen_decision(
         confidence=confidence,
         imported=False,
     )
+    if dry_run:
+        return {"dry_run": True, "body": body}
     return append_new_event(
         _screen_events_path(repo, stage, actor), ev="screen", actor=actor, body=body
     )

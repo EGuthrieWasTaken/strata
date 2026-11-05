@@ -32,12 +32,18 @@ screening as; it is required if the review has more than one actor. Stop it with
 | Studies | `/studies` | Included reports grouped into studies, with the suggestions and their evidence, and forms to group or split (each needs a reason; nothing is applied for you) |
 | Records | `/records`, `/records/<id>` | A searchable table (the same `--filter` language) and a record's full detail and provenance, with a form to correct a field |
 | History | `/history` | The domain-level log: who did what, and why |
+| Suggestions | `/suggestions` | Only when [AI participation](Using-AI-in-a-Review) is on: what an AI assistant proposed, each with its reason and the model and person behind it, to adopt as your own or reject, each with your reason |
 | Extraction | `/extract`, `/extract/<study>` | The coding form, with the effect size shown as you type; reconciliation at `/extract/<study>/reconcile` |
 | Risk of bias | `/rob`, `/rob/<study>` | Domain-by-domain assessment with the algorithm's suggestion |
 | Analyses | `/analysis`, `/analysis/<id>` | The committed results and plots, and whether they are stale |
 | PRISMA | `/prisma` | The flow diagram |
 
 Sharing with `strata sync`, running analyses and writing the reports are command-line only so far.
+
+When AI participation is on, the dashboard says so and which kinds of work are open to it, and anything an
+assistant did is marked with an icon **and** the words "AI", the model as it reported itself and the person who
+started it (never colour alone) on a record's timeline, on the adjudication screen next to each opinion, and in
+the history. See [Using AI in a review](Using-AI-in-a-Review).
 
 ### Recording a search and importing its results
 

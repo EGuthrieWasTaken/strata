@@ -240,6 +240,7 @@ def create_app(
     from strata.web.routes import router
     from strata.web.search_routes import router as search_router
     from strata.web.study_routes import router as study_router
+    from strata.web.suggestion_routes import router as suggestion_router
     from strata.web.workflow_routes import router as workflow_router
 
     app.include_router(router)
@@ -250,5 +251,6 @@ def create_app(
     app.include_router(workflow_router)
     app.include_router(retrieval_router)
     app.include_router(study_router)
+    app.include_router(suggestion_router)
 
     return app

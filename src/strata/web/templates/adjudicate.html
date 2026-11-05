@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_ai.html" import ai_label, person_label %}
 {% block title %}{{ stage }} adjudicate{% endblock %}
 {% block content %}
 {% if record is none %}
@@ -27,7 +28,8 @@
   <tbody>
     {% for actor, event in opinions %}
     <tr>
-      <th scope="row">{{ actor }}</th>
+      <th scope="row">{{ actor }}
+        {% if event.agent %}{{ ai_label(event.agent) }}{% else %}{{ person_label() }}{% endif %}</th>
       <td>{{ event.body.decision | upper }}</td>
       <td>{{ event.body.criteria | join(", ") }}</td>
       <td>{{ event.body.note or "" }}</td>

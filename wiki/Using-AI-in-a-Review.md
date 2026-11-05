@@ -9,10 +9,10 @@ Methods text.
 AI participation is **off by default**. A review that never turns it on behaves exactly as it always has,
 and nothing in it changes format.
 
-> **This page grows with the feature.** The policy, registering a model, the second file format, and the
-> labelling of agreement are in this version. The assistant's own tools (suggesting and recording decisions
-> over MCP) and the generated disclosure arrive in later stages of the same change, and this page will cover
-> them as they do. Until then an assistant cannot write to a review through `strata`.
+> **This page grows with the feature.** The policy, registering a model, the second file format, the
+> labelling of agreement and **suggestions** are in this version. The assistant's own tools (proposing and
+> recording decisions over MCP) and the generated disclosure arrive in later stages of the same change, and
+> this page will cover them as they do. Until then an assistant cannot write to a review through `strata`.
 
 ## What is and is not recorded
 
@@ -133,6 +133,80 @@ The rules:
 - An assistant can only be registered after `strata ai enable`.
 - It is removed with `strata ai revoke`, not `strata actor deactivate`, because losing standing is more than
   switching a role off. `actor deactivate` on an assistant says so.
+
+## Suggestions: what an assistant proposes
+
+In `suggest` mode an assistant does not change the review. It **proposes**, and a proposal waits for a
+person. A suggestion is checked exactly as the real action would be (an exclusion without a criterion is
+refused for the reason a real exclusion would be), is recorded with the assistant's reason, and then changes
+nothing: not the pool, not the conflicts, not the PRISMA counts, not what is stale. Suggestions are counted
+in the ledger and the generated disclosure, never as decisions.
+
+```
+strata suggestions list --by ethan
+```
+
+```
+ev_01m6n1qdfcxrgx51n08m67wp6f  screening    include rec_0000000000000001 at title-abstract
+    by claude-opus (model claude-opus-5-5, self-reported; invoked by sam)
+```
+
+`strata suggestions show ID` gives the proposal in full: the arguments, the assistant's reason, the criteria
+version it was made under, and (for a change to the criteria) how many decisions it would make stale.
+
+**Adopting** a suggestion makes it yours. The action is run *as you*, after checking it again against the
+review as it is now, with *your* reason; the decision recorded is your own, with no mark of the assistant on
+it, and the suggestion is linked to it. `strata why` shows both together.
+
+```
+strata --why "Agree: it is a randomised trial in schoolchildren reporting recall." suggestions adopt ev_01m6n1qdfcxrgx51n08m67wp6f --by ethan
+```
+
+```
+adopted ev_01m6n1qdfcxrgx51n08m67wp6f: recorded as ethan's own (1 event(s))
+```
+
+```
+strata suggestions show ev_01m6n1qdfcxrgx51n08m67wp6f
+```
+
+```
+ev_01m6n1qdfcxrgx51n08m67wp6f  screening    include rec_0000000000000001 at title-abstract
+    by claude-opus (model claude-opus-5-5, self-reported; invoked by sam)
+    status: adopted
+    suggested: screen {"decision": "include", "record": "rec_0000000000000001", "stage": "title-abstract"}
+    reason given: Spaced-practice RCT in schoolchildren; reports recall.
+    made under criteria v2
+    adopted by ethan: Agree: it is a randomised trial in schoolchildren reporting recall.
+    -> ev_01m6n1r8x309w6s03q3x6y1m69
+```
+
+- If the **criteria changed** since the suggestion was made, you are told what changed and must confirm
+  (`--confirm`) before adopting it against the review as it now stands.
+- If the action would now be **refused** (the criterion it cited has been retired, say), adopting says so and
+  records nothing.
+- An observer, and an assistant, cannot adopt.
+- **Rejecting** (`strata --why "..." suggestions reject ID`) keeps the suggestion and your reason in the
+  record and does not offer it again. A reason is required.
+- A **newer suggestion** from the same assistant about the same thing supersedes an earlier one that nobody
+  has dealt with; only the latest is waiting, and the earlier one is shown as superseded.
+
+In the browser, the same list is at `/suggestions` (see [The web interface](The-Web-Interface)).
+
+### Suggestions and blinding
+
+A suggestion is something that could steer a reviewer. While the review blinds its reviewers
+(`[screening] blind_reviewers`, on by default), a suggestion about a record is **not shown** to a reviewer
+assigned to that record until they have recorded their own opinion. They do not see it in the list, in the
+browser or in `strata why`. `strata suggestions list` and `show` take `--by` to say who is looking; with no
+`--by` the list is the one safe to show anyone.
+
+Some teams want AI-first screening. Set `show_suggestions = "always"` under `[ai]` (it is a setting in
+`strata.toml`, in [Configuration](Configuration#ai)) and reviewers see suggestions at once. `strata` then
+marks an opinion recorded after a suggestion about the same record could have been seen, and any opinion that
+came from adopting one, as **informed by it**, and leaves it out of agreement between independent
+reviewers. `derived/irr.json` and `strata irr` count the records left out (`excluded_informed`). Under the
+default, a reviewer's first opinion is made before they can see anything, so it stays independent.
 
 ## An assistant is not a reviewer until you assign it
 

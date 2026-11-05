@@ -23,6 +23,22 @@ All notable changes to `strata` are documented here. Format follows
   Agreement pairs that involve an agent are labelled `involves_agent` in `derived/irr.json` and in
   `strata irr`, and person-to-person figures are unchanged. See
   [Using AI in a review](wiki/Using-AI-in-a-Review.md).
+- **Suggestions** (`strata suggestions list | show | adopt | reject`, `/suggestions`; OpenSpec change
+  `add-ai-participation`, group 2). In `suggest` mode an assistant proposes and a person decides. A
+  suggestion is validated by the real operation's own checks without its write (a `dry_run` on the screening,
+  criteria, retrieval, studies and adjudication functions), recorded as a `suggestion` event in
+  `events/suggestion/<agent>.ndjson` and taking part in no fold, count or view, so it cannot move a result.
+  A criteria suggestion carries the number of decisions it would make stale. Adopting runs the operation as
+  the person, after checking it again against the review as it now is, with their own rationale: the events
+  are theirs, carry no `agent` key, and one `suggestion-resolve` event in the same commit links the
+  suggestion to them; if the criteria changed since, they must confirm. Rejecting keeps the reason. A later
+  suggestion from the same agent for the same thing supersedes an earlier unresolved one. While reviewers
+  are blinded a suggestion about a record is hidden from a reviewer assigned to it until they have decided
+  (`[ai] show_suggestions = "always"` shows it at once, and opinions that could have been steered by one are
+  left out of independent agreement, `excluded_informed`). `strata why` now lists the screening and
+  adjudication decisions on a record, once the record is decided, with the AI label on an agent's, and the
+  suggestions made about it; the web interface labels agent work with an icon and the words "AI", the
+  reported model and the person who started it, never by colour alone.
 - **`strata migrate` and format 2.** Required by the repository format since it was written and never
   needed until now. A review stays in format 1 and behaves exactly as before until its lead asks for a
   feature that needs format 2 (`strata ai enable` runs the migration in the same commit) or runs

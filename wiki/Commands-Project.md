@@ -4,7 +4,7 @@ Create, clone and check a review; settings; the team; history. Part of the [Comm
 
 > This page is generated from the program's own help text by `scripts/build_wiki_reference.py`. Do not edit it by hand; change the help text in the code and regenerate.
 
-Contents: [`init`](#strata-init), [`clone`](#strata-clone), [`doctor`](#strata-doctor), [`config`](#strata-config), [`actor`](#strata-actor), [`ai`](#strata-ai), [`migrate`](#strata-migrate), [`verify`](#strata-verify), [`status`](#strata-status), [`log`](#strata-log), [`diff`](#strata-diff), [`version`](#strata-version)
+Contents: [`init`](#strata-init), [`clone`](#strata-clone), [`doctor`](#strata-doctor), [`config`](#strata-config), [`actor`](#strata-actor), [`ai`](#strata-ai), [`suggestions`](#strata-suggestions), [`migrate`](#strata-migrate), [`verify`](#strata-verify), [`status`](#strata-status), [`log`](#strata-log), [`diff`](#strata-diff), [`version`](#strata-version)
 
 ## `strata init`
 
@@ -158,6 +158,85 @@ strata ai policy [KIND] [MODE]
 |---|---|---|
 | `kind` | optional | A kind of work; omit to list them all |
 | `mode` | optional | off, suggest or count; omit to show the mode |
+
+Guide: [Using AI in a review](Using-AI-in-a-Review)
+
+## `strata suggestions`
+
+Optional: what an AI agent has proposed, for a person to adopt or reject.
+
+```
+strata suggestions COMMAND
+```
+
+### `strata suggestions list`
+
+List the suggestions waiting for a person (the pending ones; `--all` for the rest).
+
+While reviewers are blinded, a suggestion about a record is not shown to a reviewer assigned to
+it until they have recorded their own opinion; with no `--by` the list is the one safe to show
+anyone.
+
+```
+strata suggestions list [OPTIONS]
+```
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--all` | flag |  | Include adopted, rejected, superseded |
+| `--by` | str |  | Who is looking: suggestions hidden from them by blinding are left out |
+
+### `strata suggestions show`
+
+Show one suggestion in full: the proposal, the agent's reasons and what became of it.
+
+```
+strata suggestions show [OPTIONS] SUGGESTION_ID
+```
+
+| Argument | | Meaning |
+|---|---|---|
+| `suggestion_id` | required |  |
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--by` | str |  | Who is looking: a suggestion blinding hides from them is not shown |
+
+### `strata suggestions adopt`
+
+Adopt a suggestion: the operation is recorded as yours, with your rationale (--why).
+
+The suggestion is checked again against the review as it is now. The events written are your
+opinion, not the agent's, and the suggestion is linked to them.
+
+```
+strata suggestions adopt [OPTIONS] SUGGESTION_ID
+```
+
+| Argument | | Meaning |
+|---|---|---|
+| `suggestion_id` | required |  |
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--by` | str |  | The person adopting (default: the review's only active person) |
+| `--confirm` | flag |  | Adopt even though the review changed since it was suggested |
+
+### `strata suggestions reject`
+
+Reject a suggestion; your reason (--why) is kept with it and it is not offered again.
+
+```
+strata suggestions reject [OPTIONS] SUGGESTION_ID
+```
+
+| Argument | | Meaning |
+|---|---|---|
+| `suggestion_id` | required |  |
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--by` | str |  | The person rejecting (default: the review's only active person) |
 
 Guide: [Using AI in a review](Using-AI-in-a-Review)
 
