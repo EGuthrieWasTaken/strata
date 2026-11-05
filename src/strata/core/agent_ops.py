@@ -542,13 +542,23 @@ def act(
         clean["path"] = str(confine_path(repo, str(clean["path"]), allow_dirs))
 
     if authorised.mode == agents_mod.MODE_SUGGEST:
-        event = sugg.make_suggestion(repo, context=context, op=op, args=clean, rationale=text)
+        with repo_lock(repo) as _held, agents_mod.acting_as(context):
+            event = sugg.make_suggestion(repo, context=context, op=op, args=clean, rationale=text)
+            committed = ops_mod.commit_domain_work(
+                repo,
+                op="suggestion",
+                scope=spec.kind,
+                summary=f"suggest: {spec.summary(clean)}",
+                actor=context.actor,
+                extra_trailers={"Suggestion": event["id"], "Kind": spec.kind},
+                rationale=text,
+            )
         return Acted(
             mode=authorised.mode,
             recorded="suggestion",
             id=event["id"],
             event_ids=(event["id"],),
-            committed=False,
+            committed=committed,
             preview=event["body"].get("preview"),
             message=(
                 "Recorded as a suggestion; nothing in the review changed. A person decides "

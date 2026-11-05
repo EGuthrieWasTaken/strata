@@ -151,7 +151,18 @@ def _commit(
 
 #: Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
 COUNT_NEUTRAL_OPS = frozenset(
-    {"extract", "reconcile", "rob", "analyze", "prisma", "report", "zotero-link", "zotero-push"}
+    {
+        "extract",
+        "reconcile",
+        "rob",
+        "analyze",
+        "prisma",
+        "report",
+        "zotero-link",
+        "zotero-push",
+        "suggestion",
+        "suggestion-reject",
+    }
 )
 
 #: Where the work of a domain operation can land (those that exist are what gets committed).

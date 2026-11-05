@@ -10,6 +10,7 @@ what is deliberately partial.
 | `add-review-repository-ci` | `strata init --ci`, the reusable workflow `.github/workflows/review-ci.yml`, the `actions/verify` composite action, `strata ci amendment` and `strata ci comment` | written and tested locally; 5 of 8 tasks open until it runs on GitHub (see below) |
 | `add-web-ui-write-surfaces` | Write screens in the browser: record a dated search and attach its export by file chooser or drag and drop with a review before anything is imported; correct a record; add a criterion; assign reviewers; record retrieval outcomes; group and split studies. A shared operations layer under the command line and the web | all tasks written and tested; the full local gate is green (2,889 tests, coverage 94.96 %, diff coverage 96 %, determinism identical) and the pull-request gate has passed in CI on Linux, macOS and Windows (task 7.3); the manual gate (task 7.4: someone who has never used the command line does it unaided) has not been run by a person |
 | `add-zotero-integration` | `strata zotero link\|pull\|push\|status\|open`, the local and Web API clients, the identity mapping `integrations/zotero.ndjson`, full texts through Zotero in `retrieve` and `screen`, a keychain-or-environment key | all tasks but 5.1 written and tested against a stand-in for Zotero 6 and 7; **never run against a real Zotero** (see below), so 5.1 is open |
+| `add-ai-participation` | A per-review AI policy (off by default), agents as registered actors, the `agent` envelope key, suggestions with blinding, MCP write tools, a ledger, computed disclosure, `strata ai revoke`, `strata audit --ai`, schema format 2 and `strata migrate` | groups 1 to 4 written and tested locally; open: the CLI refactor of tasks 3.1 and 3.2, the three-platform CI runs (1.4, 4.5, 5.3) and the methodologist's read of the disclosure (5.4); see below |
 | `add-distribution-and-adoption` | task 2.4: EndNote XML, Excel and plain-text citation-list import | done; the rest (PyPI/binaries/Homebrew, Covidence/Rayyan/EPPI imports, worked example, translations) not started |
 
 ## add-review-repository-ci
@@ -190,3 +191,87 @@ search and imports its export in the browser, unaided. Record the outcome here w
 - [ ] **Firefox and Safari** (the browser test uses Chromium): the same flow, in particular that a form post
       is accepted (the referrer policy was `no-referrer`, which makes browsers send `Origin: null`).
 
+
+
+## add-ai-participation: what was built and what was found
+
+`strata` ships no model and makes no network call; this change is the accounting for the ones a review
+brings. Everything is off by default and a review that never enables it stays in format 1 and behaves as it
+did.
+
+### What was built
+
+- **Format 2 and `strata migrate`** (`core/migrate.py`): forward-only, idempotent, one commit with the
+  person's rationale, a step table the next bump will reuse. `strata ai enable` runs it in the same commit.
+  A build limited to format 1 refuses a format 2 review (`E_SCHEMA_TOO_NEW`).
+- **The policy and agents** (`core/agents.py`): `[ai]` and `[ai.policy]`, eleven kinds of work, three modes;
+  agent actors (`kind`, `model`) registered with `strata actor add --kind agent --model`, matched on the
+  model name exactly; `E_CONFIG` rules in `core/manifest.py`; `strata ai enable|policy`.
+- **The `agent` envelope key** between `actor` and `seq`, covered by the digest, with its own keys sorted like
+  every canonical object. A person's event serialises byte for byte as before (a golden line produced by the
+  pre-change serialiser pins it). Attribution is carried by `events.agent_scope`, so no write path an agent
+  can reach can record an unattributed event, and an agent's write refuses an event under any other handle.
+- **Suggestions** (`protocol/suggestions.py`, `core/agent_ops.py`): `dry_run` on the real operations so a
+  suggestion is validated exactly as the real one would be; adopt runs the operation as the person with their
+  rationale and links it in the same commit; reject keeps the reason; supersession; blinding; the web screen.
+- **MCP** (`mcpserver/server.py`): reads always, 17 write tools only when AI is enabled and the person is
+  known; policy checked per call; commits authored by the agent and committed by the person with trailers;
+  confined file arguments; instructions that state the policy.
+- **The ledger and disclosure** (`core/ledger.py`, `report/disclosure.py`): one source for `strata ai report`,
+  `strata status`, `strata audit --ai`, the Methods text and checklist items 8, 9 and 11.
+- **`strata ai revoke`**, reusing the stale queue with the reason `agent-revoked`.
+
+### Things found on the way
+
+- **The fold counted unassigned actors.** `resolve_screening` reduced every actor's events and compared their
+  number with the number assigned, contrary to the written rule (`opinions = latest event per assigned
+  actor`), and the default assignment was every `screener` and `lead`. An unassigned agent would have been a
+  free second reviewer and a registered agent with the role `screener` a reviewer by default. Both are fixed
+  for everyone; `strata verify` warns (`W_UNASSIGNED_OPINION`) about a record an existing unassigned opinion
+  used to help resolve, and the CHANGELOG says so.
+- **`strata serve --actor` and the analysis actor could name an agent**, which would have written an agent's
+  work under its handle with no attribution. Both now refuse an agent.
+- **`strata why` did not list screening decisions** although its specification says it should. It now does,
+  once a record is decided (so as not to unblind a reviewer), with the AI label where it applies.
+- **A suggestion visible in `list --by` could not be shown by `show`.** Caught by running the commands for the
+  wiki; `show` takes `--by` too.
+
+### Deviations from the tasks as written, and why
+
+- **`invoked_by` must be a registered person, not an *active* one**, in `strata verify` (task 1.7). A person
+  deactivated after invoking an agent must not turn their past events invalid. The server still requires an
+  active, non-observer person at the time of the call.
+- **The ledger is `core/ledger.py`, not `core/agents.py`** (task 4.1): it reads the suggestion fold, which
+  imports `agents`, so it lives beside it.
+- **An agent that is deactivated is refused by `actor deactivate`** whether or not it has history (task 1.3):
+  one door, `strata ai revoke`, which also puts its counted decisions back in the queue.
+- **Previews for count-mode criteria changes** are recorded in the commit trailer `Strata-Impact` rather than
+  in the criteria event, whose schema is fixed.
+
+### Partial or deliberately left for later
+
+- **Tasks 3.1 and 3.2 are not done.** The command line still assembles the screening, adjudication,
+  extraction, risk-of-bias, criteria-edit, criteria-retire, deduplication, analysis and report commits itself.
+  Agents reach those operations through `core/agent_ops.py`, which calls the same protocol functions and
+  commits with `commit_domain_work`, so a command and a tool record the same event body (tested), but they do
+  not yet share the commit code. Only the PRISMA diagram was moved onto `core/operations.py`.
+- **`strata report` is not offered to agents** (generating the Methods, Results and checklist text); the
+  reserved-operations test names it so it cannot be forgotten.
+- **Not run on three platforms.** The determinism and test jobs on Linux, macOS and Windows (1.4, 4.5, 5.3)
+  need CI. Locally everything ran on Linux only.
+- **The project's pinned OpenSpec (1.13.2) was not run**; the change validates with the installed 1.16.0.
+- **The model name is the agent's own claim**, and an agent with a shell bypasses the policy: both are stated
+  in the wiki and in `Known-Limitations`, and neither can be fixed from here.
+
+### Manual gate (task 5.4)
+
+**Not done, and not claimed.** A methodologist reads the generated disclosure for (a) a review that used
+suggestions and (b) a review that used a counted reviewer, and judges whether it is accurate and sufficient.
+Record the outcome here when it has been done.
+
+- [ ] Suggestions only: the Methods paragraph and checklist items 8, 9 and 11 for a review like the one in
+      `tests/unit/test_ledger_and_disclosure.py` (1,200 suggestions, 1,050 adopted, 150 rejected).
+- [ ] A counted reviewer: the same, for a review in which an assigned model screened records as a second
+      reviewer, including the agreement sentences and "two people and one AI model".
+- [ ] Wording a reviewer would be uncomfortable putting under their name (for example the caveat that the
+      model name is the model's own report), and anything a journal might ask for that is missing.

@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """`strata ai report|revoke`, `strata audit --ai` and the AI line of `strata status`:
 openspec:ai-participation#revoking-an-agent, #the-ai-ledger-and-audit."""
 

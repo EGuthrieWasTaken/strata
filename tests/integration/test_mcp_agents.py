@@ -347,7 +347,7 @@ def test_suggest_mode_records_only_a_suggestion_with_the_handshake_and_changes_n
     assert (result["mode"], result["recorded"], result["committed"]) == (
         "suggest",
         "suggestion",
-        False,
+        True,
     )
     assert "nothing in the review changed" in result["message"]
     (event,) = _agent_events(repo, "suggestion")
@@ -359,10 +359,21 @@ def test_suggest_mode_records_only_a_suggestion_with_the_handshake_and_changes_n
     }
     assert not _has_events(repo, "screen")
     pool_mod.regenerate_all(repo)
-    assert derived_bytes(repo) == derived
-    assert (
-        _commits(repo) == before
-    )  # suggestions are committed with whatever the person commits next
+    assert derived_bytes(repo) == derived  # no result moved
+    # The suggestion is committed like any other agent write, so the tree stays clean for `sync`.
+    assert len(_commits(repo)) == len(before) + 1
+    assert gitio.run(["status", "--porcelain", "--", "events"], cwd=repo.root).stdout == ""
+    author = gitio.run(["log", "-1", "--format=%an|%ae"], cwd=repo.root).stdout.strip()
+    assert author == f"{AGENT} (via sam)|{AGENT}@agents.invalid"
+    message = gitio.commit_message(repo.root, "HEAD")
+    for trailer in (
+        "Strata-Op: suggestion",
+        f"Strata-Suggestion: {event['id']}",
+        f"Strata-Agent: {AGENT}",
+        "Strata-Invoked-By: sam",
+        "Strata-Via: mcp",
+    ):
+        assert trailer in message
 
 
 def test_the_result_never_reports_agreement_or_the_state_of_the_record(
@@ -795,6 +806,10 @@ def test_drawing_the_diagram_in_count_mode_is_the_agents_work_in_a_commit_it_aut
     assert author == f"{AGENT} (via sam)|{AGENT}@agents.invalid"
     message = gitio.commit_message(repo.root, "HEAD")
     assert "Strata-Op: prisma" in message and f"Strata-Agent: {AGENT}" in message
+    from strata.core import ledger as ledger_mod
+
+    work = ledger_mod.compute_ledger(open_repo(repo.root)).agents[0].kinds["analysis"]
+    assert (work.file_work, work.counted) == (1, 0)  # work that wrote files, not events
 
 
 def test_drawing_the_diagram_in_suggest_mode_writes_no_file(world: tuple[Repo, list[str]]) -> None:

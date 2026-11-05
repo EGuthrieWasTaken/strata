@@ -251,3 +251,21 @@ and a dependency or `ctypes` on Windows). The timeout, message and 30-second wai
   the number can move.
 - **Whether to take the lock around the existing web write routes too.** They share the problem the
   lock solves but are outside this change's scope.
+
+## Coordination with `add-ai-participation`
+
+Both changes use `strata.core.operations` and both add requirements to `web-ui`; their requirement
+names do not collide. What `add-ai-participation` did with this layer:
+
+- It added operations alongside the ones here (`migrate_repository`, `enable_ai`, `set_ai_policy`,
+  `revoke_agent`, `render_prisma` and `write_prisma`) and made `_commit` and `commit_domain_work` read the
+  agent whose write is in progress, so a commit made for an agent is authored by it with its trailers. A
+  surface that adds an operation needs no change for this: the agent identity rides in a context, not in a
+  parameter.
+- The screening, adjudication, extraction, risk-of-bias, criteria-edit, criteria-retire and deduplication
+  commits are still assembled in `cli/main.py` and the older web routes. Agents reach those operations
+  through `strata.core.agent_ops`, which calls the same protocol functions and commits with
+  `commit_domain_work`; moving the command line onto the same operations (so that a command and a tool
+  share the commit as well as the event) is left open in `add-ai-participation` tasks 3.1 and 3.2.
+- The suggestions screen follows this change's conventions (forms carry the session token, a refusal
+  re-renders the form with the reason, a hostile value is escaped by the template engine).

@@ -49,6 +49,23 @@ def build_fixture() -> str:
         event_id="ev_01arz3ndektsv4rrffq69g5fav",
     )
     lines.append(serialise_envelope(envelope))
+
+    # An event an AI agent caused (openspec:ai-participation): the `agent` key, with nested keys of
+    # its own, must serialise to the same bytes on every platform and under every hash seed.
+    agent_envelope = build_envelope(
+        ev="note",
+        actor="claude-opus",
+        seq=1,
+        body={"subject": "determinism-fixture", "text": "an agent's event, fixed clock"},
+        ts="2026-01-01T00:00:00Z",
+        event_id="ev_01arz3ndektsv4rrffq69g5faw",
+        agent={
+            "model": "claude-opus-5-5",
+            "invoked_by": "ethan",
+            "client": {"version": "2.1.3", "name": "claude-code"},
+        },
+    )
+    lines.append(serialise_envelope(agent_envelope))
     return "\n".join(lines) + "\n"
 
 
