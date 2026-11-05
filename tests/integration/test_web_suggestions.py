@@ -13,7 +13,7 @@ from strata import gitio
 from strata.core import agents as agents_mod
 from strata.core.events import agent_scope
 from strata.core.manifest import load_manifest_doc, write_manifest
-from strata.core.repo import Repo, open_repo
+from strata.core.repo import LockTimeoutError, Repo, open_repo
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import screening as screening_mod
@@ -293,3 +293,34 @@ def test_history_labels_a_commit_made_for_an_agent(world: tuple[Repo, list[str]]
     _post(_client(repo), f"/suggestions/{event['id']}/adopt", rationale=WHY)
     text = _client(open_repo(repo.root)).get("/history").text
     assert f"adopted from a suggestion by {AGENT}" in text
+
+
+def _busy(*_args: object, **_kwargs: object) -> None:
+    raise LockTimeoutError("the review is being changed by process 4242; try again in a moment")
+
+
+def test_adopting_while_the_review_is_busy_says_so_and_changes_nothing(
+    world: tuple[Repo, list[str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from strata.core import agent_ops
+
+    repo, ids = world
+    event = suggest_screen(repo, ids[0])
+    monkeypatch.setattr(agent_ops, "adopt", _busy)
+    response = _post(_client(repo), f"/suggestions/{event['id']}/adopt", rationale=WHY)
+    assert response.status_code == 503  # type: ignore[attr-defined]
+    assert "process 4242" in response.text  # type: ignore[attr-defined]
+    assert sugg.get_suggestion(repo, event["id"]).status == sugg.PENDING
+
+
+def test_rejecting_while_the_review_is_busy_says_so_and_changes_nothing(
+    world: tuple[Repo, list[str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from strata.core import agent_ops
+
+    repo, ids = world
+    event = suggest_screen(repo, ids[0])
+    monkeypatch.setattr(agent_ops, "reject", _busy)
+    response = _post(_client(repo), f"/suggestions/{event['id']}/reject", reason="Not convinced.")
+    assert response.status_code == 503  # type: ignore[attr-defined]
+    assert sugg.get_suggestion(repo, event["id"]).status == sugg.PENDING

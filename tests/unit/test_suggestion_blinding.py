@@ -142,6 +142,17 @@ def test_provenance_does_not_reveal_a_suggestion_before_the_record_is_decided(
     assert entry.agent["model"] == "claude-opus-5-5"
 
 
+def test_a_records_provenance_lists_only_the_suggestions_about_that_record(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, ids = world
+    repo = _configure(repo, ai__show_suggestions="always")
+    mine = suggest_screen(repo, ids[0])
+    suggest_screen(repo, ids[1])
+    entries = [e for e in build_provenance(repo, ids[0]) if e.kind == "suggestion"]
+    assert len(entries) == 1 and mine["id"] in str(entries[0])
+
+
 def test_provenance_shows_decisions_only_once_the_record_is_resolved(
     world: tuple[Repo, list[str]],
 ) -> None:

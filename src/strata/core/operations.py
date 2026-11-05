@@ -1101,11 +1101,6 @@ class PrismaRendered:
     payload: bytes
     counts: counts_mod.Counts
 
-    @property
-    def draft(self) -> bool:
-        """Whether screening is unfinished, so the diagram is watermarked as a draft."""
-        return not self.counts.complete
-
 
 def render_prisma(
     repo: Repo, *, fmt: str = "svg", columns: str = "one", allow_stale: bool = False

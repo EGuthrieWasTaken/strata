@@ -125,10 +125,6 @@ class Ledger:
     def counted_events(self) -> int:
         return sum(k.counted for a in self.agents for k in a.kinds.values())
 
-    @property
-    def suggestions(self) -> int:
-        return sum(k.suggested for a in self.agents for k in a.kinds.values())
-
     def for_kinds(self, kinds: Iterable[str]) -> list[tuple[AgentLedger, dict[str, KindLedger]]]:
         """Each agent that did anything in `kinds`, with just those kinds."""
         wanted = set(kinds)

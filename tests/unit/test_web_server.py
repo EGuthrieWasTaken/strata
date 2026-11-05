@@ -147,3 +147,15 @@ def test_opened_url_uses_the_public_url_when_given() -> None:
         public_url=parse_public_url("https://strata.example.edu/"),
     )
     assert opened_url(params) == "https://strata.example.edu/?token=abc123"
+
+
+def test_resolve_actor_will_not_run_the_web_interface_as_an_agent(tmp_path: Path) -> None:
+    from tests.unit._m6 import AGENT, ai_review
+
+    repo = ai_review(tmp_path)
+    assert resolve_actor(repo, "sam") == "sam"
+    try:
+        resolve_actor(repo, AGENT)
+        raise AssertionError("expected ServeConfigError")
+    except ServeConfigError as exc:
+        assert "AI agent" in str(exc) and "strata mcp" in str(exc)

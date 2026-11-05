@@ -358,3 +358,76 @@ def test_a_note_and_a_correction_need_something_real_to_say(world: tuple[Repo, l
     )
     assert nobody.is_error and "no record" in nobody.text
     assert not _has_events(repo, "note")
+
+
+def test_every_other_family_in_suggest_mode_checks_the_real_operation_and_records_a_suggestion(
+    world: tuple[Repo, list[str]],
+) -> None:
+    from strata.protocol import suggestions as sugg
+
+    repo, _ = world
+    repo = _policy(
+        repo, records="suggest", dedup="suggest", search_import="suggest", studies="suggest"
+    )
+    first, second, _third = canonical_ids(repo)[:3]
+    reports = studies_mod.included_reports(repo)
+    free = [r for r in reports if len(studies_mod.study_map(repo).studies_of[r]) == 1]
+    calls = [
+        ("add_note", {"record": first, "text": "Check the sample size against the full text."}),
+        ("decide_duplicate", {"a": first, "b": second, "decision": "distinct"}),
+        (
+            "record_search",
+            {"database": "PsycINFO", "platform": "EBSCO", "executed": "2026-01-05", "query": "q"},
+        ),
+        ("group_reports", {"reports": free[:2]}),
+        ("split_report", {"report": free[-1], "parts": 2}),
+    ]
+    for tool, args in calls:
+        assert _write(repo, tool, **args)["recorded"] == "suggestion", tool
+    assert len(sugg.pending(repo)) == len(calls)
+    assert not [e for kind in ("note", "dedup", "study") for e in _agent_events(repo, kind)]
+    assert not list(repo.path("protocol", "searches").glob("*psycinfo*"))
+
+
+def test_a_queue_for_a_stage_the_review_does_not_have_is_refused(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    reply = _call(_server(repo), "my_screening_queue", {"model": MODEL, "stage": "nonsense"})
+    assert reply.is_error and "stage" in reply.text
+
+
+def test_a_form_that_cannot_be_read_is_reported_not_silently_empty(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    repo.path("extraction", "schema.yaml").write_text("fields: [not a mapping]\n", encoding="utf-8")
+    repo.path("rob", "instrument.yaml").write_text("domains: nonsense\n", encoding="utf-8")
+    server = _server(repo)
+    assert _call(server, "extraction_form").is_error
+    assert _call(server, "risk_of_bias_form").is_error
+
+
+def test_a_client_that_does_not_say_who_it_is_leaves_the_name_unrecorded() -> None:
+    from types import SimpleNamespace
+
+    from mcp.types import Implementation
+
+    from strata.mcpserver.server import _client_of
+
+    def session(params: object) -> SimpleNamespace:
+        return SimpleNamespace(session=SimpleNamespace(client_params=params))
+
+    class Refusing:
+        @property
+        def session(self) -> object:
+            raise RuntimeError("no active request")
+
+    assert _client_of(None) == (None, None)
+    assert _client_of(Refusing()) == (None, None)  # type: ignore[arg-type]
+    assert _client_of(session(None)) == (None, None)  # type: ignore[arg-type]
+    assert _client_of(session(SimpleNamespace(client_info=None))) == (None, None)  # type: ignore[arg-type]
+    named = SimpleNamespace(client_info=Implementation(name="claude-code", version="2.1.3"))
+    assert _client_of(session(named)) == ("claude-code", "2.1.3")  # type: ignore[arg-type]
+    unnamed = SimpleNamespace(client_info=Implementation(name="", version=""))
+    assert _client_of(session(unnamed)) == (None, None)  # type: ignore[arg-type]

@@ -185,6 +185,59 @@ def test_a_retrieval_outcome_a_person_later_set_differently_is_counted_as_change
     assert ledger_mod.compute_ledger(repo).agents[0].kinds["retrieval"].changed_by_people == 1
 
 
+def test_a_criteria_change_a_person_later_made_to_the_same_criterion_counts_as_changed(
+    world: tuple[Repo, list[str]],
+) -> None:
+    import time
+
+    from strata.protocol import criteria as criteria_mod
+
+    repo, _ = world
+    with agents_mod.acting_as(context()):
+        criteria_mod.edit_criterion(
+            repo, "EXC-01", direction="tightened", actor=AGENT,
+            rationale="The narrower wording is clearer.", definition="Not an empirical study.",
+        )  # fmt: skip
+    kind = ledger_mod.compute_ledger(repo).agents[0].kinds["criteria"]
+    assert (kind.counted, kind.changed_by_people) == (1, 0)
+    time.sleep(1.1)  # strictly later than the agent's event, whatever the clock's resolution
+    criteria_mod.edit_criterion(
+        repo, "EXC-01", direction="loosened", actor="ethan",
+        rationale="Put it back as it was worded.", definition="Not empirical work.",
+    )  # fmt: skip
+    kind = ledger_mod.compute_ledger(repo).agents[0].kinds["criteria"]
+    assert (kind.counted, kind.changed_by_people) == (1, 1)
+
+
+def test_the_ledger_still_reports_events_when_the_history_cannot_be_read(
+    world: tuple[Repo, list[str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from strata.core import logcmd
+
+    repo, ids = world
+    with agents_mod.acting_as(context()):
+        decide(repo, STAGE, ids[:1], "include", actors=(AGENT,))
+
+    def unreadable(_repo: Repo) -> list[Any]:
+        raise RuntimeError("no usable history")
+
+    monkeypatch.setattr(logcmd, "domain_log", unreadable)
+    kind = ledger_mod.compute_ledger(repo).agents[0].kinds["screening"]
+    assert (kind.counted, kind.file_work) == (1, 0)
+
+
+def test_a_suggestion_from_an_actor_the_manifest_no_longer_lists_is_left_out(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, ids = world
+    _bulk_suggestions(repo, ids, made=2, adopted=0, rejected=0)
+    assert ledger_mod.compute_ledger(repo).agents[0].kinds["screening"].suggested == 2
+    doc = load_manifest_doc(repo.root)
+    doc["actors"] = [a for a in doc["actors"] if a["handle"] != AGENT]
+    write_manifest(repo.root, doc)
+    assert ledger_mod.compute_ledger(open_repo(repo.root)) == ledger_mod.Ledger()
+
+
 # ------------------------------------------------------------------------- the disclosure
 
 
@@ -228,6 +281,14 @@ def test_suggestions_only_names_the_model_says_a_person_reviewed_them_and_gives_
     )
     # the people are still two: a model that only suggested is not a reviewer
     assert "AI model (" not in methods.split("### Selection process")[1].split(".")[0]
+
+
+def test_a_single_reviewer_review_says_so_in_the_methods(world: tuple[Repo, list[str]]) -> None:
+    repo, _ = world
+    repo = _config(repo, screening={"mode": "single"})
+    selection = sections.methods(facts_mod.collect(repo)).split("### Selection process")[1]
+    assert "by one reviewer (" in selection.split(".")[0]
+    assert "working independently" not in selection.split(".")[0]
 
 
 def test_a_counted_reviewer_is_named_as_a_model_and_counted_apart_from_the_people(
