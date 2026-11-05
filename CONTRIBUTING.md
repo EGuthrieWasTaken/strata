@@ -29,6 +29,9 @@ npx --yes @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive
 
 CI runs the suite on Linux, macOS and Windows on Python 3.11 to 3.13 and requires coverage floors
 (`openspec:test-suite#test-levels-and-coverage-floors`). Statistics modules are held to 100% branch coverage.
+A pull request that changes only documentation (the root `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md`,
+and everything under `docs/`, `wiki/` and `openspec/`) skips the test jobs and runs `lint`, `docs` and `gate`;
+anything else runs them all (`openspec:ci-gate#documentation-only-pull-requests-skip-the-test-jobs`).
 The pull-request template asks the questions that matter: is there a test that fails without the change, is
 the requirement linked to its test, does the spec change, and does the user-facing documentation change.
 

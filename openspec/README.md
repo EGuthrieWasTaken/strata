@@ -111,6 +111,7 @@ review (`openspec:repository-format#format-versioning`).
 | `add-review-repository-ci` | M6 |
 | `add-web-ui-write-surfaces` | M6 |
 | `add-ai-participation` | M6 (proposed; not yet on the roadmap, does not gate `1.0.0`) |
+| `skip-tests-for-docs-only-prs` | M0 (`ci-gate`, already shipped) |
 
 ## Known gaps in shipped capabilities
 

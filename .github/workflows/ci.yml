@@ -18,6 +18,30 @@ env:
   UV_LOCKED: "1"
 
 jobs:
+  # ---- Tier 0: does the change touch anything the tests exercise? -----------
+
+  # openspec:ci-gate#documentation-only-pull-requests-skip-the-test-jobs: a pull request that changes
+  # only documentation (scripts/ci_changes.py says which paths those are) skips `test-fast` and with
+  # it every job that needs it: test, statistical, determinism, coverage, benchmark and traceability.
+  # `lint`, `docs` and `gate` always run, and so does everything on a push to main. When this job
+  # cannot tell, it says `true`; `gate` needs it, so one that did not run fails the gate rather than
+  # skipping the tests unseen.
+  code-changes:
+    name: code-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci_changes.py
+
   # ---- Tier 1: fast signal ------------------------------------------------
 
   lint:
@@ -37,6 +61,8 @@ jobs:
 
   test-fast:
     name: test-fast
+    needs: [code-changes]
+    if: needs.code-changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     # M2.1 grew tests/unit past what 5 minutes reliably covers on a
     # contended runner (observed ~5-7.5 min for a suite that took 2m17s
@@ -329,7 +355,7 @@ jobs:
   gate:
     name: gate
     if: always()
-    needs: [lint, test-fast, test, statistical, determinism, coverage, container]
+    needs: [code-changes, lint, test-fast, test, statistical, determinism, coverage, container]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
