@@ -25,6 +25,8 @@ from strata.ingest.pipeline import ImportPipelineError
 from strata.protocol.searches import SearchError
 from tests.integration._equivalence import committed_snapshot
 
+pytestmark = pytest.mark.usefixtures("same_day")  # two reviews built apart are compared
+
 runner = CliRunner()
 
 _PAPERS = json.dumps(
