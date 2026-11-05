@@ -399,9 +399,9 @@ All notable changes to `strata` are documented here. Format follows
   tell (a missing base commit, a `git` that fails, no changed files) runs everything too. A rename counts as a
   deletion and an addition, so moving a source file into `docs/` is still a change to code. `gate` waits for
   `code-changes`, so a classifier that did not run fails the gate instead of skipping the tests. Before this, a
-  README edit waited about two hours for the full matrix. Written and tested locally (against real `git`, with
-  each guarantee checked to fail when broken); the first documentation-only pull request after it merges is the
-  check on GitHub.
+  README edit waited about two hours for the full matrix. Tested against real `git`, with each guarantee checked
+  to fail when broken, and seen working on GitHub: the pull request that archived the change (#75, only files
+  under `openspec/`) skipped every test job and was mergeable about a minute after it was opened.
 - **`strata fix` corrects authors and years, keeps a record's identity in step, and skips no-ops.** It could
   only edit plain-text fields; it now also takes `--field author` (`Family, Given; Family, Given`, a name with
   no comma kept whole), `--field year` (four digits; the month and day are kept) and `--field issued` (`YYYY`,

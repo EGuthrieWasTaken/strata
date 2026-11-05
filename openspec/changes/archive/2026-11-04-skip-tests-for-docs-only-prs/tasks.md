@@ -21,16 +21,20 @@
 ## 4. Checks
 
 - [x] 4.1 `ruff check`, `ruff format --check` and `mypy src` pass, and `scripts/check_docs.py` and `openspec validate --all --strict` pass with the new change
-- [ ] 4.2 Observe it on GitHub: a pull request that changes only documentation skips the test jobs and `gate` succeeds, and the branch protection accepts the skipped jobs. The first documentation-only pull request after this merges is the check; archive this change then (`openspec archive skip-tests-for-docs-only-prs`), which is itself such a pull request
+- [x] 4.2 Observe it on GitHub: a pull request that changes only documentation skips the test jobs and `gate` succeeds, and the branch protection accepts the skipped jobs. The first documentation-only pull request after this merges is the check; archive this change then (`openspec archive skip-tests-for-docs-only-prs`), which is itself such a pull request
 
 ## Notes
 
-Written and tested locally, not yet run on GitHub: 4.2 stays open for that. The pull request that adds this
-change changes `ci.yml`, a script and tests, so it runs the whole gate and cannot show the skip.
+Written and tested locally, then seen working on GitHub (4.2). The pull request that added this change
+changed `ci.yml`, a script and tests, so it ran the whole gate and could not show the skip; the pull request that
+archived it (#75, only files under `openspec/`) did.
 
+- **What #75 showed.** `code-changes` reported no change to code in 4 seconds. `test-fast`, `test`, `statistical`,
+  `determinism`, `coverage`, `benchmark`, `traceability` and `container` were skipped; `lint`, `docs` and `gate`
+  succeeded, `gate` in 2 seconds. The pull request was mergeable (`clean`) about a minute after it was opened;
+  #72, a documentation-only pull request before this change, waited about two hours. The skipped matrix
+  reported no `test (os, python)` checks and the pull request was still `clean`, so the branch protection on
+  `main` waits for `gate` and `docs` and not for the individual test checks.
 - Replaying the classifier over the last 20 commits on `main`, one (#72, the documentation update) would have
   skipped the test jobs; the other 19 change code or configuration. A commit titled "docs:" that also edited
   `.github/PULL_REQUEST_TEMPLATE.md` runs everything, by design: `.github/` is code.
-- If the branch protection on `main` requires the individual `test (os, python)` checks rather than `gate`,
-  a skipped matrix would not report them and the pull request would wait. The specification says `gate` and
-  `docs` are the required checks.
