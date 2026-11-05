@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import secrets as secrets_lib
 import time
 from dataclasses import dataclass
@@ -279,7 +278,3 @@ class OidcClient:
             name=user.get("name") or user.get("login"),
             invitation=invitation,
         )
-
-
-def describe(identity: Identity) -> str:
-    return json.dumps({"provider": identity.provider, "subject": identity.subject})

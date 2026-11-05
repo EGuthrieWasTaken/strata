@@ -33,10 +33,13 @@ No domain logic lives here: accounts, memberships, blinding and the sync loop ar
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import hmac
+import re
 import time
 from collections.abc import AsyncIterator, Callable
 from typing import Any
-from urllib.parse import quote, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 import anyio
 from starlette.applications import Starlette
@@ -71,6 +74,10 @@ from strata.web.app import (
 from strata.web.security import CSRF_FIELD_NAME, MUTATING_METHODS, PublicUrl
 
 _HSTS = "max-age=31536000"
+#: The review's own screens and the MCP endpoint, which check a body's size themselves (an
+#: upload may be large; MCP has its own limit).
+_PROJECT_SCREENS = re.compile(r"^/p/[^/]+/(?!-/)")
+_OIDC_STATE_COOKIE = "strata_oidc_state"
 _SCREENING_PATHS = ("screen", "rescreen")
 
 
@@ -81,6 +88,10 @@ class HostedConfigError(ValueError):
 def _client_of(scope: Scope) -> str:
     client = scope.get("client")
     return str(client[0]) if client else "unknown"
+
+
+def _digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _safe_next(raw: str | None) -> str:
@@ -126,6 +137,10 @@ class HostedServer:
         self.templates.env.globals["csrf_field_name"] = CSRF_FIELD_NAME
         self._states: dict[str, AppState] = {}
         self._oidc: dict[str, OidcClient] = {}
+        # A project added by an older version, or whose config was changed by hand, still runs
+        # only the instance's hooks (see `strata.hosted.instance`).
+        for project in instance.list_projects():
+            instance.secure_project(project.id)
 
     # -- small helpers ---------------------------------------------------------------------
 
@@ -290,6 +305,19 @@ class _Gate:
                     "this instance only accepts HTTPS", status_code=403
                 )(scope, receive, send)  # fmt: skip
             return
+
+        if method in MUTATING_METHODS and not _PROJECT_SCREENS.match(scope["path"]):
+            # The instance's own forms are small, and most are answered before anyone has
+            # signed in: refuse a large or unsized body before reading it.
+            try:
+                uploads.check_declared_length(
+                    headers, "application/x-www-form-urlencoded", max_upload_bytes=0
+                )
+            except uploads.UploadRefused as refusal:
+                await PlainTextResponse(refusal.message, status_code=refusal.status_code)(
+                    scope, receive, send
+                )
+                return
 
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
@@ -474,7 +502,16 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
             )
         except OidcError as exc:
             return server.message(request, "Sign in", str(exc), 502)
-        return RedirectResponse(url, status_code=303)
+        response = RedirectResponse(url, status_code=303)
+        # Bind the sign-in to this browser, so a callback started in someone else's browser
+        # cannot sign this one in (login CSRF). `Lax`, because the provider's redirect back is a
+        # cross-site navigation, which a `Strict` cookie would not accompany.
+        state = parse_qs(urlsplit(url).query).get("state", [""])[0]
+        response.set_cookie(
+            _OIDC_STATE_COOKIE, _digest(state), max_age=600, path="/auth/",
+            secure=server.secure, httponly=True, samesite="lax",
+        )  # fmt: skip
+        return response
 
     async def oidc_callback(request: Request) -> Response:
         provider = server.provider(request.path_params["provider"])
@@ -482,6 +519,12 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
             return server.message(request, "Sign in", "There is no such sign-in provider.", 404)
         client = _client_of(request.scope)
         method = f"oidc:{provider.id}"
+        bound = request.cookies.get(_OIDC_STATE_COOKIE, "")
+        if not hmac.compare_digest(bound, _digest(request.query_params.get("state") or "")):
+            return server.message(
+                request, "Sign in", "This sign-in was not started in this browser; start again.",
+                403,
+            )  # fmt: skip
         try:
             identity = await anyio.to_thread.run_sync(
                 lambda: server.oidc(provider).finish(
@@ -515,8 +558,14 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
             store, username=username, client=client, method=method, outcome="success",
             now=server.clock(),
         )  # fmt: skip
-        response = RedirectResponse("/", status_code=303)
+        # Not a redirect: a browser arriving from the provider is on a cross-site navigation,
+        # and would not send the new `SameSite=Strict` session cookie along a redirect from it.
+        # A page that moves on by itself starts a same-site navigation, which does.
+        response = server.render(
+            request, "hosted/continue.html", {"target": "/", "user": None, "csrf": ""}
+        )
         server.start_session(response, username)
+        response.delete_cookie(_OIDC_STATE_COOKIE, path="/auth/")
         return response
 
     return [
@@ -874,4 +923,6 @@ def run_hosted(
         forwarded_allow_ips=trusted_proxies,
         server_header=False,
         log_level="info",
+        # An access log would record invitation links, which carry their token in the path.
+        access_log=False,
     )

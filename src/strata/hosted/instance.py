@@ -12,7 +12,14 @@ in the container) is:
     instance.db               accounts, memberships, sessions, sign-in log, sync status, secrets
     instance.key              the key stored secrets are encrypted with (unless supplied)
     tmp/                      short-lived files git needs (a deploy key for one command)
+    hooks/                    the git hooks every project runs (see below)
 ```
+
+**Hooks.** A review repository carries its git hooks in `.strata/hooks/`, and a local clone runs
+them from there. On an instance that would let anyone who can push to a project's remote make the
+server run any program they liked at its next commit. So the instance points every project's
+`core.hooksPath` at its own copy of the standard hooks, written from `strata.core.hooks`, and never
+runs a hook from a repository's files.
 
 A project is either cloned from its remote or initialised fresh. Its remote URL is kept in
 instance state, never with a credential in it: a URL carrying a password or token is refused,
@@ -36,8 +43,9 @@ import tomlkit
 
 from strata import gitio
 from strata.core import doctor as doctor_mod
+from strata.core.hooks import HOOK_SCRIPTS
 from strata.core.init import init_repository
-from strata.core.repo import Repo, open_repo
+from strata.core.repo import Repo, RepoNotFoundError, open_repo
 from strata.hosted.secrets import SecretStore, git_credential_env
 from strata.hosted.store import Store
 
@@ -153,10 +161,12 @@ class Instance:
     """One hosted instance, rooted at its data directory."""
 
     def __init__(self, data_dir: Path, *, environ: dict[str, str] | None = None) -> None:
-        self.data_dir = data_dir
-        self.projects_dir = data_dir / "projects"
-        self.state_dir = data_dir / "instance"
+        # Absolute, because git runs in other directories (a clone runs in `projects/`).
+        self.data_dir = data_dir.absolute()
+        self.projects_dir = self.data_dir / "projects"
+        self.state_dir = self.data_dir / "instance"
         self.tmp_dir = self.state_dir / "tmp"
+        self.hooks_dir = self.state_dir / "hooks"
         self.settings_path = self.state_dir / "instance.toml"
         self.store = Store(self.state_dir / "instance.db")
         self.secrets = SecretStore(self.store, self.state_dir / "instance.key", environ=environ)
@@ -194,6 +204,18 @@ class Instance:
             sync.add("interval_seconds", int(DEFAULT_SYNC_INTERVAL))
             doc.add("sync", sync)
             self.settings_path.write_text(tomlkit.dumps(doc), encoding="utf-8")
+
+    def secure_project(self, project_id: str) -> None:
+        """Make a project's git run the instance's own hooks, never the repository's."""
+        self.hooks_dir.mkdir(parents=True, exist_ok=True)
+        for name, script in HOOK_SCRIPTS.items():
+            path = self.hooks_dir / name
+            if not path.exists() or path.read_text(encoding="utf-8") != script:
+                path.write_text(script, encoding="utf-8")
+            path.chmod(0o755)
+        root = self.project_dir(project_id)
+        if gitio.get_config(root, "core.hooksPath") != str(self.hooks_dir):
+            gitio.set_config(root, "core.hooksPath", str(self.hooks_dir))
 
     @property
     def settings(self) -> Settings:
@@ -282,7 +304,14 @@ class Instance:
             if stored_remote is not None:
                 with self.git_env(pending):
                     gitio.clone(stored_remote, dest)
-                repo = open_repo(dest)
+                try:
+                    repo = open_repo(dest)
+                except RepoNotFoundError:
+                    raise InstanceError(
+                        f"{stored_remote} holds no strata review (there is no strata.toml on its "
+                        "default branch); push the review to it first, or leave out --remote to "
+                        "start a new one"
+                    ) from None
                 # The merge drivers and hooks a clone does not carry (`strata doctor --fix`).
                 doctor_mod.run_doctor(repo, fix=True)
                 resolved_title = title or str(repo.config.get("project", {}).get("title") or "")
@@ -300,6 +329,7 @@ class Instance:
                     actor_email=actor_email,
                 )
                 resolved_title = title or project_id
+            self.secure_project(project_id)
         except gitio.GitError as exc:
             _remove_tree(dest)
             raise InstanceError(f"could not clone {stored_remote}: {exc.stderr.strip()}") from None

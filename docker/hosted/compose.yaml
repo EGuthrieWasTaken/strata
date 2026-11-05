@@ -1,0 +1,62 @@
+# A hosted strata instance for a team (openspec:hosted-deployment). See the wiki page
+# "Running a Hosted Instance" for the whole walk-through. In short, on a server whose DNS name is
+# STRATA_DOMAIN (Caddy fetches its TLS certificate from Let's Encrypt):
+#
+#   mkdir -p secrets && python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())' > secrets/strata_instance_key
+#   chmod 600 secrets/strata_instance_key
+#   export STRATA_DOMAIN=strata.example.org
+#   docker compose run --rm strata host init --admin you --invite      # prints your invitation link
+#   docker compose up -d
+#
+# Then add projects and people:
+#
+#   docker compose run --rm strata host project add spacing --remote git@github.com:lab/spacing-review.git --credential ssh-key:spacing-deploy-key
+#   docker compose run --rm strata host user add sam --name "Sam Okonkwo" --invite
+#   docker compose run --rm strata host member add spacing sam --actor sam --role screener
+#
+# The instance's own port is never published: only Caddy, on 80 and 443, is reachable, so the
+# X-Forwarded-* headers the instance believes (--trusted-proxy '*') can only come from Caddy.
+services:
+  strata:
+    build: ../..
+    # After the first release: image: ghcr.io/eguthriewastaken/strata:<version>
+    command: ["host", "--data", "/data", "--bind", "0.0.0.0", "--port", "8765", "--trusted-proxy", "*"]
+    restart: unless-stopped
+    environment:
+      STRATA_PUBLIC_URL: "https://${STRATA_DOMAIN:?set STRATA_DOMAIN to the instance's DNS name}"
+      STRATA_DATA: /data
+      STRATA_PORT: "8765"
+      # The key stored secrets are encrypted with, kept out of the data volume.
+      STRATA_INSTANCE_KEY_FILE: /run/secrets/strata_instance_key
+    volumes:
+      # Accounts, memberships, sessions, the sign-in log, sync status, and every project's working
+      # copy. The git remotes are the backup of record; back this up too for accounts and history
+      # that has not been pushed yet.
+      - strata-data:/data
+    secrets:
+      - strata_instance_key
+      # One file per remote credential, named as `--credential ssh-key:<name>` names it.
+      - spacing-deploy-key
+    expose:
+      - "8765"
+  proxy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      STRATA_DOMAIN: "${STRATA_DOMAIN:?set STRATA_DOMAIN to the instance's DNS name}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - strata
+volumes:
+  strata-data:
+  caddy-data:
+secrets:
+  strata_instance_key:
+    file: ./secrets/strata_instance_key
+  spacing-deploy-key:
+    file: ./secrets/spacing-deploy-key

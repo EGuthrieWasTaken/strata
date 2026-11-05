@@ -68,8 +68,8 @@ PAGES: list[tuple[str, str, str, list[str]]] = [
     (
         "Commands-Sharing-and-Tools",
         "Commands: sharing, the web interface and tools",
-        "Syncing a shared review, the browser interface, the read-only assistant server, CI helpers.",
-        ["sync", "serve", "mcp", "ci"],
+        "Syncing a shared review, the browser interface, a hosted instance, the read-only assistant server, CI helpers.",
+        ["sync", "serve", "host", "mcp", "ci"],
     ),
 ]
 
@@ -132,6 +132,11 @@ GUIDES: dict[str, list[tuple[str, str]]] = {
     "serve": [
         ("The-Web-Interface", "The web interface"),
         ("Running-in-a-Container", "Running in a container"),
+    ],
+    "host": [
+        ("Running-a-Hosted-Instance", "Running a hosted instance"),
+        ("Inviting-Collaborators", "Inviting collaborators"),
+        ("Hosted-and-Local-Collaborators", "Hosted and local collaborators"),
     ],
     "mcp": [("The-Web-Interface", "The web interface")],
     "ci": [("Working-with-Others", "Working with others")],

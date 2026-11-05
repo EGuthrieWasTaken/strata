@@ -24,6 +24,7 @@ An action the table does not name is the lead's alone.
 
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 
 from strata.core.actor import VALID_ROLES
@@ -91,12 +92,9 @@ def required_capability(method: str, path: str) -> str:
     return _WRITE_CAPABILITY.get(first, LEAD)
 
 
-def _membership(row: object) -> Membership:
+def _membership(row: sqlite3.Row) -> Membership:
     return Membership(
-        project=row["project"],  # type: ignore[index]
-        username=row["username"],  # type: ignore[index]
-        actor=row["actor"],  # type: ignore[index]
-        role=row["role"],  # type: ignore[index]
+        project=row["project"], username=row["username"], actor=row["actor"], role=row["role"]
     )
 
 

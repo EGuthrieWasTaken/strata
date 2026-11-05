@@ -9,8 +9,9 @@ instance stores itself:
 3. a value an administrator stored with `strata host secret set`, kept in instance state encrypted
    with the instance key (Fernet: AES-128-CBC with an HMAC-SHA256 tag).
 
-The instance key is `STRATA_INSTANCE_KEY` when the operator supplies one, else
-`<data>/instance/instance.key`, created with mode 0600 by `strata host init`. Keeping the key in
+The instance key is `STRATA_INSTANCE_KEY` (or the file `STRATA_INSTANCE_KEY_FILE` names, such as a
+container secret) when the operator supplies one, else `<data>/instance/instance.key`, created
+with mode 0600 by `strata host init`. Keeping the key in
 the operator's secret store rather than on the data volume means a copy of the volume alone does
 not reveal the stored secrets.
 
@@ -37,6 +38,7 @@ from strata.hosted.store import Store
 SECRET_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 DEFAULT_SECRETS_DIR = Path("/run/secrets")
 KEY_ENV = "STRATA_INSTANCE_KEY"
+KEY_FILE_ENV = "STRATA_INSTANCE_KEY_FILE"
 
 _ASKPASS = """#!/bin/sh
 # Written by strata host: answers git's credential prompts from the environment of the one git
@@ -83,9 +85,20 @@ class SecretStore:
 
     # -- the key ---------------------------------------------------------------------------
 
+    def _supplied_key(self) -> str | None:
+        if self._environ.get(KEY_ENV):
+            return self._environ[KEY_ENV]
+        key_file = self._environ.get(KEY_FILE_ENV)
+        if key_file:
+            try:
+                return Path(key_file).read_text(encoding="ascii").strip()
+            except OSError as exc:
+                raise SecretError(f"cannot read the instance key from {key_file}: {exc}") from None
+        return None
+
     def ensure_key(self) -> None:
         """Create the instance key file unless the operator supplies the key."""
-        if self._environ.get(KEY_ENV) or self._key_path.exists():
+        if self._supplied_key() or self._key_path.exists():
             return
         self._key_path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(self._key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -93,14 +106,15 @@ class SecretStore:
             handle.write(generate_key())
 
     def _fernet(self) -> Fernet:
-        supplied = self._environ.get(KEY_ENV)
+        supplied = self._supplied_key()
         if supplied:
             key = supplied.strip().encode("ascii")
         elif self._key_path.exists():
             key = self._key_path.read_bytes().strip()
         else:
             raise SecretError(
-                f"there is no instance key: set {KEY_ENV} or run `strata host init` to create one"
+                f"there is no instance key: set {KEY_ENV} or {KEY_FILE_ENV}, or run "
+                "`strata host init` to create one"
             )
         try:
             return Fernet(key)

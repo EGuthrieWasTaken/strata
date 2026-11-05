@@ -52,6 +52,14 @@ def test_an_example_naming_a_missing_command_or_option_is_caught() -> None:
     assert "no option --why" in module.check_example(
         "strata studies --why x", commands, global_opts
     )
+    # Nested groups are followed to the command they name.
+    assert module.check_example("strata host user add sam --invite", commands, global_opts) is None
+    assert "no option --nope" in module.check_example(
+        "strata host member add p u --nope", commands, global_opts
+    )
+    assert "unknown subcommand 'wat' of `strata host user`" in module.check_example(
+        "strata host user wat", commands, global_opts
+    )
 
 
 def test_the_publish_workflow_pushes_only_from_main_with_the_repository_token() -> None:

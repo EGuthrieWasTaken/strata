@@ -63,7 +63,8 @@ def test_an_invited_person_links_a_provider_and_acts_as_their_actor(tmp_path: Pa
     browser = h.client()
     assert "University sign-in" in browser.get(f"/invite/{invitation}").text
     back = _round_trip(browser, fake, f"/auth/university/start?invite={invitation}")
-    assert back.status_code == 303 and back.headers["location"] == "/"  # type: ignore[attr-defined]
+    # A page that moves on by itself, so the next request is same-site and carries the session.
+    assert back.status_code == 200 and 'http-equiv="refresh" content="0; url=/"' in back.text  # type: ignore[attr-defined]
     assert browser.get("/").status_code == 200
 
     record = sorted(r["id"] for r in records_mod.read_records(h.repo))[0]
@@ -78,7 +79,7 @@ def test_an_invited_person_links_a_provider_and_acts_as_their_actor(tmp_path: Pa
 
     # Later sign-ins with the same provider identity reach the same account, with no invitation.
     again = h.client()
-    assert _round_trip(again, fake, "/auth/university/start").status_code == 303  # type: ignore[attr-defined]
+    assert _round_trip(again, fake, "/auth/university/start").status_code == 200  # type: ignore[attr-defined]
     assert again.get("/p/spacing/").status_code == 200
     methods = [
         (r["username"], r["method"], r["outcome"]) for r in accounts.signin_log(h.instance.store)
@@ -107,3 +108,19 @@ def test_the_providers_client_secret_is_never_shown(tmp_path: Path) -> None:
         response = browser.get(path)
         assert "client-secret-value" not in response.text
         assert "client-secret-value" not in response.headers.get("location", "")
+
+
+def test_a_callback_started_in_another_browser_signs_nobody_in(tmp_path: Path) -> None:
+    """Login CSRF: an attacker's half-finished sign-in, completed in a victim's browser."""
+    h, fake = _with_provider(tmp_path)
+    accounts.add_user(h.instance.store, "mallory")
+    invitation = accounts.create_invitation(h.instance.store, "mallory", now=h.clock())
+    attacker = h.client()
+    started = attacker.get(f"/auth/university/start?invite={invitation}")
+    query = parse_qs(urlsplit(started.headers["location"]).query)
+    fake.nonce = query["nonce"][0]
+    victim = h.client()
+    response = victim.get(f"/auth/university/callback?state={query['state'][0]}&code=good-code")
+    assert response.status_code == 403 and "not started in this browser" in response.text
+    assert victim.get("/").status_code == 303
+    assert accounts.invitation_user(h.instance.store, invitation, now=h.clock()) == "mallory"

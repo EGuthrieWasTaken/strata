@@ -141,9 +141,10 @@ image is built and smoke-tested by CI on amd64 and arm64 but not yet released
 ([`docs/container.md`](docs/container.md)). `strata zotero link|pull|push|status|open` is an optional Zotero
 integration, tested against a stand-in for Zotero 6 and 7 and not yet against a real Zotero. `strata init --ci`
 installs a pull-request workflow that runs `strata verify`, comments on what a change does to the review and
-labels criteria changes `protocol-amendment`; it has not yet run on GitHub. The hosted multi-user instance
-(`strata host`) is planned and not started; see [`docs/m5-1-plan.md`](docs/m5-1-plan.md) and
-[`docs/m6-plan.md`](docs/m6-plan.md).
+labels criteria changes `protocol-amendment`; it has not yet run on GitHub. `strata host` runs a
+hosted multi-user instance (per-user sign-in, roles, an automatic sync loop with the shared remote); it is
+tested in-process and has not yet been deployed for real or security-reviewed, see
+[Running a hosted instance](https://github.com/EGuthrieWasTaken/strata/wiki/Running-a-Hosted-Instance).
 
 The practical guide, stage by stage, is [the wiki](https://github.com/EGuthrieWasTaken/strata/wiki) (its pages
 are in [`wiki/`](wiki/) and are published from there); start with its Quickstart.

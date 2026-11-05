@@ -361,3 +361,60 @@ def test_project_dashboard_shows_last_sync_and_remote_status(tmp_path: Path) -> 
     # Every link the review's screens render carries the project's prefix.
     assert 'href="/p/spacing/records"' in page.text
     assert 'href="/records"' not in page.text
+
+
+def test_strata_serve_never_offers_sign_in_or_a_second_repository(tmp_path: Path) -> None:
+    """openspec:web-ui#strictly-local, "Hosted mode is explicit": only `strata host` has accounts."""
+    from fastapi.testclient import TestClient
+
+    from strata.web.app import create_app
+
+    h = hosted(tmp_path)
+    app = create_app(repo_root=h.repo.root, actor="ethan", session_token="tok-0123456789abcdef")
+    client = TestClient(app, base_url="http://127.0.0.1:8000")
+    for path in ("/signin", "/invite/x", "/auth/github/start", "/p/spacing/", "/-/members"):
+        response = client.get(f"{path}?token=tok-0123456789abcdef")
+        assert response.status_code == 404, path
+    page = client.get("/?token=tok-0123456789abcdef")
+    assert "Sign out" not in page.text and 'href="/records"' in page.text
+
+
+def test_a_hook_pushed_to_the_remote_never_runs_on_the_instance(tmp_path: Path) -> None:
+    """A review carries its git hooks; on a shared server they would be anyone-with-push's code."""
+    from strata.core import sync as sync_mod
+    from tests.integration._hosted import local_clone
+
+    h = hosted(tmp_path)
+    marker = tmp_path / "pwned"
+    laptop = local_clone(h.bare, tmp_path / "laptop")
+    hook = laptop.path(".strata", "hooks", "pre-commit")
+    hook.write_text(f"#!/bin/sh\ntouch {marker}\nexec strata internal hook-pre-commit\n")
+    gitio.add_all(laptop.root)
+    gitio.run(
+        ["commit", "--no-verify", "-m", "hooks: tweak\n\nStrata-Op: test\nStrata-Actor: ethan"],
+        cwd=laptop.root,
+    )
+    marker.unlink(missing_ok=True)
+    sync_mod.sync(laptop, actor="ethan", sleep=lambda _s: None)
+    marker.unlink(missing_ok=True)
+    assert gitio.get_config(h.repo.root, "core.hooksPath") == str(h.instance.hooks_dir)
+    sam = h.signed_in("sam.okonkwo")
+    h.clock.advance(h.instance.settings.sync_interval + 1)
+    sam.get("/p/spacing/")  # pulls the new hook
+    assert "touch" in h.repo.path(".strata", "hooks", "pre-commit").read_text()
+    record = _record_ids(h)[0]
+    post(sam, "/screen/title-abstract", {"record_id": record, "decision": "include"})
+    h.server.sync.flush("spacing", actor="sam")  # a commit, which runs the pre-commit hook
+    assert gitio.log(h.repo.root, max_count=1, fmt="%s")[0].startswith("screen(")
+    assert not marker.exists()
+
+
+def test_the_instances_own_forms_refuse_a_large_or_unsized_body(tmp_path: Path) -> None:
+    h = hosted(tmp_path)
+    client = h.client()
+    big = client.post(
+        "/signin",
+        content=b"x" * (2 * 1024 * 1024),
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    assert big.status_code == 413

@@ -169,3 +169,20 @@ def test_running_needs_an_initialised_instance_and_an_https_url(tmp_path: Path) 
         app, ["host", "--data", str(data), "--public-url", "http://example.org"], env=ENV
     )
     assert result.exit_code == 2 and "https://" in result.output
+
+
+def test_a_relative_data_directory_works(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    _data, bare = _instance(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    host(Path("rel"), "init", "--admin", "root")
+    host(Path("rel"), "project", "add", "spacing", "--remote", str(bare))
+    assert (tmp_path / "rel" / "projects" / "spacing" / "strata.toml").is_file()
+
+
+def test_an_empty_remote_is_explained_and_leaves_nothing_behind(tmp_path: Path) -> None:
+    data, _bare = _instance(tmp_path)
+    empty = tmp_path / "empty.git"
+    gitio.run(["init", "--bare", str(empty)], cwd=tmp_path)
+    out = host(data, "project", "add", "spacing", "--remote", str(empty), code=2)
+    assert "holds no strata review" in out
+    assert not (data / "projects" / "spacing").exists()

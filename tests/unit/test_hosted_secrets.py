@@ -192,3 +192,19 @@ def test_gitio_environment_sets_author_and_committer_for_the_block(
         "Local Person|Local Person",
         "Sam Okonkwo|strata instance",
     ]
+
+
+def test_the_instance_key_can_come_from_a_container_secret_file(tmp_path: Path) -> None:
+    key_file = tmp_path / "strata_instance_key"
+    key_file.write_text(generate_key().decode() + "\n")
+    secrets = _secrets(tmp_path, {"STRATA_INSTANCE_KEY_FILE": str(key_file)})
+    assert not (tmp_path / "instance" / "instance.key").exists()
+    secrets.put("x", "value")
+    assert secrets.get("x") == "value"
+    broken = SecretStore(
+        secrets._store,
+        tmp_path / "unused.key",
+        environ={"STRATA_INSTANCE_KEY_FILE": str(tmp_path / "missing")},
+    )
+    with pytest.raises(SecretError, match="cannot read the instance key"):
+        broken.put("x", "value")
