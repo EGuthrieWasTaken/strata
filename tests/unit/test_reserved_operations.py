@@ -69,6 +69,20 @@ RESERVED_FOR_PEOPLE = frozenset(
         "export provenance",
         "serve",  # starts the web interface for a person
         "mcp",
+        # A hosted instance's administration: accounts, credentials, memberships, projects
+        # (openspec:hosted-deployment). None of it touches a review's content.
+        "host init",
+        "host project add",
+        "host user add",
+        "host user invite",
+        "host user disable",
+        "host user enable",
+        "host member add",
+        "host member remove",
+        "host token add",
+        "host token revoke",
+        "host secret set",
+        "host secret delete",
     }
 )
 
@@ -101,6 +115,11 @@ READ_ONLY = frozenset(
         "internal hook-post-checkout",
         "internal hook-post-merge",
         "internal hook-pre-commit",
+        "host project list",
+        "host user list",
+        "host member list",
+        "host secret list",
+        "host signins",
     }
 )
 

@@ -153,14 +153,9 @@ def test_remote_mcp_serves_the_read_only_tools_and_nothing_that_writes(tmp_path:
     listed = _mcp(client, "spacing", token, "tools/list")
     assert listed.status_code == 200
     names = sorted(tool["name"] for tool in listed.json()["result"]["tools"])
-    assert names == [
-        "criteria_diff",
-        "log",
-        "preview_criterion_change_impact",
-        "records",
-        "status",
-        "why",
-    ]
+    from strata.mcpserver.server import READ_TOOLS, WRITE_TOOLS
+
+    assert names == sorted(READ_TOOLS) and not set(names) & set(WRITE_TOOLS)
     assert _tool(client, "spacing", token, "status")["title"] == "Spacing review"
     called = _mcp(client, "spacing", token, "tools/call", {"name": "screen", "arguments": {}})
     assert "error" in called.json() or called.json()["result"].get("isError")
@@ -305,3 +300,18 @@ def test_blinded_records_are_the_reviewers_own_undecided_queue(tmp_path: Path) -
         {"stage": "title-abstract", "record_id": "rec_unknown"},
     ]
     assert blinding.visible(items, blinding.blinded_records(repo, "ethan")) == [items[1]]
+
+
+def test_remote_mcp_offers_no_write_tool_even_when_the_review_enables_ai(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """openspec:hosted-deployment#remote-mcp-access: remote MCP stays unable to commit a decision,
+    whatever the review's AI policy lets a local server offer."""
+    from strata.core import agents as agents_mod
+    from strata.mcpserver.server import WRITE_TOOLS
+
+    h = hosted(tmp_path)
+    monkeypatch.setattr(agents_mod, "is_enabled", lambda repo: True)
+    token = accounts.create_api_token(h.instance.store, "ethan.g", label="mcp", now=h.clock())
+    listed = _mcp(h.client(), "spacing", token, "tools/list").json()["result"]["tools"]
+    assert listed and not {tool["name"] for tool in listed} & set(WRITE_TOOLS)
