@@ -190,6 +190,47 @@ Each scroll box is also a tab stop whether or not its table overflows, so a keyb
 more stop per table; making it a stop only when it overflows needs a few lines of script.
 
 
+## add-web-ui-write-surfaces: found by the Chrome pass
+
+An agent working through [`chrome-pass.md`](chrome-pass.md) in Chrome 157 on Linux, against the code at
+`ceb67a9`, wrote [`chrome-pass-results.md`](chrome-pass-results.md): 27 checks, 22 passed, 4 failed (K2, V3,
+V5, V7), 1 blocked (L1: Chrome will not go below 616 px, so 320 px stays with the page tests), and 26 findings.
+It is a dry run by an agent: it is not the unaided first-time-user gate (task 7.4) or a usability session.
+
+Fixed, each with a test that failed first:
+
+- **The criteria editor's Preview put the session token and the reviewer's reason in the address** (F14). The
+  button was `formmethod="get"` inside the form whose hidden `csrf_token` field is the session token, so both
+  went into browser history, the address bar and any `Referer`. It now posts (`intent=preview`), with and
+  without JavaScript, and the editor no longer reads a draft from the query string. A unit test scans every
+  template so no form carrying the token can be submitted with GET.
+- **Words broke mid-word in narrow tables** ("Yea/r", "20/21": F25, L1, V3). The `overflow-wrap: anywhere` this
+  change had put on the body lets a table column shrink below its longest word; it is now `break-word`. The
+  layout test looks for any word spanning two lines in a table cell.
+
+Open. Checked against the code unless marked:
+
+- **Web screening decisions are not committed when you leave the screen** (F3), though the wiki says so;
+  `web/routes.py` says no commit trigger is wired. The next unrelated commit then sweeps them up (F11, from the
+  agent's log; not reproduced here).
+- **A split makes `/prisma` refuse to draw** (F26): `studies_included <= reports_included` is an identity in
+  `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
+- **The funnel plot's confidence-limit lines leave the axes** (F13; also found independently from the SVG
+  coordinates: x runs from -30 to 630 against an axes box of 70 to 530).
+- **The session cookie is shared by every server on `127.0.0.1`** (F20), because cookies ignore ports.
+- Smaller: History shows neither why nor when (F15); a record's timeline is a raw dump (F9); the dashboard,
+  `strata status` and the rescreen page count stale decisions differently (F22); an assignment has no visible
+  effect (F23, though the agent assigned records the reviewer had already screened); some messages name
+  internal settings or codes (F2, F24, F25); "Nothing left to screen" appears while a skipped record remains
+  (F4); an analysis still reads "current" after decisions went stale, which may be intended (F18).
+
+Wrong in the prompt, not in the product: the record counts in K2 and W6 (W3 adds a record), the expectation
+in V7 that the analysis goes stale, D4's expectation that the queue table changes, X1's "`localhost` will be
+refused", running W9 before L1, and "tick a criterion" in K2 (a digit key records an exclusion at once when
+exclusions must cite a reason, as `wiki/The-Web-Interface.md` says; whether a stray key should be able to is
+a product decision).
+
+
 ## add-web-ui-write-surfaces: manual checks for the new screens
 
 The browser test in `tests/browser` (Node and Playwright, skipped where they are not installed) drives
@@ -214,9 +255,12 @@ search and imports its export in the browser, unaided. Record the outcome here w
 - [x] **Reduced motion** (`prefers-reduced-motion: reduce`): the drop target changes with no animation. *(by script, not by a person: `test_reduced_motion_stops_the_drop_target_transitioning` finds no transition or animation under `reduce`, and finds the drop target transitioning without the preference, so the check is not vacuous)*
 - [x] **Dark mode** (`prefers-color-scheme: dark`): the drop target, its dragging state, the warning flags and
       the error messages all keep their contrast (4.5:1 for text, 3:1 for the border). *(by script, not by a person: `test_contrast_holds_in_light_and_dark` measures 4.5:1 for text and 3:1 for the drop target's border (also while dragging), error boxes, warning flags and the screening buttons in both schemes; it found the drop target at 1.6:1 light and 1.9:1 dark, now 4.5:1 and 5.4:1)*
-- [ ] **Colour is never the only signal**: with colour removed (a greyscale filter), a search with no query, a
+- [x] **Colour is never the only signal**: with colour removed (a greyscale filter), a search with no query, a
       search with no export, a file that cannot be imported and the dragging state are each still
-      distinguishable by an icon or by words.
+      distinguishable by an icon or by words. *(No query, no export and the screening buttons: by Claude in
+      Chrome with a greyscale filter, check G1 in [`chrome-pass-results.md`](chrome-pass-results.md), not by a
+      person. A file that cannot be imported and the dragging state: the page tests assert the words, "Drop to
+      attach" and the refusal's message, in `tests/browser`.)*
 - [x] **JavaScript disabled**: record a search with a file, review, and import, using only the ordinary file
       chooser; nothing is missing but the drop box. *(by script, not by a person: `test_a_search_can_be_recorded_imported_and_screened_without_javascript`)*
 - [ ] **Firefox and Safari** (the browser test uses Chromium): the same flow, in particular that a form post
