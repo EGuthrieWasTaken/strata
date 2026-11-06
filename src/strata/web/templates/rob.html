@@ -14,7 +14,7 @@
     <input type="hidden" name="action" value="answers">
     <input type="hidden" name="domain" value="{{ d.id }}">
     <input type="hidden" name="commit_rationale" value="Recorded signalling answers.">
-    <table class="stage-table">
+    <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
       <tbody>
         {% for q in d.questions %}
         <tr{% if d.needed == q.id %} class="missing"{% endif %}>
@@ -28,7 +28,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     <button type="submit" class="btn">Save answers</button>
   </form>
   {% endif %}

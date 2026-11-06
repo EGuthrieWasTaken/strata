@@ -18,7 +18,7 @@
 
 <p>{{ rows | length }} record{{ "s" if rows | length != 1 else "" }}</p>
 
-<table class="stage-table">
+<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
   <thead>
     <tr>
       <th scope="col">ID</th>
@@ -37,5 +37,5 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% endblock %}

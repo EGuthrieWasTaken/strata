@@ -33,7 +33,7 @@
   <input type="hidden" name="action" value="save">
   <p class="field-help">Leave a field blank to keep it. Type <kbd>NR</kbd> if the paper does not report it.
     Press <kbd>@</kbd> in a value to jump to its source locator.</p>
-  <table class="stage-table field-table">
+  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table field-table">
     <thead>
       <tr>
         <th scope="col">Field</th>
@@ -70,7 +70,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   <label class="note-field">
     Why? {% if rationale_required %}(required){% endif %}
     <textarea name="rationale" {% if rationale_required %}required minlength="12"{% endif %}></textarea>
@@ -80,7 +80,7 @@
 
 <h2>Effects</h2>
 {% if effects %}
-<table class="stage-table">
+<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
   <thead>
     <tr><th scope="col">Outcome</th><th scope="col">Timepoint</th><th scope="col">Design</th><th scope="col">Effect size</th></tr>
   </thead>
@@ -94,7 +94,7 @@
     </tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% else %}
 <p class="done-note">No effects entered yet.</p>
 {% endif %}

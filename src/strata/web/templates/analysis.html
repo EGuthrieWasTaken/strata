@@ -44,7 +44,7 @@
   <p class="field-meta">{{ estimates.model.type }}; tau&sup2; estimator {{ estimates.model.tau2_estimator }}; interval {{ estimates.model.ci_method }}.</p>
 
   {% if pooled.coefficients | length > 1 %}
-  <table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>Meta-regression coefficients</caption>
     <thead><tr><th scope="col">Term</th><th scope="col">Estimate</th><th scope="col">SE</th><th scope="col">95% CI</th><th scope="col">p</th></tr></thead>
     <tbody>
@@ -52,7 +52,7 @@
       <tr><th scope="row">{{ c.name }}</th><td>{{ "%.3f"|format(c.estimate) }}</td><td>{{ "%.3f"|format(c.se) }}</td><td>{{ "%.3f"|format(c.ci_lb) }} to {{ "%.3f"|format(c.ci_ub) }}</td><td>{{ "%.4f"|format(c.p) if c.p is not none else "n/a" }}</td></tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% endif %}
 
   {% if pooled.heterogeneity %}
@@ -87,7 +87,7 @@
 <section aria-labelledby="sweeps-h">
   <h2 id="sweeps-h">Assumptions swept</h2>
   {% for key, sweep in estimates.sweeps.items() %}
-  <table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>{{ sweep.note }}</caption>
     <thead><tr><th scope="col">{{ "rho" if sweep["values"][0].rho is defined else "r" }}</th><th scope="col">Estimate</th><th scope="col">95% CI</th></tr></thead>
     <tbody>
@@ -95,7 +95,7 @@
       <tr><th scope="row">{{ v.rho if v.rho is defined else v.r }}</th><td>{{ "%.3f"|format(v.estimate) }}</td><td>{{ "%.3f"|format(v.ci_lb) }} to {{ "%.3f"|format(v.ci_ub) }}</td></tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% endfor %}
 </section>
 {% endif %}
@@ -113,14 +113,14 @@
   <p class="field-meta">{{ s.note }}</p>
   {% else %}
   <h3>{{ sid }}: {{ s.type | replace("_", " ") }}</h3>
-  <table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <thead><tr><th scope="col">Step</th><th scope="col">Estimate</th><th scope="col">95% CI</th><th scope="col">I&sup2;</th></tr></thead>
     <tbody>
       {% for r in s.results %}
       <tr><th scope="row">{{ r.label or r.subset or r.omitted }}</th><td>{{ "%.3f"|format(r.estimate) if r.estimate is not none else "n/a" }}</td><td>{% if r.ci_lb is not none %}{{ "%.3f"|format(r.ci_lb) }} to {{ "%.3f"|format(r.ci_ub) }}{% endif %}</td><td>{{ "%.1f"|format(r.I2) if r.I2 is not none else "" }}</td></tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% endif %}
   {% endfor %}
 </section>
@@ -141,14 +141,14 @@
 {% if study_rows %}
 <section aria-labelledby="studies-h">
   <h2 id="studies-h">Values behind the plots</h2>
-  <table class="stage-table study-values">
+  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table study-values">
     <thead><tr>{% for h in study_headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for row in study_rows %}
       <tr>{% for cell in row %}{% if loop.first %}<th scope="row">{{ cell }}</th>{% else %}<td>{{ cell }}</td>{% endif %}{% endfor %}</tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
 </section>
 {% endif %}
 

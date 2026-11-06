@@ -491,3 +491,12 @@ All notable changes to `strata` are documented here. Format follows
   running after five-plus minutes now completes in ~20s; 50,000-record dedup
   dropped from over 240s to ~126s. New `append_new_events` batches a run's
   worth of appends into one read plus one write per event.
+- **The web interface found four defects when every screen was opened in a real browser** (`scripts/seed_review.py`
+  builds the reviews; `tests/browser/test_pages_browser.py` walks them). The screening progress bar set its
+  width with an inline `style=` that the Content-Security-Policy (`style-src 'self'`) blocks, so it never
+  filled; it is now a native `<progress>`. The drop target's border was 1.6:1 against the page in light and
+  1.9:1 in dark, under the 3:1 the specification asks for; it now uses `--border-strong`. Tables on
+  `/records`, `/history`, `/adjudicate`, `/extract/<study>` and `/analysis/<id>` pushed the whole page sideways
+  at 320 px (the analysis study table at 1024 px too); they now scroll inside a keyboard-focusable box. A title
+  or DOI with no spaces did the same on the screening card and a record's page; words now break where they
+  must. `tests/unit/test_web_static_accessibility.py` holds all four in the pull-request gate.
