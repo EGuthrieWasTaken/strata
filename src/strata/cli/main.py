@@ -36,14 +36,18 @@ from strata.ci import amendment as ci_amendment_mod
 from strata.ci import comment as ci_comment_mod
 from strata.ci import workflows as ci_workflows
 from strata.core import actor as actor_mod
+from strata.core import agent_ops as agent_ops_mod
+from strata.core import agents as agents_mod
 from strata.core import diffcmd as diffcmd_mod
 from strata.core import doctor as doctor_mod
 from strata.core import fieldedit as fieldedit_mod
 from strata.core import ids as ids_mod
 from strata.core import init as init_mod
+from strata.core import ledger as ledger_mod
 from strata.core import logcmd as logcmd_mod
 from strata.core import manifest as manifest_mod
 from strata.core import merge as merge_mod
+from strata.core import migrate as migrate_mod
 from strata.core import operations as ops_mod
 from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
@@ -53,6 +57,7 @@ from strata.core import verify as verify_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
 from strata.core.hooks import validate_commit_message_trailers
 from strata.core.repo import (
+    MAX_SCHEMA_VERSION,
     LockTimeoutError,
     Repo,
     RepoNotFoundError,
@@ -84,6 +89,7 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.protocol import suggestions as suggestions_mod
 from strata.report import bibliography as bibliography_mod
 from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
@@ -146,8 +152,20 @@ zotero_app = typer.Typer(
     help="Optional: link a review to Zotero (it holds the documents, strata holds the decisions).",
     no_args_is_help=True,
 )
+ai_app = typer.Typer(
+    name="ai",
+    help="Optional: decide whether, where and how far AI agents may take part in this review.",
+    no_args_is_help=True,
+)
+suggestions_app = typer.Typer(
+    name="suggestions",
+    help="Optional: what an AI agent has proposed, for a person to adopt or reject.",
+    no_args_is_help=True,
+)
 internal_app = typer.Typer(name="internal", help="Internal hook entry points.", hidden=True)
 app.add_typer(actor_app, name="actor")
+app.add_typer(ai_app, name="ai")
+app.add_typer(suggestions_app, name="suggestions")
 app.add_typer(search_app, name="search")
 app.add_typer(records_app, name="records")
 app.add_typer(criteria_app, name="criteria")
@@ -592,6 +610,22 @@ def status(ctx: typer.Context) -> None:
     clean = "clean" if s.is_clean else "dirty"
     out_console.print(f"{s.commit_count} commits · {s.actor_count} actors · {clean}")
     out_console.print(f"{s.record_count} records · {s.search_count} searches recorded")
+    if s.migration_available:
+        out_console.print(
+            f"format {s.schema_version}; format {MAX_SCHEMA_VERSION} is available "
+            "(`strata migrate`; AI participation needs it)"
+        )
+    if s.ai is not None:
+        in_force = (
+            ", ".join(f"{kind}: {mode}" for kind, mode in s.ai.policy.items())
+            or "every kind of work is off"
+        )
+        out_console.print(
+            escape(
+                f"AI participation is on ({in_force}) · {s.ai.agent_events} agent event(s) · "
+                f"{s.ai.suggestions_waiting} suggestion(s) waiting"
+            )
+        )
     for search_id in s.pending_searches:
         out_console.print(f"[yellow]![/] {search_id} has no query string recorded  (PRISMA item 7)")
     for stage in s.stages:
@@ -744,21 +778,35 @@ def actor_add(
     name: str,
     email: str | None = typer.Option(None, "--email"),
     role: str = typer.Option("screener", "--role"),
+    kind: str = typer.Option(
+        "human",
+        "--kind",
+        help="human (the default), or agent: an AI model the review accepts "
+        "(needs `strata ai enable`)",
+    ),
+    model: str | None = typer.Option(
+        None, "--model", help="For --kind agent: the model name the agent reports about itself"
+    ),
 ) -> None:
     repo = _resolve_repo(ctx)
     _preflight_rationale(ctx, repo)
     try:
-        actor_mod.add_actor(repo, handle=handle, name=name, email=email, role=role)
+        actor_mod.add_actor(
+            repo, handle=handle, name=name, email=email, role=role, kind=kind, model=model
+        )
     except actor_mod.ActorError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    trailers = {"Op": "actor-add", "Actor": handle, "Role": role}
+    if kind == agents_mod.KIND_AGENT:
+        trailers.update({"Kind": "agent", "Model": str(model)})
     _commit_manifest_op(
         ctx,
         repo,
         op="actor-add",
         scope=handle,
         summary=f"add actor {handle}",
-        trailers={"Op": "actor-add", "Actor": handle, "Role": role},
+        trailers=trailers,
     )
     out_console.print(f"[green]added[/] actor {handle}")
 
@@ -771,7 +819,10 @@ def actor_list(ctx: typer.Context) -> None:
         _print_json(actors)
         return
     for a in actors:
-        out_console.print(f"{a['handle']:<16} {a.get('name', ''):<24} {a.get('role', '')}")
+        line = f"{a['handle']:<16} {a.get('name', ''):<24} {a.get('role', '')}"
+        if a.get("kind") == agents_mod.KIND_AGENT:
+            line += f"  [AI agent; model {a.get('model', '?')} (self-reported)]"
+        out_console.print(escape(line))
 
 
 @actor_app.command("deactivate")
@@ -792,6 +843,336 @@ def actor_deactivate(ctx: typer.Context, handle: str) -> None:
         trailers={"Op": "actor-deactivate", "Actor": handle},
     )
     out_console.print(f"[green]deactivated[/] actor {handle}")
+
+
+@app.command("migrate")
+def migrate_command(ctx: typer.Context) -> None:
+    """Upgrade this review to the newest file format this version of strata knows.
+
+    Forward-only and idempotent: one commit with your rationale, nothing rewritten, and a second
+    run changes nothing. A review stays in the format it is in until you ask; the next format
+    permits AI participation (`strata ai enable` runs this for you)."""
+    repo = _resolve_repo(ctx)
+    if not migrate_mod.pending(repo):
+        out_console.print(
+            f"[green]ok[/] — already in format {repo.schema_version}; nothing to migrate"
+        )
+        return
+    _preflight_rationale(ctx, repo)
+    try:
+        done = ops_mod.migrate_repository(
+            repo,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You upgraded this review to format {MAX_SCHEMA_VERSION}."
+            ),
+        )
+    except migrate_mod.MigrationError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    out_console.print(
+        f"[green]migrated[/] from format {done.result.from_version} to {done.result.to_version}"
+        + ("" if done.committed else " (not committed)")
+    )
+
+
+@ai_app.command("enable")
+def ai_enable(ctx: typer.Context) -> None:
+    """Turn AI participation on for this review (a lead's decision; every kind of work starts off).
+
+    Upgrades the review to format 2 in the same commit if it is not there yet. Nothing changes for
+    anyone until `strata ai policy` lets a kind of work be suggested or counted, and an agent must
+    still be registered (`strata actor add NAME --kind agent --model MODEL`)."""
+    repo = _resolve_repo(ctx)
+    _preflight_rationale(ctx, repo, needed=lambda: not agents_mod.is_enabled(repo))
+    try:
+        done = ops_mod.enable_ai(
+            repo,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, "You enabled AI participation."),
+        )
+    except (migrate_mod.MigrationError, manifest_mod.ConfigError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if not done.changed:
+        out_console.print("[green]ok[/] — AI participation is already enabled")
+        return
+    migrated = (
+        f" (upgraded from format {done.migration.from_version})" if done.migration.changed else ""
+    )
+    out_console.print(
+        f"[green]enabled[/] AI participation{migrated}; every kind of work is off. Next: "
+        "`strata ai policy KIND suggest` and `strata actor add NAME --kind agent --model MODEL`"
+    )
+
+
+def _ai_policy_payload(repo: Repo) -> dict[str, Any]:
+    return {
+        "enabled": agents_mod.is_enabled(repo),
+        "show_suggestions": agents_mod.show_suggestions(repo),
+        "policy": agents_mod.policy(repo),
+        "models": agents_mod.accepted_models(repo),
+    }
+
+
+@ai_app.command("policy")
+def ai_policy(
+    ctx: typer.Context,
+    kind: str | None = typer.Argument(None, help="A kind of work; omit to list them all"),
+    mode: str | None = typer.Argument(None, help="off, suggest or count; omit to show the mode"),
+) -> None:
+    """Show, or set, what AI agents may do for each kind of work: off, suggest or count.
+
+    off: nothing. suggest: an agent may propose, and a person decides. count: an agent's work
+    takes effect, recorded as the agent's and reported as such. Setting a mode is a commit with
+    your rationale; no agent can do it."""
+    repo = _resolve_repo(ctx)
+    if kind is not None and kind not in agents_mod.KINDS_OF_WORK:
+        err_console.print(f"[red]error:[/] {agents_mod.unknown_kind_message(kind)}")
+        raise typer.Exit(EXIT_USAGE)
+
+    if mode is None:
+        payload = _ai_policy_payload(repo)
+        if ctx.obj["json"]:
+            _print_json(
+                payload if kind is None else {"kind": kind, "mode": payload["policy"][kind]}
+            )
+            return
+        if kind is not None:
+            out_console.print(payload["policy"][kind])
+            return
+        if payload["enabled"]:
+            out_console.print("AI participation is [green]enabled[/] for this review")
+        else:
+            out_console.print(
+                "AI participation is [yellow]not enabled[/] for this review "
+                "(`strata ai enable` turns it on); every kind of work is off"
+            )
+        for name, current in payload["policy"].items():
+            out_console.print(f"  {name:<14} {current}")
+        if payload["enabled"]:
+            out_console.print(f"  suggestions are shown {payload['show_suggestions']}")
+        return
+
+    assert kind is not None  # typer cannot give a mode without a kind
+    _preflight_rationale(ctx, repo, needed=lambda: agents_mod.policy(repo).get(kind) != mode)
+    try:
+        done = ops_mod.set_ai_policy(
+            repo,
+            kind=kind,
+            mode=mode,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(
+                ctx, repo, f"You set AI participation in {kind} to {mode}."
+            ),
+        )
+    except (ValueError, manifest_mod.ConfigError) as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if not done.changed:
+        out_console.print(f"[green]ok[/] — {kind} is already {done.new}")
+        return
+    out_console.print(
+        f"[green]set[/] {kind}: {done.old} -> {done.new}"
+        + ("" if done.committed else " (not committed)")
+    )
+
+
+def _suggestion_payload(item: suggestions_mod.Suggestion) -> dict[str, Any]:
+    """A suggestion as `--json` prints it: who proposed it (the model as reported, and the person
+    who started the agent), what, and where it stands."""
+    client = item.agent.get("client") or {}
+    payload: dict[str, Any] = {
+        "id": item.id,
+        "ts": item.ts,
+        "status": item.status,
+        "agent": item.actor,
+        "model": item.agent.get("model"),
+        "model_is_self_reported": True,
+        "client": client or None,
+        "invoked_by": item.agent.get("invoked_by"),
+        "op": item.op,
+        "kind": item.kind,
+        "target": item.target,
+        "summary": item.summary,
+        "args": item.args,
+        "rationale": item.rationale,
+        "criteria_version": item.criteria_version,
+    }
+    if item.record:
+        payload["record"] = item.record
+    if item.stage:
+        payload["stage"] = item.stage
+    if item.preview is not None:
+        payload["preview"] = item.preview
+    if item.resolution is not None:
+        payload["resolution"] = item.resolution
+    return payload
+
+
+def _suggestion_line(item: suggestions_mod.Suggestion) -> str:
+    model = item.agent.get("model", "?")
+    return (
+        f"{item.id}  {item.kind or item.op:<12} {item.summary}\n"
+        f"    by {item.actor} (model {model}, self-reported; invoked by "
+        f"{item.agent.get('invoked_by', '?')})"
+    )
+
+
+@suggestions_app.command("list")
+def suggestions_list(
+    ctx: typer.Context,
+    all_statuses: bool = typer.Option(False, "--all", help="Include adopted, rejected, superseded"),
+    by: str | None = typer.Option(
+        None, "--by", help="Who is looking: suggestions hidden from them by blinding are left out"
+    ),
+) -> None:
+    """List the suggestions waiting for a person (the pending ones; `--all` for the rest).
+
+    While reviewers are blinded, a suggestion about a record is not shown to a reviewer assigned to
+    it until they have recorded their own opinion; with no `--by` the list is the one safe to show
+    anyone."""
+    repo = _resolve_repo(ctx)
+    items = (
+        suggestions_mod.suggestions(repo)
+        if all_statuses
+        else agent_ops_mod.visible_pending(repo, by)
+    )
+    if all_statuses and agent_ops_mod.is_blinded(repo):
+        hidden = {s.id for s in suggestions_mod.pending(repo)} - {
+            s.id for s in agent_ops_mod.visible_pending(repo, by)
+        }
+        items = [s for s in items if s.id not in hidden]
+    if ctx.obj["json"]:
+        _print_json([_suggestion_payload(s) for s in items])
+        return
+    if not items:
+        out_console.print("no suggestions waiting")
+        return
+    for item in items:
+        out_console.print(escape(_suggestion_line(item)))
+
+
+def _find_suggestion(repo: Repo, suggestion_id: str) -> suggestions_mod.Suggestion:
+    try:
+        return suggestions_mod.get_suggestion(repo, suggestion_id)
+    except suggestions_mod.SuggestionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+
+
+@suggestions_app.command("show")
+def suggestions_show(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="Who is looking: a suggestion blinding hides from them is not shown"
+    ),
+) -> None:
+    """Show one suggestion in full: the proposal, the agent's reasons and what became of it."""
+    repo = _resolve_repo(ctx)
+    item = _find_suggestion(repo, suggestion_id)
+    hidden = item.status == suggestions_mod.PENDING and item.id not in {
+        s.id for s in agent_ops_mod.visible_pending(repo, by)
+    }
+    if hidden:
+        err_console.print(
+            "[red]error:[/] this suggestion is about a record that has not been decided yet, and "
+            "reviewers are blinded; it is shown once the record is decided"
+        )
+        raise typer.Exit(EXIT_USAGE)
+    if ctx.obj["json"]:
+        _print_json(_suggestion_payload(item))
+        return
+    out_console.print(escape(_suggestion_line(item)))
+    out_console.print(escape(f"    status: {item.status}"))
+    out_console.print(
+        escape(f"    suggested: {item.op} {json_mod.dumps(item.args, sort_keys=True)}")
+    )
+    out_console.print(escape(f"    reason given: {item.rationale}"))
+    out_console.print(escape(f"    made under criteria v{item.criteria_version}"))
+    if item.preview is not None:
+        out_console.print(escape(f"    impact: {json_mod.dumps(item.preview, sort_keys=True)}"))
+    if item.resolution is not None:
+        by = item.resolution.get("by", "?")
+        out_console.print(escape(f"    {item.status} by {by}: {item.resolution.get('reason', '')}"))
+        for event_id in item.result:
+            out_console.print(f"    -> {event_id}")
+
+
+@suggestions_app.command("adopt")
+def suggestions_adopt(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="The person adopting (default: the review's only active person)"
+    ),
+    confirm: bool = typer.Option(
+        False, "--confirm", help="Adopt even though the review changed since it was suggested"
+    ),
+) -> None:
+    """Adopt a suggestion: the operation is recorded as yours, with your rationale (--why).
+
+    The suggestion is checked again against the review as it is now. The events written are your
+    opinion, not the agent's, and the suggestion is linked to them."""
+    repo = _resolve_repo(ctx)
+    if ctx.obj["no_commit"]:
+        err_console.print("[red]error:[/] adopting a suggestion always commits; drop --no-commit")
+        raise typer.Exit(EXIT_USAGE)
+    item = _find_suggestion(repo, suggestion_id)
+    _preflight_rationale(ctx, repo, always=True)
+    rationale = _get_required_rationale(ctx, repo, f"You are adopting: {item.summary}.")
+    try:
+        done = agent_ops_mod.adopt(repo, item.id, by=by, rationale=rationale, confirm_moved=confirm)
+    except agent_ops_mod.AdoptionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(
+            EXIT_CONFLICT if isinstance(exc, agent_ops_mod.StateMoved) else EXIT_USAGE
+        ) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json({"suggestion": done.suggestion, "by": done.person, "events": done.event_ids})
+        return
+    out_console.print(
+        f"[green]adopted[/] {done.suggestion}: recorded as {done.person}'s own "
+        f"({len(done.event_ids)} event(s))"
+    )
+
+
+@suggestions_app.command("reject")
+def suggestions_reject(
+    ctx: typer.Context,
+    suggestion_id: str,
+    by: str | None = typer.Option(
+        None, "--by", help="The person rejecting (default: the review's only active person)"
+    ),
+) -> None:
+    """Reject a suggestion; your reason (--why) is kept with it and it is not offered again."""
+    repo = _resolve_repo(ctx)
+    item = _find_suggestion(repo, suggestion_id)
+    _preflight_rationale(ctx, repo, always=True)
+    reason = _get_required_rationale(ctx, repo, f"You are rejecting: {item.summary}.")
+    try:
+        done = agent_ops_mod.reject(repo, item.id, by=by, reason=reason)
+    except agent_ops_mod.AdoptionError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json(_suggestion_payload(done))
+        return
+    out_console.print(f"[green]rejected[/] {done.id}")
 
 
 @search_app.command("add")
@@ -1375,7 +1756,11 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
 
     if ctx.obj["json"]:
         _print_json(
-            [{"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail} for e in entries]
+            [
+                {"kind": e.kind, "ts": e.ts, "actor": e.actor, "detail": e.detail}
+                | ({"agent": e.agent} if e.agent else {})
+                for e in entries
+            ]
         )
         return
 
@@ -1388,6 +1773,8 @@ def why_command(ctx: typer.Context, record_id: str) -> None:
         ts = f" {entry.ts}" if entry.ts else ""
         actor = f" by {entry.actor}" if entry.actor else ""
         out_console.print(f"\n[bold]{entry.kind.upper()}[/]{ts}{actor}")
+        if entry.agent:
+            out_console.print(f"  [bold]{escape(provenance_mod.ai_label(entry.agent))}[/]")
         for key, value in entry.detail.items():
             out_console.print(f"  {key}: {value}")
 
@@ -4398,8 +4785,8 @@ def analyze_command(
 
 
 def _acting_handle(repo: Repo) -> str:
-    """The handle recorded as the actor of an analysis run: the first active actor."""
-    for actor in repo.config.get("actors", []):
+    """The handle recorded as the actor of an analysis run: the first active person."""
+    for actor in agents_mod.human_actors(repo):
         if actor.get("role") != "inactive":
             return str(actor["handle"])
     return "strata"
@@ -4440,17 +4827,8 @@ def prisma_command(
         raise typer.Exit(EXIT_USAGE)
     if not out:  # --out writes elsewhere and commits nothing
         _preflight_rationale(ctx, repo)
-    counts = counts_mod.compute(repo)
-    counts_mod.regenerate_counts_json(repo, counts)
     try:
-        counts_mod.require_reconciled(counts)
-        flow_mod.require_final(counts, allow_stale=allow_stale)
-        names = {str(s["id"]): str(s["database"]) for s in searches_mod.list_searches(repo)}
-        if fmt == "json":
-            document = flow_mod.flow_json(counts, names, columns=columns)
-            payload = (json_mod.dumps(document, indent=2, sort_keys=True) + "\n").encode("utf-8")
-        else:
-            payload = flow_mod.render(counts, fmt=fmt, columns=columns)
+        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
     except counts_mod.CountReconcileError as exc:
         err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
         raise typer.Exit(EXIT_VALIDATION) from None
@@ -4460,18 +4838,14 @@ def prisma_command(
     except flow_mod.FlowError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
+    counts = rendered.counts
     if out == "-":
-        sys.stdout.write(payload.decode("utf-8"))
+        sys.stdout.write(rendered.payload.decode("utf-8"))
         return
-    target = Path(out) if out else repo.path("reports", f"prisma.{fmt}")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(payload)
-    written = [str(target)]
-    _, collapsed = flow_mod.collapse_reasons(counts.exclusion_reasons)
-    if collapsed and fmt != "json":
-        table = target.with_name("prisma-exclusion-reasons.tsv")
-        table.write_text(flow_mod.reasons_table(counts), encoding="utf-8", newline="\n")
-        written.append(str(table))
+    written = [
+        str(p)
+        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
+    ]
     if not out:
         _commit_domain_op(
             ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
@@ -4864,23 +5238,134 @@ def merge_records_command(
     )
 
 
+def _kind_line(kind: str, k: ledger_mod.KindLedger) -> str:
+    parts = []
+    if k.suggested:
+        parts.append(
+            f"suggested {k.suggested} (adopted {k.adopted}, rejected {k.rejected}, "
+            f"superseded {k.superseded}, waiting {k.pending})"
+        )
+    if k.counted:
+        extra = []
+        if k.reviewing:
+            extra.append(f"{k.reviewing} as a reviewer")
+        extra.append(f"{k.changed_by_people} later changed by a person")
+        parts.append(f"counted {k.counted} ({', '.join(extra)})")
+    if k.file_work:
+        parts.append(f"{k.file_work} piece(s) of work committed")
+    return f"  {kind:<14} " + "; ".join(parts)
+
+
+@ai_app.command("report")
+def ai_report(ctx: typer.Context) -> None:
+    """The AI ledger: for each agent and kind of work, what it suggested (and what became of each
+    suggestion), what took effect as its own, what a person later changed, who ran it and when.
+
+    Read from the record, so it cannot disagree with the generated Methods text, which is written
+    from the same figures. The model name is the agent's own report; `strata` cannot verify it."""
+    repo = _resolve_repo(ctx)
+    found = ledger_mod.compute_ledger(repo)
+    if ctx.obj["json"]:
+        _print_json(dataclasses.asdict(found))
+        return
+    if not found.agents:
+        out_console.print("no AI agent is registered in this review")
+        return
+    for agent in found.agents:
+        state = " [revoked]" if agent.revoked else ""
+        out_console.print(
+            escape(f"{agent.actor}{state}  model {agent.model} (self-reported)"), highlight=False
+        )
+        if not agent.active_kinds:
+            out_console.print("  has done nothing yet")
+            continue
+        when = (
+            agent.first_active
+            if agent.first_active == agent.last_active
+            else f"{agent.first_active} to {agent.last_active}"
+        )
+        out_console.print(
+            escape(
+                f"  active {when}; invoked by {', '.join(agent.invokers) or 'no one recorded'}"
+                + (f"; via {', '.join(agent.clients)}" if agent.clients else "")
+            )
+        )
+        for kind, k in agent.active_kinds.items():
+            out_console.print(escape(_kind_line(kind, k)))
+
+
+@ai_app.command("revoke")
+def ai_revoke(
+    ctx: typer.Context,
+    agent: str,
+    by: str = typer.Option(..., "--by", help="The lead revoking the agent"),
+) -> None:
+    """Withdraw an agent's standing: it is deactivated, and every screening decision of its that
+    still counted goes in the stale queue (reason agent-revoked) for people to look at again.
+
+    Its history stays in the record. Your rationale (--why) is part of the commit. No agent can do
+    this, or anything else that changes who takes part."""
+    repo = _resolve_repo(ctx)
+    lead = next((a for a in repo.config.get("actors", []) if a.get("handle") == by), None)
+    if lead is None or lead.get("role") != "lead" or lead.get("kind") == "agent":
+        err_console.print(f"[red]error:[/] {by!r} is not a lead of this review")
+        raise typer.Exit(EXIT_USAGE)
+    _preflight_rationale(ctx, repo)
+    try:
+        done = ops_mod.revoke_agent(
+            repo,
+            handle=agent,
+            actor=by,
+            commit=not ctx.obj["no_commit"],
+            rationale=lambda: _get_rationale(ctx, repo, f"You revoked the AI agent {agent}."),
+        )
+    except actor_mod.ActorError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    _warn_lock_reclaimed(done.lock_reclaimed_from)
+    if ctx.obj["json"]:
+        _print_json({"agent": done.agent, "marked_stale": done.marked, "committed": done.committed})
+        return
+    out_console.print(
+        f"[yellow]revoked[/] {agent}: {done.marked} decision(s) now wait in the stale queue "
+        "(`strata rescreen`); its history is unchanged"
+        + ("" if done.committed else " (not committed)")
+    )
+
+
+_DECISION_VERBS = {"include": "included", "exclude": "excluded", "maybe": "marked maybe"}
+
+
 @app.command("audit")
 def audit_command(
     ctx: typer.Context,
     criteria: bool = typer.Option(
         False, "--criteria", help="Sample past exclusions for criterion-citation review"
     ),
+    ai: bool = typer.Option(
+        False,
+        "--ai",
+        help="Sample decisions an AI agent made that no person has independently decided",
+    ),
     sample: int = typer.Option(20, "--sample", help="Sample size"),
     seed: int | None = typer.Option(None, "--seed", help="Reproduce a specific sample"),
 ) -> None:
-    """Re-present a random sample of past exclusions for verification
-    (openspec:staleness#mitigations-for-miscited-criteria)."""
-    if not criteria:
-        err_console.print("[red]error:[/] strata audit currently only supports --criteria")
+    """Re-present a random sample for verification: past exclusions (`--criteria`,
+    openspec:staleness#mitigations-for-miscited-criteria) or AI decisions nobody else has
+    decided (`--ai`, openspec:ai-participation#the-ai-ledger-and-audit)."""
+    if criteria == ai:
+        err_console.print("[red]error:[/] give exactly one of --criteria and --ai")
         raise typer.Exit(EXIT_USAGE)
 
     repo = _resolve_repo(ctx)
-    sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+    if ai:
+        sampled, used_seed = audit_mod.sample_agent_decisions(repo, sample_size=sample, seed=seed)
+        what = "AI decision(s) no person has independently decided"
+    else:
+        sampled, used_seed = audit_mod.sample_exclusions(repo, sample_size=sample, seed=seed)
+        what = "exclusion(s)"
 
     if ctx.obj["json"]:
         _print_json(
@@ -4894,6 +5379,7 @@ def audit_command(
                         "criteria": list(item.criteria),
                         "note": item.note,
                     }
+                    | ({"decision": item.decision} if ai else {})
                     for item in sampled
                 ],
             }
@@ -4901,21 +5387,34 @@ def audit_command(
         return
 
     if not sampled:
-        out_console.print("no exclusion decisions recorded yet to audit")
+        out_console.print(
+            "no AI decisions recorded yet that nobody else has decided"
+            if ai
+            else "no exclusion decisions recorded yet to audit"
+        )
         return
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     out_console.print(
-        f"Sampling {len(sampled)} exclusion(s) (seed {used_seed}; "
+        f"Sampling {len(sampled)} {what} (seed {used_seed}; "
         f"rerun with --seed {used_seed} to reproduce)"
     )
     for item in sampled:
         record = records.get(item.record_id)
         title = record.get("title") if record else "(unknown record)"
         criteria_list = ", ".join(item.criteria) or "(none)"
-        out_console.print(
-            f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
-        )
+        if ai:
+            out_console.print(
+                escape(
+                    f"\n{item.record_id}  {item.stage}  "
+                    f"{_DECISION_VERBS.get(item.decision, item.decision)} by {item.actor} "
+                    f"(AI, model self-reported) citing {criteria_list}"
+                )
+            )
+        else:
+            out_console.print(
+                f"\n{item.record_id}  {item.stage}  excluded by {item.actor} citing {criteria_list}"
+            )
         out_console.print(f"  {title}")
         if item.note:
             out_console.print(f'  note: "{item.note}"')
@@ -4947,22 +5446,7 @@ def irr_command(
     irr_mod.regenerate_irr_json(repo)
 
     if ctx.obj["json"]:
-        _print_json(
-            [
-                {
-                    "stage": p.stage,
-                    "actor_a": p.actor_a,
-                    "actor_b": p.actor_b,
-                    "n": p.n,
-                    "excluded_maybe": p.excluded_maybe,
-                    "table": p.table,
-                    "raw_agreement": p.raw_agreement,
-                    "kappa": p.kappa,
-                    "pabak": p.pabak,
-                }
-                for p in all_pairs
-            ]
-        )
+        _print_json([{"stage": p.stage, **irr_mod.pair_payload(p)} for p in all_pairs])
         return
 
     if not all_pairs:
@@ -4972,6 +5456,7 @@ def irr_command(
         out_console.print(
             f"{p.stage:<16} {p.actor_a} x {p.actor_b}   n={p.n}   "
             f"agreement={p.raw_agreement:.2f}   kappa={p.kappa:.2f}   pabak={p.pabak:.2f}"
+            + ("   (AI: involves an agent)" if p.involves_agent else "")
         )
 
 
@@ -5051,16 +5536,39 @@ def serve_command(
     asyncio.run(web_server_mod.serve_until_idle_or_interrupted(params))
 
 
-@app.command("mcp")
-def mcp_command(ctx: typer.Context) -> None:
-    """Run the local, read-only MCP server over stdio (openspec:mcp-server).
+_ALLOW_DIR_OPTION = typer.Option(
+    None,
+    "--allow-dir",
+    help="A directory outside the review that import tools may read from; repeatable",
+)
 
-    Exposes status/why/log/records/criteria-diff/impact-preview as MCP tools --
-    nothing that writes. Spawned by an MCP-aware client (Claude Code, Claude
-    Desktop, or any other) against this repository, the same way the client
-    would spawn any other local stdio server, e.g. `strata -C <path> mcp`."""
+
+@app.command("mcp")
+def mcp_command(
+    ctx: typer.Context,
+    as_handle: str | None = typer.Option(
+        None,
+        "--as",
+        help="The person on whose behalf agents act; recorded on everything they do",
+    ),
+    allow_dir: list[str] | None = _ALLOW_DIR_OPTION,
+) -> None:
+    """Run the local MCP server over stdio (openspec:mcp-server).
+
+    Always offers read tools: status, why, log, records, criteria, queues and the AI policy.
+    Offers write tools only if a lead has enabled AI participation (`strata ai enable`) and the
+    person agents act for is known: `--as HANDLE`, or the review's only person. Every write names
+    the model (as the agent reports it) and that person, and obeys the policy for its kind of work
+    (`strata ai policy`). Spawned by an MCP-aware client (Claude Code, Claude Desktop, or any
+    other), e.g. `strata -C <path> mcp --as ada`."""
     repo = _resolve_repo(ctx)
-    mcp_server_mod.create_mcp_server(repo_root=repo.root).run(transport="stdio")
+    invoker = agents_mod.resolve_invoker(repo, as_handle)
+    if as_handle is not None and invoker.handle is None and agents_mod.is_enabled(repo):
+        err_console.print(f"[red]error:[/] {invoker.problem}")
+        raise typer.Exit(EXIT_USAGE)
+    mcp_server_mod.create_mcp_server(
+        repo_root=repo.root, invoker=as_handle, allow_dirs=[Path(d) for d in allow_dir or []]
+    ).run(transport="stdio")
 
 
 @internal_app.command("hook-pre-commit")

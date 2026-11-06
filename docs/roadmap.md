@@ -16,7 +16,7 @@ change is archived into the specs and this page is updated.
 | M4 — Analysis | implemented; one worked example open | `add-meta-analysis` |
 | M5 — Reporting (`1.0.0`) | implemented; one manual gate open | `add-prisma-reporting` |
 | M5.1 — Collaboration and hosting | in progress (`strata sync` done, container image built, hosted instance not started) | `add-container-image`, `add-hosted-team-deployment` |
-| M6 — Hardening and adoption | ongoing | `add-distribution-and-adoption`, `add-zotero-integration`, `add-review-repository-ci`, `add-web-ui-write-surfaces` |
+| M6 — Hardening and adoption | ongoing | `add-distribution-and-adoption`, `add-zotero-integration`, `add-review-repository-ci`, `add-web-ui-write-surfaces`, `add-ai-participation` |
 
 ## Sequencing principle
 
@@ -136,17 +136,20 @@ current.
 
 ### Local MCP server *(done)*
 
-`strata mcp` (`openspec:mcp-server`): a read-only MCP server over stdio exposing
-`status`, `why`, `log`, `records`, `criteria_diff`, and the criteria editor's
-non-mutating impact preview. No MCP tool records a screening or criteria
-decision.
+`strata mcp` (`openspec:mcp-server`): an MCP server over stdio. It always exposes
+`status`, `why`, `log`, `records`, `criteria_diff`, the criteria editor's
+non-mutating impact preview, and the reads an agent needs. Until a lead enables
+AI participation (`openspec:ai-participation`, change `add-ai-participation`) it
+offers nothing that writes; when they do, every write is attributed to a named
+model and person and obeys the review's policy.
 
 **Acceptance**
 
 - An MCP-aware client can query status, staleness, provenance, and history
   against a real repository, with the MCP server containing no domain logic
   beyond argument marshalling.
-- No MCP tool commits a screening or criteria decision on its own.
+- No MCP tool commits a screening or criteria decision unattributed, or at all
+  unless the review enabled AI participation and its policy allows that kind of work.
 
 ---
 
@@ -313,6 +316,14 @@ review repository.
   criterion, assign reviewers, record retrieval outcomes and group studies. Browser imports are the first step
   towards the hosted instance of M5.1, where people who never use a terminal do the same work. *Written and
   tested; its manual gate, a first-time user doing it unaided, has not been run — see
+  [`m6-plan.md`](m6-plan.md).*
+- **Open, attributed AI participation** (`add-ai-participation`, `openspec:ai-participation`): a per-review
+  policy (off by default) for whether, where and how far an AI assistant may take part; assistants registered
+  as actors of their own; suggestions a person adopts or rejects, and counted work recorded under the
+  assistant's handle; MCP write tools; a ledger from which the Methods text and PRISMA checklist items 8, 9
+  and 11 are written; revoking and auditing; schema format 2 and `strata migrate`. `strata` still ships no
+  model, and does not gate `1.0.0`. *Written and tested locally on Linux; the CLI is not yet moved onto the
+  shared operations, and the manual read of the disclosure by a methodologist has not been done — see
   [`m6-plan.md`](m6-plan.md).*
 - Translations.
 

@@ -48,8 +48,17 @@ def resolve_actor(repo: Repo, requested: str | None) -> str:
     if requested is not None:
         if requested not in by_handle:
             raise ServeConfigError(f"unknown actor {requested!r}")
+        if by_handle[requested].get("kind", "human") == "agent":
+            raise ServeConfigError(
+                f"{requested!r} is an AI agent; the web interface acts as a person "
+                "(an agent's work arrives through `strata mcp`)"
+            )
         return requested
-    active: list[str] = [a["handle"] for a in actors if a.get("role") != "inactive"]
+    active: list[str] = [
+        a["handle"]
+        for a in actors
+        if a.get("role") != "inactive" and a.get("kind", "human") != "agent"
+    ]
     if len(active) == 1:
         return active[0]
     if not active:

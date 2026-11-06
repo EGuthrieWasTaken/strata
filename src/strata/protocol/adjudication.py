@@ -92,8 +92,12 @@ def record_adjudication(
     actor: str,
     rationale: str,
     cited: list[str] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Resolve one conflict: openspec:adjudication.
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been written
+    is returned as `{"dry_run": True, "body": ...}`.
 
     Rationale is REQUIRED unconditionally (no `git.require_rationale`
     escape hatch, matching `cli.main._get_required_rationale`'s framing).
@@ -153,6 +157,8 @@ def record_adjudication(
         "criteria_digest": doc["digest"],
         "own_conflict": own_conflict,
     }
+    if dry_run:
+        return {"dry_run": True, "body": body}
     return append_new_event(
         repo.path("events", "adjudication", f"{actor}.ndjson"),
         ev="adjudicate",

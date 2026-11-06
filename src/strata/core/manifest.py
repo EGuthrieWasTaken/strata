@@ -8,6 +8,7 @@ than the stdlib `tomllib`, to preserve comments and formatting the user wrote.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -84,6 +85,64 @@ def build_initial_manifest(
     doc.add("analysis", analysis)
 
     return doc
+
+
+class ConfigError(ValueError):
+    """`E_CONFIG`: the configuration is well-formed but says something that cannot be true."""
+
+    code = "E_CONFIG"
+
+    def __init__(self, problems: list[str]) -> None:
+        self.problems = problems
+        super().__init__("; ".join(problems))
+
+
+def config_problems(config: Mapping[str, Any]) -> list[str]:
+    """Every `E_CONFIG` rule the configuration breaks (openspec:data-schemas), one sentence each.
+
+    These are the rules a JSON Schema cannot state because they relate two parts of the manifest:
+    an agent actor needs a model and cannot lead, a person has no model, a policy needs AI to be
+    enabled, and one model is registered once. A well-formed value of the wrong kind (`kind =
+    "robot"`) is `E_SCHEMA`'s to report, not this function's.
+    """
+    problems: list[str] = []
+    agents_by_model: dict[str, list[str]] = {}
+    for actor in config.get("actors", []):
+        handle = actor.get("handle", "?")
+        kind = actor.get("kind", "human")
+        model = actor.get("model")
+        if kind == "agent":
+            if not model:
+                problems.append(f"agent actor {handle!r} has no model")
+            if actor.get("role") == "lead":
+                problems.append(f"agent actor {handle!r} cannot hold the role 'lead'")
+            if model and actor.get("role") != "inactive":
+                agents_by_model.setdefault(str(model), []).append(str(handle))
+        elif model is not None:
+            problems.append(f"{handle!r} is a person, so it cannot have a model")
+    for model, handles in sorted(agents_by_model.items()):
+        if len(handles) > 1:
+            problems.append(
+                f"model {model!r} is registered for more than one active agent "
+                f"({', '.join(handles)}); a reported model must name exactly one"
+            )
+
+    ai = config.get("ai", {})
+    if not ai.get("enabled", False):
+        for kind_of_work, mode in sorted(ai.get("policy", {}).items()):
+            if mode != "off":
+                problems.append(
+                    f"[ai.policy] sets {kind_of_work!r} to {mode!r} but AI participation "
+                    "is not enabled (`strata ai enable`)"
+                )
+    return problems
+
+
+def validate_config(config: Mapping[str, Any]) -> None:
+    """Raise `ConfigError` (`E_CONFIG`) naming every rule `config` breaks."""
+    problems = config_problems(config)
+    if problems:
+        raise ConfigError(problems)
 
 
 def manifest_path(root: Path) -> Path:

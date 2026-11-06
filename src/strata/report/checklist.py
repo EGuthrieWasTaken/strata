@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from strata.report import amendments as amendments_mod
+from strata.report import disclosure
 from strata.report.facts import AnalysisFacts, Facts
 
 WORDING_VERIFIED = True
@@ -192,17 +193,34 @@ def _selection(facts: Facts) -> _Filled:
             parts.append(
                 f"Disagreements were resolved by adjudication ({_names(list(s['adjudicators']))})."
             )
+    with_ai = disclosure.reviewer_clause(reviewers, facts.ledger)
+    if with_ai:
+        parts.append(f"The records were screened by {with_ai}; the AI model acted as a reviewer.")
+    agent_names = {str(a["handle"]) for a in facts.actors if a.get("kind") == "agent"}
     for stage, pairs in facts.irr.items():
         for p in pairs:
+            first, second = (
+                f"{h} (an AI model)" if h in agent_names else h for h in (p.actor_a, p.actor_b)
+            )
             parts.append(
-                f"Agreement at {stage} between {p.actor_a} and {p.actor_b} (n = {p.n}): {p.raw_agreement:.0%}, Cohen's kappa {p.kappa:.2f}."
+                f"Agreement at {stage} between {first} and {second} (n = {p.n}): {p.raw_agreement:.0%}, Cohen's kappa {p.kappa:.2f}."
             )
     auto = facts.counts.totals
-    parts.append(
+    dedup = (
         "Duplicates were found and merged with strata's deduplication (blocking and scoring; "
-        f"{auto.duplicates_removed} duplicate record(s) removed). No records were marked ineligible by "
-        "automation tools and no machine-learning prioritisation was used."
+        f"{auto.duplicates_removed} duplicate record(s) removed). "
     )
+    automation = disclosure.automation_sentence(facts.ledger, disclosure.SELECTION)
+    if automation:
+        parts.append(dedup + automation + ".")
+    else:
+        parts.append(
+            dedup + "No records were marked ineligible by "
+            "automation tools and no machine-learning prioritisation was used."
+        )
+    selection_ai = disclosure.area_text(facts.ledger, disclosure.SELECTION, "selection")
+    if selection_ai:
+        parts.append(selection_ai)
     return (
         AUTO_FILLED,
         "strata.toml [screening], events/screen, derived/irr.json",
@@ -227,6 +245,9 @@ def _collection(facts: Facts) -> _Filled:
         )
     else:
         text += f"One reviewer ({_names(extractors)}) extracted each study."
+    collection_ai = disclosure.area_text(facts.ledger, disclosure.COLLECTION, "data collection")
+    if collection_ai:
+        text += "\n\n" + collection_ai
     return (
         AUTO_FILLED,
         "extraction/schema.yaml, extraction/consensus/, events/reconcile",
@@ -274,6 +295,11 @@ def _risk_of_bias(facts: Facts) -> _Filled:
     else:
         text += "One reviewer assessed each study. "
     text += "Algorithmic suggestions, where the instrument defines them, were shown to the reviewer; every judgement that differs from the suggestion is recorded with its justification."
+    rob_ai = disclosure.area_text(
+        facts.ledger, disclosure.RISK_OF_BIAS, "the risk-of-bias assessment"
+    )
+    if rob_ai:
+        text += "\n\n" + rob_ai
     return AUTO_FILLED, "rob/instrument.yaml, rob/", text
 
 

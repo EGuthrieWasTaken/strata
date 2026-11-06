@@ -19,7 +19,16 @@ MANIFEST_NAME = "strata.toml"
 SCHEMA_VERSION_PATH = ".strata/schema-version"
 LOCK_PATH = ".strata/lock"
 DEFAULT_LOCK_TIMEOUT = 30.0
-CURRENT_SCHEMA_VERSION = 1
+
+#: The schema version `strata init` writes. A review stays here until its lead asks for a feature
+#: that needs more (`strata migrate`, or `strata ai enable`, which runs it).
+INITIAL_SCHEMA_VERSION = 1
+#: The oldest and newest schema versions this build operates on
+#: (openspec:repository-format#format-versioning). A repository above the newest is refused.
+MIN_SCHEMA_VERSION = 1
+MAX_SCHEMA_VERSION = 2
+#: The first version that permits AI participation (openspec:ai-participation).
+AI_SCHEMA_VERSION = 2
 
 
 class RepoNotFoundError(Exception):
@@ -49,6 +58,16 @@ class Repo:
             return 0
         return int(path.read_text().strip())
 
+    @property
+    def migration_available(self) -> bool:
+        """Whether this build knows a newer format than the repository is in."""
+        return 0 < self.schema_version < MAX_SCHEMA_VERSION
+
+    @property
+    def supports_ai(self) -> bool:
+        """Whether the repository is in a format that permits AI participation."""
+        return self.schema_version >= AI_SCHEMA_VERSION
+
 
 def find_repo_root(start: Path | None = None) -> Path:
     """Walk upward from `start` (default: cwd) looking for `strata.toml`, like git."""
@@ -72,10 +91,10 @@ def open_repo(start: Path | None = None) -> Repo:
     root = find_repo_root(start)
     config = load_config(root)
     repo = Repo(root=root, config=config)
-    if repo.schema_version > CURRENT_SCHEMA_VERSION:
+    if repo.schema_version > MAX_SCHEMA_VERSION:
         raise SchemaTooNewError(
             f"this repository's schema version ({repo.schema_version}) is newer than "
-            f"this build of strata supports ({CURRENT_SCHEMA_VERSION}); upgrade strata"
+            f"this build of strata supports ({MAX_SCHEMA_VERSION}); upgrade strata"
         )
     return repo
 

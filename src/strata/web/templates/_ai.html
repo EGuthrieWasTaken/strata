@@ -1,0 +1,9 @@
+{#- How agent work is labelled: an icon *and* the words "AI", the model as the agent reported it, and
+    the person whose session it was. Never colour alone (openspec:web-ui#agent-work-is-labelled).
+    The model is the agent's own claim; the page says so. -#}
+{% macro ai_label(agent) %}
+<span class="ai-label" data-testid="ai-label"><span class="ai-icon" aria-hidden="true">&#129302;</span>
+  <strong>AI</strong>
+  <span class="ai-detail">model {{ agent.model }} <em>(self-reported)</em>{% if agent.client and agent.client.name %}, via {{ agent.client.name }}{% if agent.client.version %} {{ agent.client.version }}{% endif %}{% endif %}, invoked by {{ agent.invoked_by }}</span></span>
+{% endmacro %}
+{% macro person_label() %}<span class="person-label" data-testid="person-label"><span class="ai-icon" aria-hidden="true">&#128100;</span> <strong>Person</strong></span>{% endmacro %}

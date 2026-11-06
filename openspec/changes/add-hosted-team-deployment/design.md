@@ -103,3 +103,13 @@ on the instance and one on a laptop — never touch the same file.
 - **Mixed topologies surprise people.** A local collaborator's pushed decisions
   appear on the instance only after its next pull; the dashboard shows the time
   of the last sync.
+
+## Coordination with `add-ai-participation`
+
+Remote (HTTP) MCP gets the same policy as the local server, and nothing in `add-ai-participation` assumes
+stdio beyond how the invoking person is named. `strata.mcpserver.server.create_mcp_server` takes the invoker
+as an argument (`strata mcp --as` locally); on a hosted instance the invoker is the signed-in user, which
+must be an active, non-observer person of the review (`strata.core.agents.resolve_invoker` checks exactly
+that). The policy, registering a model and revoking one stay command-line and web actions by a person on the
+instance; no hosted API route may reach them. The client name and version come from the MCP handshake over
+either transport.

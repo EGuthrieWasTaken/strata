@@ -18,12 +18,14 @@ context: |
   git remote (`strata sync`) or use a self-hosted instance with per-user
   accounts that syncs with that remote. Non-goals: not a search engine, a
   reference manager, a PDF repository, a statistics language, an AI screening
-  product in v1, or a service the project operates.
+  product (it ships no model; it is open to the ones reviewers choose, attributed),
+  or a service the project operates.
 
   Tech stack: Python 3.11+, uv, typer (CLI), FastAPI + Jinja2 +
   server-rendered HTML with progressive enhancement (web UI, works without
-  JavaScript), pydantic, ruamel.yaml, numpy/scipy, the MCP Python SDK (read-only
-  local MCP server), pytest + hypothesis, ruff, mypy --strict.
+  JavaScript), pydantic, ruamel.yaml, numpy/scipy, the MCP Python SDK (local MCP
+  server: reads always; attributed, policy-governed writes when a review enables
+  them), pytest + hypothesis, ruff, mypy --strict.
 
   Architecture invariants: core.fold is pure; gitio is the only module that
   invokes git; cli, web, and mcpserver contain no domain logic; stats knows
@@ -56,7 +58,7 @@ rules:
   proposal:
     - 'Name the roadmap milestone the change belongs to, if any.'
     - 'State whether the change alters identity, normalisation, canonical serialisation, the fold, or the staleness rules; if so, say whether the repository schema version must be bumped (openspec:repository-format#format-versioning).'
-    - 'Never propose an MCP tool or other automated path that records a screening or criteria decision without a human.'
+    - 'Never propose an MCP tool or other automated path that records a decision without a named model, a named invoking person, a policy that is off by default, and an explicit list of the operations an agent can never perform (the policy, actors, assignment, configuration, initialisation, cloning, repair and synchronisation); openspec:ai-participation.'
   specs:
     - 'Use MUST/SHALL for normative requirements; a requirement that is only SHOULD must be folded into a related MUST requirement.'
     - 'Keep existing requirement ids (P*, E2E-*, E_*) verbatim in requirement text, and give any new identified requirement an id when it is written.'

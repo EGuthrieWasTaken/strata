@@ -199,3 +199,76 @@ def test_every_report_is_always_in_at_least_one_study(events: list[dict]) -> Non
         assert result.studies_of[report]
         for study in result.studies_of[report]:
             assert report in result.members[study]
+
+
+# --- AI participation: unassigned and agent opinions join the P1 / P2 generators --------------
+
+from strata.core.fold import PARTIAL, resolve_screening  # noqa: E402
+
+_ASSIGNED = frozenset({"ada", "sam"})
+_ACTORS = ["ada", "sam", "rita", "claude-opus", "opus-two"]  # the last three are not assigned
+_DECISIONS = ["include", "exclude", "maybe"]
+
+
+@st.composite
+def screening_event_lists(draw: st.DrawFn) -> list[dict]:
+    n = draw(st.integers(min_value=0, max_value=20))
+    events = []
+    for i in range(n):
+        actor = draw(st.sampled_from(_ACTORS))
+        event = _stamped(
+            i,
+            "screen",
+            {"decision": draw(st.sampled_from(_DECISIONS))},
+            draw(st.integers(min_value=0, max_value=5)),
+            actor,
+        )
+        if actor.startswith(("claude", "opus")):
+            event["agent"] = {"model": "m", "invoked_by": "ada"}
+        events.append(event)
+    return events
+
+
+@pytest.mark.req("P1")
+@given(screening_event_lists(), st.randoms())
+def test_p1_screening_fold_determinism_with_unassigned_and_agent_opinions(
+    events: list[dict], rng: random.Random
+) -> None:
+    shuffled = events[:]
+    rng.shuffle(shuffled)
+    assert resolve_screening(assigned=_ASSIGNED, screen_events=shuffled) == resolve_screening(
+        assigned=_ASSIGNED, screen_events=events
+    )
+
+
+@pytest.mark.req("P2")
+@given(screening_event_lists())
+def test_p2_screening_fold_idempotence_with_unassigned_and_agent_opinions(
+    events: list[dict],
+) -> None:
+    assert resolve_screening(
+        assigned=_ASSIGNED, screen_events=events + events[::2]
+    ) == resolve_screening(assigned=_ASSIGNED, screen_events=events)
+
+
+@pytest.mark.req("P2")
+@given(screening_event_lists())
+def test_unassigned_opinions_never_change_the_resolution(events: list[dict]) -> None:
+    """Remove every opinion from someone not assigned: the status is the same, and so are the
+    counted opinions. (The outsiders' own opinions are the only difference.)"""
+    assigned_only = [e for e in events if e["actor"] in _ASSIGNED]
+    everything = resolve_screening(assigned=_ASSIGNED, screen_events=events)
+    only_assigned = resolve_screening(assigned=_ASSIGNED, screen_events=assigned_only)
+    assert everything.status == only_assigned.status
+    assert everything.opinions == only_assigned.opinions
+    assert everything.first_opinions == only_assigned.first_opinions
+    assert set(only_assigned.unassigned) == set()
+    assert set(everything.unassigned) <= set(_ACTORS) - _ASSIGNED
+
+
+@given(screening_event_lists())
+def test_a_record_cannot_resolve_without_every_assigned_reviewer(events: list[dict]) -> None:
+    result = resolve_screening(assigned=_ASSIGNED, screen_events=events)
+    decided = {e["actor"] for e in events} & _ASSIGNED
+    if decided and decided != _ASSIGNED:
+        assert result.status == PARTIAL

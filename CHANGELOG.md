@@ -7,6 +7,78 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **AI participation: the policy, agents as actors, and format 2** (OpenSpec change
+  `add-ai-participation`, groups 1; in progress). `strata` still ships no model and makes no network call.
+  What is new is the accounting for the ones a review brings. `strata ai enable` turns AI participation on
+  for a review (a lead's decision, one commit with their rationale; every kind of work starts `off`) and
+  `strata ai policy [KIND [MODE]]` shows or sets what agents may do for each kind of work: `off`, `suggest`
+  or `count`. A model the review accepts is registered like a person
+  (`strata actor add NAME --kind agent --model MODEL`) and may not hold the role `lead`; its events will live
+  in its own files and carry an optional `agent` envelope key naming the model as the agent reported it
+  (a claim `strata` cannot verify), the client, and the person who started the server. The key sits
+  between `actor` and `seq` and is covered by the digest; an event without it serialises exactly as before.
+  `strata verify` rejects an `agent` key anywhere it should not be (format 1, AI not enabled, a person's
+  event, a model other than the registered one) and an event under an agent's handle without one. Agents
+  are never reviewers by default: a registered agent counts toward a record only when a person assigns it.
+  Agreement pairs that involve an agent are labelled `involves_agent` in `derived/irr.json` and in
+  `strata irr`, and person-to-person figures are unchanged. See
+  [Using AI in a review](wiki/Using-AI-in-a-Review.md).
+- **MCP write tools, attributed and policy-governed** (`strata mcp --as HANDLE [--allow-dir DIR]`; OpenSpec
+  change `add-ai-participation`, group 3). `strata mcp` always offers reads (now also the assistant's own
+  screening queue, the active criteria, the coding forms, the retrieval queue, study suggestions and
+  `ai_policy`) and, only when a lead has enabled AI participation and the person agents act for is known,
+  a write tool for each family of work the command line can write: screening, adjudication, extraction, risk
+  of bias, retrieval, studies, record corrections and notes, deduplication, searches and imports, criteria,
+  and running an analysis or drawing the PRISMA diagram. There is deliberately no tool for the policy,
+  actors, assignment, configuration, `init`, `clone`, `doctor`, `sync` or the merge commands, and a test
+  holds every mutating command to either a tool or a reserved list. Each write names the model as the agent
+  reports it and gives a rationale, and the policy for its kind of work is checked on every call: `off` is
+  refused and records nothing, `suggest` records a suggestion that changes nothing, `count` carries the work
+  out under the agent's own handle with the `agent` key on every event. A commit made for an agent is
+  **authored by the agent and committed by the person** (`claude-opus (via ada)` at an `agents.invalid`
+  address) with `Strata-Agent`, `Strata-Invoked-By`, `Strata-Via` and `Strata-Model` trailers, which
+  `strata log --actor` finds. File arguments are resolved and confined to the review and `--allow-dir`;
+  `run_analysis` cannot force past a guardrail or acknowledge a warning. A result never says whether anyone
+  else has decided a record or agrees. The server's instructions state the policy in force; the old "writes
+  are for humans only" wording, the `mcp-server` design's "Why read-only", overview non-goal N5 and the
+  `openspec/config.yaml` proposal rule are rewritten to match. The PRISMA diagram is now drawn by a shared
+  operation (`strata.core.operations.render_prisma`) that the command and the tool both call.
+- **The AI ledger, disclosure that cannot go stale, revoking and auditing** (`strata ai report | revoke`,
+  `strata audit --ai`, an AI line in `strata status`; OpenSpec change `add-ai-participation`, group 4).
+  `strata ai report` gives, for each agent and kind of work, the suggestions made and what became of them,
+  the decisions that took effect as the agent's own (and how many filled a reviewer's place), how many a
+  person later changed, who ran it, through which client and when, from the event log and the commits. The
+  generated Methods text and PRISMA 2020 checklist items 8, 9 and 11 are written from the same ledger:
+  they name each model (as self-reported, not verified), the kinds of work and the mode, how many suggestions
+  were adopted and rejected, how many decisions counted, and count people and models apart ("two people and
+  one AI model"); they no longer assert that no automation tools were used when one was, and a review that used
+  no AI gets exactly the wording it had. `strata ai revoke AGENT --by LEAD` deactivates an agent and puts every
+  screening decision of its that still counted in the stale queue with the reason `agent-revoked`; its history
+  stays. `strata audit --ai --sample N --seed S` re-presents a reproducible sample of agent decisions no
+  person has independently decided.
+- **Suggestions** (`strata suggestions list | show | adopt | reject`, `/suggestions`; OpenSpec change
+  `add-ai-participation`, group 2). In `suggest` mode an assistant proposes and a person decides. A
+  suggestion is validated by the real operation's own checks without its write (a `dry_run` on the screening,
+  criteria, retrieval, studies and adjudication functions), recorded as a `suggestion` event in
+  `events/suggestion/<agent>.ndjson` and taking part in no fold, count or view, so it cannot move a result.
+  A criteria suggestion carries the number of decisions it would make stale. Adopting runs the operation as
+  the person, after checking it again against the review as it now is, with their own rationale: the events
+  are theirs, carry no `agent` key, and one `suggestion-resolve` event in the same commit links the
+  suggestion to them; if the criteria changed since, they must confirm. Rejecting keeps the reason. A later
+  suggestion from the same agent for the same thing supersedes an earlier unresolved one. While reviewers
+  are blinded a suggestion about a record is hidden from a reviewer assigned to it until they have decided
+  (`[ai] show_suggestions = "always"` shows it at once, and opinions that could have been steered by one are
+  left out of independent agreement, `excluded_informed`). `strata why` now lists the screening and
+  adjudication decisions on a record, once the record is decided, with the AI label on an agent's, and the
+  suggestions made about it; the web interface labels agent work with an icon and the words "AI", the
+  reported model and the person who started it, never by colour alone.
+- **`strata migrate` and format 2.** Required by the repository format since it was written and never
+  needed until now. A review stays in format 1 and behaves exactly as before until its lead asks for a
+  feature that needs format 2 (`strata ai enable` runs the migration in the same commit) or runs
+  `strata migrate`: forward-only, idempotent, one commit with a rationale, no history rewritten. `strata
+  status` says when a newer format is available and changes nothing; a build that predates format 2
+  refuses such a repository (`E_SCHEMA_TOO_NEW`) instead of folding an agent's opinion as a person's.
+
 - **Zotero integration** (`strata zotero link | pull | push | status | open`; OpenSpec change
   `add-zotero-integration`). Optional, and nothing in a review needs it: Zotero holds the documents,
   `strata` holds the decisions, and no screening decision ever crosses. `link` uses Zotero's local API when
@@ -306,6 +378,17 @@ All notable changes to `strata` are documented here. Format follows
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
 
 ### Changed
+
+- **Only the opinions of the actors assigned to a record resolve it.** The specification has always said
+  `opinions = latest event per assigned actor`, but the fold reduced every actor's events and compared
+  their number with the number assigned, so an actor who was never assigned (decisions imported for them,
+  an adjudicator who screened) could stand in for an assigned reviewer. For people that was an edge case;
+  for AI agents it would have made an unassigned model a free second reviewer. The fold now follows the
+  specification: an unassigned actor's opinion stays in the log, in provenance and in
+  `ScreeningState.unassigned`, and counts for nothing. **A review that contains such an opinion may resolve
+  differently than it did.** `strata verify` warns (`W_UNASSIGNED_OPINION`) and names the records where the
+  result would have been different; `strata assign` makes an opinion count. The default assignment (every
+  active `screener` and `lead`) never includes an agent.
 
 - **A pull request that changes only documentation skips the test jobs** (OpenSpec change
   `skip-tests-for-docs-only-prs`, capability `ci-gate`). The `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md` at

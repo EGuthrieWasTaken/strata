@@ -16,8 +16,20 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-# Event envelope field order, per openspec:event-log.
-ENVELOPE_KEY_ORDER = ("ev", "id", "ts", "actor", "seq", "body", "tool", "prev", "digest")
+# Event envelope field order, per openspec:event-log. `agent` is optional and sits between `actor`
+# and `seq`; an event without it serialises exactly as it did before the key existed.
+ENVELOPE_KEY_ORDER = (
+    "ev",
+    "id",
+    "ts",
+    "actor",
+    "agent",
+    "seq",
+    "body",
+    "tool",
+    "prev",
+    "digest",
+)
 
 
 class CanonError(ValueError):

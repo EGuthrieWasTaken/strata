@@ -272,8 +272,12 @@ def record_judgement(
     support: str = "",
     source: str | None = None,
     override_justification: str | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Record a domain (or the `overall`) judgement as a `rob` event, with support and a locator.
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been written
+    is returned as `{"dry_run": True, "body": ...}`.
 
     Choosing anything other than the algorithm's suggestion needs `override_justification`; the
     suggestion is kept beside the judgement either way.
@@ -340,6 +344,8 @@ def record_judgement(
     if source:
         body["source"] = source
     validate_event_body("rob", body)
+    if dry_run:
+        return {"dry_run": True, "body": body}
     _write(path, assessment, instrument)
     return append_new_event(
         repo.path("events", "rob", f"{handle}.ndjson"), ev="rob", actor=handle, body=body

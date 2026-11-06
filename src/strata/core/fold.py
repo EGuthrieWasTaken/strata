@@ -87,12 +87,19 @@ def fold_first_write(events: Iterable[Event], key_fn: Callable[[Event], K]) -> d
 
 @dataclass(frozen=True)
 class ScreeningState:
-    """The resolved state of one (stage, record), per openspec:event-log#the-fold."""
+    """The resolved state of one (stage, record), per openspec:event-log#the-fold.
+
+    `opinions` and `first_opinions` are those of the actors *assigned* to the record at this stage:
+    the only ones that count (openspec:event-log#only-assigned-actors-opinions-resolve-a-record).
+    `unassigned` holds the latest opinion of every other actor who recorded one: kept, shown, and
+    never part of the resolution.
+    """
 
     status: str
     opinions: dict[str, Event] = field(default_factory=dict)
     first_opinions: dict[str, Event] = field(default_factory=dict)
     adjudication: Event | None = None
+    unassigned: dict[str, Event] = field(default_factory=dict)
 
 
 def resolve_screening(
@@ -100,15 +107,29 @@ def resolve_screening(
     assigned: frozenset[str],
     screen_events: Iterable[Event],
     adjudicate_events: Iterable[Event] = (),
+    count_unassigned: bool = False,
 ) -> ScreeningState:
     """Resolve a record's screening state at one stage from its raw events.
 
     `screen_events` and `adjudicate_events` MUST already be filtered to the
     one `(stage, record)` this call resolves; this function does not know
     what a stage or a record is, only how to reduce opinions about one.
+
+    Only the opinions of `assigned` actors resolve the record. An opinion from anyone else is kept
+    in `ScreeningState.unassigned` and leaves the state as it was. `count_unassigned=True` is the
+    rule this function followed before that was specified: every actor's opinion counted, and
+    `assigned` only set how many were awaited. It exists so that `strata verify` can say which
+    records an existing unassigned opinion used to help resolve; nothing else passes it.
     """
-    opinions = fold_last_write_wins(screen_events, key_fn=lambda e: e["actor"])
-    first_opinions = fold_first_write(screen_events, key_fn=lambda e: e["actor"])
+    screen_list = list(screen_events)
+    latest = fold_last_write_wins(screen_list, key_fn=lambda e: e["actor"])
+    first = fold_first_write(screen_list, key_fn=lambda e: e["actor"])
+    if count_unassigned:
+        opinions, first_opinions, unassigned = latest, first, {}
+    else:
+        opinions = {a: e for a, e in latest.items() if a in assigned}
+        first_opinions = {a: e for a, e in first.items() if a in assigned}
+        unassigned = {a: e for a, e in latest.items() if a not in assigned}
     adjudications = fold_last_write_wins(adjudicate_events, key_fn=lambda _e: "adjudication")
     adjudication = next(iter(adjudications.values()), None)
 
@@ -130,6 +151,7 @@ def resolve_screening(
         opinions=opinions,
         first_opinions=first_opinions,
         adjudication=adjudication,
+        unassigned=unassigned,
     )
 
 

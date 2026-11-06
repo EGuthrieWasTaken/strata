@@ -186,7 +186,9 @@ Guide: [Adjudication and agreement](Adjudication-and-Agreement)
 
 ## `strata audit`
 
-Re-present a random sample of past exclusions for verification.
+Re-present a random sample for verification: past exclusions (`--criteria`,
+) or AI decisions nobody else has
+decided (`--ai`, ).
 
 ```
 strata audit [OPTIONS]
@@ -195,6 +197,7 @@ strata audit [OPTIONS]
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
 | `--criteria` | flag |  | Sample past exclusions for criterion-citation review |
+| `--ai` | flag |  | Sample decisions an AI agent made that no person has independently decided |
 | `--sample` | int | `20` | Sample size |
 | `--seed` | int |  | Reproduce a specific sample |
 

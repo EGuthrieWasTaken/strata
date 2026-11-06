@@ -66,6 +66,20 @@ class AnalysisStatus:
 
 
 @dataclass
+class AiStatus:
+    """AI participation as `strata status` reports it
+    (openspec:ai-participation#the-ai-ledger-and-audit)."""
+
+    enabled: bool
+    #: The kinds of work that are not `off`, with their mode.
+    policy: dict[str, str]
+    #: Events that carry an `agent` key: what took effect as an agent's own.
+    agent_events: int
+    #: Suggestions waiting for a person (those every reviewer may see).
+    suggestions_waiting: int
+
+
+@dataclass
 class StatusReport:
     title: str
     slug: str
@@ -81,6 +95,12 @@ class StatusReport:
     retrieval: retrieval_mod.RetrievalCounts | None = None
     extraction: ExtractionStatus | None = None
     analyses: list[AnalysisStatus] = field(default_factory=list)
+    #: The file format the repository is in, and whether this build knows a newer one
+    #: (openspec:repository-format#format-versioning: offered, never applied implicitly).
+    schema_version: int = 0
+    migration_available: bool = False
+    #: `None` for a review that has not enabled AI participation.
+    ai: AiStatus | None = None
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -210,6 +230,19 @@ def _extraction_status(repo: Repo) -> ExtractionStatus | None:
     return ExtractionStatus(studies, studies - len(missing), missing, unresolved)
 
 
+def _ai_status(repo: Repo) -> AiStatus | None:
+    from strata.core import agent_ops, agents, ledger
+
+    if not agents.is_enabled(repo):
+        return None
+    return AiStatus(
+        enabled=True,
+        policy={k: m for k, m in agents.policy(repo).items() if m != agents.MODE_OFF},
+        agent_events=ledger.compute_ledger(repo).counted_events,
+        suggestions_waiting=len(agent_ops.visible_pending(repo)),
+    )
+
+
 def compute_status(repo: Repo) -> StatusReport:
     project = repo.config.get("project", {})
     actors = repo.config.get("actors", [])
@@ -251,4 +284,7 @@ def compute_status(repo: Repo) -> StatusReport:
         retrieval=retrieval,
         extraction=extraction,
         analyses=analyses,
+        schema_version=repo.schema_version,
+        migration_available=repo.migration_available,
+        ai=_ai_status(repo),
     )
