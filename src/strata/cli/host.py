@@ -27,8 +27,10 @@ from strata.hosted.syncloop import SyncLoop
 EXIT_GENERIC = 1
 EXIT_USAGE = 2
 
-err_console = Console(stderr=True)
-out_console = Console()
+# Never wrapped: what these commands print (invitation links, tokens, paths, commands) is copied
+# and pasted, and a line break inside one breaks it.
+err_console = Console(stderr=True, soft_wrap=True)
+out_console = Console(soft_wrap=True)
 
 host_app = typer.Typer(
     name="host",
@@ -63,8 +65,7 @@ def _print_json(value: object) -> None:
 
 
 def _fail(message: str, code: int = EXIT_USAGE) -> typer.Exit:
-    # Not wrapped: a path or a command in the message must stay whole to be copied.
-    err_console.print(f"[red]error:[/] {message}", markup=True, highlight=False, soft_wrap=True)
+    err_console.print(f"[red]error:[/] {message}", markup=True, highlight=False)
     return typer.Exit(code)
 
 
