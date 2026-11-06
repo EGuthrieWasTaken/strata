@@ -17,7 +17,8 @@ not reveal the stored secrets.
 
 Secrets are only ever handed to git through its environment (`strata.gitio.environment`): a
 deploy key is written to a 0600 file under the instance's own temporary directory for the length
-of one command, and a token is answered to git through `GIT_ASKPASS`. Nothing here writes inside a
+of one command, and a token is answered to git through `GIT_ASKPASS` (a POSIX shell script, so
+the instance runs where the container image does, not on Windows). Nothing here writes inside a
 project, and no secret is ever returned to a page: the interface shows only secret *names*.
 """
 

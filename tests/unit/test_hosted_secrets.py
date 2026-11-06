@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,10 @@ from strata.hosted.secrets import (
     git_credential_env,
 )
 from strata.hosted.store import Store
+
+#: The deploy-key test drives git through a stand-in `ssh` script, and the askpass helper the
+#: instance writes is a POSIX shell script: a hosted instance runs in the (Linux) container image.
+posix_shell = pytest.mark.skipif(sys.platform == "win32", reason="runs POSIX shell scripts")
 
 DEPLOY_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAAfakekeymaterial0123456789\n-----END OPENSSH PRIVATE KEY-----"
 
@@ -37,7 +42,8 @@ def test_stored_secrets_are_encrypted_at_rest(tmp_path: Path) -> None:
     secrets.put("spacing-token", "ghp_supersecretvalue")
     assert secrets.get("spacing-token") == "ghp_supersecretvalue"
     assert b"ghp_supersecretvalue" not in (tmp_path / "instance" / "instance.db").read_bytes()
-    assert oct((tmp_path / "instance" / "instance.key").stat().st_mode & 0o777) == "0o600"
+    if sys.platform != "win32":  # POSIX permissions; Windows has no such mode bits
+        assert oct((tmp_path / "instance" / "instance.key").stat().st_mode & 0o777) == "0o600"
     assert secrets.stored_names() == ["spacing-token"]
     assert secrets.source("spacing-token") == "stored"
     # Another instance key cannot read it.
@@ -78,6 +84,7 @@ def test_secret_names_and_values_are_checked(tmp_path: Path) -> None:
     assert secrets.delete("never-there") is False
 
 
+@posix_shell
 def test_a_deploy_key_reaches_git_through_its_environment_only_for_one_command(
     tmp_path: Path,
 ) -> None:
@@ -120,6 +127,7 @@ def test_a_deploy_key_reaches_git_through_its_environment_only_for_one_command(
     )
 
 
+@posix_shell
 def test_a_token_is_answered_through_askpass(tmp_path: Path) -> None:
     secrets = _secrets(tmp_path)
     secrets.put("spacing-token", "ghp_tokenvalue")

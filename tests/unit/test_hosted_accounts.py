@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,8 @@ def test_passwords_are_argon2id_hashes_never_plaintext(store: Store, tmp_path: P
     row = store.one("SELECT password_hash FROM users WHERE username = 'sam'")
     assert row is not None and row["password_hash"].startswith("$argon2id$v=19$m=65536")
     assert PASSWORD.encode() not in (tmp_path / "instance.db").read_bytes()
-    assert oct((tmp_path / "instance.db").stat().st_mode & 0o777) == "0o600"
+    if sys.platform != "win32":  # POSIX permissions; Windows has no such mode bits
+        assert oct((tmp_path / "instance.db").stat().st_mode & 0o777) == "0o600"
 
 
 def test_short_passwords_and_bad_user_names_are_refused(store: Store) -> None:

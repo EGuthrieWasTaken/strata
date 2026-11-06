@@ -63,7 +63,8 @@ def _print_json(value: object) -> None:
 
 
 def _fail(message: str, code: int = EXIT_USAGE) -> typer.Exit:
-    err_console.print(f"[red]error:[/] {message}", markup=True, highlight=False)
+    # Not wrapped: a path or a command in the message must stay whole to be copied.
+    err_console.print(f"[red]error:[/] {message}", markup=True, highlight=False, soft_wrap=True)
     return typer.Exit(code)
 
 

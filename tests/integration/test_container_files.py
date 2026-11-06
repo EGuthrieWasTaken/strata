@@ -301,9 +301,13 @@ def test_the_hosted_compose_file_publishes_only_the_tls_proxy() -> None:
     caddyfile = (ROOT / "docker" / "hosted" / "Caddyfile").read_text(encoding="utf-8")
     assert "reverse_proxy strata:8765" in caddyfile
     # Every option the compose file passes is one `strata host` takes.
-    help_text = runner.invoke(app, ["host", "--help"], env={"COLUMNS": "200"}).output
+    # (Read from the command itself: rendered help is coloured on CI, which splits the names.)
+    from typer.main import get_command
+
+    host_command = get_command(app).commands["host"]  # type: ignore[attr-defined]
+    taken = {opt for param in host_command.params for opt in getattr(param, "opts", [])}
     for option in (a for a in command if a.startswith("--")):
-        assert option in help_text, option
+        assert option in taken, option
     # The image has a /data the instance (uid 10001) can write to.
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "mkdir -m 0700 /data" in dockerfile and "chown 10001:10001 /review /data" in dockerfile
