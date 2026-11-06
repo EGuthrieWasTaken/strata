@@ -186,3 +186,30 @@ def test_an_empty_remote_is_explained_and_leaves_nothing_behind(tmp_path: Path) 
     out = host(data, "project", "add", "spacing", "--remote", str(empty), code=2)
     assert "holds no strata review" in out
     assert not (data / "projects" / "spacing").exists()
+
+
+def test_a_person_cannot_be_mapped_to_an_ai_agents_handle(tmp_path: Path) -> None:
+    import tomlkit
+
+    from strata.core.manifest import load_manifest_doc, write_manifest
+
+    data, bare = _instance(tmp_path)
+    host(data, "project", "add", "spacing", "--remote", str(bare))
+    project = data / "projects" / "spacing"
+    doc = load_manifest_doc(project)
+    agent = tomlkit.table()
+    for key, value in (
+        ("handle", "claude"),
+        ("name", "Claude"),
+        ("role", "screener"),
+        ("kind", "agent"),
+        ("model", "claude-opus"),
+    ):
+        agent.add(key, value)
+    doc["actors"].append(agent)
+    write_manifest(project, doc)
+    host(data, "user", "add", "sam")
+    out = host(
+        data, "member", "add", "spacing", "sam", "--actor", "claude", "--role", "screener", code=2
+    )
+    assert "AI agent" in out

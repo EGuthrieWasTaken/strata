@@ -113,8 +113,12 @@ def add_search(
     peer_reviewed_by: str | None = None,
     notes: str | None = None,
     supersedes: str | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Record one executed search as `protocol/searches/<id>.yaml`.
+
+    With `dry_run`, every check runs and nothing is written; the record that would be written is
+    returned.
 
     Returns the plain-dict record actually written (with `query` resolved to
     `PENDING_QUERY` if none was supplied). Raises `SearchError` for a
@@ -148,6 +152,8 @@ def add_search(
         "supersedes": supersedes,
     }
     validate("search", data)
+    if dry_run:
+        return data
 
     yaml_data = {key: data[key] for key in _FIELD_ORDER}
     yaml_data["query"] = LiteralScalarString(query_value)

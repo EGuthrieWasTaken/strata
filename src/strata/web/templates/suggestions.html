@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_ai.html" import ai_label %}
+{% block title %}Suggestions{% endblock %}
+{% block content %}
+<h1>Suggestions</h1>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
+
+{% if not enabled %}
+<p class="notice" data-testid="ai-off">AI participation is not enabled for this review, so there is nothing to adopt. A lead enables it with <code>strata ai enable</code>.</p>
+{% else %}
+<p>An AI assistant proposed these. Nothing in them has taken effect. If you adopt one, the decision is recorded as <strong>yours</strong>, with your reason, and linked to the idea it came from; if you reject one, your reason is kept with it.</p>
+{% if hidden_note %}
+<p class="notice" data-testid="blinded-note">Suggestions about records you have not decided yet are not shown, so they cannot influence you.</p>
+{% endif %}
+{% if error %}<p class="error" role="alert" data-testid="suggestion-error">{{ error }}</p>{% endif %}
+
+{% if not items %}
+<p class="done-note">No suggestions waiting.</p>
+{% endif %}
+{% for item in items %}
+<article class="record-card" id="s-{{ item.id }}" data-testid="suggestion">
+  <h2>{{ item.summary }}</h2>
+  <p>{{ ai_label(item.agent) }}</p>
+  <dl class="summary-grid">
+    <div><dt>Kind of work</dt><dd>{{ item.kind }}</dd></div>
+    <div><dt>Target</dt><dd>{{ item.target }}</dd></div>
+    <div><dt>Agent</dt><dd>{{ item.actor }}</dd></div>
+    <div><dt>Made under criteria</dt><dd>v{{ item.criteria_version }}</dd></div>
+  </dl>
+  <p><strong>The assistant's reason:</strong> {{ item.rationale }}</p>
+  {% if item.preview %}
+  <p data-testid="impact"><strong>What it would make stale:</strong> {{ item.preview.stale_decisions }} decision{{ "s" if item.preview.stale_decisions != 1 else "" }}{% if item.preview.by_stage %} ({% for stage, n in item.preview.by_stage.items() %}{{ stage }}: {{ n }}{{ ", " if not loop.last else "" }}{% endfor %}){% endif %}</p>
+  {% endif %}
+  {% if item.record %}<p><a href="{{ root }}/records/{{ item.record | urlencode }}">The record &rarr;</a></p>{% endif %}
+
+  {% if can_act %}
+  <form method="post" action="{{ root }}/suggestions/{{ item.id }}/adopt" class="note-field">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <label>Why do you agree? (required)
+      <textarea name="rationale" required minlength="12"></textarea>
+    </label>
+    {% if item.id in moved %}
+    <p class="error" role="alert">{{ moved[item.id] }}</p>
+    <label><input type="checkbox" name="confirm" value="1"> I have looked again and want to adopt it against the review as it is now</label>
+    {% endif %}
+    <button type="submit" class="btn btn-include">Adopt as mine</button>
+  </form>
+  <form method="post" action="{{ root }}/suggestions/{{ item.id }}/reject" class="note-field">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+    <label>Why not? (required)
+      <textarea name="reason" required minlength="12"></textarea>
+    </label>
+    <button type="submit" class="btn btn-exclude">Reject</button>
+  </form>
+  {% else %}
+  <p class="todo-note">{{ signed_in_actor }} cannot adopt or reject suggestions in this review.</p>
+  {% endif %}
+</article>
+{% endfor %}
+{% endif %}
+{% endblock %}

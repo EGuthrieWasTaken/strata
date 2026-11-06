@@ -283,9 +283,19 @@ def _log_extraction(
 
 
 def set_field(
-    repo: Repo, *, study: str, handle: str, name: str, raw: str, source: str | None = None
+    repo: Repo,
+    *,
+    study: str,
+    handle: str,
+    name: str,
+    raw: str,
+    source: str | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Record one field's value (and its source locator) for `study` as `handle`."""
+    """Record one field's value (and its source locator) for `study` as `handle`.
+
+    With `dry_run`, every check runs and nothing is written; the entry that would be stored is
+    returned."""
     schema = schema_mod.load_schema(repo)
     spec = schema.field(name)
     if spec is None:
@@ -296,6 +306,8 @@ def set_field(
         entry["source"] = source or inline_source
     path, record = _record_for_update(repo, handle, study, schema)
     record["fields"][name] = entry
+    if dry_run:
+        return entry
     digest = write_record(path, record, schema)
     _log_extraction(repo, handle=handle, study=study, changed=[name], digest=digest, schema=schema)
     return entry

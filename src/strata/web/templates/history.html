@@ -33,7 +33,9 @@
       <th scope="row"><code>{{ c.sha[:10] }}</code></th>
       <td>{{ c.subject }}</td>
       <td>{{ c.trailers.get("Op", "") }}</td>
-      <td>{{ c.trailers.get("Actor", "") }}</td>
+      <td>{{ c.trailers.get("Actor", "") }}
+        {% if c.trailers.get("Agent") %}<span class="ai-label" data-testid="ai-label"><span class="ai-icon" aria-hidden="true">&#129302;</span> <strong>AI</strong> <span class="ai-detail">{{ c.trailers.get("Agent") }}{% if c.trailers.get("Model") %}, model {{ c.trailers.get("Model") }} <em>(self-reported)</em>{% endif %}{% if c.trailers.get("Invoked-By") %}, invoked by {{ c.trailers.get("Invoked-By") }}{% endif %}</span></span>{% endif %}
+        {% if c.trailers.get("Suggested-By") %}<span class="ai-detail">(adopted from a suggestion by {{ c.trailers.get("Suggested-By") }})</span>{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

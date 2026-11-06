@@ -21,6 +21,7 @@
 - [Analysis](Analysis)
 - [Reporting](Reporting)
 - [Working with others](Working-with-Others)
+- [Using AI in a review](Using-AI-in-a-Review)
 - [The web interface](The-Web-Interface)
 
 **A hosted instance**

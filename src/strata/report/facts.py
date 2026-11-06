@@ -14,6 +14,7 @@ from typing import Any
 
 from strata import __version__, gitio
 from strata.analysis import spec as analysis_spec
+from strata.core import ledger as ledger_mod
 from strata.core.repo import Repo
 from strata.extract import reconcile as reconcile_mod
 from strata.extract import records as extraction_records
@@ -57,17 +58,25 @@ class Facts:
     analyses: list[AnalysisFacts]
     counts: counts_mod.Counts
     dedup: dict[str, Any] = field(default_factory=dict)
+    #: What AI agents did, from the record (empty when none took part).
+    ledger: ledger_mod.Ledger = field(default_factory=ledger_mod.Ledger)
 
     @property
     def version(self) -> str:
         return __version__
 
     def reviewers(self, *roles: str) -> list[str]:
-        """Handles of active actors with one of `roles` (any active actor if none are given)."""
+        """Handles of active *people* with one of `roles` (any active person if none are given).
+
+        An AI agent is never listed here, whatever its role: it is not a reviewer in the sense the
+        report counts, and is described apart, named as an AI tool
+        (openspec:ai-participation#people-and-agents-are-counted-apart)."""
         return [
             str(a["handle"])
             for a in self.actors
-            if a.get("role") != "inactive" and (not roles or a.get("role") in roles)
+            if a.get("role") != "inactive"
+            and a.get("kind", "human") != "agent"
+            and (not roles or a.get("role") in roles)
         ]
 
 
@@ -134,4 +143,5 @@ def collect(repo: Repo) -> Facts:
         analyses=_analyses(repo),
         counts=counts_mod.compute(repo),
         dedup=dict(repo.config.get("dedup", {})),
+        ledger=ledger_mod.compute_ledger(repo),
     )

@@ -26,7 +26,7 @@ from strata.core.events import append_new_event
 from strata.core.init import init_repository
 from strata.core.repo import open_repo
 from strata.core.status import compute_status
-from strata.mcpserver.server import RepoTools, create_mcp_server
+from strata.mcpserver.server import READ_TOOLS, WRITE_TOOLS, RepoTools, create_mcp_server
 from strata.protocol.criteria import add_criterion, read_criteria_doc
 from strata.protocol.rescreen import preview_criterion_change_impact
 from strata.protocol.screening import record_screen_decision
@@ -323,23 +323,16 @@ def test_preview_unknown_criterion_raises_a_clear_error(tmp_path: Path) -> None:
 # ------------------------------------------------------------- create_mcp_server
 
 
-def test_create_mcp_server_registers_exactly_the_scoped_read_only_tools(tmp_path: Path) -> None:
-    """The roadmap's M2.1 acceptance bullet: the MCP server exposes only
-    read/analysis/preview tools, and no tool commits a screening or
-    criteria decision -- checked here at the registration boundary
-    (matching what tool *names* are exposed at all), not just by every
-    `RepoTools` method above never calling a mutating `protocol` function."""
+def test_a_review_that_never_enabled_ai_is_offered_reads_and_no_write(tmp_path: Path) -> None:
+    """With AI participation off the server exposes read tools only
+    (openspec:mcp-server#read-analysis-and-preview-tools), and no tool commits a screening or
+    criteria decision -- checked at the registration boundary (the tool *names* exposed at all),
+    not just by every `RepoTools` method above never calling a mutating `protocol` function."""
     root = _init(tmp_path)
     mcp = create_mcp_server(repo_root=root)
     tools = asyncio.run(mcp.list_tools())
     names = {t.name for t in tools}
-    assert names == {
-        "status",
-        "why",
-        "log",
-        "records",
-        "criteria_diff",
-        "preview_criterion_change_impact",
-    }
+    assert names == set(READ_TOOLS)
+    assert not names & set(WRITE_TOOLS)
     for banned in ("screen", "assign", "adjudicate", "criteria_add", "criteria_edit", "rescreen"):
         assert banned not in names

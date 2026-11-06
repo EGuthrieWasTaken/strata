@@ -195,8 +195,16 @@ def has_changes(path: Path, pathspecs: list[str]) -> bool:
     return bool(result.stdout.strip())
 
 
-def commit(path: Path, message: str, *, allow_empty: bool = False) -> str:
+def commit(
+    path: Path, message: str, *, allow_empty: bool = False, author: str | None = None
+) -> str:
+    """Commit what is staged. `author` (`Name <address>`) overrides only the *author*; the
+    committer stays the configured identity, so the person who ran the command remains the one
+    accountable to the remote
+    (openspec:ai-participation#commits-do-not-pass-an-agent-s-work-off-as-a-person-s)."""
     args = ["commit", "-m", message]
+    if author is not None:
+        args.append(f"--author={author}")
     if allow_empty:
         args.append("--allow-empty")
     run(args, cwd=path)

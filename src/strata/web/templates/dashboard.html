@@ -34,6 +34,16 @@
   {% for id in awaiting_export %}<a href="{{ root }}/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
 {% endif %}
 
+<p data-testid="ai-line">
+  {% if ai_enabled %}
+  <span class="ai-icon" aria-hidden="true">&#129302;</span> <strong>AI participation is on.</strong>
+  {% if ai_policy %}Policy in force: {% for kind, mode in ai_policy.items() %}{{ kind }}: {{ mode }}{{ ", " if not loop.last else "" }}{% endfor %}.{% else %}Every kind of work is off.{% endif %}
+  <a href="{{ root }}/suggestions">{{ ai_pending }} suggestion{{ "s" if ai_pending != 1 else "" }} waiting &rarr;</a>
+  {% else %}
+  <span class="ai-icon" aria-hidden="true">&#129302;</span> AI participation is off for this review.
+  {% endif %}
+</p>
+
 <p>
   <a href="{{ root }}/searches">Searches ({{ report.search_count }}) &rarr;</a>
   &middot; <a href="{{ root }}/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>

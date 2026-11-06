@@ -90,6 +90,10 @@ Add these by editing the file (nested tables are easiest to write by hand) and c
 One entry per person: `handle`, `name`, `role`, optionally `email`. Manage with `strata actor add|list|deactivate`
 rather than editing.
 
+An AI model the review accepts is an entry with `kind = "agent"` and a `model`, and cannot be a `lead`; a
+person has neither key. Register one with `strata actor add NAME --kind agent --model MODEL` (after
+`strata ai enable`). See [Using AI in a review](Using-AI-in-a-Review).
+
 ### `[screening]`
 
 | Key | Default | Meaning |
@@ -147,6 +151,19 @@ reported by `strata verify` (`E_SCHEMA`), so it is noticed before it is shared. 
 | `library` | `users/<id>` or `groups/<id>`: the library the review is linked to |
 | `transport` | `auto` (the local API when Zotero offers it, else the Web API), `local`, or `web` |
 | `write` | Whether pushes can write, as checked when the link was made |
+
+### `[ai]`
+
+Written by `strata ai enable` and `strata ai policy`; edit it with those, which record your reason. Absent
+means AI participation is not enabled. See [Using AI in a review](Using-AI-in-a-Review).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | absent (off) | Whether the review accepts anything from an AI model. Needs format 2 |
+| `show_suggestions` | `after-own-decision` | When a reviewer may see an assistant's suggestion about a record: after their own decision, or `always` |
+| `policy.<kind>` | `off` | `off`, `suggest` or `count`, for each of `screening`, `extraction`, `risk-of-bias`, `retrieval`, `studies`, `dedup`, `records`, `search-import`, `criteria`, `adjudication`, `analysis` |
+
+A policy that sets any kind above `off` while `enabled` is false is a configuration error (`E_CONFIG`).
 
 ### `[analysis]`
 

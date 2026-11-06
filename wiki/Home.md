@@ -40,7 +40,8 @@ check before moving on. They follow the order of a review.
 11. [Analysis](Analysis): specifications, models, guardrails, plots.
 12. [Reporting](Reporting): PRISMA flow diagram, checklist, generated Methods and Results, exports.
 
-Around those: [Working with others](Working-with-Others) (sharing, syncing, checks on pull requests) and
+Around those: [Working with others](Working-with-Others) (sharing, syncing, checks on pull requests),
+[Using AI in a review](Using-AI-in-a-Review) (whether, where and how far an AI assistant may take part) and
 [The web interface](The-Web-Interface) (the same review in a browser).
 
 ## Concepts

@@ -151,8 +151,12 @@ def record_retrieval(
     retrieved_on: str | None = None,
     note: str | None = None,
     zotero: dict[str, str] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Record one outcome for a report: a `retrieval` event, plus a manifest entry if retrieved.
+
+    With `dry_run`, every check runs and nothing is written; the body that would have been written
+    is returned as `{"dry_run": True, "body": ...}`.
 
     `sought` reopens a report (the appended correction that undoes an earlier outcome).
     Everything is validated before anything is written, so a rejected manifest entry never
@@ -224,6 +228,8 @@ def record_retrieval(
     if note:
         body["note"] = note
     validate_event_body("retrieval", body)
+    if dry_run:
+        return {"dry_run": True, "body": body}
     if manifest_entry is not None:
         fulltext_mod.append_manifest_entry(repo, manifest_entry)
     return append_new_event(_events_path(repo, actor), ev="retrieval", actor=actor, body=body)

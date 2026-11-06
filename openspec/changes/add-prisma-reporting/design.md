@@ -107,3 +107,15 @@ search strategies, criteria with their history, the decision log, extraction
 data, analysis specifications, results, and a README naming the source commit —
 for deposit with a journal submission or on OSF or Zenodo. Because full texts
 are never committed, it contains no third-party copyrighted material.
+
+## Coordination with `add-ai-participation`
+
+`add-ai-participation` amended the Methods and checklist code this change specifies. Two fixed sentences
+(`no records were removed by other automation tools` in the Methods; `no machine-learning prioritisation
+was used` in checklist item 8) became false the day an AI agent takes part, so they are now written from
+the ledger of what agents did (`strata.core.ledger`, `strata.report.disclosure`). For a review in which no
+agent took part the text is byte-identical to what this change specifies; with one, items 8, 9 and 11 and the
+Methods name each model (as self-reported), the kinds of work and the mode, the suggestions adopted and
+rejected and the decisions counted, and count people and models apart. `Facts.reviewers()` now lists
+people only. Anything this change adds that states a fact about who or what did the work should read it from
+the ledger rather than assert it.

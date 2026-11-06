@@ -199,18 +199,27 @@ def _order_key(event: dict[str, Any]) -> tuple[str, str]:
     return event["ts"], event["id"]
 
 
-def _manual_stale_marks(repo: Repo) -> dict[tuple[str, str], tuple[str, str]]:
-    """Latest manual-stale marker order-key per `(stage, record_id)`."""
-    marks: dict[tuple[str, str], tuple[str, str]] = {}
+def _manual_stale_marks(
+    repo: Repo,
+) -> dict[tuple[str, str], tuple[tuple[str, str], str]]:
+    """Latest manual-stale marker per `(stage, record_id)`: its order key and the reason it gives
+    (`manual`, or `agent-revoked` for a decision an AI agent contributed)."""
+    marks: dict[tuple[str, str], tuple[tuple[str, str], str]] = {}
     for event in _manual_stale_events(repo):
         payload = json.loads(event["body"]["text"])
         key = (payload["stage"], payload["record"])
-        marks[key] = _order_key(event)
+        marks[key] = (_order_key(event), str(payload.get("reason", "manual")))
     return marks
 
 
 def mark_manual_stale(
-    repo: Repo, *, stage: str, record_id: str, actor: str, rationale: str
+    repo: Repo,
+    *,
+    stage: str,
+    record_id: str,
+    actor: str,
+    rationale: str,
+    reason: str = "manual",
 ) -> dict[str, Any]:
     """`strata rescreen --mark`: force a record stale outside the criteria-change
     mechanism (openspec:staleness#staleness-causes's `manual` reason).
@@ -221,10 +230,10 @@ def mark_manual_stale(
     after it -- there is no separate un-marking mechanism, matching this
     codebase's append-only, no-delete event log.
     """
-    body = {
-        "subject": _MANUAL_STALE_SUBJECT,
-        "text": canonical_json({"stage": stage, "record": record_id}),
-    }
+    payload: dict[str, str] = {"stage": stage, "record": record_id}
+    if reason != "manual":
+        payload["reason"] = reason  # absent for an ordinary mark, so existing events read the same
+    body = {"subject": _MANUAL_STALE_SUBJECT, "text": canonical_json(payload)}
     return append_new_event(
         repo.path("events", "note", f"{actor}.ndjson"), ev="note", actor=actor, body=body
     )
@@ -311,9 +320,9 @@ def _compute_stale(
             ):
                 reason = "upstream-stale"
             if reason is None:
-                mark_key = manual_marks.get((stage, record_id))
-                if mark_key is not None and mark_key > opinion.order_key:
-                    reason = "manual"
+                mark = manual_marks.get((stage, record_id))
+                if mark is not None and mark[0] > opinion.order_key:
+                    reason = mark[1]
             if reason is None:
                 continue
 
@@ -387,6 +396,7 @@ def preview_criterion_change_impact(
     criterion_id: str,
     direction: str,
     origin: str = "edited",
+    applies_at: Sequence[str] | None = None,
 ) -> list[StaleRecord]:
     """Non-mutating preview: what `compute_stale_records` would return if
     `criterion_id` were changed this way right now, without writing
@@ -404,11 +414,17 @@ def preview_criterion_change_impact(
     `origin="retired"` previews a retirement (direction is irrelevant
     there -- `CriterionChange.effective_direction` always treats a retired
     origin as `loosened`, matching `retire_criterion`'s own behavior); any
-    other origin previews an edit with the given `direction`.
+    other origin previews an edit with the given `direction`. `origin="added"` previews a criterion
+    that does not exist yet, which behaves as `tightened` at the stages in `applies_at`.
     """
-    criterion = criteria_mod.get_criterion(repo, criterion_id)
-    if criterion is None:
-        raise RescreenError(f"no criterion {criterion_id!r}")
+    if origin == "added":
+        stages = frozenset(applies_at or [])
+        direction = "tightened"
+    else:
+        criterion = criteria_mod.get_criterion(repo, criterion_id)
+        if criterion is None:
+            raise RescreenError(f"no criterion {criterion_id!r}")
+        stages = frozenset(criterion.get("applies_at") or [])
     current_version = int(criteria_mod.read_criteria_doc(repo)["version"])
     hypothetical_version = current_version + 1
     hypothetical = CriterionChange(
@@ -416,7 +432,7 @@ def preview_criterion_change_impact(
         origin=origin,  # type: ignore[arg-type]
         direction=direction,  # type: ignore[arg-type]
         to_version=hypothetical_version,
-        applies_at=frozenset(criterion.get("applies_at") or []),
+        applies_at=stages,
     )
     return _compute_stale(
         repo,

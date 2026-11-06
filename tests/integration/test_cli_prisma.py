@@ -127,6 +127,29 @@ def test_no_exclusion_table_is_written_when_nothing_collapses(tmp_path: Path) ->
     assert not repo.path("reports", "prisma-exclusion-reasons.tsv").exists()
 
 
+def test_reasons_that_collapse_into_other_are_written_out_in_full_beside_the_diagram(
+    tmp_path: Path,
+) -> None:
+    import dataclasses
+
+    from strata.core import operations as ops_mod
+    from strata.report import counts as counts_mod
+
+    repo = _review(tmp_path)
+    rendered = ops_mod.render_prisma(repo)
+    many = [counts_mod.Reason(f"EXC-{n:02d}", f"Reason {n}", 10 - n) for n in range(1, 9)]
+    crowded = dataclasses.replace(
+        rendered, counts=dataclasses.replace(rendered.counts, exclusion_reasons=many)
+    )
+    written = ops_mod.write_prisma(repo, crowded, fmt="svg", target=None)
+    assert [p.name for p in written] == ["prisma.svg", "prisma-exclusion-reasons.tsv"]
+    table = written[1].read_text(encoding="utf-8").splitlines()
+    assert table[0] == "id\tlabel\tcount" and len(table) == 1 + len(many)
+    assert ops_mod.write_prisma(
+        repo, crowded, fmt="json", target=repo.path("reports", "p.json")
+    ) == [repo.path("reports", "p.json")]
+
+
 def test_verify_compares_the_committed_diagram_with_a_fresh_one(tmp_path: Path) -> None:
     repo = _review(tmp_path)
     _cli(repo, "prisma", "--columns", "both")

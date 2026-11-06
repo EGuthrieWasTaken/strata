@@ -229,9 +229,13 @@ def add_criterion(
     rationale: str,
     criterion_id: str | None = None,
     examples: dict[str, list[str]] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Add a criterion. A criterion **added** behaves as `tightened`
-    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
+    (openspec:criteria-management#declaring-the-direction-of-a-change).
+
+    With `dry_run`, every check runs and nothing is written; the criterion that would have been
+    added is returned."""
     if kind not in _KINDS:
         raise CriteriaError(f"kind must be one of {_KINDS}, got {kind!r}")
     if not label.strip():
@@ -263,6 +267,8 @@ def add_criterion(
     }
     if examples:
         criterion["examples"] = examples
+    if dry_run:
+        return criterion
     criteria.append(criterion)
 
     new_doc = {"version": new_version, "digest": set_digest(criteria), "criteria": criteria}
@@ -289,8 +295,12 @@ def edit_criterion(
     definition: str | None = None,
     applies_at: list[str] | None = None,
     examples: dict[str, list[str]] | None = None,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Edit a criterion's definition/label/applies_at/examples.
+
+    With `dry_run`, every check runs and nothing is written; the criterion as it would be is
+    returned.
 
     `direction` MUST be supplied by the caller
     (openspec:criteria-management#declaring-the-direction-of-a-change -- the tool
@@ -349,6 +359,8 @@ def edit_criterion(
     if examples is not None:
         updated["examples"] = examples
 
+    if dry_run:
+        return updated
     criteria[index] = updated
     new_version = int(doc.get("version", 0)) + 1
     new_doc = {"version": new_version, "digest": set_digest(criteria), "criteria": criteria}
@@ -365,7 +377,7 @@ def edit_criterion(
 
 
 def retire_criterion(
-    repo: Repo, criterion_id: str, *, actor: str, rationale: str
+    repo: Repo, criterion_id: str, *, actor: str, rationale: str, dry_run: bool = False
 ) -> dict[str, Any]:
     """Retire a criterion. A criterion **retired** behaves as `loosened`
     (openspec:criteria-management#declaring-the-direction-of-a-change).
@@ -382,6 +394,8 @@ def retire_criterion(
         raise CriteriaError(f"{criterion_id} is already retired")
 
     updated = {**criteria[index], "status": "retired"}
+    if dry_run:
+        return updated
     criteria[index] = updated
     new_version = int(doc.get("version", 0)) + 1
     new_doc = {"version": new_version, "digest": set_digest(criteria), "criteria": criteria}

@@ -27,6 +27,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
+from strata.core import agents as agents_mod
 from strata.core.actor import VALID_ROLES
 from strata.core.repo import open_repo
 from strata.hosted import accounts
@@ -118,6 +119,10 @@ def add_member(
         )
     if actors[actor].get("role") == "inactive":
         raise MembershipError(f"{actor!r} is deactivated in {project_id}'s strata.toml")
+    if agents_mod.is_agent(repo, actor):
+        raise MembershipError(
+            f"{actor!r} is an AI agent in {project_id}'s strata.toml; a person signs in as a person"
+        )
     taken = instance.store.one(
         "SELECT username FROM memberships WHERE project = ? AND actor = ?", (project_id, actor)
     )

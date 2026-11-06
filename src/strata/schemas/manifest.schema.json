@@ -62,6 +62,16 @@
           "role": {
             "type": "string",
             "enum": ["lead", "screener", "extractor", "adjudicator", "observer", "inactive"]
+          },
+          "kind": {
+            "description": "openspec:data-schemas#agent-actors-and-ai-settings: a person (the default) or an AI agent",
+            "type": "string",
+            "enum": ["human", "agent"]
+          },
+          "model": {
+            "description": "The model name an agent reports about itself; set only on agent actors. A claim strata cannot verify.",
+            "type": "string",
+            "minLength": 1
           }
         }
       }
@@ -115,6 +125,32 @@
         "engine": { "type": "string", "enum": ["native", "metafor"] }
       }
     },
+    "ai": {
+      "description": "openspec:ai-participation: whether and how AI agents may take part. Absent means not enabled.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "show_suggestions": { "type": "string", "enum": ["after-own-decision", "always"] },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "screening": { "$ref": "#/$defs/ai_mode" },
+            "extraction": { "$ref": "#/$defs/ai_mode" },
+            "risk-of-bias": { "$ref": "#/$defs/ai_mode" },
+            "retrieval": { "$ref": "#/$defs/ai_mode" },
+            "studies": { "$ref": "#/$defs/ai_mode" },
+            "dedup": { "$ref": "#/$defs/ai_mode" },
+            "records": { "$ref": "#/$defs/ai_mode" },
+            "search-import": { "$ref": "#/$defs/ai_mode" },
+            "criteria": { "$ref": "#/$defs/ai_mode" },
+            "adjudication": { "$ref": "#/$defs/ai_mode" },
+            "analysis": { "$ref": "#/$defs/ai_mode" }
+          }
+        }
+      }
+    },
     "zotero": {
       "description": "openspec:zotero-integration — which Zotero library this review is linked to. Closed on purpose: an API key never belongs in strata.toml (openspec:zotero-integration#api-keys-are-never-stored-in-the-repository).",
       "type": "object",
@@ -125,5 +161,8 @@
         "write": { "type": "boolean" }
       }
     }
+  },
+  "$defs": {
+    "ai_mode": { "type": "string", "enum": ["off", "suggest", "count"] }
   }
 }
