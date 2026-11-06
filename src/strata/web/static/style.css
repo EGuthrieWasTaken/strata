@@ -40,7 +40,10 @@ html {
 
 body {
   margin: 0;
-  overflow-wrap: anywhere; /* a DOI, a URL or a title with no spaces must not push the page sideways */
+  /* A DOI, a URL or a title with no spaces must not push the page sideways. `break-word`, not
+     `anywhere`: only `anywhere` lowers a table column's minimum width, which squeezed columns below
+     their longest word ("Yea/r") instead of letting the table scroll in its box. */
+  overflow-wrap: break-word;
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

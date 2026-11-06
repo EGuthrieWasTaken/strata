@@ -500,3 +500,8 @@ All notable changes to `strata` are documented here. Format follows
   at 320 px (the analysis study table at 1024 px too); they now scroll inside a keyboard-focusable box. A title
   or DOI with no spaces did the same on the screening card and a record's page; words now break where they
   must. `tests/unit/test_web_static_accessibility.py` holds all four in the pull-request gate.
+- **The criteria editor's Preview put the session token and the reviewer's reason in the address.** Preview was a
+  GET submit of the form whose hidden `csrf_token` field is the session token, so the token (the very value the
+  `HttpOnly` cookie protects) and the reason went into browser history, the address bar and `Referer`
+  headers. Preview now posts, with or without JavaScript; the editor no longer reads a draft from the query
+  string. Found by an agent clicking through every screen in Chrome (`docs/chrome-pass-results.md`).

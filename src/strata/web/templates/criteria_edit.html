@@ -66,9 +66,9 @@
 
   <div class="decision-buttons">
     {% if mode == "edit" %}
-    <button type="submit" formmethod="get" class="btn">Preview</button>
+    <button type="submit" name="intent" value="preview" class="btn">Preview</button>
     {% endif %}
-    <button type="submit" formmethod="post" class="btn btn-include">
+    <button type="submit" class="btn btn-include">
       {{ "Retire and commit" if mode == "retire" else "Save and commit" }}
     </button>
   </div>

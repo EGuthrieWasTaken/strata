@@ -85,3 +85,12 @@ def test_every_table_that_does_not_stack_scrolls_inside_its_own_box() -> None:
         f"a wide table here would push the page sideways: {sorted(set(unwrapped))}"
     )
     assert re.search(r"\.table-scroll\s*\{[^}]*overflow-x:\s*auto", CSS)
+
+
+def test_the_page_breaks_long_words_without_squeezing_table_columns() -> None:
+    """`overflow-wrap: anywhere` on the body lowers every table column's minimum width, so a column
+    is squeezed below its longest word ("Yea/r") instead of the table scrolling in its box."""
+    body = re.search(r"\nbody\s*\{.*?\n\}", CSS, re.S)
+    assert body is not None
+    rule = re.sub(r"/\*.*?\*/", "", body.group(0), flags=re.S)
+    assert "overflow-wrap: break-word" in rule and "anywhere" not in rule

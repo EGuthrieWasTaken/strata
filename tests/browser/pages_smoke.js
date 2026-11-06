@@ -7,6 +7,7 @@
 //   node pages_smoke.js motion   <blank-url>
 //   node pages_smoke.js nojs     <blank-url> <exports-dir>
 //   node pages_smoke.js hostile  <dual-url>
+//   node pages_smoke.js preview  <pipeline-url>
 //
 // Each prints one JSON object whose `failures` is a list of sentences; it exits 1 when that list is not
 // empty. Every check runs even after one fails, so one run shows the whole picture.
@@ -124,6 +125,31 @@ async function layout(browser, urls) {
             return out;
           });
           if (spill.length) failures.push(`${tag}: reaches past the right edge: ${spill.join(", ")}`);
+          // A word is never broken in the middle in a table: a column narrower than its longest word means
+          // the table was squeezed to fit instead of scrolling ("Yea/r"). Asked of the browser directly:
+          // does any word, laid out in a real table cell, span two lines? Words that can break at a
+          // hyphen or slash are skipped, and so are cells of a table stacked into cards (display: block),
+          // which break a long DOI on purpose.
+          const squeezed = await page.evaluate(() => {
+            const out = [];
+            for (const cell of document.querySelectorAll("th, td")) {
+              if (getComputedStyle(cell).display === "block" || cell.getBoundingClientRect().width <= 1) continue;
+              const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                for (const match of node.data.matchAll(/\S+/g)) {
+                  if (/[-\u2010-\u2015/&]/.test(match[0])) continue;
+                  const range = document.createRange();
+                  range.setStart(node, match.index);
+                  range.setEnd(node, match.index + match[0].length);
+                  const lines = new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top)));
+                  if (lines.size > 1) out.push(`"${match[0].slice(0, 16)}" spans ${lines.size} lines in a ${Math.round(cell.getBoundingClientRect().width)}px cell`);
+                }
+              }
+              if (out.length >= 3) break;
+            }
+            return out.slice(0, 3);
+          });
+          if (squeezed.length) failures.push(`${tag}: a word is broken mid-word in a table: ${squeezed.join("; ")}`);
         }
       }
     }
@@ -288,10 +314,71 @@ async function hostile(browser, [dual]) {
   return { failures, report };
 }
 
+async function preview(browser, [pipeline]) {
+  // The criteria editor's Preview posts the form, so the session token and the reason never reach an
+  // address; and the direction radio previews on its own when JavaScript is on.
+  const failures = [];
+  const report = {};
+  const reason = "Checking that the reason never reaches the address bar";
+  for (const javaScriptEnabled of [true, false]) {
+    const label = javaScriptEnabled ? "js" : "nojs";
+    const s = await openSession(browser, pipeline, { javaScriptEnabled });
+    const { page, origin } = s;
+    const sent = [];
+    page.on("request", (r) => { if (r.isNavigationRequest()) sent.push(r.method() + " " + r.url()); });
+    await page.goto(origin + "/criteria/INC-02/edit");
+    const start = page.url();
+    await page.fill('textarea[name="definition"]', "A new draft definition for the preview");
+    await page.fill('textarea[name="rationale"]', reason);
+    // A step that should navigate and does not is a failure to report, not a crash.
+    const navigates = async (what, act) => {
+      const waited = page.waitForEvent("framenavigated", { timeout: 5000 }).then(() => true, () => false);
+      await act();
+      if (!(await waited)) failures.push(`${label}: ${what} did not navigate`);
+      await page.waitForLoadState("load");
+    };
+    const previewButton = page.getByRole("button", { name: "Preview" });
+    if (javaScriptEnabled) {
+      // Choosing a direction previews on its own.
+      await navigates("choosing a direction", () => page.check('input[name="direction"][value="tightened"]'));
+    } else {
+      await page.check('input[name="direction"][value="tightened"]');
+      await navigates("pressing Preview", () => previewButton.click());
+    }
+    report[label] = { url: page.url(), navigations: sent };
+    for (const request of sent) {
+      if (/csrf_token|rationale|definition|[?&]token=/.test(request)) failures.push(`${label}: an address carries what was typed or the token: ${request}`);
+    }
+    if (!sent.some((r) => r.startsWith("POST "))) failures.push(`${label}: Preview was not a POST: ${JSON.stringify(sent)}`);
+    if (new URL(page.url()).search) failures.push(`${label}: the page after Preview is at an address with a query: ${page.url()}`);
+    const kept = await page.evaluate(() => ({
+      definition: document.querySelector('textarea[name="definition"]').value,
+      rationale: document.querySelector('textarea[name="rationale"]').value,
+      direction: (document.querySelector('input[name="direction"]:checked') || {}).value,
+    }));
+    if (kept.definition !== "A new draft definition for the preview" || kept.rationale !== reason || kept.direction !== "tightened") {
+      failures.push(`${label}: the form lost what was typed after Preview: ${JSON.stringify(kept)}`);
+    }
+    if ((await page.$('[data-testid="impact-preview"]')) === null) failures.push(`${label}: no impact preview on the page`);
+    if (javaScriptEnabled) {
+      // Changing the direction again previews again, still without putting anything in the address.
+      const before = sent.length;
+      await navigates("changing the direction again", () => page.check('input[name="direction"][value="loosened"]'));
+      const after = sent.slice(before);
+      report.radio = after;
+      if (after.length === 0) failures.push("js: changing the direction did not preview");
+      if (after.some((r) => /csrf_token|rationale|definition/.test(r) || !r.startsWith("POST "))) failures.push("js: the direction change previewed through an address: " + JSON.stringify(after));
+    }
+    for (const p of s.problems) failures.push(p);
+    await s.context.close();
+  }
+  return { failures, report };
+}
+
 // ------------------------------------------------------------------------------------------- main
 
 (async () => {
-  const run = { layout, contrast, motion, nojs, hostile }[scenario];
+  const run = { layout, contrast, motion, nojs, hostile, preview }[scenario];
   if (!run) { console.error("unknown scenario " + scenario); process.exit(2); }
   const browser = await chromium.launch();
   let result;

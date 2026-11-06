@@ -4,14 +4,17 @@ Optional, like `test_dropzone_browser.py`: it needs Node with Playwright and a C
 skipped where they are not installed. It drives `pages_smoke.js`, which looks at what a script can
 judge:
 
-* **reflow**: no page scrolls sideways at 320 px or at 640 px (200 % zoom on a 1280 px screen), and
-  nothing reaches past the right edge outside a box that scrolls itself;
+* **reflow**: no page scrolls sideways at 320 px or 640 px (200 % zoom on a 1280 px screen),
+  nothing reaches past the right edge outside a box that scrolls itself, and no word is broken
+  mid-word in a table (a squeezed column, "Yea/r", means the table should have scrolled);
 * **contrast**: text 4.5:1 and component boundaries 3:1, in light and in dark, on the drop target
   (also while dragging), error messages, warning flags, the screening buttons and links;
 * **motion**: with `prefers-reduced-motion: reduce` nothing transitions or animates;
 * **no JavaScript**: record a search with a file, review, import, and screen, using only the
   ordinary controls;
 * **hostile records**: markup in a title or abstract is shown as text and runs nothing;
+* **the session token**: the criteria editor's Preview posts, with and without JavaScript, so
+  neither the token nor the reason typed ever appears in an address;
 * **Content-Security-Policy**: no page raises a script or style violation.
 
 Building the reviews takes about fifteen seconds (the same commands a person runs, in-process), so
@@ -148,3 +151,16 @@ def test_a_search_can_be_recorded_imported_and_screened_without_javascript(
 @needs_browser
 def test_markup_in_a_record_is_shown_as_text_and_runs_nothing(servers: dict[str, str]) -> None:
     _scenario("hostile", servers["dual"])
+
+
+@needs_browser
+def test_the_criteria_preview_keeps_the_session_token_and_the_reason_out_of_the_address(
+    servers: dict[str, str], seeded: Path
+) -> None:
+    _scenario("preview", servers["pipeline"])
+    status = subprocess.run(
+        ["git", "-C", str(seeded / "pipeline"), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+    )
+    assert status.stdout == "", "a preview must write nothing"
