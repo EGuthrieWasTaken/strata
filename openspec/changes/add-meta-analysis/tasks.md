@@ -55,7 +55,8 @@
   reproduced, but the Hedges & Olkin worked tables could not be obtained, and the zero-cell review
   asserts behaviour rather than a published pooled value. Close it with those sources or drop the
   items by editing this task.
-- 7.1 and 7.5 are implemented and were run on Linux; the nightly live-R job and the macOS and
-  Windows byte-identity runs happen on GitHub, not here.
+- 7.1 and 7.5 are implemented and were run on Linux here, and on GitHub: the nightly live-R job passed
+  end to end (Nightly #57, 5 November), and the byte-identity tests pass on Linux, macOS and Windows in
+  the `test` matrix.
 - 5.1: PNG output needs the optional `cairosvg` package; SVG and PDF are built in. `run.json`
   records the Python, numpy and scipy versions, so it is byte-identical only for the same versions.
