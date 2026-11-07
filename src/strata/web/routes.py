@@ -75,11 +75,12 @@ from strata.core.commit import RationaleRejectedError, StructuredCommit, validat
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
+from strata.protocol import blinding as blinding_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
-from strata.web.app import AppState
+from strata.web.app import AppState, state_of
 
 router = APIRouter()
 
@@ -163,7 +164,7 @@ def _redirect(path: str, **query: str) -> RedirectResponse:
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     report = status_mod.compute_status(repo)
     enabled = agents_mod.is_enabled(repo)
@@ -193,7 +194,7 @@ def _canonical_ids(repo: Any) -> list[str]:
 
 @router.get("/screen/{stage}", response_class=HTMLResponse, response_model=None)
 async def screen_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
 
     if stage not in screening_mod.configured_stages(repo):
@@ -277,7 +278,7 @@ async def screen_stage(request: Request, stage: str) -> HTMLResponse | PlainText
 
 @router.post("/screen/{stage}", response_model=None)
 async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     # The security middleware already parsed and CSRF-validated this form
     # (and stashed it on `request.state`, since it read the request body
@@ -353,7 +354,7 @@ async def rescreen_stage(request: Request, stage: str) -> HTMLResponse | PlainTe
     than N climbing towards a fixed M -- still an accurate, honest count
     at every page load, just shaped differently.
     """
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
 
     try:
@@ -407,7 +408,7 @@ async def rescreen_stage(request: Request, stage: str) -> HTMLResponse | PlainTe
 async def rescreen_stage_submit(
     request: Request, stage: str
 ) -> RedirectResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
 
@@ -452,7 +453,7 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | Plain
     """Conflict resolution (openspec:adjudication). Same skip-list statelessness
     as `/screen`/`/rescreen`; there is no "undo" here since an adjudication
     is a one-way resolution of a disagreement, not a routine decision."""
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
 
     try:
@@ -462,6 +463,11 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | Plain
 
     skip_ids = set(_parse_id_list(request.query_params.get("skip")))
     queue = [rid for rid in full_queue if rid not in skip_ids]
+    if state.hosted is not None:
+        # openspec:hosted-deployment#blinding-between-users: a conflict shows both opinions, so
+        # it is not shown to a member who has yet to decide that record themselves.
+        hidden = blinding_mod.blinded_records(repo, state.actor).get(stage, frozenset())
+        queue = [rid for rid in queue if rid not in hidden]
 
     if not queue:
         return _render(
@@ -501,7 +507,7 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | Plain
 async def adjudicate_stage_submit(
     request: Request, stage: str
 ) -> RedirectResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
 
@@ -572,7 +578,7 @@ def _commit_criteria_change(
 
 @router.get("/criteria", response_class=HTMLResponse)
 async def criteria_list(request: Request) -> HTMLResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     criteria = sorted(criteria_mod.list_criteria(repo), key=lambda c: c["id"])
     version = criteria_mod.read_criteria_doc(repo)["version"]
@@ -610,6 +616,10 @@ def _criteria_edit_context(
         preview = rescreen_mod.preview_criterion_change_impact(
             repo, criterion_id=criterion["id"], direction=direction
         )
+    if preview is not None and state.hosted is not None:
+        # Each stale entry names a prior decision
+        # (openspec:hosted-deployment#blinding-between-users).
+        preview = blinding_mod.visible(preview, blinding_mod.blinded_records(repo, state.actor))
     # The "Preview" button is a plain GET resubmit (openspec:web-ui#technology's no-JS baseline),
     # which would otherwise reset the definition/rationale textareas to
     # their on-disk values on every preview refresh -- carry forward
@@ -635,7 +645,7 @@ def _criteria_edit_context(
 async def criteria_edit_view(
     request: Request, criterion_id: str
 ) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
@@ -651,7 +661,7 @@ async def criteria_edit_view(
 async def criteria_edit_submit(
     request: Request, criterion_id: str
 ) -> RedirectResponse | HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
@@ -701,7 +711,7 @@ async def criteria_edit_submit(
 async def criteria_retire_view(
     request: Request, criterion_id: str
 ) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
@@ -717,7 +727,7 @@ async def criteria_retire_view(
 async def criteria_retire_submit(
     request: Request, criterion_id: str
 ) -> RedirectResponse | HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     criterion = criteria_mod.get_criterion(repo, criterion_id)
     if criterion is None:
@@ -808,7 +818,7 @@ async def dedup_queue(request: Request) -> HTMLResponse:
     same as the CLI's own review flow -- not wired into this sitting's web
     surface).
     """
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     outcome = engine_mod.preview_dedup(repo)
 
@@ -864,7 +874,7 @@ async def dedup_run(request: Request) -> RedirectResponse | PlainTextResponse:
     action not scoped to a single pair. An explicit, deliberate `POST` a
     reviewer takes after seeing the "would auto-merge" list on `GET
     /dedup`; never triggered automatically."""
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
     raw_rationale = str(form.get("rationale") or "")
@@ -896,7 +906,7 @@ async def dedup_decide(request: Request) -> RedirectResponse | PlainTextResponse
     round-trip -- the queue can have moved since the page was rendered,
     the same re-validation `/rescreen`'s `keep-previous` submission does.
     """
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
 
@@ -974,7 +984,7 @@ async def records_list_view(request: Request) -> HTMLResponse:
     to `dedup.engine`, see this module's docstring), nothing here needs
     any new preview infrastructure to compute what to show.
     """
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     filter_expr = request.query_params.get("filter") or ""
     records = [
@@ -1046,7 +1056,7 @@ def record_detail_context(
 async def record_detail_view(request: Request, record_id: str) -> HTMLResponse | PlainTextResponse:
     """Record detail + provenance timeline (`strata why`'s data,
     `core.provenance.build_provenance`)."""
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     record = records_mod.get_record(repo, record_id)
     if record is None:
@@ -1068,7 +1078,7 @@ async def history_view(request: Request) -> HTMLResponse:
     """Domain-level history read through `Strata-` commit trailers
     (`strata log`'s data, `core.logcmd.domain_log`) -- never raw commit
     messages, matching that module's own framing."""
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     stage = request.query_params.get("stage") or None
     actor = request.query_params.get("actor") or None

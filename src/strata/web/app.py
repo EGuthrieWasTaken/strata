@@ -10,7 +10,9 @@ isolated instance per repository fixture.
 
 from __future__ import annotations
 
+import copy
 import importlib.resources
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -88,8 +90,68 @@ class AppState:
         self.max_upload_bytes = max_upload_bytes
         self.staging = uploads.UploadStaging(repo_root, max_total_bytes=max_upload_bytes)
 
+    #: Set only inside a hosted instance (openspec:hosted-deployment): who is signed in, in which
+    #: project, with what role. `None` in `strata serve`, which has no accounts.
+    hosted: HostedView | None = None
+
     def open_repo(self) -> Repo:
         return open_repo(self.repo_root)
+
+    def for_request(self, *, actor: str, session_token: str, hosted: HostedView) -> AppState:
+        """This state as one hosted request sees it: the member's actor, their session's CSRF
+        token (what the forms embed), and the hosted context. The shared parts (the repository
+        root, the upload staging area) are the same objects."""
+        view = copy.copy(self)
+        view.actor = actor
+        view.session_token = session_token
+        view.hosted = hosted
+        return view
+
+
+@dataclass(frozen=True)
+class HostedView:
+    """What a hosted instance adds to a request inside one of its projects."""
+
+    project_id: str
+    project_title: str
+    username: str
+    display_name: str
+    role: str
+    #: The session's CSRF token, for the forms the header carries (signing out).
+    csrf: str = ""
+    #: The URL prefix of the instance's own pages (the sign-out form, the project list).
+    instance_root: str = ""
+    #: The project's sync status for the page header and dashboard (`strata.hosted.syncloop`).
+    sync: dict[str, Any] = field(default_factory=dict)
+
+
+#: Where a hosted instance puts a request's own `AppState` in the ASGI scope's `state`.
+REQUEST_STATE_KEY = "strata_request_state"
+
+
+def state_of(request: Request) -> AppState:
+    """The `AppState` a request handler works with: the hosted instance's per-request view when
+    there is one, else the server's own."""
+    scoped = (request.scope.get("state") or {}).get(REQUEST_STATE_KEY)
+    if scoped is not None:
+        state: AppState = scoped
+        return state
+    server_state: AppState = request.app.state.strata
+    return server_state
+
+
+def _template_context(request: Request) -> dict[str, Any]:
+    """Values every page needs that depend on the request: who is signed in, the URL prefix
+    every link starts with (empty in `strata serve`; `/p/<project>` on a hosted instance), and
+    the hosted context, if any."""
+    scoped = (request.scope.get("state") or {}).get(REQUEST_STATE_KEY)
+    server = getattr(request.app.state, "strata", None)
+    state = scoped if scoped is not None else server
+    return {
+        "root": request.scope.get("root_path", ""),
+        "signed_in_actor": state.actor if state is not None else "",
+        "hosted": state.hosted if state is not None else None,
+    }
 
 
 def _health_response(state: AppState) -> JSONResponse:
@@ -124,14 +186,8 @@ def create_app(
     # Whatever an earlier server left staged is gone: nobody can come back to it.
     state.staging.purge(everything=True)
 
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app = create_project_app()
     app.state.strata = state
-    app.state.templates = Jinja2Templates(directory=_templates_dir())
-    app.state.templates.env.globals["csrf_field_name"] = CSRF_FIELD_NAME
-    # The page header's "signed in as": the server's own actor, so a page whose context carries
-    # no `actor` (the criteria pages) or one that means something else (the history filter) is
-    # right too.
-    app.state.templates.env.globals["signed_in_actor"] = actor
 
     class SecurityMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request: Request, call_next: Any) -> Any:
@@ -230,6 +286,22 @@ def create_app(
             return response
 
     app.add_middleware(SecurityMiddleware)
+    return app
+
+
+def create_project_app() -> FastAPI:
+    """The review's screens with no server identity and no security middleware of their own.
+
+    `create_app` wraps this for `strata serve`; a hosted instance wraps it once and supplies, per
+    request, the signed-in member's state (`REQUEST_STATE_KEY`) after its own checks
+    (openspec:hosted-deployment). Every link a page renders starts with the request's
+    `root_path`, so the same screens work under a hosted project's URL prefix.
+    """
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.templates = Jinja2Templates(
+        directory=_templates_dir(), context_processors=[_template_context]
+    )
+    app.state.templates.env.globals["csrf_field_name"] = CSRF_FIELD_NAME
 
     app.mount("/static", StaticFiles(directory=_static_dir()), name="static")
 

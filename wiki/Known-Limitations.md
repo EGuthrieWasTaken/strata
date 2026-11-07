@@ -37,6 +37,12 @@ items are fixed.
 - **Containers.** The image is built and smoke-tested in CI on amd64 and arm64 and published to GitHub's
   registry, but not yet tried on Docker Desktop for macOS or Windows, with an SSH agent for `strata sync`, or
   with `compose.yaml`. It is not signed yet ([Running in a container](Running-in-a-Container)).
+- **A hosted instance** (`strata host`) is tested in-process and has run on one machine in local-testing
+  mode, but the example `docker/hosted/compose.yaml` with Caddy and a real certificate has not been run, sign-in
+  with a real OpenID Connect provider or GitHub has only been tested against a stand-in, and the security
+  review that is to precede a release has not been done ([Running a hosted instance](Running-a-Hosted-Instance)).
+  Screening batches on an instance are committed with a generated message and no rationale, even when a batch
+  changes an earlier decision; the decision's note is where to say why.
 - **Checks on pull requests** (`strata init --ci`): the workflow and the code behind it are tested, but the
   workflow has not yet run in a real review repository on GitHub.
 - **Performance** targets (50,000 records imported in about 20 seconds and deduplicated in about two minutes)
@@ -59,8 +65,6 @@ items are fixed.
 ## Not built yet (planned)
 
 - Packaging on PyPI, Homebrew and conda-forge.
-- A hosted multi-user instance with sign-in (OpenID Connect) for teams that would rather not run anything
-  themselves.
 - A Covidence/Rayyan migration path.
 - Screening-state filters, as above.
 

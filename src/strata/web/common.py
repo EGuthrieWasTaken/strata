@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import Request
 from fastapi.responses import RedirectResponse
 
-from strata.web.app import AppState
+from strata.web.app import state_of
 
-
-def state_of(request: Request) -> AppState:
-    state: AppState = request.app.state.strata
-    return state
+__all__ = ["go", "state_of"]
 
 
 def go(path: str) -> RedirectResponse:

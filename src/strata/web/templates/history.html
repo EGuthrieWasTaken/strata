@@ -2,9 +2,9 @@
 {% block title %}History{% endblock %}
 {% block content %}
 <h1>History</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
-<form method="get" action="/history" class="note-field">
+<form method="get" action="{{ root }}/history" class="note-field">
   <label>
     Stage
     <input type="text" name="stage" value="{{ stage or '' }}">

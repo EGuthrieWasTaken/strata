@@ -280,3 +280,34 @@ def test_the_base_image_is_pinned_by_digest_in_both_stages() -> None:
     from_lines = re.findall(r"^FROM\s+(\S+)", _dockerfile(), flags=re.MULTILINE)
     assert len(from_lines) == 2 and from_lines[0] == from_lines[1]
     assert re.fullmatch(r"python:3\.12-slim@sha256:[0-9a-f]{64}", from_lines[0])
+
+
+def test_the_hosted_compose_file_publishes_only_the_tls_proxy() -> None:
+    """openspec:hosted-deployment#hosted-security-baseline: TLS is terminated by the proxy, and the
+    instance itself is reachable only through it (so the forwarded headers it trusts are Caddy's)."""
+    compose = load_yaml_str(
+        (ROOT / "docker" / "hosted" / "compose.yaml").read_text(encoding="utf-8")
+    )
+    strata, proxy = compose["services"]["strata"], compose["services"]["proxy"]
+    assert "ports" not in strata and strata["expose"] == ["8765"]
+    assert proxy["ports"] == ["80:80", "443:443"]
+    command = strata["command"]
+    assert command[0] == "host" and command[command.index("--data") + 1] == "/data"
+    assert command[command.index("--port") + 1] == strata["environment"]["STRATA_PORT"]
+    assert strata["environment"]["STRATA_PUBLIC_URL"].startswith("https://")
+    assert "strata-data:/data" in strata["volumes"]
+    assert strata["environment"]["STRATA_INSTANCE_KEY_FILE"] == "/run/secrets/strata_instance_key"
+    assert set(strata["secrets"]) == set(compose["secrets"])
+    caddyfile = (ROOT / "docker" / "hosted" / "Caddyfile").read_text(encoding="utf-8")
+    assert "reverse_proxy strata:8765" in caddyfile
+    # Every option the compose file passes is one `strata host` takes.
+    # (Read from the command itself: rendered help is coloured on CI, which splits the names.)
+    from typer.main import get_command
+
+    host_command = get_command(app).commands["host"]  # type: ignore[attr-defined]
+    taken = {opt for param in host_command.params for opt in getattr(param, "opts", [])}
+    for option in (a for a in command if a.startswith("--")):
+        assert option in taken, option
+    # The image has a /data the instance (uid 10001) can write to.
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "mkdir -m 0700 /data" in dockerfile and "chown 10001:10001 /review /data" in dockerfile

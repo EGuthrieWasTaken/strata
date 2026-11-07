@@ -24,7 +24,7 @@ from strata.extract import records as extraction_records_mod
 from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
 from strata.protocol import studies as studies_mod
-from strata.web.app import AppState
+from strata.web.app import AppState, state_of
 from strata.web.routes import _dedup_rationale, _error, _redirect, _render
 
 router = APIRouter()
@@ -135,7 +135,7 @@ def _effect_rows(repo: Any, study: str, record: dict[str, Any]) -> list[dict[str
 
 @router.get("/extract", response_class=HTMLResponse, response_model=None)
 async def extract_index(request: Request) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     try:
         missing = extraction_records_mod.studies_missing(repo, state.actor)
@@ -156,7 +156,7 @@ async def extract_index(request: Request) -> HTMLResponse | PlainTextResponse:
 
 @router.get("/extract/{study}", response_class=HTMLResponse, response_model=None)
 async def extract_study(request: Request, study: str) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     if not _included(repo, study):
         return _error(_STUDY_NOT_FOUND.format(study=study), status_code=404)
@@ -228,7 +228,7 @@ async def extract_study(request: Request, study: str) -> HTMLResponse | PlainTex
 async def extract_study_submit(
     request: Request, study: str
 ) -> RedirectResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
     if not _included(repo, study):
@@ -301,7 +301,7 @@ async def extract_study_submit(
 
 @router.get("/extract/{study}/reconcile", response_class=HTMLResponse, response_model=None)
 async def extract_reconcile(request: Request, study: str) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     if not _included(repo, study):
         return _error(_STUDY_NOT_FOUND.format(study=study), status_code=404)
@@ -330,7 +330,7 @@ async def extract_reconcile(request: Request, study: str) -> HTMLResponse | Plai
 async def extract_reconcile_submit(
     request: Request, study: str
 ) -> RedirectResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
     if not _included(repo, study):
@@ -375,7 +375,7 @@ async def extract_reconcile_submit(
 
 @router.get("/rob", response_class=HTMLResponse, response_model=None)
 async def rob_index(request: Request) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     try:
         instrument = rob_mod.load_instrument(repo)
@@ -448,7 +448,7 @@ def _rob_context(repo: Any, state: AppState, study: str) -> dict[str, Any]:
 
 @router.get("/rob/{study}", response_class=HTMLResponse, response_model=None)
 async def rob_study(request: Request, study: str) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     if not _included(repo, study):
         return _error(_STUDY_NOT_FOUND.format(study=study), status_code=404)
@@ -461,7 +461,7 @@ async def rob_study(request: Request, study: str) -> HTMLResponse | PlainTextRes
 
 @router.post("/rob/{study}", response_model=None)
 async def rob_study_submit(request: Request, study: str) -> RedirectResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
     if not _included(repo, study):

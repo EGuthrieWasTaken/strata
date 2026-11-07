@@ -1,0 +1,22 @@
+{% extends "hosted/base.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<h1>Your projects</h1>
+{% if rows %}
+<table data-testid="project-list">
+  <thead><tr><th scope="col">Project</th><th scope="col">You are</th><th scope="col">Role</th><th scope="col">Shared remote</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+  <tr>
+    <td><a href="/p/{{ row.project.id | urlencode }}/">{{ row.project.title }}</a> <code>{{ row.project.id }}</code></td>
+    <td>{{ row.membership.actor }}</td>
+    <td>{{ row.membership.role }}</td>
+    <td>{% if row.sync.remote %}{% if row.sync.conflicts %}<strong>conflict waiting for a lead</strong>{% elif row.sync.last_error %}<strong>last sync failed</strong>{% else %}synced {{ row.sync.last_success or "not yet" }}{% endif %}{% else %}none{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>You are not a member of any project on this instance yet. A project's lead adds you.</p>
+{% endif %}
+{% endblock %}

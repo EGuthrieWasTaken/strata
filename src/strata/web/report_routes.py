@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from strata.report import counts as counts_mod
 from strata.report import flow as flow_mod
 from strata.web.analysis_routes import _PLOT_CSP
-from strata.web.app import AppState
+from strata.web.app import AppState, state_of
 from strata.web.routes import _error, _render
 
 router = APIRouter()
@@ -27,7 +27,7 @@ def _columns(request: Request) -> str:
 
 @router.get("/prisma", response_class=HTMLResponse, response_model=None)
 async def prisma_page(request: Request) -> HTMLResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     counts = counts_mod.compute(repo)
     return _render(
@@ -48,7 +48,7 @@ async def prisma_page(request: Request) -> HTMLResponse:
 
 @router.get("/prisma.svg", response_model=None)
 async def prisma_svg(request: Request) -> Response | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     counts = counts_mod.compute(state.open_repo())
     if not counts.reconciled:
         return _error("the counts do not close: " + "; ".join(counts.failures), status_code=409)

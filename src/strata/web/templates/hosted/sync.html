@@ -1,0 +1,52 @@
+{% extends "hosted/base.html" %}
+{% block title %}Sync &middot; {{ project.title }}{% endblock %}
+{% block content %}
+<p><a href="/p/{{ project.id | urlencode }}/">&larr; {{ project.title }}</a></p>
+<h1>Shared remote</h1>
+{% if not status.remote %}
+<p>This project has no remote; its history is only on this instance.</p>
+{% else %}
+<dl class="summary-grid" data-testid="sync-summary">
+  <div><dt>Remote</dt><dd><code>{{ status.remote }}</code></dd></div>
+  <div><dt>Last synced</dt><dd>{{ view.last_success or "not yet" }}</dd></div>
+  <div><dt>Last pushed</dt><dd>{{ view.last_push or "not yet" }}</dd></div>
+  <div><dt>Waiting to push</dt><dd>{{ "yes" if status.push_pending else "no" }}</dd></div>
+  <div><dt>Undecided batch</dt><dd>{{ status.pending_decisions }} decision{{ "s" if status.pending_decisions != 1 else "" }}</dd></div>
+</dl>
+{% if status.last_error and not status.conflicts %}<p class="notice flag" data-testid="sync-error">The last sync failed: {{ status.last_error }}{% if view.next_retry %}. It will be retried after {{ view.next_retry }}{% endif %}.</p>{% endif %}
+{% if can_sync %}
+<form method="post" action="/p/{{ project.id | urlencode }}/-/sync" class="inline-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+  <input type="hidden" name="action" value="sync">
+  <button type="submit">Sync now</button>
+</form>
+{% endif %}
+{% if status.conflicts %}
+<h2>Conflicts</h2>
+<p class="notice flag">Pushes for this project are stopped. Someone changed {{ "this file" if status.conflicts | length == 1 else "these files" }} on the shared remote while it was changed here, differently. {% if is_lead %}Choose what to keep.{% else %}A lead of the project resolves this.{% endif %}</p>
+{% if is_lead %}
+<form method="post" action="/p/{{ project.id | urlencode }}/-/sync" data-testid="conflict-form">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+  <input type="hidden" name="action" value="resolve">
+  {% for c in status.conflicts %}
+  {% set i = loop.index0 %}
+  <fieldset>
+    <legend><code>{{ c.path }}</code></legend>
+    {% if c.summary %}<ul>{% for line in c.summary %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+    <div class="conflict-sides">
+      <div><h3>Mine (this instance)</h3><pre>{{ c.mine }}</pre></div>
+      <div><h3>Theirs (the shared remote)</h3><pre>{{ c.theirs }}</pre></div>
+    </div>
+    <label><input type="radio" name="choice-{{ i }}" value="mine" required> Keep mine</label>
+    <label><input type="radio" name="choice-{{ i }}" value="theirs"> Keep theirs</label>
+    <label><input type="radio" name="choice-{{ i }}" value="edit"> Edit:</label>
+    <label for="text-{{ i }}" class="visually-hidden">Edited text of {{ c.path }}</label>
+    <textarea id="text-{{ i }}" name="text-{{ i }}" rows="12">{{ c.mine }}</textarea>
+  </fieldset>
+  {% endfor %}
+  <button type="submit">Resolve and sync</button>
+</form>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

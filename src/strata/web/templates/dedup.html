@@ -2,7 +2,7 @@
 {% block title %}Dedup{% endblock %}
 {% block content %}
 <h1>Duplicate review{% if candidate %} &mdash; {{ total }} pending{% endif %}</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 <p class="notice">{{ candidate_pairs_considered }} candidate pair{{ "s" if candidate_pairs_considered != 1 else "" }} considered.</p>
 
@@ -18,7 +18,7 @@
     <li>{{ pair.canonical.title or pair.canonical.id }} &larr; {{ pair.absorbed.title or pair.absorbed.id }}</li>
     {% endfor %}
   </ul>
-  <form method="post" action="/dedup/run">
+  <form method="post" action="{{ root }}/dedup/run">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <label class="note-field">
       Why run the auto-merge pass now?
@@ -57,7 +57,7 @@
   locator {{ "%.2f" | format(candidate.result.features.locator) }}
 </p>
 
-<form method="post" action="/dedup/decide" id="dedup-form">
+<form method="post" action="{{ root }}/dedup/decide" id="dedup-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_a" value="{{ candidate.record_a }}">
   <input type="hidden" name="record_b" value="{{ candidate.record_b }}">
@@ -78,7 +78,7 @@
   </div>
 
   <div class="nav-links">
-    <a href="/dedup?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+    <a href="{{ root }}/dedup?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
       <kbd>s</kbd> Skip
     </a>
   </div>

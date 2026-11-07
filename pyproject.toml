@@ -23,6 +23,8 @@ dependencies = [
     "tomlkit>=0.13",
     "python-multipart>=0.0.32",
     "mcp>=1.12",
+    "argon2-cffi>=23.1",
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

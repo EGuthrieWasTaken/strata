@@ -109,14 +109,16 @@ def check_example(line: str, commands: dict, global_opts: set[str]) -> str | Non
     command = commands[name]
     rest = tokens[index + 1 :]
     path = [name]
-    subs = getattr(command, "commands", None)
-    if subs:
+    # Groups nest (`strata host user add`): descend while the next word names a subcommand.
+    while subs := getattr(command, "commands", None):
         if rest and not rest[0].startswith("-") and rest[0] in subs:
             command = subs[rest[0]]
             path.append(rest[0])
             rest = rest[1:]
         elif rest and not rest[0].startswith("-"):
-            return f"unknown subcommand {rest[0]!r} of `strata {name}`"
+            return f"unknown subcommand {rest[0]!r} of `strata {' '.join(path)}`"
+        else:
+            break
     allowed = option_names(command) | {"--help"}
     for token in rest:
         if token.startswith("--"):

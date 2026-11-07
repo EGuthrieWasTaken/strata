@@ -21,7 +21,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from strata.analysis import run as analysis_run
 from strata.analysis import spec as analysis_spec
 from strata.core.repo import Repo
-from strata.web.app import AppState
+from strata.web.app import AppState, state_of
 from strata.web.routes import _error, _render
 
 router = APIRouter()
@@ -67,7 +67,7 @@ def _studies_table(path: Any) -> tuple[list[str], list[list[str]]]:
 
 @router.get("/analysis", response_class=HTMLResponse, response_model=None)
 async def analysis_index(request: Request) -> HTMLResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     rows = []
     for analysis_id in analysis_spec.list_analyses(repo):
@@ -84,7 +84,7 @@ async def analysis_index(request: Request) -> HTMLResponse:
 
 @router.get("/analysis/{analysis_id}", response_class=HTMLResponse, response_model=None)
 async def analysis_detail(request: Request, analysis_id: str) -> HTMLResponse | PlainTextResponse:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     if analysis_id not in analysis_spec.list_analyses(repo):
         return _error(_UNKNOWN.format(analysis_id=analysis_id), status_code=404)
@@ -120,7 +120,7 @@ async def analysis_detail(request: Request, analysis_id: str) -> HTMLResponse | 
 
 @router.get("/analysis/{analysis_id}/plots/{name}", response_model=None)
 async def analysis_plot(request: Request, analysis_id: str, name: str) -> Response:
-    state: AppState = request.app.state.strata
+    state: AppState = state_of(request)
     repo = state.open_repo()
     if analysis_id not in analysis_spec.list_analyses(repo) or not _PLOT_FILE.match(name):
         return _error("no such plot", status_code=404)

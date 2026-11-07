@@ -2,7 +2,7 @@
 {% block title %}Retrieve {{ citation }}{% endblock %}
 {% block content %}
 <h1>{{ citation }}</h1>
-<p><a href="/retrieve">&larr; All reports sought</a></p>
+<p><a href="{{ root }}/retrieve">&larr; All reports sought</a></p>
 
 <article class="record-card">
   <h2>{{ record.title or "" }}</h2>
@@ -16,7 +16,7 @@
 <p class="error" role="alert" data-testid="form-error">{{ error }}</p>
 {% endif %}
 
-<form method="post" action="/retrieve/{{ report }}" id="retrieve-form">
+<form method="post" action="{{ root }}/retrieve/{{ report }}" id="retrieve-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
 
   <fieldset class="criteria-list">

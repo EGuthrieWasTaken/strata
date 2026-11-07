@@ -7,6 +7,24 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **A hosted team instance** (`strata host`; OpenSpec change `add-hosted-team-deployment`). One self-hosted
+  instance serves several reviews to several people, each signed in with their own account: local accounts
+  (Argon2id passwords, invitations, `strata host user add|invite|disable`) and optional OpenID Connect or
+  GitHub sign-in, linked to an account through its invitation. A membership maps a person to one actor and
+  role per project (`strata host member add`, or **Members** for a lead in the browser); roles are checked on
+  every request, a non-member is told the project does not exist, and the server never shows a reviewer a
+  colleague's opinion on a record they have yet to decide. Each project is an ordinary review repository
+  synced with its git remote by `strata sync`'s own algorithm: pulled before a page when stale, pushed after
+  every commit with exponential backoff, screening committed in per-reviewer batches; a conflicting edit to a
+  human-authored file stops pushes and is shown to a lead as mine, theirs or edit. Commits name the reviewer
+  as author and the instance as committer. HTTPS only, `Secure`/`HttpOnly`/`SameSite=Strict` expiring
+  cookies, rate-limited and logged sign-in, `Host`/`Origin` checks against the public URL; accounts,
+  sessions and secrets live in instance state (secrets from the operator or encrypted at rest), never in a
+  review repository. The read-only MCP tools are served over MCP's HTTP transport at `/p/<project>/mcp` for
+  an API token (`strata host token add`). An example `docker/hosted/compose.yaml` puts Caddy in front for
+  TLS. Tested in-process and run on one machine in local-testing mode; **not yet deployed for real, tried
+  against a real identity provider, or security-reviewed**. See
+  [Running a hosted instance](wiki/Running-a-Hosted-Instance.md).
 - **AI participation: the policy, agents as actors, and format 2** (OpenSpec change
   `add-ai-participation`, groups 1; in progress). `strata` still ships no model and makes no network call.
   What is new is the accounting for the ones a review brings. `strata ai enable` turns AI participation on

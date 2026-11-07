@@ -4,7 +4,7 @@ A working note modelled on [`m5-plan.md`](m5-plan.md). The normative text is the
 [`collaboration-sync`](../openspec/specs/collaboration-sync/spec.md) and the merge-driver requirement of
 [`git-integration`](../openspec/specs/git-integration/spec.md). M5.1 also covers a container image
 (`add-container-image`, built; see [`container.md`](container.md)) and a hosted instance
-(`add-hosted-team-deployment`, not started); this note is about the first of the three pieces the
+(`add-hosted-team-deployment`, built; see its `tasks.md`); this note is about the first of the three pieces the
 [roadmap](roadmap.md) lists, `strata sync`.
 
 ## Status
@@ -17,7 +17,7 @@ A working note modelled on [`m5-plan.md`](m5-plan.md). The normative text is the
 | Event normalisation | after a divergent merge, changed event files are put in `(ts, id)` order, duplicate ids dropped, `seq` renumbered, `prev`/digest chain re-linked, and a `relink` event written under `events/relink/<actor>.ndjson` | done |
 | E2E-02 | two clones screen concurrently through the CLI and `strata sync` repeatedly, with no manual conflict step, ending at one head with identical events and derived views | done |
 | Container image | `add-container-image`: `Dockerfile`, entrypoint, `compose.yaml`, `serve --public-url` / `STRATA_TOKEN` / `GET /healthz`, `strata --version`, CI/release/nightly jobs | built and smoke-tested by CI on amd64 and arm64, base image pinned by digest, published to GHCR from pull requests and `main`, rebuilt from scratch nightly; the release-tag publish has not run (no release is tagged), cosign signing is not done, and it has not been tried by hand on Docker Desktop, with an SSH agent or with `compose.yaml`; see [`container.md`](container.md) and the notes in the change's `tasks.md` |
-| Hosted instance | `add-hosted-team-deployment` | not started |
+| Hosted instance | `add-hosted-team-deployment`: `strata host`, accounts and memberships, the sync loop on top of `strata sync` (pull before read, push after commit with backoff, per-actor screening batches, conflicts held for a lead, resolved as mine, theirs or edited text through `strata.core.sync.Edited`), blinding between users, remote MCP | built and tested in-process; run on one machine in local-testing mode; the security review, a real deployment of `docker/hosted/compose.yaml` and a real identity provider are open; see the change's `tasks.md` |
 
 ## Conventions that emerged
 

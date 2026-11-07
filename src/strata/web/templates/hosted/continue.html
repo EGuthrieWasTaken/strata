@@ -1,0 +1,7 @@
+{% extends "hosted/base.html" %}
+{% block title %}Signed in{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="0; url={{ target }}">{% endblock %}
+{% block content %}
+<h1>Signed in</h1>
+<p><a href="{{ target }}" data-testid="continue">Continue</a></p>
+{% endblock %}

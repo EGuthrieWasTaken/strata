@@ -112,7 +112,10 @@ jobs:
     # before the end; 90 leaves room for a slow runner. The web write screens (PR 58) took the suite
     # from about 2,300 to 2,950 tests, most of them git-backed; on one run the nine legs took 51 to
     # 80 minutes and the slowest Windows leg was cancelled by this limit. 120 leaves room again.
-    timeout-minutes: 120
+    # AI participation (PR 76) and the hosted instance (PR 77) took it to about 3,800 tests, most of
+    # them git-backed again: Linux and macOS finished in 79 to 109 minutes, Windows 3.11 in 102,
+    # and the Windows 3.12 and 3.13 legs were cancelled at 120 with no test failing. 180 leaves room.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
