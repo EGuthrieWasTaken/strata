@@ -38,7 +38,10 @@ RUN apt-get update \
     # HOME must be writable under any `--user uid:gid` so git can run; sticky and world-writable
     # like /tmp, and empty: it holds no credentials and nothing the image needs.
     && mkdir -m 1777 /home-strata /review \
-    && chown 10001:10001 /review
+    # /data is a hosted instance's data volume (`strata host`); a named volume mounted there
+    # takes this directory's owner, so the instance can write to it.
+    && mkdir -m 0700 /data \
+    && chown 10001:10001 /review /data
 
 COPY --from=build /opt/strata /opt/strata
 COPY docker/entrypoint.sh /usr/local/bin/strata-entrypoint
@@ -52,7 +55,8 @@ USER 10001:10001
 WORKDIR /review
 EXPOSE 8765
 
-# Meaningful when the container runs `serve`; a one-off command has exited long before the first probe.
+# Meaningful when the container runs `serve` or `host`; a one-off command has exited long before
+# the first probe.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/healthz' % os.environ.get('STRATA_PORT', '8765'), timeout=4)"]
 

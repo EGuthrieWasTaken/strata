@@ -2,9 +2,9 @@
 {% block title %}Records{% endblock %}
 {% block content %}
 <h1>Records</h1>
-<p><a href="/">&larr; Back to dashboard</a> &middot; <a href="/searches">Searches</a> &middot; <a href="/import">Import records</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a> &middot; <a href="{{ root }}/searches">Searches</a> &middot; <a href="{{ root }}/import">Import records</a></p>
 
-<form method="get" action="/records" class="note-field">
+<form method="get" action="{{ root }}/records" class="note-field">
   <label>
     Filter
     <input type="text" name="filter" value="{{ filter_expr }}" placeholder="e.g. year&gt;2015 and decision=include">
@@ -30,7 +30,7 @@
   <tbody>
     {% for row in rows %}
     <tr>
-      <th scope="row"><a href="/records/{{ row.id }}">{{ row.id }}</a></th>
+      <th scope="row"><a href="{{ root }}/records/{{ row.id }}">{{ row.id }}</a></th>
       <td>{{ row.year or "" }}</td>
       <td>{{ row.authors }}</td>
       <td>{{ row.title }}</td>

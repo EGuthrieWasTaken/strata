@@ -9,7 +9,7 @@ Every `strata` command, with its options. The pages are generated from the progr
 - [Commands: criteria and screening](Commands-Screening): Eligibility criteria, assigning and screening records, re-screening, adjudication, agreement.
 - [Commands: full texts, studies, extraction and risk of bias](Commands-Full-Texts-and-Extraction): Retrieval, Zotero, grouping reports into studies, data extraction, risk of bias.
 - [Commands: analysis and reporting](Commands-Analysis-and-Reporting): Pooling, the PRISMA diagram, generated text, exports.
-- [Commands: sharing, the web interface and tools](Commands-Sharing-and-Tools): Syncing a shared review, the browser interface, the read-only assistant server, CI helpers.
+- [Commands: sharing, the web interface and tools](Commands-Sharing-and-Tools): Syncing a shared review, the browser interface, a hosted instance, the read-only assistant server, CI helpers.
 
 ## Options that go before the command
 

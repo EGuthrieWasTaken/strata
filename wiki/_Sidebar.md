@@ -24,6 +24,11 @@
 - [Using AI in a review](Using-AI-in-a-Review)
 - [The web interface](The-Web-Interface)
 
+**A hosted instance**
+- [Running a hosted instance](Running-a-Hosted-Instance)
+- [Inviting collaborators](Inviting-Collaborators)
+- [Hosted and local collaborators](Hosted-and-Local-Collaborators)
+
 **Concepts**
 - [Staleness](Staleness)
 - [Criteria versions and direction](Criteria-Versions-and-Direction)

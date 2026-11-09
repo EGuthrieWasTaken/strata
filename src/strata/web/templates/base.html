@@ -4,19 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}strata{% endblock %} &middot; strata</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="{{ root }}/static/style.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 <header class="site-header">
-  <a class="brand" href="/">strata</a>
+  <a class="brand" href="{{ root }}/">strata</a>
+  {% if hosted %}
+  <nav class="hosted-nav" aria-label="Instance">
+    <a href="{{ hosted.instance_root }}/">Projects</a>
+    <a href="{{ root }}/-/sync">Sync</a>
+    {% if hosted.role == "lead" %}<a href="{{ root }}/-/members">Members</a>{% endif %}
+  </nav>
+  <span class="actor-badge">{{ hosted.display_name }} &middot; {{ signed_in_actor }} ({{ hosted.role }}) in {{ hosted.project_title }}</span>
+  <form method="post" action="{{ hosted.instance_root }}/signout" class="inline-form">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ hosted.csrf }}">
+    <button type="submit">Sign out</button>
+  </form>
+  {% else %}
   <span class="actor-badge">signed in as {{ signed_in_actor }}</span>
+  {% endif %}
 </header>
+{% if hosted %}{% include "hosted/_sync_status.html" %}{% endif %}
 <main id="main">
 {% block content %}{% endblock %}
 </main>
 <div id="announcer" role="status" aria-live="polite" class="visually-hidden"></div>
-<script src="/static/keyboard.js"></script>
+<script src="{{ root }}/static/keyboard.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

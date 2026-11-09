@@ -22,9 +22,9 @@
         {% endif %}
       </td>
       <td>
-        <a href="/{{ kind }}/{{ s.id }}">{{ "Extract" if kind == "extract" else "Assess" }} &rarr;</a>
+        <a href="{{ root }}/{{ kind }}/{{ s.id }}">{{ "Extract" if kind == "extract" else "Assess" }} &rarr;</a>
         {% if kind == "extract" %}
-        <a href="/extract/{{ s.id }}/reconcile">Reconcile &rarr;</a>
+        <a href="{{ root }}/extract/{{ s.id }}/reconcile">Reconcile &rarr;</a>
         {% endif %}
       </td>
     </tr>
@@ -33,5 +33,5 @@
     {% endfor %}
   </tbody>
 </table></div>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% endblock %}

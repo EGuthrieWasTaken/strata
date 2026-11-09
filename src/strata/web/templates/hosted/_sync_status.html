@@ -1,0 +1,8 @@
+{# The project's sync status on every page of a hosted project (openspec:hosted-deployment#automatic-git-sync-loop). #}
+{% if hosted.sync.remote %}
+<p class="sync-status{% if hosted.sync.conflicts or hosted.sync.last_error %} flag{% endif %}" data-testid="sync-status">
+  {% if hosted.sync.conflicts %}<span aria-hidden="true">&#9888;</span> Pushes to the shared remote are stopped: {{ hosted.sync.conflicts }} conflict{{ "s" if hosted.sync.conflicts != 1 else "" }} need{{ "s" if hosted.sync.conflicts == 1 else "" }} a lead (<a href="{{ root }}/-/sync">see</a>).
+  {% elif hosted.sync.last_error %}<span aria-hidden="true">&#9888;</span> The remote could not be reached at the last sync; your work is kept here and will be pushed when it can be.
+  {% else %}Last synced with the shared remote: {{ hosted.sync.last_success or "not yet" }}.{% endif %}
+</p>
+{% endif %}

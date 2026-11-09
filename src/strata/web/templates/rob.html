@@ -9,7 +9,7 @@
 <section class="rob-domain" aria-labelledby="dom-{{ d.id }}">
   <h2 id="dom-{{ d.id }}">{{ d.id }}: {{ d.label }}</h2>
   {% if d.questions %}
-  <form method="post" action="/rob/{{ study }}">
+  <form method="post" action="{{ root }}/rob/{{ study }}">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <input type="hidden" name="action" value="answers">
     <input type="hidden" name="domain" value="{{ d.id }}">
@@ -33,7 +33,7 @@
   </form>
   {% endif %}
   {% if d.suggested %}<p class="notice">The algorithm suggests <strong>{{ d.suggested }}</strong>.</p>{% elif d.algorithm and d.needed %}<p class="field-meta">Next question: {{ d.needed }}</p>{% endif %}
-  <form method="post" action="/rob/{{ study }}">
+  <form method="post" action="{{ root }}/rob/{{ study }}">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <input type="hidden" name="action" value="judgement">
     <input type="hidden" name="domain" value="{{ d.id }}">
@@ -59,7 +59,7 @@
 <section class="rob-domain" aria-labelledby="dom-overall">
   <h2 id="dom-overall">Overall</h2>
   {% if overall_suggested %}<p class="notice">Suggested overall: <strong>{{ overall_suggested }}</strong></p>{% endif %}
-  <form method="post" action="/rob/{{ study }}">
+  <form method="post" action="{{ root }}/rob/{{ study }}">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
     <input type="hidden" name="action" value="judgement">
     <input type="hidden" name="domain" value="overall">
@@ -81,5 +81,5 @@
   </form>
   {% if overall %}<p class="done-note">Recorded: {{ overall }}</p>{% endif %}
 </section>
-<p><a href="/rob">&larr; All studies</a></p>
+<p><a href="{{ root }}/rob">&larr; All studies</a></p>
 {% endblock %}

@@ -1,0 +1,7 @@
+# TLS for the hosted instance (docker/hosted/compose.yaml). Caddy obtains and renews the
+# certificate itself, redirects plain HTTP to HTTPS, and passes the original Host header and
+# X-Forwarded-Proto on, which is what the instance checks.
+{$STRATA_DOMAIN} {
+	encode gzip
+	reverse_proxy strata:8765
+}

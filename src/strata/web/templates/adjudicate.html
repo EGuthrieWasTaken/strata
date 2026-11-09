@@ -5,7 +5,7 @@
 {% if record is none %}
 <h1>{{ stage }} adjudicate</h1>
 <p class="done-note">No conflicts at this stage.</p>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
 <h1>{{ stage }} adjudicate &mdash; {{ total }} conflict{{ "s" if total != 1 else "" }}</h1>
 
@@ -41,7 +41,7 @@
 {% if not is_adjudicator %}
 <p class="error" role="alert">{{ actor }} is not an adjudicator for this review (screening.adjudicators or role adjudicator/lead) &mdash; only viewing this conflict, not resolving it.</p>
 {% else %}
-<form method="post" action="/adjudicate/{{ stage }}" id="screen-form">
+<form method="post" action="{{ root }}/adjudicate/{{ stage }}" id="screen-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_id" value="{{ record.id }}">
   <input type="hidden" name="skip" value="{{ skip_csv }}">
@@ -75,7 +75,7 @@
   </label>
 
   <div class="nav-links">
-    <a href="/adjudicate/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+    <a href="{{ root }}/adjudicate/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
       <kbd>s</kbd> Skip
     </a>
   </div>

@@ -15,7 +15,7 @@ change is archived into the specs and this page is updated.
 | M3 — Full text and extraction | done | specs: `full-text-retrieval`, `study-grouping`, `data-extraction`, `risk-of-bias` |
 | M4 — Analysis | implemented; one worked example open | `add-meta-analysis` |
 | M5 — Reporting (`1.0.0`) | implemented; one manual gate open | `add-prisma-reporting` |
-| M5.1 — Collaboration and hosting | in progress (`strata sync` done, container image built, hosted instance not started) | `add-container-image`, `add-hosted-team-deployment` |
+| M5.1 — Collaboration and hosting | in progress (`strata sync` done, container image built, hosted instance built; its security review and a real deployment are open) | `add-container-image`, `add-hosted-team-deployment` |
 | M6 — Hardening and adoption | ongoing | `add-distribution-and-adoption`, `add-zotero-integration`, `add-review-repository-ci`, `add-web-ui-write-surfaces`, `add-ai-participation` |
 
 ## Sequencing principle
@@ -225,7 +225,7 @@ FOSS tool.
 
 ---
 
-## M5.1 — Collaboration and hosting *(in progress: `strata sync` and the container image are built; `add-hosted-team-deployment` is not started)*
+## M5.1 — Collaboration and hosting *(in progress: `strata sync`, the container image and the hosted instance are built; the hosted mode's security review and a real deployment are open)*
 
 **Decision (project lead):** `strata` supports a hosted, web-based mode so that
 people who know little about git can collaborate as easily as they would in
@@ -238,7 +238,7 @@ and open question Q11, now decided.
 |---|---|---|---|
 | Solo | Locally (native or container) | Local, optionally pushed for backup | works today |
 | Local stacks, shared remote | On each collaborator's machine | Shared git remote | `strata sync` is one command (built in M5.1; see [`m5-1-plan.md`](m5-1-plan.md)) |
-| Hosted instance | On a server the team runs, from the container image | Instance working copy synced with the shared remote | `add-hosted-team-deployment` |
+| Hosted instance | On a server the team runs, from the container image | Instance working copy synced with the shared remote | `strata host` (built in M5.1, `add-hosted-team-deployment`) |
 
 The topologies interoperate: hosted and local collaborators can work on the same
 review at the same time, because every one of them appends to per-actor event
@@ -261,7 +261,11 @@ can start immediately:
    determinism parity with native installs. Useful on its own for solo users
    and collaborators who will not install Python, and the unit of deployment for
    step 3.
-3. **Hosted instance** (`add-hosted-team-deployment`) — `strata host`: many
+3. **Hosted instance** (`add-hosted-team-deployment`) — *built and tested
+   in-process (the suite additions below), and run on one machine in local-testing
+   mode; not yet done: the dedicated security review, running the example
+   `docker/hosted/compose.yaml` behind Caddy with a real certificate, and sign-in
+   with a real OpenID Connect provider (tested against a stand-in)*. `strata host`: many
    projects and users on one self-hosted instance, per-user accounts (built-in
    local accounts by default, OpenID Connect optional) mapped to actor handles
    per project, an automatic git sync loop with conflicts surfaced in-app,

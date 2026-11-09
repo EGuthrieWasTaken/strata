@@ -12,6 +12,9 @@ measurable.
 - **Blind reviewers** (`screening.blind_reviewers = true`, the default). While you screen a record, nothing on
   the screen reveals what your colleague decided, at any stage. Their opinion becomes visible only when the
   record turns up as a conflict for adjudication.
+- **On a hosted instance**, where every reviewer's files are on one server, the server enforces it too: while
+  `blind_reviewers` is on, no page and no MCP tool shows you a colleague's opinion on a record you are assigned
+  and have not decided yet ([Inviting collaborators](Inviting-Collaborators#blinding-on-a-shared-server)).
 - **Blind metadata** (`screening.blind_metadata = true`, off by default). Additionally hides authors,
   journal and year during screening, for reviews that want to reduce bias from reputation.
 - **First opinions are kept.** Agreement statistics use each reviewer's *first* decision on a record, so

@@ -49,6 +49,7 @@ from strata.core.ids import normalise_year, record_id_for_report
 from strata.core.repo import LockTimeoutError, Repo, open_repo
 from strata.extract import rob as rob_mod
 from strata.extract import schema as extraction_schema_mod
+from strata.protocol import blinding as blinding_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
@@ -807,4 +808,99 @@ def create_mcp_server(
         writes = WriteTools(repo_root, resolved.handle, allow_dirs)
         for name in WRITE_TOOLS:
             mcp.tool()(getattr(writes, name))
+    return mcp
+
+
+class HostedRepoTools(RepoTools):
+    """`RepoTools` for one member of a hosted project, who may be blinded to their colleagues'
+    opinions (openspec:hosted-deployment#blinding-between-users).
+
+    The reads already reveal nothing blinding hides on a record nobody has finished deciding. A
+    hosted member is held to the stricter rule of the instance: nothing about a record they are
+    assigned at a stage and have not decided there, even once it is resolved without them (an
+    adjudication, then a new assignment). So the tools that can name an opinion on one record
+    (its provenance, the stale decisions an impact preview lists, history entries about one record
+    at one stage) leave out what the member must not see yet.
+    """
+
+    _OPINION_KINDS = frozenset({"screen", "adjudicate", "suggestion", "suggestion-resolve"})
+
+    def __init__(self, repo_root: Path, actor: str) -> None:
+        super().__init__(repo_root, actor)
+        self._actor = actor
+
+    def _blinded(self) -> dict[str, frozenset[str]]:
+        return blinding_mod.blinded_records(self._open(), self._actor)
+
+    def why(self, record_id: str) -> list[dict[str, Any]]:
+        """Full provenance for one record: search, import, amendments, and
+        dedup history -- the data behind `strata why <record_id>`.
+        `record_id` may be any unambiguous id prefix, as in git."""
+        entries = super().why(record_id)
+        blinded = self._blinded()
+        return [
+            entry
+            for entry in entries
+            if entry["kind"] not in self._OPINION_KINDS
+            or entry["actor"] == self._actor
+            or not blinding_mod.is_blinded(
+                blinded,
+                (entry.get("detail") or {}).get("stage"),
+                (entry.get("detail") or {}).get("record"),
+            )
+        ]
+
+    def log(
+        self,
+        criteria: bool = False,
+        stage: str | None = None,
+        actor: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Domain-level commit history read from `Strata-` commit trailers,
+        not raw commit messages -- the data behind `strata log`."""
+        entries = super().log(criteria=criteria, stage=stage, actor=actor)
+        blinded = self._blinded()
+        return [
+            entry
+            for entry in entries
+            if entry["trailers"].get("Actor") == self._actor
+            or not blinding_mod.is_blinded(
+                blinded, entry["trailers"].get("Stage"), entry["trailers"].get("Record")
+            )
+        ]
+
+    def preview_criterion_change_impact(
+        self,
+        criterion_id: str,
+        direction: str,
+        origin: str = "edited",
+    ) -> list[dict[str, Any]]:
+        """Non-mutating preview of what changing one criterion this way
+        would stale, without writing anything -- the same computation
+        behind the web criteria editor's live impact panel
+        (openspec:web-ui#criteria-editor-impact-preview). `direction` is one of `tightened`,
+        `loosened`, `both`, or `editorial`; pass `origin="retired"` to
+        preview a retirement instead of an edit (direction is then
+        ignored, matching `strata criteria retire`'s own behaviour)."""
+        stale = super().preview_criterion_change_impact(criterion_id, direction, origin)
+        return blinding_mod.visible(stale, self._blinded())
+
+
+_HOSTED_INSTRUCTIONS = (
+    "Read-only tools over one project of a hosted strata instance, for the member whose API token "
+    "this is. Nothing here writes: recording a decision on a hosted instance is done by people, in "
+    "the browser or from their own clone. Opinions the member must not see yet (blinding) are left "
+    "out of every result."
+)
+
+
+def create_hosted_mcp_server(*, repo_root: Path, actor: str) -> MCPServer:
+    """The MCP server one hosted member's HTTP request is answered by
+    (openspec:hosted-deployment#remote-mcp-access): the read tools only, whatever the review's AI
+    policy, scoped to the member's project and blinded for them. The write tools are never
+    registered, so a remote client cannot commit a screening or criteria decision."""
+    mcp: MCPServer[None] = MCPServer("strata", instructions=_HOSTED_INSTRUCTIONS)
+    reads = HostedRepoTools(repo_root, actor)
+    for name in READ_TOOLS:
+        mcp.tool()(getattr(reads, name))
     return mcp

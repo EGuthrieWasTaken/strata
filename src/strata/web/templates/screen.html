@@ -4,7 +4,7 @@
 {% if record is none %}
 <h1>{{ stage }} screening</h1>
 <p class="done-note">Nothing left to screen for {{ actor }} at this stage.</p>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
 <div class="screen-header" data-testid="screen-header">
   <h1>{{ stage }} screening &mdash; {{ position }} of {{ total }}</h1>
@@ -33,7 +33,7 @@
   {% endif %}
 </article>
 
-<form method="post" action="/screen/{{ stage }}" id="screen-form" data-require-exclusion-reason="{{ 'true' if require_exclusion_reason else 'false' }}">
+<form method="post" action="{{ root }}/screen/{{ stage }}" id="screen-form" data-require-exclusion-reason="{{ 'true' if require_exclusion_reason else 'false' }}">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_id" value="{{ record.id }}">
   <input type="hidden" name="skip" value="{{ skip_csv }}">
@@ -70,11 +70,11 @@
   </label>
 
   <div class="nav-links">
-    <a href="/screen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+    <a href="{{ root }}/screen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
       <kbd>s</kbd> Skip
     </a>
     {% if prev_id %}
-    <a href="/screen/{{ stage }}?redo={{ prev_id }}" accesskey="u" id="undo-link">
+    <a href="{{ root }}/screen/{{ stage }}?redo={{ prev_id }}" accesskey="u" id="undo-link">
       <kbd>u</kbd> Undo previous decision
     </a>
     {% endif %}

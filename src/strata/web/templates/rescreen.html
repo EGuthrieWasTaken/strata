@@ -4,7 +4,7 @@
 {% if stale is none %}
 <h1>{{ stage }} rescreen</h1>
 <p class="done-note">Nothing stale for {{ actor }} at this stage.</p>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
 <h1>{{ stage }} rescreen &mdash; {{ total }} stale</h1>
 
@@ -23,7 +23,7 @@
   {% endif %}
 </article>
 
-<form method="post" action="/rescreen/{{ stage }}" id="screen-form">
+<form method="post" action="{{ root }}/rescreen/{{ stage }}" id="screen-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_id" value="{{ stale.record_id }}">
   <input type="hidden" name="skip" value="{{ skip_csv }}">
@@ -58,7 +58,7 @@
   {% endif %}
 
   <div class="nav-links">
-    <a href="/rescreen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
+    <a href="{{ root }}/rescreen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
       <kbd>s</kbd> Skip
     </a>
   </div>

@@ -2,11 +2,11 @@
 {% block title %}Searches{% endblock %}
 {% block content %}
 <h1>Searches</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 <p class="actions">
-  <a class="btn" href="/searches/new">Record a search</a>
-  <a href="/import">Import records found by other methods &rarr;</a>
+  <a class="btn" href="{{ root }}/searches/new">Record a search</a>
+  <a href="{{ root }}/import">Import records found by other methods &rarr;</a>
 </p>
 
 {% if not searches %}
@@ -28,8 +28,8 @@
     {% for s in searches %}
     <tr>
       <th scope="row">
-        <a href="/searches/{{ s.id | urlencode }}">{{ s.id }}</a>
-        {% if s.replaced_by %}<br><span class="muted">replaced by <a href="/searches/{{ s.replaced_by | urlencode }}">{{ s.replaced_by }}</a></span>{% endif %}
+        <a href="{{ root }}/searches/{{ s.id | urlencode }}">{{ s.id }}</a>
+        {% if s.replaced_by %}<br><span class="muted">replaced by <a href="{{ root }}/searches/{{ s.replaced_by | urlencode }}">{{ s.replaced_by }}</a></span>{% endif %}
       </th>
       <td data-label="Database">{{ s.database }} <span class="muted">via {{ s.platform }}</span></td>
       <td data-label="Run">{{ s.executed }}</td>
@@ -46,7 +46,7 @@
         <span class="muted">&mdash;</span>
         {% else %}
         <span class="flag"><span aria-hidden="true">&#9888;</span> No export yet</span>
-        <a href="/searches/{{ s.id | urlencode }}">Add one</a>
+        <a href="{{ root }}/searches/{{ s.id | urlencode }}">Add one</a>
         {% endif %}
       </td>
     </tr>

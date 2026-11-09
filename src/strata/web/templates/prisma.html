@@ -16,13 +16,13 @@
 </div>
 {% else %}
 <p>
-  {% if columns == "both" %}<a href="/prisma?columns=one">One column</a> &middot; <strong>Two columns</strong>
-  {% else %}<strong>One column</strong> &middot; <a href="/prisma?columns=both">Two columns (other methods apart)</a>{% endif %}
+  {% if columns == "both" %}<a href="{{ root }}/prisma?columns=one">One column</a> &middot; <strong>Two columns</strong>
+  {% else %}<strong>One column</strong> &middot; <a href="{{ root }}/prisma?columns=both">Two columns (other methods apart)</a>{% endif %}
   {% if not has_other_methods and columns == "both" %}<span class="field-meta">&mdash; no records were imported with <code>--via</code>, so the second column is empty.</span>{% endif %}
 </p>
 <figure class="plot-figure">
-  <img src="/prisma.svg?columns={{ columns }}" alt="PRISMA 2020 flow diagram: {{ totals.identified }} records identified, {{ totals.records_screened }} screened, {{ totals.reports_assessed }} reports assessed, {{ counts.studies_included }} studies included">
-  <figcaption>Flow diagram &middot; <a href="/prisma.svg?columns={{ columns }}">open the SVG</a> &middot; <code>strata prisma</code> writes and commits it</figcaption>
+  <img src="{{ root }}/prisma.svg?columns={{ columns }}" alt="PRISMA 2020 flow diagram: {{ totals.identified }} records identified, {{ totals.records_screened }} screened, {{ totals.reports_assessed }} reports assessed, {{ counts.studies_included }} studies included">
+  <figcaption>Flow diagram &middot; <a href="{{ root }}/prisma.svg?columns={{ columns }}">open the SVG</a> &middot; <code>strata prisma</code> writes and commits it</figcaption>
 </figure>
 {% endif %}
 
@@ -51,5 +51,5 @@
 {% endif %}
 <p class="field-meta">{{ counts.assertions | length }} reconciliation identities checked{% if not failures %}; all hold{% endif %}.
   Flow diagram wording from PRISMA 2020 (Page et al., BMJ 2021;372:n71), CC BY 4.0.</p>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% endblock %}

@@ -2,6 +2,20 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <h1>{{ report.title }}</h1>
+{% if hosted %}
+<section class="hosted-sync" data-testid="project-sync" aria-labelledby="sync-heading">
+  <h2 id="sync-heading">Shared remote</h2>
+  {% if hosted.sync.remote %}
+  <p>Remote <code>{{ hosted.sync.remote }}</code>: last synced {{ hosted.sync.last_success or "not yet" }}{% if hosted.sync.last_push %}, last pushed {{ hosted.sync.last_push }}{% endif %}.
+  {% if hosted.sync.conflicts %}<strong>Pushes are stopped</strong> until a lead resolves {{ hosted.sync.conflicts }} conflict{{ "s" if hosted.sync.conflicts != 1 else "" }} (<a href="{{ root }}/-/sync">details</a>).
+  {% elif hosted.sync.last_error %}<strong>The last sync failed</strong>: {{ hosted.sync.last_error }}{% if hosted.sync.next_retry %} (retrying after {{ hosted.sync.next_retry }}){% endif %}.
+  {% elif hosted.sync.push_pending %}Work is waiting to be pushed.
+  {% else %}In step with the remote.{% endif %}</p>
+  {% else %}
+  <p>This project has no remote; its history is only on this instance.</p>
+  {% endif %}
+</section>
+{% endif %}
 <dl class="summary-grid">
   <div><dt>Records</dt><dd>{{ report.record_count }}</dd></div>
   <div><dt>Searches</dt><dd>{{ report.search_count }}</dd></div>
@@ -13,38 +27,38 @@
 
 {% if report.pending_searches %}
 <p class="notice flag" data-testid="pending-queries"><span aria-hidden="true">&#9888;</span> Searches missing their query (PRISMA item 7):
-  {% for id in report.pending_searches %}<a href="/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
+  {% for id in report.pending_searches %}<a href="{{ root }}/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
 {% endif %}
 {% if awaiting_export %}
 <p class="notice flag" data-testid="awaiting-export"><span aria-hidden="true">&#9888;</span> Searches with no export imported yet:
-  {% for id in awaiting_export %}<a href="/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
+  {% for id in awaiting_export %}<a href="{{ root }}/searches/{{ id | urlencode }}">{{ id }}</a>{{ ", " if not loop.last else "" }}{% endfor %}</p>
 {% endif %}
 
 <p data-testid="ai-line">
   {% if ai_enabled %}
   <span class="ai-icon" aria-hidden="true">&#129302;</span> <strong>AI participation is on.</strong>
   {% if ai_policy %}Policy in force: {% for kind, mode in ai_policy.items() %}{{ kind }}: {{ mode }}{{ ", " if not loop.last else "" }}{% endfor %}.{% else %}Every kind of work is off.{% endif %}
-  <a href="/suggestions">{{ ai_pending }} suggestion{{ "s" if ai_pending != 1 else "" }} waiting &rarr;</a>
+  <a href="{{ root }}/suggestions">{{ ai_pending }} suggestion{{ "s" if ai_pending != 1 else "" }} waiting &rarr;</a>
   {% else %}
   <span class="ai-icon" aria-hidden="true">&#129302;</span> AI participation is off for this review.
   {% endif %}
 </p>
 
 <p>
-  <a href="/searches">Searches ({{ report.search_count }}) &rarr;</a>
-  &middot; <a href="/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
-  &middot; <a href="/dedup">Duplicates &rarr;</a>
-  &middot; <a href="/retrieve">Full texts &rarr;</a>
-  &middot; <a href="/studies">Studies &rarr;</a>
-  &middot; <a href="/records">Records ({{ report.record_count }}) &rarr;</a>
-  &middot; <a href="/history">History &rarr;</a>
+  <a href="{{ root }}/searches">Searches ({{ report.search_count }}) &rarr;</a>
+  &middot; <a href="{{ root }}/criteria">Criteria (v{{ report.criteria_version }}) &rarr;</a>
+  &middot; <a href="{{ root }}/dedup">Duplicates &rarr;</a>
+  &middot; <a href="{{ root }}/retrieve">Full texts &rarr;</a>
+  &middot; <a href="{{ root }}/studies">Studies &rarr;</a>
+  &middot; <a href="{{ root }}/records">Records ({{ report.record_count }}) &rarr;</a>
+  &middot; <a href="{{ root }}/history">History &rarr;</a>
   {% if report.extraction %}
-  &middot; <a href="/extract">Extraction ({{ report.extraction.complete }}/{{ report.extraction.studies }}) &rarr;</a>
-  &middot; <a href="/rob">Risk of bias &rarr;</a>
+  &middot; <a href="{{ root }}/extract">Extraction ({{ report.extraction.complete }}/{{ report.extraction.studies }}) &rarr;</a>
+  &middot; <a href="{{ root }}/rob">Risk of bias &rarr;</a>
   {% endif %}
-  &middot; <a href="/prisma">PRISMA flow diagram &rarr;</a>
+  &middot; <a href="{{ root }}/prisma">PRISMA flow diagram &rarr;</a>
   {% if report.analyses %}
-  &middot; <a href="/analysis">Analyses ({{ report.analyses | length }}) &rarr;</a>
+  &middot; <a href="{{ root }}/analysis">Analyses ({{ report.analyses | length }}) &rarr;</a>
   {% endif %}
 </p>
 
@@ -74,13 +88,13 @@
       <td data-label="Stale">{{ stage.stale }}</td>
       <td data-label="Action">
         {% if stage.conflicts %}
-        <a href="/adjudicate/{{ stage.stage }}">Adjudicate &rarr;</a>
+        <a href="{{ root }}/adjudicate/{{ stage.stage }}">Adjudicate &rarr;</a>
         {% endif %}
         {% if stage.stale %}
-        <a href="/rescreen/{{ stage.stage }}">Rescreen &rarr;</a>
+        <a href="{{ root }}/rescreen/{{ stage.stage }}">Rescreen &rarr;</a>
         {% endif %}
         {% if stage.unscreened or stage.partial %}
-        <a href="/screen/{{ stage.stage }}">Screen &rarr;</a>
+        <a href="{{ root }}/screen/{{ stage.stage }}">Screen &rarr;</a>
         {% endif %}
         {% if not (stage.conflicts or stage.stale or stage.unscreened or stage.partial) %}
         <span class="done-note">up to date</span>
@@ -92,7 +106,7 @@
 </table>
 
 <p>Assign reviewers:
-  {% for stage in report.stages %}<a href="/assign/{{ stage.stage }}">{{ stage.stage }}</a>{{ " &middot; " | safe if not loop.last else "" }}{% endfor %}</p>
+  {% for stage in report.stages %}<a href="{{ root }}/assign/{{ stage.stage }}">{{ stage.stage }}</a>{{ " &middot; " | safe if not loop.last else "" }}{% endfor %}</p>
 
 {% if report.next_action %}
 <p class="next-action">Next: <code>{{ report.next_action }}</code></p>

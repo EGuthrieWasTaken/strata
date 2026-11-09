@@ -2,7 +2,7 @@
 {% block title %}Assign reviewers &middot; {{ stage }}{% endblock %}
 {% block content %}
 <h1>Assign reviewers &mdash; {{ stage }}</h1>
-<p><a href="/">&larr; Back to dashboard</a></p>
+<p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 {% if done %}
 <p class="notice" role="status" data-testid="assigned-note">Assignment recorded. Each reviewer's queue is shown below.</p>
@@ -24,8 +24,8 @@
 </table>
 
 <h2>Which records?</h2>
-<p>{{ total }} record{{ "s" if total != 1 else "" }} at this stage. Assign all of them, or narrow them with a <a href="/records">filter</a> such as <code>year &gt;= 2010</code>.</p>
-<form method="get" action="/assign/{{ stage }}" id="filter-form">
+<p>{{ total }} record{{ "s" if total != 1 else "" }} at this stage. Assign all of them, or narrow them with a <a href="{{ root }}/records">filter</a> such as <code>year &gt;= 2010</code>.</p>
+<form method="get" action="{{ root }}/assign/{{ stage }}" id="filter-form">
   <label class="note-field">
     Filter (optional)
     <input type="text" name="filter" value="{{ filter_expr }}" aria-describedby="filter-result">
@@ -44,7 +44,7 @@
 </div>
 
 <h2>Assign</h2>
-<form method="post" action="/assign/{{ stage }}" id="assign-form">
+<form method="post" action="{{ root }}/assign/{{ stage }}" id="assign-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="filter" value="{{ filter_expr }}">
   <p>{% if filter_expr.strip() %}To the records matching <code>{{ filter_expr }}</code>.{% else %}To every record at this stage.{% endif %}</p>

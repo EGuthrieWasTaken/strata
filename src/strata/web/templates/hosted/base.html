@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}strata{% endblock %} &middot; strata</title>
+<link rel="stylesheet" href="/static/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="site-header">
+  <a class="brand" href="/">strata</a>
+  {% if user %}
+  <span class="actor-badge">{{ user.display_name }} ({{ user.username }})</span>
+  <form method="post" action="/signout" class="inline-form">
+    <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
+    <button type="submit">Sign out</button>
+  </form>
+  {% endif %}
+</header>
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>
