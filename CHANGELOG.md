@@ -523,3 +523,13 @@ All notable changes to `strata` are documented here. Format follows
   `HttpOnly` cookie protects) and the reason went into browser history, the address bar and `Referer`
   headers. Preview now posts, with or without JavaScript; the editor no longer reads a draft from the query
   string. Found by an agent clicking through every screen in Chrome (`docs/chrome-pass-results.md`).
+- **The funnel plot's confidence-limit lines ran off the figure, and its shaded regions were bent.** The two lines
+  from the apex were drawn out to the widest standard error whatever the plot's horizontal range: on the
+  Quickstart review (four studies with similar effects) they ran from x = -30 to x = 630 on a 560 px figure,
+  through the y axis and its label and out of the picture. The shaded significance regions beside them were kept
+  inside the box by moving each far corner to the box's side, which also turned their slanted edge into a
+  diagonal to the corner instead of the line |yi| = z * se. Both are now cut at the box the axes bound
+  (`strata.stats.canvas.clip_polygon` and `clip_segment`), the limits are drawn as two lines rather than a
+  triangle, and a region wholly outside the box is not drawn. The funnel golden files are regenerated; no other
+  plot changes. Found by an agent clicking through the analysis page in Chrome
+  (`docs/chrome-pass-results.md`, F13).

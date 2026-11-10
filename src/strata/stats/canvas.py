@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, fields, is_dataclass
 from xml.sax.saxutils import escape
 
@@ -77,6 +78,78 @@ class Text:
 
 
 Shape = Line | Rect | Polygon | Circle | Text
+
+
+Point = tuple[float, float]
+
+
+def clip_polygon(
+    points: tuple[Point, ...], left: float, top: float, right: float, bottom: float
+) -> tuple[Point, ...]:
+    """The part of a polygon inside a rectangle (Sutherland-Hodgman); empty when none of it is.
+
+    The edges keep their slope: a corner outside the rectangle is replaced by where the edge
+    crosses the rectangle's side, not moved to the side (which bends the edge).
+    """
+
+    def at_x(a: Point, b: Point, x: float) -> Point:
+        return (x, a[1] + (x - a[0]) / (b[0] - a[0]) * (b[1] - a[1]))
+
+    def at_y(a: Point, b: Point, y: float) -> Point:
+        return (a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]), y)
+
+    sides: tuple[tuple[Callable[[Point], bool], Callable[[Point, Point], Point]], ...] = (
+        (lambda p: p[0] >= left, lambda a, b: at_x(a, b, left)),
+        (lambda p: p[0] <= right, lambda a, b: at_x(a, b, right)),
+        (lambda p: p[1] >= top, lambda a, b: at_y(a, b, top)),
+        (lambda p: p[1] <= bottom, lambda a, b: at_y(a, b, bottom)),
+    )
+    polygon = list(points)
+    for inside, cross in sides:
+        clipped: list[Point] = []
+        for index, current in enumerate(polygon):
+            previous = polygon[index - 1]
+            if inside(current):
+                if not inside(previous):
+                    clipped.append(cross(previous, current))
+                clipped.append(current)
+            elif inside(previous):
+                clipped.append(cross(previous, current))
+        polygon = clipped
+        if not polygon:
+            break
+    return tuple(polygon)
+
+
+def polygon_area(points: tuple[Point, ...]) -> float:
+    """The area a polygon encloses (the shoelace formula); zero for fewer than three points."""
+    if len(points) < 3:
+        return 0.0
+    twice = sum(
+        a[0] * b[1] - b[0] * a[1] for a, b in zip(points, points[1:] + points[:1], strict=True)
+    )
+    return abs(twice) / 2.0
+
+
+def clip_segment(
+    x1: float, y1: float, x2: float, y2: float, left: float, top: float, right: float, bottom: float
+) -> tuple[float, float, float, float] | None:
+    """The part of a line segment inside a rectangle (Liang-Barsky), or `None` if none is."""
+    dx, dy = x2 - x1, y2 - y1
+    start, end = 0.0, 1.0
+    for p, q in ((-dx, x1 - left), (dx, right - x1), (-dy, y1 - top), (dy, bottom - y1)):
+        if p == 0:
+            if q < 0:
+                return None  # parallel to this side and outside it
+            continue
+        t = q / p
+        if p < 0:
+            start = max(start, t)
+        else:
+            end = min(end, t)
+        if start > end:
+            return None
+    return (x1 + start * dx, y1 + start * dy, x1 + end * dx, y1 + end * dy)
 
 
 def fmt(value: float) -> str:

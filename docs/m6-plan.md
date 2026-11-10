@@ -204,6 +204,10 @@ Fixed, each with a test that failed first:
   went into browser history, the address bar and any `Referer`. It now posts (`intent=preview`), with and
   without JavaScript, and the editor no longer reads a draft from the query string. A unit test scans every
   template so no form carrying the token can be submitted with GET.
+- **The funnel plot's confidence-limit lines left the axes** (F13; also found independently from the SVG
+  coordinates: x ran from -30 to 630 against an axes box of 70 to 530). The lines and the shaded regions are now
+  cut at the box (`clip_polygon`, `clip_segment`), the funnel goldens are regenerated, and a test reads the drawn
+  SVG back and checks that nothing from the data lies outside the axes.
 - **Words broke mid-word in narrow tables** ("Yea/r", "20/21": F25, L1, V3). The `overflow-wrap: anywhere` this
   change had put on the body lets a table column shrink below its longest word; it is now `break-word`. The
   layout test looks for any word spanning two lines in a table cell.
@@ -215,8 +219,6 @@ Open. Checked against the code unless marked:
   agent's log; not reproduced here).
 - **A split makes `/prisma` refuse to draw** (F26): `studies_included <= reports_included` is an identity in
   `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
-- **The funnel plot's confidence-limit lines leave the axes** (F13; also found independently from the SVG
-  coordinates: x runs from -30 to 630 against an axes box of 70 to 530).
 - **The session cookie is shared by every server on `127.0.0.1`** (F20), because cookies ignore ports.
 - Smaller: History shows neither why nor when (F15); a record's timeline is a raw dump (F9); the dashboard,
   `strata status` and the rescreen page count stale decisions differently (F22); an assignment has no visible
