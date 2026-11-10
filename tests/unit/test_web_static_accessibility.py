@@ -1,9 +1,9 @@
 """What the web interface's templates and stylesheet promise about accessibility, without a browser.
 
 `tests/browser/test_pages_browser.py` checks the same promises in a real Chromium, but needs Node
-and Playwright and is skipped in the pull-request gate. These are the parts that can be read off
-the files, so they run everywhere (openspec:web-ui#accessibility,
-openspec:web-ui#localhost-security):
+and Playwright (the `browser` CI job installs them; locally the tests are skipped without them).
+These are the parts that can be read off the files, so they run everywhere
+(openspec:web-ui#accessibility, openspec:web-ui#localhost-security):
 
 * the Content-Security-Policy is `style-src 'self'`, so a template must not carry a `style=`
   attribute: the browser would drop it silently (the screening progress bar once did);

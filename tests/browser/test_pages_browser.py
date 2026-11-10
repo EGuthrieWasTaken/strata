@@ -1,7 +1,8 @@
 """Every screen in a real browser (openspec:web-ui#accessibility), on seeded reviews.
 
 Optional, like `test_dropzone_browser.py`: it needs Node with Playwright and a Chromium, and is
-skipped where they are not installed. It drives `pages_smoke.js`, which looks at what a script can
+skipped where they are not installed (`support.py`; the `browser` CI job requires them). It drives
+`pages_smoke.js`, which looks at what a script can
 judge:
 
 * **reflow**: no page scrolls sideways at 320 px or 640 px (200 % zoom on a 1280 px screen),
@@ -34,24 +35,11 @@ from pathlib import Path
 import pytest
 from scripts import seed_review
 
+from tests.browser.support import REQUIRED, needs_browser, playwright_available
+
 pytestmark = pytest.mark.browser
 
 SCRIPT = Path(__file__).with_name("pages_smoke.js")
-
-
-def _playwright_available() -> bool:
-    node = shutil.which("node")
-    if node is None:
-        return False
-    probe = subprocess.run(
-        [node, "-e", "require('playwright')"], capture_output=True, text=True, timeout=60
-    )
-    return probe.returncode == 0
-
-
-needs_browser = pytest.mark.skipif(
-    not _playwright_available(), reason="needs Node with Playwright and Chromium"
-)
 
 
 @pytest.fixture(scope="module")
@@ -164,3 +152,10 @@ def test_the_criteria_preview_keeps_the_session_token_and_the_reason_out_of_the_
         text=True,
     )
     assert status.stdout == "", "a preview must write nothing"
+
+
+def test_the_browser_stack_is_installed_where_it_is_required() -> None:
+    """In CI the `browser` job sets STRATA_REQUIRE_BROWSER after installing Playwright and Chromium,
+    so a broken install fails here, loudly, instead of every test above being skipped."""
+    if REQUIRED:
+        assert playwright_available(), "Node cannot load the Playwright in tests/browser"

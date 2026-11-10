@@ -169,7 +169,8 @@ None of these has been run.
 reviewers, a conflict, stale decisions and a record made of hostile markup) in about fifteen seconds, and
 `tests/browser/test_pages_browser.py` walks every screen of them in Chromium. Run against the code as merged
 it failed on four things; each is fixed, and `tests/unit/test_web_static_accessibility.py` holds the fixes in
-the pull-request gate, where the browser tests do not run:
+every test job as well (the browser tests run in the `browser` job, on Linux on each pull request and on all
+three platforms nightly; locally they are skipped without Node and Playwright):
 
 - **The screening progress bar never filled.** It set its width with a `style=` attribute and the
   Content-Security-Policy is `style-src 'self'`, so a real browser dropped it. It is now a native `<progress>`.
@@ -238,7 +239,8 @@ a product decision).
 
 ## add-web-ui-write-surfaces: manual checks for the new screens
 
-The browser test in `tests/browser` (Node and Playwright, skipped where they are not installed) drives
+The browser test in `tests/browser` (Node and Playwright, pinned in `tests/browser/package.json`; skipped where
+they are not installed, required by the `browser` CI job) drives
 Chromium through reaching the file chooser by keyboard, dropping files, posting the form, reviewing and
 importing, and checks for script and Content-Security-Policy errors and for sideways scrolling at 320 px.
 `tests/browser/test_pages_browser.py` (same requirements, run in Chromium over reviews built by

@@ -394,6 +394,13 @@ All notable changes to `strata` are documented here. Format follows
   `verify`, `status`, `log`.
 - `.gitattributes`, merge driver installation, and versioned git hooks
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
+- **The browser tests run in CI.** A `browser` job (on every pull request that touches code, part of the `gate`) and
+  a nightly one on Linux, macOS and Windows install the Playwright pinned in `tests/browser/package.json` and its
+  lockfile, with Chromium, and run `tests/browser`: every screen of seeded reviews (`scripts/seed_review.py`) for
+  reflow at 320 and 640 px, contrast in light and dark, reduced motion, the flow with JavaScript off, markup in a
+  record, and the criteria preview keeping the session token out of the address. `STRATA_REQUIRE_BROWSER=1` makes a
+  missing stack fail the tests instead of skipping them, so a broken install cannot look like a pass. Dependabot
+  keeps Playwright current.
 
 ### Changed
 
