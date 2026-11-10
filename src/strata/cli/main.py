@@ -66,7 +66,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
-from strata.core.screen_batches import flush_pending_screening
+from strata.core.screen_batches import flush_pending_screening, flush_under_lock
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -364,13 +364,8 @@ def _preflight_rationale(
 def _commit_pending_screening(repo: Repo) -> None:
     """Commit every reviewer's pending screening decisions, as batches of their own, before this
     command writes anything, so none rides along in the commit it is about to make
-    (`strata.core.screen_batches`). If another process holds the lock for long, skip: the commit
-    helpers flush again under the lock they hold."""
-    try:
-        with repo_lock(repo):
-            flush_pending_screening(repo)
-    except LockTimeoutError:
-        return
+    (`strata.core.screen_batches`)."""
+    flush_under_lock(repo)
 
 
 def _refuse_unusable_rationale(

@@ -29,7 +29,7 @@ from contextvars import ContextVar
 
 from strata import gitio
 from strata.core.commit import StructuredCommit, fit_subject
-from strata.core.repo import Repo
+from strata.core.repo import LockTimeoutError, Repo, repo_lock
 from strata.protocol import pool as pool_mod
 
 SCREEN_DIR = "events/screen"
@@ -160,3 +160,21 @@ def flush_pending_screening(
             if commit_screening_batch(repo, actor, body=body):
                 made += 1
     return made
+
+
+def flush_under_lock(repo: Repo) -> int:
+    """`flush_pending_screening` for a caller outside any operation (the web layer, the command
+    line's pre-flight): under the repository lock, and only when something is pending.
+
+    The lock is taken only then so that an idle repository's lock is never touched: taking it
+    "reclaims" a dead process's lock, and the operation that follows is the one that should say so.
+    If another process holds the lock for the whole timeout, skip: whatever commits next flushes
+    them itself, under the lock it holds.
+    """
+    if not pending_screening_actors(repo):
+        return 0
+    try:
+        with repo_lock(repo):
+            return flush_pending_screening(repo)
+    except LockTimeoutError:
+        return 0

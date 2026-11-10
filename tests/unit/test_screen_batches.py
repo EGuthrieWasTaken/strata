@@ -17,6 +17,7 @@ from strata.core.screen_batches import (
     batch_identities,
     commit_screening_batch,
     flush_pending_screening,
+    flush_under_lock,
     pending_screening_actors,
     pending_screening_files,
 )
@@ -202,3 +203,30 @@ def test_only_requests_that_commit_something_else_flush_first(
     path: str, form: dict[str, str] | None, flushes: bool
 ) -> None:
     assert needs_screening_flush(path, form) is flushes
+
+
+def test_flushing_under_the_lock_never_touches_the_lock_of_an_idle_repository(
+    tmp_path: Path,
+) -> None:
+    """Taking a dead process's lock "reclaims" it; the operation that follows is the one that
+    should say so, so an idle repository's lock is left alone."""
+    repo = _repo(tmp_path)
+    lock_path = repo.root / ".strata" / "lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text("999999\n", encoding="ascii")  # a process that is not there
+    assert flush_under_lock(repo) == 0
+    assert lock_path.exists() and lock_path.read_text(encoding="ascii").strip() == "999999"
+
+
+def test_flushing_under_the_lock_commits_what_is_pending_and_releases_the_lock(
+    tmp_path: Path,
+) -> None:
+    repo = _repo(tmp_path)
+    _screen(repo, "sam", _IDS[0])
+    assert flush_under_lock(open_repo(repo.root)) == 1
+    assert pending_screening_actors(open_repo(repo.root)) == []
+    # Released: another acquisition succeeds at once.
+    from strata.core.repo import repo_lock
+
+    with repo_lock(open_repo(repo.root), timeout=1.0):
+        pass

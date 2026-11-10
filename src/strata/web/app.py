@@ -24,8 +24,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from strata.core.repo import LockTimeoutError, Repo, open_repo, repo_lock
-from strata.core.screen_batches import flush_pending_screening
+from strata.core.repo import Repo, open_repo
+from strata.core.screen_batches import flush_under_lock
 from strata.web import uploads
 from strata.web.security import (
     CSRF_FIELD_NAME,
@@ -145,17 +145,8 @@ def needs_screening_flush(path: str, form: Any) -> bool:
 
 
 def flush_screening_for_request(state: AppState) -> None:
-    """Commit the pending screening batches in `state`'s repository, under the repository lock.
-
-    If another process holds the lock for long, skip: whatever commits next flushes them itself,
-    under the lock it holds.
-    """
-    repo = state.open_repo()
-    try:
-        with repo_lock(repo):
-            flush_pending_screening(repo)
-    except LockTimeoutError:
-        return
+    """Commit the pending screening batches in `state`'s repository (see `flush_under_lock`)."""
+    flush_under_lock(state.open_repo())
 
 
 #: Where a hosted instance puts a request's own `AppState` in the ASGI scope's `state`.
