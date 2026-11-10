@@ -48,6 +48,7 @@ from strata.core.commit import (
     validate_rationale,
 )
 from strata.core.repo import DEFAULT_LOCK_TIMEOUT, Repo, repo_lock
+from strata.core.screen_batches import flush_pending_screening
 from strata.extract import rob as rob_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import criteria as criteria_mod
@@ -136,6 +137,10 @@ def _commit(
     trailers: dict[str, str],
     paths: list[str],
 ) -> None:
+    # Another reviewer's screening decisions that are still waiting for their batch must not ride
+    # along in this commit (`strata.core.screen_batches`). A screening commit is the one that is
+    # meant to hold its own reviewer's.
+    flush_pending_screening(repo, except_actors=_own_screening(op, trailers))
     fitted_scope, fitted_summary = fit_subject(op, scope, summary)
     acting = agents_mod.current_context()
     message = StructuredCommit(
@@ -147,6 +152,11 @@ def _commit(
     ).message()
     gitio.add(repo.root, paths)
     gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
+
+
+def _own_screening(op: str, trailers: dict[str, str]) -> tuple[str, ...]:
+    """Whose pending screening decisions this commit is for, if it is a screening commit."""
+    return (trailers["Actor"],) if op == "screen" and "Actor" in trailers else ()
 
 
 #: Operations that cannot move a PRISMA count, so they do not regenerate derived/counts.json.
@@ -196,6 +206,9 @@ def commit_domain_work(
         pool_mod.regenerate_all(repo)  # whatever this changed, the derived views follow it
     if not commit:
         return False
+    # First, so that pending screening files are not mistaken for this operation's own changes: with
+    # them counted, an operation that changed nothing would "have something to commit".
+    flush_pending_screening(repo, except_actors=_own_screening(op, {"Actor": actor}))
     paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
     if not gitio.has_changes(repo.root, paths):
         return False

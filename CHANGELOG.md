@@ -509,3 +509,13 @@ All notable changes to `strata` are documented here. Format follows
   running after five-plus minutes now completes in ~20s; 50,000-record dedup
   dropped from over 240s to ~126s. New `append_new_events` batches a run's
   worth of appends into one read plus one write per event.
+- **A commit for one operation no longer carries another reviewer's pending screening decisions.** A screening
+  decision is written at once and committed later, in a batch of its reviewer's own, but until then it sits in its
+  reviewer's event file, and every other operation stages `events/` and `derived/`. An adjudication, an import, a
+  criteria change or a duplicate merge therefore committed other reviewers' screening files, with the operator as
+  author and the operation as subject. On a hosted instance that put a member's decisions under another member's
+  name, against `openspec:hosted-deployment#commit-attribution`. Now each reviewer's pending decisions are committed
+  first, as a batch of their own under their own identity, before the web layer handles any request that is not
+  itself a screening one and before any command-line command that commits; a safety net at every commit site does the
+  same for a decision recorded in between. A hosted instance also finds pending decisions on disk, not only the ones
+  it noted. `commit_screening_batch` moved from `strata.hosted.syncloop` to the new `strata.core.screen_batches`.

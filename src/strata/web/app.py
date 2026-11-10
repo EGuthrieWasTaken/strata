@@ -20,10 +20,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from strata.core.repo import Repo, open_repo
+from strata.core.repo import LockTimeoutError, Repo, open_repo, repo_lock
+from strata.core.screen_batches import flush_pending_screening
 from strata.web import uploads
 from strata.web.security import (
     CSRF_FIELD_NAME,
@@ -123,6 +125,37 @@ class HostedView:
     instance_root: str = ""
     #: The project's sync status for the page header and dashboard (`strata.hosted.syncloop`).
     sync: dict[str, Any] = field(default_factory=dict)
+
+
+#: The screens that record screening decisions. A request to one is how a decision is made, so it
+#: does not first commit the decisions already waiting.
+SCREENING_ROOTS = ("screen", "rescreen")
+
+
+def needs_screening_flush(path: str, form: Any) -> bool:
+    """Whether a mutating request should first commit every reviewer's pending screening decisions.
+
+    Every one except the screens that make them, and a preview (which writes nothing, so it commits
+    nothing). Committing them first, as batches of their own, keeps them out of whatever the request
+    goes on to commit (`strata.core.screen_batches`).
+    """
+    if path.strip("/").split("/", 1)[0] in SCREENING_ROOTS:
+        return False
+    return form is None or form.get("intent") != "preview"
+
+
+def flush_screening_for_request(state: AppState) -> None:
+    """Commit the pending screening batches in `state`'s repository, under the repository lock.
+
+    If another process holds the lock for long, skip: whatever commits next flushes them itself,
+    under the lock it holds.
+    """
+    repo = state.open_repo()
+    try:
+        with repo_lock(repo):
+            flush_pending_screening(repo)
+    except LockTimeoutError:
+        return
 
 
 #: Where a hosted instance puts a request's own `AppState` in the ASGI scope's `state`.
@@ -257,6 +290,17 @@ def create_app(
                     if form is not None:
                         await form.close()
                     return PlainTextResponse("missing or invalid CSRF token", status_code=403)
+
+            # Pending screening decisions are committed, as batches of their own, before anything
+            # else commits, so they never ride along in someone else's commit. A hosted instance
+            # does this itself, per member, before it dispatches to the project
+            # (`strata.web.hosted`).
+            if (
+                request.method in MUTATING_METHODS
+                and state_of(request).hosted is None
+                and needs_screening_flush(request.url.path, form)
+            ):
+                await run_in_threadpool(flush_screening_for_request, s)
 
             s.clock.touch()
             try:

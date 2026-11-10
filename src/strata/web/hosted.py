@@ -54,6 +54,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from strata import gitio
 from strata.core.repo import RepoNotFoundError
+from strata.core.screen_batches import batch_identities
 from strata.core.sync import Edited
 from strata.hosted import accounts
 from strata.hosted import members as members_mod
@@ -70,6 +71,7 @@ from strata.web.app import (
     _static_dir,
     _templates_dir,
     create_project_app,
+    needs_screening_flush,
 )
 from strata.web.security import CSRF_FIELD_NAME, MUTATING_METHODS, PublicUrl
 
@@ -793,6 +795,12 @@ class _ProjectDispatcher:
                 lambda: server.sync.pull_before_read(project.id, membership.actor)
             )
 
+        if form is not None and needs_screening_flush(relative, form):
+            # Everyone's pending screening decisions are committed first, each as a batch of their
+            # own under their own identity, so none rides along in this member's commit
+            # (openspec:hosted-deployment#commit-attribution).
+            await anyio.to_thread.run_sync(server.sync.flush, project.id)
+
         try:
             repo_root = server.instance.project_dir(project.id)
             base = server.project_state(project)
@@ -818,7 +826,12 @@ class _ProjectDispatcher:
                         headers["location"] = root_path + location
                 await send(message)
 
-            with gitio.environment(identity_for(server.instance, repo, membership.actor)):
+            with (
+                gitio.environment(identity_for(server.instance, repo, membership.actor)),
+                # A flush made from inside an operation still names each reviewer as their batch's
+                # author, not the member whose operation it is.
+                batch_identities(lambda handle: identity_for(server.instance, repo, handle)),
+            ):
                 await server.project_app(scope, receive, send_rewritten)
         finally:
             if form is not None:

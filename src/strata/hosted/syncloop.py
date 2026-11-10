@@ -35,18 +35,16 @@ from __future__ import annotations
 import json
 import threading
 import time
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from strata import gitio
 from strata.core import sync as sync_mod
-from strata.core.commit import StructuredCommit, fit_subject
 from strata.core.repo import LockTimeoutError, Repo, repo_lock
+from strata.core.screen_batches import commit_screening_batch, pending_screening_actors
 from strata.hosted.instance import Instance, Project
 from strata.hosted.secrets import SecretError
-from strata.protocol import pool as pool_mod
 
 BATCH_SIZE = 200
 BATCH_IDLE = 15 * 60.0
@@ -101,6 +99,9 @@ def actor_identity(repo: Repo, handle: str) -> tuple[str, str]:
                 actor.get("email") or f"{handle}@users.noreply.local"
             )
     return handle, f"{handle}@users.noreply.local"
+
+
+HOSTED_BATCH_BODY = "Screening decisions recorded in the browser on a hosted instance."
 
 
 def identity_for(instance: Instance, repo: Repo, handle: str) -> dict[str, str]:
@@ -220,13 +221,16 @@ class SyncLoop:
                 "SELECT actor FROM screening_batches WHERE project = ? ORDER BY actor",
                 (project_id,),
             )
-            actors = [str(row["actor"]) for row in rows]
+            # What is on disk is the truth: a decision whose row was lost (a restart, a failed
+            # note) is still pending and must not be left to ride along in someone's commit.
+            tracked = {str(row["actor"]) for row in rows}
+            actors = sorted(tracked | set(pending_screening_actors(repo)))
         else:
             actors = [actor]
         made = 0
         for handle in actors:
             with gitio.environment(identity_for(self.instance, repo, handle)):
-                if commit_screening_batch(repo, handle):
+                if commit_screening_batch(repo, handle, body=HOSTED_BATCH_BODY):
                     made += 1
             self.instance.store.execute(
                 "DELETE FROM screening_batches WHERE project = ? AND actor = ?",
@@ -404,70 +408,6 @@ def _describe_failure(exc: Exception) -> str:
 
 
 # ------------------------------------------------------------------------- screening batches
-
-
-def _event_ids(text: str) -> set[str]:
-    ids = set()
-    for line in text.splitlines():
-        try:
-            ids.add(str(json.loads(line)["id"]))
-        except (ValueError, KeyError, TypeError):
-            continue
-    return ids
-
-
-def commit_screening_batch(repo: Repo, actor: str) -> bool:
-    """Commit `actor`'s uncommitted screening decisions as one batch with a generated summary
-    (openspec:git-integration#batched-screening-commits); whether there was anything to commit.
-
-    Only that actor's screening files are committed, with the derived views they move, so two
-    reviewers' batches never share a commit.
-    """
-    directory = repo.path("events", "screen")
-    files = sorted(directory.glob(f"*.{actor}.ndjson")) if directory.is_dir() else []
-    changed = [
-        f"events/screen/{path.name}"
-        for path in files
-        if gitio.has_changes(repo.root, [f"events/screen/{path.name}"])
-    ]
-    if not changed:
-        return False
-    decisions: Counter[str] = Counter()
-    stages: set[str] = set()
-    for relative in changed:
-        before = gitio.run(["show", f"HEAD:{relative}"], cwd=repo.root, check=False)
-        known = _event_ids(before.stdout) if before.returncode == 0 else set()
-        for line in repo.path(*relative.split("/")).read_text(encoding="utf-8").splitlines():
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if str(event.get("id")) in known or event.get("ev") != "screen":
-                continue
-            body = event.get("body", {})
-            decisions[str(body.get("decision"))] += 1
-            stages.add(str(body.get("stage")))
-    total = sum(decisions.values())
-    breakdown = ", ".join(f"{n} {decision}" for decision, n in sorted(decisions.items()))
-    summary = f"screen {total} record{'s' if total != 1 else ''}" + (
-        f" ({breakdown})" if breakdown else ""
-    )
-    scope = next(iter(stages)) if len(stages) == 1 else None
-    pool_mod.regenerate_all(repo)
-    fitted_scope, fitted_summary = fit_subject("screen", scope, summary)
-    trailers = {"Op": "screen", "Actor": actor}
-    if scope is not None:
-        trailers["Stage"] = scope
-    message = StructuredCommit(
-        op="screen",
-        scope=fitted_scope,
-        summary=fitted_summary,
-        body="Screening decisions recorded in the browser on a hosted instance.",
-        trailers=trailers,
-    ).message()
-    gitio.add(repo.root, [*changed, "derived"])
-    gitio.commit(repo.root, message)
-    return True
 
 
 class SyncWorker:

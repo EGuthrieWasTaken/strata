@@ -72,6 +72,7 @@ from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
+from strata.core.screen_batches import flush_pending_screening
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
@@ -546,6 +547,7 @@ async def adjudicate_stage_submit(
         body=rationale,
         trailers={"Op": "adjudicate", "Stage": stage, "Record": record_id, "Actor": state.actor},
     )
+    flush_pending_screening(repo)
     gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
@@ -572,6 +574,7 @@ def _commit_criteria_change(
         body=rationale,
         trailers={"Op": op, "Criterion": criterion_id, "Actor": actor},
     )
+    flush_pending_screening(repo)
     gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
@@ -802,6 +805,7 @@ def _commit_dedup_change(
     # The pool and the identified and duplicate counts move with every merge, as they do for
     # `strata dedup`.
     pool_mod.regenerate_all(repo)
+    flush_pending_screening(repo)
     gitio.add(repo.root, ["records", "events", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 
