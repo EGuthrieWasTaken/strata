@@ -214,19 +214,22 @@ Fixed, each with a test that failed first:
 
 Open. Checked against the code unless marked:
 
-- **Web screening decisions are not committed when you leave the screen** (F3), though the wiki says so;
-  `web/routes.py` says no commit trigger is wired. The next unrelated commit then sweeps them up (F11, from the
-  agent's log; not reproduced here).
-- **A split makes `/prisma` refuse to draw** (F26): `studies_included <= reports_included` is an identity in
+- **Web screening decisions are not committed when you leave the screen** (F3, #83); `web/routes.py` says no commit
+  trigger is wired. The wiki said they were; it now says what happens, and `Known-Limitations` has the workaround.
+  The next unrelated commit used to sweep them up under the wrong author and subject (F11; reproduced, also on
+  a hosted instance, and fixed separately: every commit now flushes each reviewer's pending decisions first).
+- **A split makes `/prisma` refuse to draw** (F26, #84): `studies_included <= reports_included` is an identity in
   `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
-- **The session cookie is shared by every server on `127.0.0.1`** (F20), because cookies ignore ports.
-- Smaller: History shows neither why nor when (F15); a record's timeline is a raw dump (F9); the dashboard,
-  `strata status` and the rescreen page count stale decisions differently (F22); an assignment has no visible
-  effect (F23, though the agent assigned records the reviewer had already screened); some messages name
-  internal settings or codes (F2, F24, F25); "Nothing left to screen" appears while a skipped record remains
-  (F4); an analysis still reads "current" after decisions went stale, which may be intended (F18).
+- **The session cookie is shared by every server on `127.0.0.1`** (F20, #85), because cookies ignore ports.
+- Smaller, each filed: History shows neither why nor when, a record's timeline is a raw dump and the record
+  counts disagree (F15, F9, F10: #87); the dashboard, `strata status` and the rescreen page count stale decisions
+  differently, an assignment has no visible effect and an analysis still reads "current" after decisions went
+  stale, which may be intended (F22, F23, F18: #88); "Nothing left to screen" appears while a skipped record
+  remains and a digit key records an exclusion at once (F4, F1: #86); `/records` and `/history` scroll rather
+  than stack on a narrow screen (#89); some messages name internal settings or codes (F2, F24, F25: #90).
+  The hosted UI is covered by neither the page tests nor the Chrome pass (#91).
 
-Wrong in the prompt, not in the product: the record counts in K2 and W6 (W3 adds a record), the expectation
+Wrong in the prompt, not in the product (all corrected in the revised `chrome-pass.md`): the record counts in K2 and W6 (W3 adds a record), the expectation
 in V7 that the analysis goes stale, D4's expectation that the queue table changes, X1's "`localhost` will be
 refused", running W9 before L1, and "tick a criterion" in K2 (a digit key records an exclusion at once when
 exclusions must cite a reason, as `wiki/The-Web-Interface.md` says; whether a stray key should be able to is
