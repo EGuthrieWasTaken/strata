@@ -7,7 +7,7 @@
 <form method="post" action="{{ root }}/session/finish" class="finish-session">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <button type="submit" class="btn">Finish session</button>
-  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; so does leaving this screen.</span>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; {% if hosted %}so does signing out, and the instance does it for you after 15 minutes without a decision.{% else %}so does leaving this screen.{% endif %}</span>
 </form>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
@@ -82,7 +82,7 @@
 <form method="post" action="{{ root }}/session/finish" class="finish-session">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <button type="submit" class="btn">Finish session</button>
-  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; so does leaving this screen.</span>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; {% if hosted %}so does signing out, and the instance does it for you after 15 minutes without a decision.{% else %}so does leaving this screen.{% endif %}</span>
 </form>
 {% endif %}
 {% endblock %}

@@ -520,3 +520,12 @@ fieldset.review-choices {
 .timeline-details dt::after { content: ":"; }
 .timeline-details dd { margin: 0; overflow-wrap: anywhere; }
 .error-detail { margin: 0.25rem 0 0; }
+
+/* A conflict held for a lead (hosted sync page): two versions of a file side by side, stacked on a
+   narrow screen. A fieldset is by default as wide as its widest content, so it is told it may be
+   narrower; the file text wraps, and scrolls inside its own box if a line still cannot. */
+fieldset { min-width: 0; }
+.conflict-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.conflict-sides > div { min-width: 0; }
+.conflict-sides pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+textarea { max-width: 100%; box-sizing: border-box; }
