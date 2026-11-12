@@ -10,7 +10,7 @@
 # literal `FROM` lines only, so the image is named in both of them rather than through an ARG.
 
 # ---- build: the locked dependency set and the package, with the tools that need to compile ----
-FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704 AS build
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS build
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -23,7 +23,7 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable
 
 # ---- runtime: the virtualenv and git, nothing to build with ----
-FROM python:3.12-slim@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 # git is whatever the base image's Debian release ships (the spec asks for 2.23 or newer, not an
 # exact version), so the apt package is deliberately unpinned.
 # hadolint ignore=DL3008
