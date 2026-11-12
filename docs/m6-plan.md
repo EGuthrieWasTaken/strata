@@ -10,8 +10,8 @@ what is deliberately partial.
 | `add-review-repository-ci` | `strata init --ci`, the reusable workflow `.github/workflows/review-ci.yml`, the `actions/verify` composite action, `strata ci amendment` and `strata ci comment` | written and tested locally; 5 of 8 tasks open until it runs on GitHub (see below) |
 | `add-web-ui-write-surfaces` | Write screens in the browser: record a dated search and attach its export by file chooser or drag and drop with a review before anything is imported; correct a record; add a criterion; assign reviewers; record retrieval outcomes; group and split studies. A shared operations layer under the command line and the web | all tasks written and tested; the full local gate is green (2,889 tests, coverage 94.96 %, diff coverage 96 %, determinism identical) and the pull-request gate has passed in CI on Linux, macOS and Windows (task 7.3); the manual gate (task 7.4: someone who has never used the command line does it unaided) has not been run by a person |
 | `add-zotero-integration` | `strata zotero link\|pull\|push\|status\|open`, the local and Web API clients, the identity mapping `integrations/zotero.ndjson`, full texts through Zotero in `retrieve` and `screen`, a keychain-or-environment key | all tasks but 5.1 written and tested against a stand-in for Zotero 6 and 7; **never run against a real Zotero** (see below), so 5.1 is open |
-| `add-ai-participation` | A per-review AI policy (off by default), agents as registered actors, the `agent` envelope key, suggestions with blinding, MCP write tools, a ledger, computed disclosure, `strata ai revoke`, `strata audit --ai`, schema format 2 and `strata migrate` | groups 1 to 4 written and tested locally; open: the CLI refactor of tasks 3.1 and 3.2, the three-platform CI runs (1.4, 4.5, 5.3) and the methodologist's read of the disclosure (5.4); see below |
-| `add-distribution-and-adoption` | task 2.4: EndNote XML, Excel and plain-text citation-list import | done; the rest (PyPI/binaries/Homebrew, Covidence/Rayyan/EPPI imports, worked example, translations) not started |
+| `add-ai-participation` | A per-review AI policy (off by default), agents as registered actors, the `agent` envelope key, suggestions with blinding, MCP write tools, a ledger, computed disclosure, `strata ai revoke`, `strata audit --ai`, schema format 2 and `strata migrate` | groups 1 to 4 written and tested locally; open: the CLI refactor of tasks 3.1 and 3.2 and the methodologist's read of the disclosure (5.4); the three-platform runs (1.4, 4.5, 5.3) passed in CI on the pull request that merged it; see below |
+| `add-distribution-and-adoption` | task 2.4: EndNote XML, Excel and plain-text citation-list import | done; the rest (PyPI/binaries/Homebrew, Covidence/Rayyan/EPPI imports, worked example, translations) not started. The nightly `cold-install` job (task 4.2) runs on all three platforms but only installs the package and runs `strata --help`; it does not yet run the quickstart its step name promises |
 
 ## add-review-repository-ci
 
@@ -138,8 +138,8 @@ None of these has been run.
   - `strata import` and `strata search add` wrote their files and then crashed on a commit subject over 72
     characters when a file or database name was long, leaving the work uncommitted.
   - The dashboard's tables overflowed a 320 px screen. The tables on the pages this change added now stack as
-    labelled cards at that width; the older tables elsewhere (for example on `/records` and `/history`) were
-    not checked and may still overflow.
+    labelled cards at that width. The older tables elsewhere were checked later by the page tests (below):
+    they did overflow, and now scroll inside their own box.
   - The repository lock was a file whose existence meant "held": a killed `strata` locked everyone out until
     the file was deleted, and nothing took it. It is now an operating-system lock. Its tests run on
     Windows and macOS as well as Linux in CI, and pass.
@@ -163,12 +163,91 @@ None of these has been run.
   unimplemented"). Implementing it found that `strata init`, `import`, `dedup` and `fix` left derived files
   wrong; the commands now regenerate every derived view.
 
+## add-web-ui-write-surfaces: found by the page tests
+
+`scripts/seed_review.py` builds three reviews (a blank one, the Quickstart complete, and one with two
+reviewers, a conflict, stale decisions and a record made of hostile markup) in about fifteen seconds, and
+`tests/browser/test_pages_browser.py` walks every screen of them in Chromium. Run against the code as merged
+it failed on four things; each is fixed, and `tests/unit/test_web_static_accessibility.py` holds the fixes in
+every test job as well (the browser tests run in the `browser` job, on Linux on each pull request and on all
+three platforms nightly; locally they are skipped without Node and Playwright):
+
+- **The screening progress bar never filled.** It set its width with a `style=` attribute and the
+  Content-Security-Policy is `style-src 'self'`, so a real browser dropped it. It is now a native `<progress>`.
+- **The drop target's border was 1.6:1 against the page in light and 1.9:1 in dark** (3:1 is required). It
+  uses a new `--border-strong`.
+- **Tables pushed the page sideways**: `/records` and `/history` at 320 px (200-400 px too wide),
+  `/adjudicate`, `/extract/<study>`, and `/analysis/<id>`, whose study table was 539 px too wide even on a
+  1024 px screen. Tables that do not stack as cards now scroll inside a keyboard-focusable box.
+- **A title with no spaces pushed the page sideways** (a DOI, a URL, markup): the screening card and a record's
+  page were 210 px too wide at 320 px. Words now break anywhere when they must.
+
+What it found and did not need to fix: markup in a title or abstract (`<script>`, `<img onerror>`, a closing
+`</main>`) is shown as text on the records table, a record's page and the screening card, and runs nothing.
+
+Still open: the tables on `/records` and `/history` scroll sideways at 320 px rather than stacking into labelled
+cards as the newer tables do; a table that stacks reads better on a phone.
+Each scroll box is also a tab stop whether or not its table overflows, so a keyboard user passes through one
+more stop per table; making it a stop only when it overflows needs a few lines of script.
+
+
+## add-web-ui-write-surfaces: found by the Chrome pass
+
+An agent working through [`chrome-pass.md`](chrome-pass.md) in Chrome 157 on Linux, against the code at
+`ceb67a9`, wrote [`chrome-pass-results.md`](chrome-pass-results.md): 27 checks, 22 passed, 4 failed (K2, V3,
+V5, V7), 1 blocked (L1: Chrome will not go below 616 px, so 320 px stays with the page tests), and 26 findings.
+It is a dry run by an agent: it is not the unaided first-time-user gate (task 7.4) or a usability session.
+
+Fixed, each with a test that failed first:
+
+- **The criteria editor's Preview put the session token and the reviewer's reason in the address** (F14). The
+  button was `formmethod="get"` inside the form whose hidden `csrf_token` field is the session token, so both
+  went into browser history, the address bar and any `Referer`. It now posts (`intent=preview`), with and
+  without JavaScript, and the editor no longer reads a draft from the query string. A unit test scans every
+  template so no form carrying the token can be submitted with GET.
+- **The funnel plot's confidence-limit lines left the axes** (F13; also found independently from the SVG
+  coordinates: x ran from -30 to 630 against an axes box of 70 to 530). The lines and the shaded regions are now
+  cut at the box (`clip_polygon`, `clip_segment`), the funnel goldens are regenerated, and a test reads the drawn
+  SVG back and checks that nothing from the data lies outside the axes.
+- **Words broke mid-word in narrow tables** ("Yea/r", "20/21": F25, L1, V3). The `overflow-wrap: anywhere` this
+  change had put on the body lets a table column shrink below its longest word; it is now `break-word`. The
+  layout test looks for any word spanning two lines in a table cell.
+
+Open. Checked against the code unless marked:
+
+- **Web screening decisions are not committed when you leave the screen** (F3, #83); `web/routes.py` says no commit
+  trigger is wired. The wiki said they were; it now says what happens, and `Known-Limitations` has the workaround.
+  The next unrelated commit used to sweep them up under the wrong author and subject (F11; reproduced, also on
+  a hosted instance, and fixed separately in #93: every commit now flushes each reviewer's pending decisions first).
+- **A split makes `/prisma` refuse to draw** (F26, #84): `studies_included <= reports_included` is an identity in
+  `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
+- **The session cookie is shared by every server on `127.0.0.1`** (F20, #85), because cookies ignore ports.
+- Smaller, each filed: History shows neither why nor when, a record's timeline is a raw dump and the record
+  counts disagree (F15, F9, F10: #87); the dashboard, `strata status` and the rescreen page count stale decisions
+  differently, an assignment has no visible effect and an analysis still reads "current" after decisions went
+  stale, which may be intended (F22, F23, F18: #88); "Nothing left to screen" appears while a skipped record
+  remains and a digit key records an exclusion at once (F4, F1: #86); `/records` and `/history` scroll rather
+  than stack on a narrow screen (#89); some messages name internal settings or codes (F2, F24, F25: #90).
+  The hosted UI is covered by neither the page tests nor the Chrome pass (#91).
+
+Wrong in the prompt, not in the product (all corrected in the revised `chrome-pass.md`): the record counts in K2 and W6 (W3 adds a record), the expectation
+in V7 that the analysis goes stale, D4's expectation that the queue table changes, X1's "`localhost` will be
+refused", running W9 before L1, and "tick a criterion" in K2 (a digit key records an exclusion at once when
+exclusions must cite a reason, as `wiki/The-Web-Interface.md` says; whether a stray key should be able to is
+a product decision).
+
+
 ## add-web-ui-write-surfaces: manual checks for the new screens
 
-The browser test in `tests/browser` (Node and Playwright, skipped where they are not installed) drives
+The browser test in `tests/browser` (Node and Playwright, pinned in `tests/browser/package.json`; skipped where
+they are not installed, required by the `browser` CI job) drives
 Chromium through reaching the file chooser by keyboard, dropping files, posting the form, reviewing and
 importing, and checks for script and Content-Security-Policy errors and for sideways scrolling at 320 px.
-A person still has to check what a script cannot judge. **None of these has been run by a person yet**, and
+`tests/browser/test_pages_browser.py` (same requirements, run in Chromium over reviews built by
+`scripts/seed_review.py`) now judges what a script can: reflow at 320 px and 640 px on every screen,
+contrast in light and dark, reduced motion, the flow with JavaScript off, and that markup in a record runs
+nothing. Items it covers are ticked below and say so. A person still has to check what a script cannot judge.
+**None of the others has been run by a person yet**, and
 neither has task 7.4, the gate for the whole change: someone who has never used the command line records a
 search and imports its export in the browser, unaided. Record the outcome here when it is done.
 
@@ -178,16 +257,19 @@ search and imports its export in the browser, unaided. Record the outcome here w
 - [ ] **Screen reader** (NVDA or VoiceOver): choosing or dropping files is announced ("2 files chosen: ..."),
       the review table's columns are read with their headings, the "already imported" and error messages are
       announced, and the "Only files can be dropped here" message is heard after dropping text.
-- [ ] **200 % zoom and 320 px width**: nothing is cut off or needs sideways scrolling on `/`, `/searches`, a
+- [ ] **200 % zoom and 320 px width** *(sideways scrolling: covered by script for every screen at 320 px and 640 px; whether anything is cut off or hard to read still wants eyes)*: nothing is cut off or needs sideways scrolling on `/`, `/searches`, a
       search page, `/searches/new`, the review page and the results page; the tables read as labelled cards.
-- [ ] **Reduced motion** (`prefers-reduced-motion: reduce`): the drop target changes with no animation.
-- [ ] **Dark mode** (`prefers-color-scheme: dark`): the drop target, its dragging state, the warning flags and
-      the error messages all keep their contrast (4.5:1 for text, 3:1 for the border).
-- [ ] **Colour is never the only signal**: with colour removed (a greyscale filter), a search with no query, a
+- [x] **Reduced motion** (`prefers-reduced-motion: reduce`): the drop target changes with no animation. *(by script, not by a person: `test_reduced_motion_stops_the_drop_target_transitioning` finds no transition or animation under `reduce`, and finds the drop target transitioning without the preference, so the check is not vacuous)*
+- [x] **Dark mode** (`prefers-color-scheme: dark`): the drop target, its dragging state, the warning flags and
+      the error messages all keep their contrast (4.5:1 for text, 3:1 for the border). *(by script, not by a person: `test_contrast_holds_in_light_and_dark` measures 4.5:1 for text and 3:1 for the drop target's border (also while dragging), error boxes, warning flags and the screening buttons in both schemes; it found the drop target at 1.6:1 light and 1.9:1 dark, now 4.5:1 and 5.4:1)*
+- [x] **Colour is never the only signal**: with colour removed (a greyscale filter), a search with no query, a
       search with no export, a file that cannot be imported and the dragging state are each still
-      distinguishable by an icon or by words.
-- [ ] **JavaScript disabled**: record a search with a file, review, and import, using only the ordinary file
-      chooser; nothing is missing but the drop box.
+      distinguishable by an icon or by words. *(No query, no export and the screening buttons: by Claude in
+      Chrome with a greyscale filter, check G1 in [`chrome-pass-results.md`](chrome-pass-results.md), not by a
+      person. A file that cannot be imported and the dragging state: the page tests assert the words, "Drop to
+      attach" and the refusal's message, in `tests/browser`.)*
+- [x] **JavaScript disabled**: record a search with a file, review, and import, using only the ordinary file
+      chooser; nothing is missing but the drop box. *(by script, not by a person: `test_a_search_can_be_recorded_imported_and_screened_without_javascript`)*
 - [ ] **Firefox and Safari** (the browser test uses Chromium): the same flow, in particular that a form post
       is accepted (the referrer policy was `no-referrer`, which makes browsers send `Origin: null`).
 
@@ -257,8 +339,10 @@ did.
   not yet share the commit code. Only the PRISMA diagram was moved onto `core/operations.py`.
 - **`strata report` is not offered to agents** (generating the Methods, Results and checklist text); the
   reserved-operations test names it so it cannot be forgotten.
-- **Not run on three platforms.** The determinism and test jobs on Linux, macOS and Windows (1.4, 4.5, 5.3)
-  need CI. Locally everything ran on Linux only.
+- **Three platforms: done.** The pull request that merged this change passed the `test` matrix on Linux,
+  macOS and Windows, the coverage floors and diff coverage, `determinism`, `traceability`, `docs`, CodeQL
+  and the container jobs (1.4, 4.5, 5.3). The `determinism` job compares hash seeds on Linux only, by
+  design; the cross-platform byte-identity claim is carried by the committed golden lines.
 - **The project's pinned OpenSpec (1.13.2) was not run**; the change validates with the installed 1.16.0.
 - **The model name is the agent's own claim**, and an agent with a shell bypasses the policy: both are stated
   in the wiki and in `Known-Limitations`, and neither can be fixed from here.
@@ -269,7 +353,7 @@ On Linux only: `ruff` and `mypy --strict` are clean. The whole suite passed (3,6
 coverage) before the last round of tests, which was added to close the diff-coverage gap. A targeted run of
 the 537 tests that exercise this change then measured diff coverage of 99 % against the base (CI needs 95 %).
 The whole suite was not run again after that round, which also removed two properties nothing used
-(`Ledger.suggestions` and `PrismaRendered.draft`); CI is the check on the final tree.
+(`Ledger.suggestions` and `PrismaRendered.draft`); CI was the check on the final tree, and it passed.
 
 ### Manual gate (task 5.4)
 

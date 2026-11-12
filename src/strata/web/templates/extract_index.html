@@ -2,7 +2,7 @@
 {% block title %}{{ "Extraction" if kind == "extract" else "Risk of bias" }}{% endblock %}
 {% block content %}
 <h1>{{ "Extraction" if kind == "extract" else "Risk of bias" }}</h1>
-<table class="stage-table">
+<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
   <thead>
     <tr>
       <th scope="col">Study</th>
@@ -32,6 +32,6 @@
     <tr><td colspan="3">No included studies yet.</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% endblock %}

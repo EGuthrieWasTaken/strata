@@ -5,12 +5,13 @@
 <rect id="rect-252f7085" class="f-surface" x="0" y="0" width="560" height="440"/>
 <text id="text-3ce3904e" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Funnel plot: Effect of spaced practice on recall</text>
 <polygon id="polygon-fab547fd" class="f-tint1" points="124,50 210.95,380 530,380 530,50"/>
-<polygon id="polygon-f803ad7f" class="f-tint1" points="124,50 70,380 70,380 70,50"/>
+<polygon id="polygon-da967493" class="f-tint1" points="124,50 70,254.93 70,380 70,380 70,50"/>
 <polygon id="polygon-71c6ff2c" class="f-tint2" points="124,50 227.6,380 530,380 530,50"/>
-<polygon id="polygon-7f40a774" class="f-tint2" points="124,50 70,380 70,380 70,50"/>
+<polygon id="polygon-f0b24036" class="f-tint2" points="124,50 70,221.98 70,380 70,380 70,50"/>
 <polygon id="polygon-30f3898e" class="f-tint3" points="124,50 260.16,380 530,380 530,50"/>
-<polygon id="polygon-39f23d64" class="f-tint3" points="124,50 70,380 70,380 70,50"/>
-<polygon id="polygon-5e7d3c8f" class="s-ink" fill="none" points="300,50 196.39,380 403.61,380"/>
+<polygon id="polygon-db12281a" class="f-tint3" points="124,50 70,180.86 70,380 70,380 70,50"/>
+<line id="line-a6f35670" class="s-ink" x1="300" y1="50" x2="196.39" y2="380" stroke-width="1"/>
+<line id="line-10c17052" class="s-ink" x1="300" y1="50" x2="403.61" y2="380" stroke-width="1"/>
 <line id="line-919e0c3b" class="s-accent2" x1="300" y1="50" x2="300" y2="380" stroke-width="1.5"/>
 <line id="line-e7982792" class="s-muted" x1="124" y1="50" x2="124" y2="380" stroke-width="1" stroke-dasharray="4 3"/>
 <circle id="circle-22e04b8f" class="f-accent" cx="360.46" cy="330.8" r="3.5"/>

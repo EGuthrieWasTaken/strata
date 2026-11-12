@@ -7,6 +7,7 @@
   --fg: #1a1a1a;
   --muted: #555555;
   --border: #cccccc;
+  --border-strong: #767676; /* 4.5:1 on --bg: for a boundary a person has to see (a drop target) */
   --accent: #0b5fff;
   --include: #146c2e;
   --exclude: #a4262c;
@@ -20,6 +21,7 @@
     --fg: #f0f0f0;
     --muted: #b8b8b8;
     --border: #444444;
+    --border-strong: #8a8a8a; /* 5.4:1 on --bg */
     --accent: #6ea8ff;
     --include: #57d17e;
     --exclude: #ff8a8a;
@@ -38,6 +40,10 @@ html {
 
 body {
   margin: 0;
+  /* A DOI, a URL or a title with no spaces must not push the page sideways. `break-word`, not
+     `anywhere`: only `anywhere` lowers a table column's minimum width, which squeezed columns below
+     their longest word ("Yea/r") instead of letting the table scroll in its box. */
+  overflow-wrap: break-word;
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -133,6 +139,18 @@ h1 {
   overflow-wrap: anywhere; /* a record id is one long word */
 }
 
+/* A table too wide for the screen scrolls inside its own box, never the page (WCAG 1.4.10 allows this
+   for data tables). The box is keyboard-focusable so it can be scrolled without a mouse. */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table-scroll:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 table.stage-table {
   width: 100%;
   border-collapse: collapse;
@@ -146,23 +164,32 @@ table.stage-table {
   text-align: left;
 }
 
+/* A native <progress>: the browser gives it the progressbar role and its value, and no inline style
+   is needed (the Content-Security-Policy is style-src 'self'). */
 .progress-bar {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 0.75rem;
+  margin: 0.5rem 0 1rem;
   border: 1px solid var(--border);
   border-radius: 0.25rem;
-  height: 0.75rem;
   overflow: hidden;
-  margin: 0.5rem 0 1rem;
+  background: var(--bg);
+  color: var(--accent);
 }
 
-.progress-bar-fill {
-  height: 100%;
+.progress-bar::-webkit-progress-bar {
+  background: var(--bg);
+}
+
+.progress-bar::-webkit-progress-value {
   background: var(--accent);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .progress-bar-fill {
-    transition: width 0.2s ease;
-  }
+.progress-bar::-moz-progress-bar {
+  background: var(--accent);
 }
 
 .record-card {
@@ -391,7 +418,7 @@ fieldset.review-choices {
 .dropzone {
   margin: 1rem 0;
   padding: 0.75rem 1rem;
-  border: 2px dashed var(--border);
+  border: 2px dashed var(--border-strong);
   border-radius: 0.5rem;
 }
 

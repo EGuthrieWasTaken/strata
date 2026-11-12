@@ -32,6 +32,12 @@ CI runs the suite on Linux, macOS and Windows on Python 3.11 to 3.13 and require
 A pull request that changes only documentation (the root `README.md`, `CHANGELOG.md` and `CONTRIBUTING.md`,
 and everything under `docs/`, `wiki/` and `openspec/`) skips the test jobs and runs `lint`, `docs` and `gate`;
 anything else runs them all (`openspec:ci-gate#documentation-only-pull-requests-skip-the-test-jobs`).
+The web interface is also driven in a real Chromium (`tests/browser`: reflow at 320 and 640 px, contrast in light
+and dark, reduced motion, JavaScript off, markup in a record, the session token out of the address). They are
+skipped where Node and Playwright are not installed, so the commands above do not need a browser; the `browser`
+job in CI installs the pinned Playwright and requires them (`STRATA_REQUIRE_BROWSER=1`), and a nightly run covers
+macOS and Windows. To run them yourself: `cd tests/browser && npm ci && npx playwright install chromium`, then
+`uv run pytest tests/browser` (about two minutes; `scripts/seed_review.py` builds the reviews they walk).
 The pull-request template asks the questions that matter: is there a test that fails without the change, is
 the requirement linked to its test, does the spec change, and does the user-facing documentation change.
 

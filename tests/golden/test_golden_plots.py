@@ -19,6 +19,7 @@ import pytest
 
 from strata.analysis import engine, plots, rows
 from strata.analysis import spec as sp
+from tests.unit import _svg as svg_mod
 from tests.unit._m4 import meta_repo, write_spec
 
 GOLDEN = Path(__file__).parent / "plots"
@@ -101,3 +102,21 @@ def test_a_different_hash_seed_gives_the_same_bytes(tmp_path: Path) -> None:
         )  # fmt: skip
         outputs.append(done.stdout)
     assert outputs[0] == outputs[1] and outputs[0].count("\n") == 4
+
+
+@pytest.mark.parametrize("name", PLOTS)
+def test_no_plot_draws_outside_its_own_canvas(name: str, drawn: dict[str, bytes]) -> None:
+    """Every polygon point and line end lies inside the figure's viewBox."""
+    svg = drawn[f"{name}.svg"].decode("utf-8")
+    width, height = svg_mod.viewbox(svg)
+    stray = svg_mod.outside(svg_mod.every_point(svg), 0, 0, width, height)
+    assert stray == [], f"{name}: points outside the {width:g} x {height:g} figure: {stray[:3]}"
+
+
+def test_the_funnel_plots_data_shapes_stay_inside_its_axes(drawn: dict[str, bytes]) -> None:
+    """The shaded significance regions and the two limit lines are cut at the box the axes bound."""
+    svg = drawn["funnel.svg"].decode("utf-8")
+    box = svg_mod.funnel_axes_box(svg)
+    points = svg_mod.funnel_data_points(svg)
+    assert len(points) > 10  # the regions and both limit lines are really there
+    assert svg_mod.outside(points, *box) == []

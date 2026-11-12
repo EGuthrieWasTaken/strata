@@ -169,3 +169,51 @@ def test_unknown_colour_classes_are_rejected() -> None:
     c = cv.Canvas(50, 50, "t", "d")
     with pytest.raises(ValueError, match="colour class"):
         c.add(cv.Line(0, 0, 1, 1, "magenta"))
+
+
+# --- clipping: cut at a box, never bend or leave it -----------------------------------------------
+
+BOX = (0.0, 0.0, 100.0, 50.0)  # left, top, right, bottom
+
+
+def test_a_polygon_inside_the_box_is_unchanged() -> None:
+    square = ((10.0, 10.0), (20.0, 10.0), (20.0, 20.0), (10.0, 20.0))
+    assert cv.clip_polygon(square, *BOX) == square
+
+
+def test_a_polygon_wholly_outside_the_box_is_empty() -> None:
+    assert cv.clip_polygon(((200.0, 10.0), (300.0, 10.0), (250.0, 30.0)), *BOX) == ()
+
+
+def test_a_polygon_crossing_a_side_is_cut_where_its_edges_cross_it() -> None:
+    # A triangle whose right-hand corner is far outside: the cut edge keeps its slope.
+    triangle = ((0.0, 0.0), (200.0, 50.0), (0.0, 50.0))
+    clipped = cv.clip_polygon(triangle, *BOX)
+    assert all(0 <= x <= 100 and 0 <= y <= 50 for x, y in clipped)
+    # (0, 0) -> (200, 50) has slope 1/4, so it crosses x = 100 at y = 25.
+    assert (100.0, 25.0) in clipped and (100.0, 50.0) in clipped
+    assert (200.0, 50.0) not in clipped
+
+
+def test_a_segment_inside_the_box_is_unchanged() -> None:
+    assert cv.clip_segment(10, 10, 90, 40, *BOX) == (10, 10, 90, 40)
+
+
+def test_a_segment_wholly_outside_the_box_is_none() -> None:
+    assert cv.clip_segment(-50, -10, -20, 30, *BOX) is None
+    assert cv.clip_segment(0, 60, 100, 60, *BOX) is None  # parallel to a side, and beyond it
+
+
+def test_a_segment_leaving_the_box_is_cut_on_the_same_line() -> None:
+    x1, y1, x2, y2 = cv.clip_segment(50, 0, 250, 50, *BOX) or (0, 0, 0, 0)
+    assert (x1, y1) == (50, 0)
+    assert x2 == pytest.approx(100) and y2 == pytest.approx(12.5)  # slope 1/4 kept
+    x1, y1, x2, y2 = cv.clip_segment(-100, 0, 100, 50, *BOX) or (0, 0, 0, 0)
+    assert x1 == pytest.approx(0) and y1 == pytest.approx(25) and (x2, y2) == (100, 50)
+
+
+def test_the_area_of_a_polygon_and_of_a_sliver() -> None:
+    assert cv.polygon_area(((0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (0.0, 5.0))) == 50.0
+    assert cv.polygon_area(((0.0, 0.0), (10.0, 0.0), (5.0, 8.0))) == 40.0
+    assert cv.polygon_area(((70.0, 50.0), (70.0, 380.0), (70.0, 380.0), (70.0, 50.0))) == 0.0
+    assert cv.polygon_area(((1.0, 1.0), (2.0, 2.0))) == 0.0

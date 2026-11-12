@@ -29,3 +29,6 @@ htmlcov/
 .idea/
 .vscode/
 coverage.xml
+
+# Playwright for the browser tests (tests/browser/package.json pins it)
+tests/browser/node_modules/

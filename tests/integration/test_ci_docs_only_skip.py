@@ -18,7 +18,15 @@ from strata.core.canon import load_yaml_str
 ROOT = Path(__file__).resolve().parents[2]
 
 # Every job that runs the tests, directly or by waiting for `test-fast`.
-TEST_JOBS = ["test", "statistical", "determinism", "coverage", "benchmark", "traceability"]
+TEST_JOBS = [
+    "test",
+    "statistical",
+    "determinism",
+    "coverage",
+    "benchmark",
+    "traceability",
+    "browser",
+]
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +86,7 @@ def test_the_gate_always_runs_and_waits_for_the_classifier_and_every_job_it_can_
     # `code-changes` is here so that a classifier that failed to run fails the gate: its dependants
     # would otherwise all be "skipped", and the gate accepts "skipped".
     assert {"code-changes", "lint", "test-fast", "test", "statistical", "determinism"} <= needs
-    assert {"coverage", "container"} <= needs
+    assert {"coverage", "browser", "container"} <= needs
     run = "\n".join(step.get("run", "") for step in gate["steps"])
     assert '("success", "skipped")' in run
 

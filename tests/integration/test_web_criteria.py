@@ -148,20 +148,64 @@ def test_criteria_edit_preview_never_mutates_the_repository(tmp_path: Path) -> N
     assert read_criteria_doc(repo)["version"] == version_before
 
 
-def test_criteria_edit_preview_carries_forward_typed_definition_and_rationale(
+def _criteria_state(repo) -> tuple[bytes, bytes]:  # type: ignore[no-untyped-def]
+    """What a preview must leave as it found it: the criteria file and every criteria event."""
+    root = repo.root
+    events = b"".join(f.read_bytes() for f in sorted((root / "events" / "criteria").glob("*")))
+    return (root / "protocol" / "criteria.yaml").read_bytes(), events
+
+
+def test_criteria_edit_preview_is_a_post_that_changes_nothing_and_keeps_what_was_typed(
     tmp_path: Path,
 ) -> None:
-    """The "Preview" button is a plain GET resubmit (no-JS baseline);
-    without carrying the in-progress edit forward, refreshing the preview
-    would silently discard whatever the reviewer had already typed."""
+    """The "Preview" button posts the form: the session token is the form's CSRF field, so as a GET
+    it put the token and the reviewer's reason in the address (browser history, Referer, logs).
+    Posting also keeps what the reviewer had typed, which a re-render would otherwise discard."""
+    repo = _repo_with_one_stale_candidate(tmp_path)
+    before = _criteria_state(repo)
+    client = _client(repo)
+    r = client.post(
+        "/criteria/EXC-03/edit",
+        data={
+            "csrf_token": _TOKEN,
+            "intent": "preview",
+            "direction": "loosened",
+            "definition": "A draft definition",
+            "rationale": "still typing the reason",
+        },
+    )
+    assert r.status_code == 200  # a page, not the redirect that saving answers with
+    assert "impact-preview" in r.text and "would become stale" in r.text
+    assert "A draft definition" in r.text and "still typing the reason" in r.text
+    assert _criteria_state(open_repo(repo.root)) == before
+
+
+def test_criteria_edit_preview_without_the_session_token_is_refused(tmp_path: Path) -> None:
     repo = _repo_with_one_stale_candidate(tmp_path)
     client = _client(repo)
-    r = client.get(
-        "/criteria/EXC-03/edit"
-        "?direction=loosened&definition=A+draft+definition&rationale=still+typing"
+    r = client.post(
+        "/criteria/EXC-03/edit",
+        data={"intent": "preview", "direction": "loosened", "rationale": "no token sent here"},
     )
-    assert "A draft definition" in r.text
-    assert "still typing" in r.text
+    assert r.status_code == 403
+
+
+def test_criteria_edit_page_offers_preview_as_a_post_and_never_as_a_get(tmp_path: Path) -> None:
+    client = _client(_repo_with_one_stale_candidate(tmp_path))
+    page = client.get("/criteria/EXC-03/edit").text
+    assert 'formmethod="get"' not in page
+    assert 'name="intent" value="preview"' in page
+
+
+def test_text_typed_into_an_address_is_not_echoed_into_the_edit_form(tmp_path: Path) -> None:
+    """The editor no longer reads a draft definition or reason from the query string, so nothing a
+    reviewer wrote can be put back into a page from an address."""
+    client = _client(_repo_with_one_stale_candidate(tmp_path))
+    r = client.get(
+        "/criteria/EXC-03/edit?direction=loosened&definition=A+draft+definition&rationale=still+typing"
+    )
+    assert "A draft definition" not in r.text and "still typing" not in r.text
+    assert "impact-preview" in r.text  # the direction in the address still previews
 
 
 def test_criteria_edit_post_saves_and_commits(tmp_path: Path) -> None:

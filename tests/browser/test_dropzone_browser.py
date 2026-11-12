@@ -9,7 +9,6 @@ script or CSP error and that none scrolls sideways at 320 px.
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -18,23 +17,14 @@ from pathlib import Path
 import pytest
 
 from strata.core.init import init_repository
+from tests.browser.support import needs_browser
 
 pytestmark = pytest.mark.browser
 
 SCRIPT = Path(__file__).with_name("dropzone_smoke.js")
 
 
-def _playwright_available() -> bool:
-    node = shutil.which("node")
-    if node is None:
-        return False
-    probe = subprocess.run(
-        [node, "-e", "require('playwright')"], capture_output=True, text=True, timeout=60
-    )
-    return probe.returncode == 0
-
-
-@pytest.mark.skipif(not _playwright_available(), reason="needs Node with Playwright and Chromium")
+@needs_browser
 def test_a_person_can_drop_files_on_a_search_and_import_them(tmp_path: Path) -> None:
     root = tmp_path / "review"
     init_repository(root, title="Browser Test", actor_handle="ethan", actor_name="Ethan")

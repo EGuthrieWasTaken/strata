@@ -117,6 +117,43 @@ jobs:
           uv pip install --python cold-install-env -e .
           uv run --python cold-install-env strata --help
 
+  # The browser tests on every platform. Chromium draws fonts, scrollbars and form controls differently
+  # on each, and the pull-request `browser` job runs on Linux only.
+  browser:
+    name: browser (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      STRATA_REQUIRE_BROWSER: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Configure git identity (the seeded reviews are git repositories)
+        shell: bash
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - name: Install Playwright (pinned in tests/browser/package-lock.json) and Chromium
+        working-directory: tests/browser
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            npx playwright install --with-deps chromium
+          else
+            npx playwright install chromium
+          fi
+      - run: uv run pytest tests/browser -q -p no:cacheprovider --durations=10
+
   # openspec:container-image: the image builds from scratch and runs the same smoke test as the
   # pull-request job, so a base-image or dependency change that breaks it is caught overnight.
   cold-install-container:
@@ -133,7 +170,7 @@ jobs:
   open-issue-on-failure:
     name: open-issue-on-failure
     if: failure()
-    needs: [metafor-live, fuzz, benchmark-50k, audit, cold-install, cold-install-container]
+    needs: [metafor-live, fuzz, benchmark-50k, audit, cold-install, cold-install-container, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

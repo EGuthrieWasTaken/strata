@@ -9,9 +9,7 @@
 <div class="screen-header" data-testid="screen-header">
   <h1>{{ stage }} screening &mdash; {{ position }} of {{ total }}</h1>
   {% if total %}
-  <div class="progress-bar" role="progressbar" aria-valuenow="{{ position }}" aria-valuemin="0" aria-valuemax="{{ total }}">
-    <div class="progress-bar-fill" style="width: {{ (position / total * 100) | round(1) }}%"></div>
-  </div>
+  <progress class="progress-bar" value="{{ position }}" max="{{ total }}" aria-label="Progress through the {{ stage }} queue">{{ position }} of {{ total }}</progress>
   {% endif %}
 </div>
 

@@ -174,11 +174,14 @@ container](Running-in-a-Container) for the container case.
 
 ## What it writes
 
-Screening in the browser appends the same decisions to the same files as the command line and commits them
-with the same trailers, so `strata log`, `strata why` and `strata sync` see no difference. A screening session
-is committed when you leave the screen. Recording a search and importing its files use the very same code as
-`strata search add` and `strata import`: the search file, the import, the commit messages and the PRISMA
-counts come out identical, whichever you used.
+Screening in the browser appends the same decisions to the same files as the command line. A decision is saved
+to disk the moment you make it, but `strata serve` does not commit it when you leave the screen: it is committed
+the next time anything else in the review is committed, whether by a later `strata` command or by a change made
+in the browser. Until then the review shows uncommitted changes, `strata verify` reports its derived files out of
+date, and `strata sync` refuses; see [Known limitations](Known-Limitations) for how to commit them yourself. (A
+[hosted instance](Running-a-Hosted-Instance) commits them for you, in batches.) Recording a search and importing
+its files use the very same code as `strata search add` and `strata import`: the search file, the import, the
+commit messages and the PRISMA counts come out identical, whichever you used.
 
 ## Also available to AI assistants
 
