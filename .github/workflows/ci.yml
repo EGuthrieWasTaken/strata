@@ -237,6 +237,38 @@ jobs:
   # openspec:container-image#image-ci: build the image on both architectures (natively, one
   # runner each, so no emulation and no third-party build action) and smoke-test it. Only when
   # something the image is made of changed; a skipped job satisfies `gate`.
+  # openspec:web-ui#accessibility: the screens in a real browser. `tests/browser` drives Chromium
+  # through every page of seeded reviews (scripts/seed_review.py): reflow at 320 and 640 px, contrast
+  # in light and dark, reduced motion, the whole flow with JavaScript off, markup in a record, and that
+  # the criteria preview keeps the session token out of the address. The stack is installed here on
+  # purpose, and STRATA_REQUIRE_BROWSER makes a missing one fail the tests instead of skipping them.
+  # Like the other test jobs it needs `test-fast`, so a documentation-only pull request skips it.
+  browser:
+    name: browser
+    needs: [lint, test-fast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STRATA_REQUIRE_BROWSER: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Configure git identity (the seeded reviews are git repositories)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - name: Install Playwright (pinned in tests/browser/package-lock.json) and Chromium
+        working-directory: tests/browser
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - run: uv run pytest tests/browser -q -p no:cacheprovider --durations=10
+
   container-changes:
     name: container-changes
     runs-on: ubuntu-latest
@@ -358,7 +390,7 @@ jobs:
   gate:
     name: gate
     if: always()
-    needs: [code-changes, lint, test-fast, test, statistical, determinism, coverage, container]
+    needs: [code-changes, lint, test-fast, test, statistical, determinism, coverage, browser, container]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

@@ -45,7 +45,7 @@ records what was built, the conventions that emerged, and what is deliberately p
 - **pandoc** is optional: `--format md` needs nothing, and a missing pandoc is a specific error that
   says so. The docx, html and LaTeX outputs are not byte-reproducible (pandoc's own metadata).
 - **Cross-platform byte identity** of the flow diagrams is asserted by golden files on every platform
-  in the CI matrix; it has been run on Linux only.
+  in the CI matrix, where they pass on Linux, macOS and Windows.
 
 ## Conventions established
 

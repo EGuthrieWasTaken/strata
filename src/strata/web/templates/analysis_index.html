@@ -2,7 +2,7 @@
 {% block title %}Analyses{% endblock %}
 {% block content %}
 <h1>Analyses</h1>
-<table class="stage-table">
+<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
   <thead>
     <tr>
       <th scope="col">Analysis</th>
@@ -25,6 +25,6 @@
     <tr><td colspan="3">No analyses yet. Add <code>analysis/&lt;id&gt;.yaml</code> and run <code>strata analyze</code>.</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% endblock %}

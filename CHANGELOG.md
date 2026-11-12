@@ -394,6 +394,13 @@ All notable changes to `strata` are documented here. Format follows
   `verify`, `status`, `log`.
 - `.gitattributes`, merge driver installation, and versioned git hooks
   (`pre-commit`, `commit-msg`, `post-merge`, `post-checkout`).
+- **The browser tests run in CI.** A `browser` job (on every pull request that touches code, part of the `gate`) and
+  a nightly one on Linux, macOS and Windows install the Playwright pinned in `tests/browser/package.json` and its
+  lockfile, with Chromium, and run `tests/browser`: every screen of seeded reviews (`scripts/seed_review.py`) for
+  reflow at 320 and 640 px, contrast in light and dark, reduced motion, the flow with JavaScript off, markup in a
+  record, and the criteria preview keeping the session token out of the address. `STRATA_REQUIRE_BROWSER=1` makes a
+  missing stack fail the tests instead of skipping them, so a broken install cannot look like a pass. Dependabot
+  keeps Playwright current.
 
 ### Changed
 
@@ -509,3 +516,27 @@ All notable changes to `strata` are documented here. Format follows
   running after five-plus minutes now completes in ~20s; 50,000-record dedup
   dropped from over 240s to ~126s. New `append_new_events` batches a run's
   worth of appends into one read plus one write per event.
+- **The web interface found four defects when every screen was opened in a real browser** (`scripts/seed_review.py`
+  builds the reviews; `tests/browser/test_pages_browser.py` walks them). The screening progress bar set its
+  width with an inline `style=` that the Content-Security-Policy (`style-src 'self'`) blocks, so it never
+  filled; it is now a native `<progress>`. The drop target's border was 1.6:1 against the page in light and
+  1.9:1 in dark, under the 3:1 the specification asks for; it now uses `--border-strong`. Tables on
+  `/records`, `/history`, `/adjudicate`, `/extract/<study>` and `/analysis/<id>` pushed the whole page sideways
+  at 320 px (the analysis study table at 1024 px too); they now scroll inside a keyboard-focusable box. A title
+  or DOI with no spaces did the same on the screening card and a record's page; words now break where they
+  must. `tests/unit/test_web_static_accessibility.py` holds all four in the pull-request gate.
+- **The criteria editor's Preview put the session token and the reviewer's reason in the address.** Preview was a
+  GET submit of the form whose hidden `csrf_token` field is the session token, so the token (the very value the
+  `HttpOnly` cookie protects) and the reason went into browser history, the address bar and `Referer`
+  headers. Preview now posts, with or without JavaScript; the editor no longer reads a draft from the query
+  string. Found by an agent clicking through every screen in Chrome (`docs/chrome-pass-results.md`).
+- **The funnel plot's confidence-limit lines ran off the figure, and its shaded regions were bent.** The two lines
+  from the apex were drawn out to the widest standard error whatever the plot's horizontal range: on the
+  Quickstart review (four studies with similar effects) they ran from x = -30 to x = 630 on a 560 px figure,
+  through the y axis and its label and out of the picture. The shaded significance regions beside them were kept
+  inside the box by moving each far corner to the box's side, which also turned their slanted edge into a
+  diagonal to the corner instead of the line |yi| = z * se. Both are now cut at the box the axes bound
+  (`strata.stats.canvas.clip_polygon` and `clip_segment`), the limits are drawn as two lines rather than a
+  triangle, and a region wholly outside the box is not drawn. The funnel golden files are regenerated; no other
+  plot changes. Found by an agent clicking through the analysis page in Chrome
+  (`docs/chrome-pass-results.md`, F13).

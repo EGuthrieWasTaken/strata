@@ -314,27 +314,24 @@ def funnel(spec: AnalysisSpec, result: EngineResult) -> cv.Canvas:
     )
     z_values = [1.6448536269514722, 1.959963984540054, 2.5758293035489004]
     tints = ["tint1", "tint2", "tint3"]
+    # Everything drawn from the data is cut at the box the axes bound. Cut, not clamped: a corner
+    # moved to the side would bend the edge, and a limit line that runs on past the axes would
+    # leave the figure.
+    box = (left, top, left + plot_w, top + plot_h)
     # Regions where |yi / se| exceeds each threshold around no effect, widest tint first.
     for z, tint in zip(z_values, tints, strict=True):
         pts_r = ((x(0.0), y(0.0)), (x(z * max_se), y(max_se)), (x.b, y(max_se)), (x.b, y(0.0)))
         pts_l = ((x(0.0), y(0.0)), (x(-z * max_se), y(max_se)), (x.a, y(max_se)), (x.a, y(0.0)))
-        canvas.add(
-            cv.Polygon(tuple((min(max(px, x.a), x.b), py) for px, py in pts_r), tint),
-            cv.Polygon(tuple((min(max(px, x.a), x.b), py) for px, py in pts_l), tint),
-        )
-    # Pseudo confidence limits around the pooled estimate.
-    canvas.add(
-        cv.Polygon(
-            (
-                (x(est), y(0.0)),
-                (x(est - 1.959964 * max_se), y(max_se)),
-                (x(est + 1.959964 * max_se), y(max_se)),
-            ),
-            "ink",
-            fill=False,
-        ),
-        cv.Line(x(est), y(0.0), x(est), y(max_se), "accent2", width=1.5),
-    )
+        for region in (pts_r, pts_l):
+            clipped = cv.clip_polygon(region, *box)
+            if cv.polygon_area(clipped) > 0.5:  # a region wholly outside clips to a sliver; skip it
+                canvas.add(cv.Polygon(clipped, tint))
+    # Pseudo confidence limits around the pooled estimate: two lines from the apex.
+    for sign in (-1.0, 1.0):
+        limit = cv.clip_segment(x(est), y(0.0), x(est + sign * 1.959964 * max_se), y(max_se), *box)
+        if limit is not None:
+            canvas.add(cv.Line(*limit, "ink"))
+    canvas.add(cv.Line(x(est), y(0.0), x(est), y(max_se), "accent2", width=1.5))
     if x.lo <= 0.0 <= x.hi:
         canvas.add(cv.Line(x(0.0), y(0.0), x(0.0), y(max_se), "muted", dash=True))
     for unit, s in zip(units, se, strict=True):

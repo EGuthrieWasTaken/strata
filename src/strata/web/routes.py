@@ -620,10 +620,11 @@ def _criteria_edit_context(
         # Each stale entry names a prior decision
         # (openspec:hosted-deployment#blinding-between-users).
         preview = blinding_mod.visible(preview, blinding_mod.blinded_records(repo, state.actor))
-    # The "Preview" button is a plain GET resubmit (openspec:web-ui#technology's no-JS baseline),
-    # which would otherwise reset the definition/rationale textareas to
-    # their on-disk values on every preview refresh -- carry forward
-    # whatever the reviewer already had typed instead.
+    # The "Preview" button posts the form (it works without JavaScript, openspec:web-ui#technology),
+    # and the page it answers with is rendered from what was posted, so the definition and reason
+    # the reviewer had typed come back in the boxes. Nothing typed is ever read from the address:
+    # the session token is the form's CSRF field, so a GET form would put it, and the reason, in
+    # the URL.
     return {
         "criterion": criterion,
         "mode": mode,
@@ -634,10 +635,8 @@ def _criteria_edit_context(
         "error": error,
         "definition_value": definition_value
         if definition_value is not None
-        else request.query_params.get("definition", criterion.get("definition", "")),
-        "rationale_value": rationale_value
-        if rationale_value is not None
-        else request.query_params.get("rationale", ""),
+        else criterion.get("definition", ""),
+        "rationale_value": rationale_value if rationale_value is not None else "",
     }
 
 
@@ -671,6 +670,24 @@ async def criteria_edit_submit(
     direction = str(form.get("direction") or "")
     definition = str(form.get("definition") or "").strip() or None
     raw_rationale = str(form.get("rationale") or "")
+
+    if form.get("intent") == "preview":
+        # The impact preview: computed from the posted direction, saving nothing, and the form comes
+        # back as it was filled in (openspec:web-ui#criteria-editor-impact-preview).
+        return _render(
+            request,
+            "criteria_edit.html",
+            _criteria_edit_context(
+                request,
+                state,
+                repo,
+                criterion,
+                mode="edit",
+                definition_value=str(form.get("definition") or criterion.get("definition", "")),
+                rationale_value=raw_rationale,
+                direction_override=direction or None,
+            ),
+        )
 
     try:
         rationale = validate_rationale(raw_rationale)

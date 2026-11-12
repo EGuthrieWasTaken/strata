@@ -48,7 +48,9 @@ conventions that emerged, and what is deliberately partial.
   variance components only to about 1e-7 (refitting the committed data from other starting values,
   or with BFGS, moves them by that much while the log-likelihood agrees to 1e-15), so the
   multilevel fits have their own tolerance, pinned in `tests/statistical/test_compare_fixtures.py`.
-  The next scheduled run is the first to show whether the whole job passes.
+  The scheduled run of 5 November (Nightly #57, on the commit after both fixes) is the first to get
+  through: every step of `metafor-live` passed, including the comparison that fails on drift, and so did
+  the other eight jobs.
 - **PNG output** needs the optional `cairosvg` package; without it `--plot-format png` is a specific
   error that suggests SVG or PDF.
 - **`strata report` plots.** Robvis-style risk-of-bias plots are M5.

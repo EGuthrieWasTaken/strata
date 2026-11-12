@@ -6,7 +6,7 @@
  * file only makes the common path faster.
  *
  *  1. Single-key shortcuts for the screening surface (openspec:web-ui#screening-surface-requirements S1/S3).
- *  2. Auto-resubmit a form as GET when a radio input changes, for the
+ *  2. Auto-preview a form (post it with intent=preview) when a radio input changes, for the
  *     criteria editor's live impact preview (openspec:web-ui#criteria-editor-impact-preview: "MUST update as the
  *     direction radio changes"). Opt in per form via
  *     `data-auto-submit-on-change="<radio name>"`.
@@ -33,12 +33,11 @@
 
   document.querySelectorAll("form[data-auto-submit-on-change]").forEach(function (form) {
     var radioName = form.dataset.autoSubmitOnChange;
-    var previewButton = form.querySelector('button[formmethod="get"]');
+    var previewButton = form.querySelector('button[name="intent"][value="preview"]');
     form.querySelectorAll('input[type="radio"][name="' + radioName + '"]').forEach(function (radio) {
       radio.addEventListener("change", function () {
-        // Submit via the "Preview" button specifically, so its
-        // formmethod="get" override (not the form's own default POST) is
-        // what actually fires.
+        // Submit via the "Preview" button specifically, so the server
+        // receives intent=preview and shows the impact instead of saving.
         if (previewButton && typeof form.requestSubmit === "function") {
           form.requestSubmit(previewButton);
         } else if (typeof form.requestSubmit === "function") {

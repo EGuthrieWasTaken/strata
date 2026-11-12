@@ -326,9 +326,9 @@ review repository.
   as actors of their own; suggestions a person adopts or rejects, and counted work recorded under the
   assistant's handle; MCP write tools; a ledger from which the Methods text and PRISMA checklist items 8, 9
   and 11 are written; revoking and auditing; schema format 2 and `strata migrate`. `strata` still ships no
-  model, and does not gate `1.0.0`. *Written and tested locally on Linux; the CLI is not yet moved onto the
-  shared operations, and the manual read of the disclosure by a methodologist has not been done — see
-  [`m6-plan.md`](m6-plan.md).*
+  model, and does not gate `1.0.0`. *Written and tested, and the pull-request gate passed on Linux, macOS and
+  Windows; the CLI is not yet moved onto the shared operations, and the manual read of the disclosure by a
+  methodologist has not been done — see [`m6-plan.md`](m6-plan.md).*
 - Translations.
 
 ---

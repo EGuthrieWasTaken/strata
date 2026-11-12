@@ -13,6 +13,14 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Keeps the Playwright that the browser tests use (tests/browser/package.json, pinned exactly)
+  # current. A new Playwright can change how pages render, so it arrives as a pull request that runs
+  # the `browser` job.
+  - package-ecosystem: "npm"
+    directory: "/tests/browser"
+    schedule:
+      interval: "weekly"
+
   # Keeps the Dockerfile's base image (and its digest pin) current.
   - package-ecosystem: "docker"
     directory: "/"
