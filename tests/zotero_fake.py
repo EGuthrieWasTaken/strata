@@ -270,10 +270,9 @@ class FakeZotero:
                 return self._page(self._children(library, m.group(1)), query)
         elif method == "POST" and rest == "/items":
             return self._write_items(library, body, local=local)
-        elif method == "DELETE":
-            if m := re.fullmatch(r"/items/(\w+)", rest):
-                library.items.pop(m.group(1), None)
-                return HttpResponse(204, {}, b"")
+        elif method == "DELETE" and (m := re.fullmatch(r"/items/(\w+)", rest)):
+            library.items.pop(m.group(1), None)
+            return HttpResponse(204, {}, b"")
         return _text(405, "Method Not Allowed")
 
     def _groups(self) -> list[dict[str, Any]]:
