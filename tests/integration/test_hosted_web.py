@@ -446,3 +446,31 @@ def test_an_instance_on_a_port_of_its_own_names_its_cookies_after_it(tmp_path: P
         allow_plain_http=True,
     )
     assert plain.session_cookie == "strata_session_8765"
+
+
+def test_finishing_a_session_commits_the_members_decisions_under_their_name(
+    tmp_path: Path,
+) -> None:
+    """The Finish session button on a hosted instance (#83): a screener may press it, the batch is
+    theirs, and an observer, who cannot screen, is refused."""
+    h = hosted(tmp_path)
+    sam = h.signed_in("sam.okonkwo")
+    record = screening_mod.stage_queue(h.repo, "title-abstract", "sam")[0]
+    decided = post(
+        sam, "/screen/title-abstract", {"record_id": record, "decision": "include", "skip": ""}
+    )
+    assert decided.status_code == 303
+    assert gitio.is_dirty(h.repo.root)
+
+    finished = post(sam, "/session/finish", {})
+    assert finished.status_code == 303 and finished.headers["location"].endswith("/?finished=1")
+    assert not gitio.is_dirty(h.repo.root)
+    subject, author = (
+        gitio.run(["log", "-1", "--format=%s%n%an"], cwd=h.repo.root).stdout.strip().splitlines()
+    )
+    assert subject == "screen(title-abstract): screen 1 record (1 include)"
+    assert author == "Sam Okonkwo"
+    page = sam.get("/p/spacing/screen/title-abstract").text
+    assert "so does signing out" in page and "so does leaving this screen" not in page
+
+    assert post(h.signed_in("olive"), "/session/finish", {}).status_code == 403
