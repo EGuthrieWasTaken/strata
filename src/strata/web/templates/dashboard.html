@@ -2,6 +2,9 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <h1>{{ report.title }}</h1>
+{% if finished %}
+<p class="notice" role="status" data-testid="session-finished">Screening session finished: your decisions are committed to the review's history (<a href="{{ root }}/history">History</a>).</p>
+{% endif %}
 {% if hosted %}
 <section class="hosted-sync" data-testid="project-sync" aria-labelledby="sync-heading">
   <h2 id="sync-heading">Shared remote</h2>

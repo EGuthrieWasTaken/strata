@@ -503,3 +503,8 @@ fieldset.review-choices {
   font-size: 0.9em;
 }
 .ai-label .ai-detail { font-weight: normal; }
+
+/* Ending a screening session: apart from the decision form, so a key meant for it cannot land here. */
+.finish-session { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border, #ccc); }
+.finish-session .field-meta { margin-top: 0.4rem; }
+.criterion-kind { font-style: italic; }

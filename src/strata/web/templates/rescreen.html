@@ -4,10 +4,19 @@
 {% if stale is none %}
 <h1>{{ stage }} rescreen</h1>
 <p class="done-note">Nothing stale for {{ actor }} at this stage.</p>
+<form method="post" action="{{ root }}/session/finish" class="finish-session">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <button type="submit" class="btn">Finish session</button>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; so does leaving this screen.</span>
+</form>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
 <h1>{{ stage }} rescreen &mdash; {{ total }} stale</h1>
+<p class="field-meta" data-testid="rescreen-scope">{{ total }} of your own {{ stage }} decision{{ "s" if total != 1 else "" }} need{{ "s" if total == 1 else "" }} another look{% if skipped %} &middot; {{ skipped }} skipped for now, offered again at the end{% endif %}. The dashboard counts records with a stale decision by anyone, so its number can differ.</p>
 
+{% if error %}
+<div class="error" role="alert"><p>{{ error }}</p>{% if error_detail %}<p class="field-meta error-detail">{{ error_detail }}</p>{% endif %}</div>
+{% endif %}
 <div class="notice">
   <p><strong>Your previous decision:</strong> {{ stale.prior_decision | upper }}
     {% if stale.prior_criteria %}citing {{ stale.prior_criteria | join(", ") }}{% endif %}</p>
@@ -23,7 +32,7 @@
   {% endif %}
 </article>
 
-<form method="post" action="{{ root }}/rescreen/{{ stage }}" id="screen-form">
+<form method="post" action="{{ root }}/rescreen/{{ stage }}" id="screen-form" data-require-exclusion-reason="false">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_id" value="{{ stale.record_id }}">
   <input type="hidden" name="skip" value="{{ skip_csv }}">
@@ -42,26 +51,38 @@
       <kbd>k</kbd> Keep previous
     </button>
   </div>
+  <p class="error" id="screen-hint" role="alert" hidden></p>
 
   {% if active_criteria %}
   <fieldset class="criteria-list">
-    <legend>Exclusion criteria</legend>
+    <legend>Reasons for excluding</legend>
+    <p class="field-meta" id="criteria-hint">Tick every one that applies, an exclusion criterion the record meets or an inclusion criterion it does not, then choose Exclude. <span class="js-only-hint" hidden>Keys <kbd>1</kbd>&ndash;<kbd>9</kbd> tick and untick; nothing is recorded until you press <kbd>e</kbd>.</span></p>
     {% for c in active_criteria %}
     <label class="criterion" title="{{ c.definition }}">
-      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}">
+      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}"{% if c.id in ticked %} checked{% endif %}>
       <span class="criterion-num">{{ loop.index }}</span>
       <span class="criterion-id">{{ c.id }}</span>
-      <span class="criterion-label">{{ c.label }}</span>
+      <span class="criterion-label">{% if c.kind == "inclusion" %}<span class="criterion-kind">Not met:</span> {% endif %}{{ c.label }}</span>
     </label>
     {% endfor %}
   </fieldset>
   {% endif %}
+
+  <label class="note-field">
+    Why the change? (needed if you decide differently from before; not used by Keep previous)
+    <textarea name="note" id="note-field" accesskey=",">{{ note }}</textarea>
+  </label>
 
   <div class="nav-links">
     <a href="{{ root }}/rescreen/{{ stage }}?skip={{ skip_next_csv }}" accesskey="s" id="skip-link">
       <kbd>s</kbd> Skip
     </a>
   </div>
+</form>
+<form method="post" action="{{ root }}/session/finish" class="finish-session">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <button type="submit" class="btn">Finish session</button>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; so does leaving this screen.</span>
 </form>
 {% endif %}
 {% endblock %}

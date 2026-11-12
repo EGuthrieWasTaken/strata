@@ -16,6 +16,7 @@ import re
 import shutil
 import sys
 import webbrowser
+from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 from pathlib import Path
@@ -66,7 +67,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
-from strata.core.screen_batches import flush_pending_screening, flush_under_lock
+from strata.core.screen_batches import batch_summary, flush_pending_screening, flush_under_lock
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -1496,7 +1497,10 @@ def _commit_domain_op(
     summary: str,
     by: str,
     extra_trailers: dict[str, str] | None = None,
+    did: str | None = None,
 ) -> None:
+    """`did` is what the rationale prompt says was done, when the commit's summary does not read
+    as a sentence after "You"."""
     ops_mod.commit_domain_work(
         repo,
         op=op,
@@ -1505,7 +1509,7 @@ def _commit_domain_op(
         actor=by,
         extra_trailers=extra_trailers,
         commit=not ctx.obj["no_commit"],
-        rationale=lambda: _get_rationale(ctx, repo, f"You {summary}."),
+        rationale=lambda: _get_rationale(ctx, repo, f"You {did or summary}."),
     )
 
 
@@ -2197,6 +2201,7 @@ def screen_command(
     )
 
     decided = 0
+    made: Counter[str] = Counter()
     last_decided_index: int | None = None
     index = 0
     while index < len(queue):
@@ -2251,18 +2256,22 @@ def screen_command(
             continue
 
         decided += 1
+        made[decision] += 1
         last_decided_index = index
         index += 1
 
     if decided:
         pool_mod.regenerate_all(repo)
+        # The subject the browser's batches get, so a session reads the same in the history
+        # wherever it was recorded (openspec:git-integration#batched-screening-commits).
         _commit_domain_op(
             ctx,
             repo,
             op="screen",
             scope=stage,
-            summary=f"screened {decided} {stage} record(s)",
+            summary=batch_summary(made),
             by=by,
+            did=f"screened {decided} {stage} record(s)",
         )
     if ctx.obj["json"]:
         _print_json({"stage": stage, "decided": decided})
@@ -2383,6 +2392,7 @@ def rescreen_command(
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     decided = 0
+    made: Counter[str] = Counter()
     index = 0
     while index < len(queue):
         s, stale = queue[index]
@@ -2433,6 +2443,7 @@ def rescreen_command(
             continue
 
         decided += 1
+        made[decision] += 1
         index += 1
 
     if decided:
@@ -2442,8 +2453,9 @@ def rescreen_command(
             repo,
             op="rescreen",
             scope=stage,
-            summary=f"re-screened {decided} stale record(s)",
+            summary=batch_summary(made, verb="rescreen"),
             by=by,
+            did=f"re-screened {decided} stale record(s)",
         )
     if ctx.obj["json"]:
         _print_json({"decided": decided})

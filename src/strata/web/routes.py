@@ -39,18 +39,15 @@ already excludes whatever has actually been decided) at the cost of a
 documented, acceptable trade against a much larger stateful-session design
 this sitting does not have the scope for.
 
-**Commit policy.** openspec:git-integration#batched-screening-commits batches screening
-commits (session end, 200 decisions, or 15 minutes idle) rather than
-committing per decision. This sitting appends every decision immediately
-(`record_screen_decision` already fsyncs, so nothing is lost --
-tests/e2e/test_e2e_09_interrupted_screening.py already validates that
-guarantee for the same underlying call) but does not yet implement any of
-openspec:git-integration#batched-screening-commits's three commit triggers for the web session
-specifically; a user ends
-a web screening session the same way as today, via the CLI (`strata sync`
-or a plain `git commit`) or by leaving it for their next `strata screen`
-CLI session to close out. Wiring an explicit session-end action is tracked
-alongside sitting (b).
+**Commit policy.** openspec:git-integration#batched-screening-commits: a decision is appended
+(and fsynced) the moment it is made and committed later in a batch of its reviewer's own. The
+batch is committed when the reviewer ends the session (the "Finish session" button, going to any
+page other than the screening screens, or stopping the server), at the 200th uncommitted decision,
+after 15 minutes without one, and before anything else commits; `strata serve` also commits what
+an earlier server left behind when it starts. The triggers live in `strata.web.app` and
+`strata.web.server`; the batch itself is `strata.core.screen_batches`. A decision that changes the
+reviewer's own earlier one needs a reason, kept in the event's note and listed in the batch's
+message.
 """
 
 from __future__ import annotations
@@ -72,7 +69,7 @@ from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
-from strata.core.screen_batches import flush_pending_screening
+from strata.core.screen_batches import flush_pending_screening, flush_under_lock, own_decision
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
 from strata.protocol import adjudication as adjudication_mod
@@ -82,6 +79,7 @@ from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.web.app import AppState, state_of
+from strata.web.messages import for_reviewer
 
 router = APIRouter()
 
@@ -175,6 +173,7 @@ async def dashboard(request: Request) -> HTMLResponse:
         {
             "report": report,
             "actor": state.actor,
+            "finished": request.query_params.get("finished") == "1",
             "awaiting_export": pipeline_mod.searches_awaiting_import(repo),
             "ai_enabled": enabled,
             "ai_policy": {
@@ -193,17 +192,49 @@ def _canonical_ids(repo: Any) -> list[str]:
     )
 
 
-@router.get("/screen/{stage}", response_class=HTMLResponse, response_model=None)
-async def screen_stage(request: Request, stage: str) -> HTMLResponse | PlainTextResponse:
+_DECISIONS = ("include", "exclude", "maybe")
+
+
+def _reasons_for_stage(repo: Any, stage: str) -> list[dict[str, Any]]:
+    """The active criteria a decision at `stage` may cite, in the order `strata screen` numbers
+    them, so `3` means the same criterion on the command line and in the browser."""
+    return [c for c in criteria_mod.list_criteria(repo, at=stage) if c["status"] == "active"]
+
+
+def _needs_a_reason(
+    repo: Any, *, stage: str, record_id: str, actor: str, decision: str, note: str | None
+) -> str | None:
+    """What to tell a reviewer who is changing their own earlier decision without saying why
+    (openspec:git-integration#batched-screening-commits); `None` when nothing is missing."""
+    if decision not in _DECISIONS or note:
+        return None
+    before = own_decision(repo, stage=stage, record_id=record_id, actor=actor)
+    if before is None or before.get("decision") == decision:
+        return None
+    return (
+        f"You decided {str(before.get('decision')).upper()} for this record before. "
+        f"Say why it is now {decision.upper()} in the box below, then choose again."
+    )
+
+
+def _screen_page(
+    request: Request,
+    stage: str,
+    *,
+    skip_ids: set[str],
+    redo_id: str | None,
+    prev_id: str | None,
+    again: bool = False,
+    error: str | None = None,
+    error_detail: str | None = None,
+    ticked: list[str] | None = None,
+    note: str = "",
+    status_code: int = 200,
+) -> HTMLResponse | RedirectResponse:
+    """`/screen/<stage>` for one request: the record to show and where the reviewer is in the
+    queue. The same page answers a decision that was turned away, with the reason on it."""
     state: AppState = state_of(request)
     repo = state.open_repo()
-
-    if stage not in screening_mod.configured_stages(repo):
-        return _error(f"unknown stage {stage!r}", status_code=404)
-
-    skip_ids = set(_parse_id_list(request.query_params.get("skip")))
-    redo_id = request.query_params.get("redo")
-    prev_id = request.query_params.get("prev")
 
     canonical_ids = _canonical_ids(repo)
     assign_events = screening_mod.all_assign_events(repo)
@@ -213,74 +244,99 @@ async def screen_stage(request: Request, stage: str) -> HTMLResponse | PlainText
         if state.actor
         in screening_mod.assigned_actors(repo, stage, rid, assign_events=assign_events)
     )
-
-    only_ids = {rid for rid in canonical_ids if rid not in skip_ids}
-    queue = screening_mod.stage_queue(repo, stage, state.actor, only_ids=only_ids)
-    remaining = len(queue)
-    decided = total_assigned - remaining
+    undecided = screening_mod.stage_queue(repo, stage, state.actor)
+    queue = [rid for rid in undecided if rid not in skip_ids]
+    skipped = [rid for rid in undecided if rid in skip_ids]
+    # Decisions made, whatever was skipped: a skipped record is not a decided one.
+    decided = total_assigned - len(undecided)
 
     record_id: str | None
     if redo_id is not None and records_mod.get_record(repo, redo_id) is not None:
         record_id = redo_id
+    elif queue:
+        record_id = queue[0]
+    elif skipped:
+        # Everything else is decided: offer the skipped records again, in order, rather than
+        # saying nothing is left while some are still undecided.
+        return _redirect(f"/screen/{quote(stage, safe='')}", prev=prev_id or "", again="1")
     else:
-        record_id = queue[0] if queue else None
+        record_id = None
 
+    base = {
+        "stage": stage,
+        "actor": state.actor,
+        "total": total_assigned,
+        "decided": decided,
+        "prev_id": prev_id,
+        "skip_csv": ",".join(sorted(skip_ids)),
+        "session_token": state.session_token,
+        "pending_commit": state.hosted is None,
+    }
     if record_id is None:
-        return _render(
-            request,
-            "screen.html",
-            {
-                "stage": stage,
-                "actor": state.actor,
-                "record": None,
-                "total": total_assigned,
-                "position": total_assigned,
-                "prev_id": prev_id,
-                "skip_csv": ",".join(sorted(skip_ids)),
-            },
-        )
+        return _render(request, "screen.html", {**base, "record": None, "position": decided})
 
     record = records_mod.get_record(repo, record_id)
     # `record_id` came from either the validated `redo` id or the queue
     # itself, both already checked against the live record set above.
     assert record is not None
-    active_criteria = sorted(
-        screening_mod.active_criteria_for_stage(repo, stage).values(), key=lambda c: c["id"]
-    )
-    require_exclusion_reason = bool(
-        repo.config.get("screening", {}).get("require_exclusion_reason", True)
-    )
-    blind_metadata = bool(repo.config.get("screening", {}).get("blind_metadata", False))
-
+    screening_config = repo.config.get("screening", {})
+    before = own_decision(repo, stage=stage, record_id=record_id, actor=state.actor)
     return _render(
         request,
         "screen.html",
         {
-            "stage": stage,
-            "actor": state.actor,
+            **base,
             "record": record,
             "record_title": record.get("title") or "(no title)",
             "record_abstract": record.get("abstract"),
             "record_authors": _author_display(record),
             "record_year": _record_year(record),
             "record_journal": record.get("container-title"),
-            "blind_metadata": blind_metadata,
-            "active_criteria": active_criteria,
-            "require_exclusion_reason": require_exclusion_reason,
-            "total": total_assigned,
-            "position": decided + 1,
-            "prev_id": prev_id,
-            "skip_csv": ",".join(sorted(skip_ids)),
+            "blind_metadata": bool(screening_config.get("blind_metadata", False)),
+            "active_criteria": _reasons_for_stage(repo, stage),
+            "require_exclusion_reason": bool(
+                screening_config.get("require_exclusion_reason", True)
+            ),
+            # A record being decided again is one of those already counted.
+            "position": decided if before is not None else decided + 1,
+            "skipped": len(skipped),
+            "again": again,
+            "before": before,
             "skip_next_csv": ",".join(sorted(skip_ids | {record_id})),
-            "session_token": state.session_token,
+            "error": error,
+            "error_detail": error_detail,
+            "ticked": ticked or [],
+            "note": note,
         },
+        status_code=status_code,
+    )
+
+
+@router.get("/screen/{stage}", response_model=None)
+async def screen_stage(
+    request: Request, stage: str
+) -> HTMLResponse | RedirectResponse | PlainTextResponse:
+    state: AppState = state_of(request)
+    if stage not in screening_mod.configured_stages(state.open_repo()):
+        return _error(f"unknown stage {stage!r}", status_code=404)
+    return _screen_page(
+        request,
+        stage,
+        skip_ids=set(_parse_id_list(request.query_params.get("skip"))),
+        redo_id=request.query_params.get("redo"),
+        prev_id=request.query_params.get("prev"),
+        again=request.query_params.get("again") == "1",
     )
 
 
 @router.post("/screen/{stage}", response_model=None)
-async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse | HTMLResponse:
+async def screen_stage_submit(
+    request: Request, stage: str
+) -> RedirectResponse | HTMLResponse | PlainTextResponse:
     state: AppState = state_of(request)
     repo = state.open_repo()
+    if stage not in screening_mod.configured_stages(repo):
+        return _error(f"unknown stage {stage!r}", status_code=404)
     # The security middleware already parsed and CSRF-validated this form
     # (and stashed it on `request.state`, since it read the request body
     # before this handler's own `Request` instance ever saw it -- see
@@ -294,6 +350,30 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
     note = str(form.get("note") or "").strip() or None
     skip_csv = str(form.get("skip") or "")
 
+    def turned_away(
+        message: str, detail: str | None = None
+    ) -> HTMLResponse | RedirectResponse | PlainTextResponse:
+        if records_mod.get_record(repo, record_id) is None:
+            return _error(message, status_code=422)
+        # The same page, where the reviewer was, with what they had ticked and typed.
+        return _screen_page(
+            request,
+            stage,
+            skip_ids=set(_parse_id_list(skip_csv)),
+            redo_id=record_id,
+            prev_id=None,
+            error=message,
+            error_detail=detail,
+            ticked=cited,
+            note=note or "",
+            status_code=422,
+        )
+
+    missing = _needs_a_reason(
+        repo, stage=stage, record_id=record_id, actor=state.actor, decision=decision, note=note
+    )
+    if missing is not None:
+        return turned_away(missing)
     try:
         screening_mod.record_screen_decision(
             repo,
@@ -305,41 +385,98 @@ async def screen_stage_submit(request: Request, stage: str) -> RedirectResponse 
             note=note,
         )
     except screening_mod.ScreeningError as exc:
-        record = records_mod.get_record(repo, record_id)
-        active_criteria = sorted(
-            screening_mod.active_criteria_for_stage(repo, stage).values(),
-            key=lambda c: c["id"],
-        )
-        return _render(
-            request,
-            "screen.html",
-            {
-                "stage": stage,
-                "actor": state.actor,
-                "record": record,
-                "record_title": (record or {}).get("title") or "(no title)",
-                "record_abstract": (record or {}).get("abstract"),
-                "record_authors": _author_display(record or {}),
-                "record_year": _record_year(record or {}),
-                "record_journal": (record or {}).get("container-title"),
-                "blind_metadata": False,
-                "active_criteria": active_criteria,
-                "require_exclusion_reason": True,
-                "total": 0,
-                "position": 0,
-                "prev_id": None,
-                "skip_csv": skip_csv,
-                "skip_next_csv": skip_csv,
-                "session_token": state.session_token,
-                "error": str(exc),
-            },
-            status_code=422,
-        )
+        shown = for_reviewer(exc)
+        return turned_away(shown.text, shown.detail)
 
     return _redirect(f"/screen/{quote(stage, safe='')}", prev=record_id, skip=skip_csv)
 
 
+@router.post("/session/finish", response_model=None)
+async def finish_session(request: Request) -> RedirectResponse:
+    """End a screening session: commit the decisions it recorded
+    (openspec:git-integration#batched-screening-commits). The request is not a screening one, so
+    whatever is pending was committed before this handler ran (`strata.web.app`, and a hosted
+    instance likewise); this is the safety net and the way back to the dashboard."""
+    state: AppState = state_of(request)
+    if state.hosted is None:
+        flush_under_lock(state.open_repo())
+        state.batches.clear()
+    return _redirect("/", finished="1")
+
+
 # --------------------------------------------------------------- rescreen
+
+
+def _rescreen_page(
+    request: Request,
+    stage: str,
+    *,
+    skip_ids: set[str],
+    redo_id: str | None,
+    prev_id: str | None,
+    error: str | None = None,
+    error_detail: str | None = None,
+    ticked: list[str] | None = None,
+    note: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse | PlainTextResponse:
+    state: AppState = state_of(request)
+    repo = state.open_repo()
+    try:
+        full_queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
+    except rescreen_mod.RescreenError:
+        return _error(f"unknown stage {stage!r}", status_code=404)
+
+    queue = [s for s in full_queue if s.record_id not in skip_ids]
+    stale: rescreen_mod.StaleRecord | None = None
+    if redo_id is not None:
+        stale = next((s for s in full_queue if s.record_id == redo_id), None)
+    if stale is None:
+        # Skipped records come round again once the others are done.
+        stale = queue[0] if queue else (full_queue[0] if full_queue else None)
+
+    if stale is None:
+        return _render(
+            request,
+            "rescreen.html",
+            {
+                "stage": stage,
+                "actor": state.actor,
+                "stale": None,
+                "total": 0,
+                "session_token": state.session_token,
+            },
+        )
+
+    if not queue:
+        skip_ids = set()
+    record = records_mod.get_record(repo, stale.record_id)
+    assert record is not None
+    return _render(
+        request,
+        "rescreen.html",
+        {
+            "stage": stage,
+            "actor": state.actor,
+            "stale": stale,
+            "record": record,
+            "record_title": record.get("title") or "(no title)",
+            "active_criteria": _reasons_for_stage(repo, stage),
+            "total": len(full_queue),
+            "skipped": len(full_queue) - len(queue) if queue else 0,
+            "prev_id": prev_id,
+            "skip_csv": ",".join(sorted(skip_ids)),
+            "skip_next_csv": ",".join(sorted(skip_ids | {stale.record_id})),
+            "session_token": state.session_token,
+            "error": error,
+            "error_detail": error_detail,
+            "ticked": ticked or [],
+            # What the reviewer said last time is offered again: one criterion change usually
+            # turns many decisions for the same reason.
+            "note": note if note is not None else state.batches.last_reason(state.actor, stage),
+        },
+        status_code=status_code,
+    )
 
 
 @router.get("/rescreen/{stage}", response_class=HTMLResponse, response_model=None)
@@ -350,65 +487,23 @@ async def rescreen_stage(request: Request, stage: str) -> HTMLResponse | PlainTe
     `[k]eep previous` action. One difference forced by statelessness: `/
     screen`'s "N of M" position has a stable M (everything *assigned*) and
     an increasing N; here there is no "assigned but not yet stale" set to
-    anchor M to, so M is `rescreen_queue`'s own current size and *shrinks*
-    as the reviewer works through it (1 of 14, then 1 of 13, ...) rather
-    than N climbing towards a fixed M -- still an accurate, honest count
+    anchor M to, so the count is the reviewer's own stale decisions at the stage and *shrinks*
+    as they work through it (14 left, then 13, ...) -- an accurate, honest count
     at every page load, just shaped differently.
     """
-    state: AppState = state_of(request)
-    repo = state.open_repo()
-
-    try:
-        full_queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
-    except rescreen_mod.RescreenError:
-        return _error(f"unknown stage {stage!r}", status_code=404)
-
-    skip_ids = set(_parse_id_list(request.query_params.get("skip")))
-    redo_id = request.query_params.get("redo")
-    prev_id = request.query_params.get("prev")
-
-    queue = [s for s in full_queue if s.record_id not in skip_ids]
-    stale: rescreen_mod.StaleRecord | None = None
-    if redo_id is not None:
-        stale = next((s for s in full_queue if s.record_id == redo_id), None)
-    if stale is None:
-        stale = queue[0] if queue else None
-
-    if stale is None:
-        return _render(
-            request,
-            "rescreen.html",
-            {"stage": stage, "actor": state.actor, "stale": None, "total": 0},
-        )
-
-    record = records_mod.get_record(repo, stale.record_id)
-    assert record is not None
-    active_criteria = sorted(
-        screening_mod.active_criteria_for_stage(repo, stage).values(), key=lambda c: c["id"]
-    )
-    return _render(
+    return _rescreen_page(
         request,
-        "rescreen.html",
-        {
-            "stage": stage,
-            "actor": state.actor,
-            "stale": stale,
-            "record": record,
-            "record_title": record.get("title") or "(no title)",
-            "active_criteria": active_criteria,
-            "total": len(queue),
-            "prev_id": prev_id,
-            "skip_csv": ",".join(sorted(skip_ids)),
-            "skip_next_csv": ",".join(sorted(skip_ids | {stale.record_id})),
-            "session_token": state.session_token,
-        },
+        stage,
+        skip_ids=set(_parse_id_list(request.query_params.get("skip"))),
+        redo_id=request.query_params.get("redo"),
+        prev_id=request.query_params.get("prev"),
     )
 
 
 @router.post("/rescreen/{stage}", response_model=None)
 async def rescreen_stage_submit(
     request: Request, stage: str
-) -> RedirectResponse | PlainTextResponse:
+) -> RedirectResponse | HTMLResponse | PlainTextResponse:
     state: AppState = state_of(request)
     repo = state.open_repo()
     form = request.state.form
@@ -416,20 +511,46 @@ async def rescreen_stage_submit(
     record_id = str(form.get("record_id") or "")
     decision = str(form.get("decision") or "")
     cited = [str(v) for v in form.getlist("criteria")]
+    note = str(form.get("note") or "").strip() or None
     skip_csv = str(form.get("skip") or "")
 
-    if decision == "keep":
-        try:
-            queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
-        except rescreen_mod.RescreenError:
-            return _error(f"unknown stage {stage!r}", status_code=404)
-        stale = next((s for s in queue if s.record_id == record_id), None)
+    try:
+        queue = rescreen_mod.rescreen_queue(repo, stage, state.actor)
+    except rescreen_mod.RescreenError:
+        return _error(f"unknown stage {stage!r}", status_code=404)
+    stale = next((s for s in queue if s.record_id == record_id), None)
+
+    def turned_away(message: str, detail: str | None = None) -> HTMLResponse | PlainTextResponse:
+        if stale is None:
+            return _error(message, status_code=422)
+        return _rescreen_page(
+            request,
+            stage,
+            skip_ids=set(_parse_id_list(skip_csv)),
+            redo_id=record_id,
+            prev_id=None,
+            error=message,
+            error_detail=detail,
+            ticked=cited,
+            note=note or "",
+            status_code=422,
+        )
+
+    kept = decision == "keep"
+    if kept:
         if stale is None:
             return _error(
                 f"{record_id!r} is no longer in the stale queue for {stage!r}", status_code=422
             )
         decision = stale.prior_decision
         cited = list(stale.prior_criteria)
+        note = None  # the reason box is for a changed decision; keeping one changes nothing
+    else:
+        missing = _needs_a_reason(
+            repo, stage=stage, record_id=record_id, actor=state.actor, decision=decision, note=note
+        )
+        if missing is not None:
+            return turned_away(missing)
 
     try:
         screening_mod.record_screen_decision(
@@ -439,9 +560,13 @@ async def rescreen_stage_submit(
             decision=decision,  # type: ignore[arg-type]
             actor=state.actor,
             cited=cited,
+            note=note,
         )
     except screening_mod.ScreeningError as exc:
-        return _error(str(exc), status_code=422)
+        shown = for_reviewer(exc)
+        return turned_away(shown.text, shown.detail)
+    if note and not kept:
+        state.batches.remember_reason(state.actor, stage, note)
 
     return _redirect(f"/rescreen/{quote(stage, safe='')}", prev=record_id, skip=skip_csv)
 

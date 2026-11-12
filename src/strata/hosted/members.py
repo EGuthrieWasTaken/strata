@@ -55,6 +55,7 @@ _CAPABILITIES: dict[str, frozenset[str]] = {
 _WRITE_CAPABILITY = {
     "screen": SCREEN,
     "rescreen": SCREEN,
+    "session": SCREEN,  # ending a screening session commits one's own pending decisions
     "adjudicate": ADJUDICATE,
     "extract": EXTRACT,
     "rob": EXTRACT,

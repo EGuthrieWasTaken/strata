@@ -31,6 +31,18 @@
     if (region) region.textContent = text;
   }
 
+  // A message beside the decision buttons (the screening screens have the element).
+  function hint(text) {
+    var box = document.getElementById("screen-hint");
+    if (!box) return;
+    box.textContent = text;
+    box.hidden = !text;
+    if (text) announce(text);
+  }
+
+  // Text that describes what this script adds is shown only when it runs.
+  document.querySelectorAll(".js-only-hint").forEach(function (el) { el.hidden = false; });
+
   document.querySelectorAll("form[data-auto-submit-on-change]").forEach(function (form) {
     var radioName = form.dataset.autoSubmitOnChange;
     var previewButton = form.querySelector('button[name="intent"][value="preview"]');
@@ -88,6 +100,12 @@
       var button = form.querySelector('button[name="decision"][value="' + decisionValue + '"]');
       if (button) {
         event.preventDefault();
+        if (decisionValue === "exclude" && form.dataset.requireExclusionReason === "true" &&
+            !form.querySelector('input[name="criteria"]:checked')) {
+          // Nothing is sent: say what is missing where the reviewer is looking.
+          hint("Tick at least one reason first (keys 1 to 9), then press e to exclude.");
+          return;
+        }
         announce("recording decision…");
         button.click();
       }
@@ -95,17 +113,15 @@
     }
 
     if (key >= "1" && key <= "9") {
+      // A digit only ticks or unticks a reason. It never records a decision: a stray key must
+      // not exclude a record (the exclusion is recorded by `e`).
       var checkbox = form.querySelector('input[data-shortcut-digit="' + key + '"]');
       if (!checkbox) return;
       event.preventDefault();
       checkbox.checked = !checkbox.checked;
-      if (form.dataset.requireExclusionReason === "true" && checkbox.checked) {
-        var excludeButton = form.querySelector('button[name="decision"][value="exclude"]');
-        if (excludeButton) {
-          announce("recording decision…");
-          excludeButton.click();
-        }
-      }
+      hint("");
+      announce(checkbox.value + (checkbox.checked ? " ticked" : " unticked") +
+        "; press e to exclude");
       return;
     }
 

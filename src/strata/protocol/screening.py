@@ -36,7 +36,12 @@ _DECISIONS_TSV_HEADER = ("record_id", "decision", "criteria", "note")
 
 
 class ScreeningError(ValueError):
-    pass
+    """`code`, when given, is a short stable name for the refusal, so a screen can say it in its
+    own words (`strata.web.messages`)."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def configured_stages(repo: Repo) -> list[str]:
@@ -275,12 +280,14 @@ def _validate_and_build_body(
         if stage == "full-text":
             raise ScreeningError(
                 "an exclude decision at full-text always requires at least one cited "
-                "criterion (openspec:screening#screening-surface-contract)"
+                "criterion (openspec:screening#screening-surface-contract)",
+                code="full-text-exclusion-needs-reason",
             )
         if require_reason:
             raise ScreeningError(
                 "an exclude decision requires at least one cited criterion "
-                "(screening.require_exclusion_reason is set)"
+                "(screening.require_exclusion_reason is set)",
+                code="exclusion-needs-reason",
             )
 
     doc = criteria_mod.read_criteria_doc(repo)

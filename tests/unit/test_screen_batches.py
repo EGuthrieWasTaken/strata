@@ -230,3 +230,78 @@ def test_flushing_under_the_lock_commits_what_is_pending_and_releases_the_lock(
 
     with repo_lock(open_repo(repo.root), timeout=1.0):
         pass
+
+
+# ------------------------------------------------- the triggers and the generated message (#83)
+
+
+def test_the_generated_subject_is_the_specified_one() -> None:
+    from strata.core.screen_batches import batch_summary
+
+    assert batch_summary({"exclude": 183, "include": 17}) == (
+        "screen 200 records (183 exclude, 17 include)"
+    )
+    assert batch_summary({"include": 1}) == "screen 1 record (1 include)"
+    assert batch_summary({"maybe": 2, "include": 0}, verb="rescreen") == (
+        "rescreen 2 records (2 maybe)"
+    )
+
+
+def test_the_tracker_says_when_a_batch_is_full_and_who_has_gone_quiet() -> None:
+    from strata.core.screen_batches import BATCH_IDLE, BATCH_SIZE, BatchTracker
+
+    now = [0.0]
+    tracker = BatchTracker(clock=lambda: now[0])
+    assert tracker.size == BATCH_SIZE == 200 and tracker.idle == BATCH_IDLE == 900.0
+    assert not any(tracker.note("sam") for _ in range(199))
+    assert tracker.note("sam") and tracker.pending("sam") == 200
+    now[0] = 100.0
+    tracker.note("ethan")
+    assert tracker.pending() == 201
+    now[0] = 900.0
+    assert tracker.idle_actors() == ["sam"]  # ethan decided 800 s ago
+    tracker.clear("sam")
+    assert tracker.pending("sam") == 0 and tracker.idle_actors() == []
+    now[0] = 1000.0
+    assert tracker.idle_actors() == ["ethan"]
+    tracker.clear()
+    assert tracker.pending() == 0
+    tracker.remember_reason("sam", "title-abstract", "EXC-03 now rules these out.")
+    assert tracker.last_reason("sam", "title-abstract") == "EXC-03 now rules these out."
+    assert tracker.last_reason("sam", "full-text") == ""
+
+
+def test_a_batch_lists_each_changed_decision_with_its_reason(tmp_path: Path) -> None:
+    from strata.core.screen_batches import changed_decision, own_decision, pending_changes
+
+    repo = _repo(tmp_path)
+    args = {"stage": "title-abstract", "actor": "sam"}
+    assert own_decision(repo, record_id=_IDS[0], **args) is None
+    record_screen_decision(repo, record_id=_IDS[0], decision="include", **args)
+    record_screen_decision(repo, record_id=_IDS[1], decision="include", **args)
+    assert changed_decision(repo, record_id=_IDS[0], decision="include", **args) is None
+    assert changed_decision(repo, record_id=_IDS[0], decision="exclude", **args) == "include"
+    assert changed_decision(repo, record_id=_IDS[2], decision="exclude", **args) is None
+    assert commit_screening_batch(repo, "sam")
+    assert pending_changes(repo, "sam") == []
+
+    record_screen_decision(
+        repo, record_id=_IDS[0], decision="exclude", cited=["EXC-01"], note="A commentary.", **args
+    )
+    record_screen_decision(repo, record_id=_IDS[1], decision="maybe", **args)
+    record_screen_decision(repo, record_id=_IDS[2], decision="include", **args)
+    changes = pending_changes(repo, "sam")
+    assert [(c.record, c.before, c.after, c.reason) for c in changes] == [
+        (_IDS[0], "include", "exclude", "A commentary."),
+        (_IDS[1], "include", "maybe", None),
+    ]
+    assert commit_screening_batch(repo, "sam")
+    message = " ".join(gitio.run(["log", "-1", "--format=%B"], cwd=repo.root).stdout.split())
+    assert message.startswith(
+        "screen(title-abstract): screen 3 records (1 exclude, 1 include, 1 maybe)"
+    )
+    assert f"- {_IDS[0]} at title-abstract: include -> exclude. Why: A commentary." in message
+    assert (
+        f"- {_IDS[1]} at title-abstract: include -> maybe. Why: no reason was recorded" in message
+    )
+    assert _IDS[2] not in message

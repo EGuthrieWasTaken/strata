@@ -394,7 +394,9 @@ def test_screen_post_exclude_without_citation_is_rejected_with_the_same_record_s
     )
     assert r.status_code == 422
     assert "Needs A Reason" in r.text
-    assert "cited criterion" in r.text or "criterion" in r.text
+    assert "Tick at least one reason before excluding" in r.text
+    # this review has no criteria yet, and the page says where to add one
+    assert "No criteria apply at this stage" in r.text
 
 
 def test_screen_post_unknown_record_shows_generic_error(tmp_path: Path) -> None:
