@@ -126,6 +126,9 @@ class Counts:
     studies_included: int
     reports_of_included_studies: int
     stale_decisions: int
+    #: Studies beyond one per report, from reports split into several studies (a paper that
+    #: describes two experiments is one report and two studies).
+    studies_from_split_reports: int = 0
     assertions: list[dict[str, Any]] = field(default_factory=list)
 
     @property
@@ -161,6 +164,7 @@ class Counts:
             },
             "not_retrieved_reasons": dict(sorted(self.not_retrieved_reasons.items())),
             "studies_included": self.studies_included,
+            "studies_from_split_reports": self.studies_from_split_reports,
             "reports_of_included_studies": self.reports_of_included_studies,
             "assertions": self.assertions,
         }
@@ -341,7 +345,12 @@ def compute(repo: Repo) -> Counts:
         totals.add(funnel)
 
     included_reports = [report_id(r) for r in included_ids]
-    study_members = studies_mod.study_map(repo, reports=included_reports).members
+    study_map = studies_mod.study_map(repo, reports=included_reports)
+    study_members = study_map.members
+    # A report can describe several studies (a split) and a study can have several reports (a
+    # grouping), so reports are counted once each however many studies they belong to.
+    reports_in_studies = {report for members in study_members.values() for report in members}
+    extra_studies = sum(len(studies) - 1 for studies in study_map.studies_of.values())
 
     def ordered(found: Counter[str]) -> list[Reason]:
         return [
@@ -358,14 +367,19 @@ def compute(repo: Repo) -> Counts:
         exclusion_reasons_by_origin={n: ordered(c) for n, c in reasons_by_origin.items()},
         not_retrieved_reasons=dict(not_retrieved_reasons),
         studies_included=len(study_members),
-        reports_of_included_studies=sum(len(v) for v in study_members.values()),
+        reports_of_included_studies=len(reports_in_studies),
         stale_decisions=len(rescreen_mod.compute_stale_records(repo)),
+        studies_from_split_reports=extra_studies,
     )
     counts.assertions = _assertions(counts, appended_total, merged_away)
     return counts
 
 
 # --- identities -----------------------------------------------------------------------------
+
+
+STUDIES_BOUND = "studies_included <= reports_included + studies_from_split_reports"
+STUDIES_PRESENT = "studies_included > 0 exactly when reports_included > 0"
 
 
 def _check(identity: str, lhs: int, rhs: int, where: str = "") -> dict[str, Any]:
@@ -457,9 +471,14 @@ def _assertions(counts: Counts, appended_total: int, merged_away: int) -> list[d
             sum(counts.not_retrieved_reasons.values()),
         ),
         _check(
-            "studies_included <= reports_included",
-            min(counts.studies_included, t.reports_included),
+            STUDIES_BOUND,
+            min(counts.studies_included, t.reports_included + counts.studies_from_split_reports),
             counts.studies_included,
+        ),
+        _check(
+            STUDIES_PRESENT,
+            int(counts.studies_included > 0),
+            int(t.reports_included > 0),
         ),
         _check(
             "reports_of_included_studies = reports_included",
@@ -468,6 +487,99 @@ def _assertions(counts: Counts, appended_total: int, merged_away: int) -> list[d
         ),
     ]
     return found
+
+
+#: What each identity means in a reviewer's words, by the identity's own text. `{lhs}` and
+#: `{rhs}` are the two numbers that should have been equal.
+_IN_WORDS = {
+    "identified_total = sum over searches of records identified + records identified via"
+    " other methods": (
+        "The records identified ({lhs}) are not the sum of what the database searches, the "
+        "registers and the other methods found ({rhs})."
+    ),
+    "identified_total = sum over origins of records identified": (
+        "The records identified ({lhs}) are not the sum of the records identified in each "
+        "column of the diagram ({rhs})."
+    ),
+    "duplicates_removed = rows imported onto an existing id + records merged away": (
+        "The duplicates removed ({lhs}) do not match the rows imported onto a record that was "
+        "already there plus the records merged as duplicates ({rhs}). A record may have been "
+        "added or removed outside an import."
+    ),
+    "removed_before_screening = duplicates_removed + marked_ineligible_by_automation"
+    " + removed_other": (
+        "The records removed before screening ({lhs}) are not the duplicates plus the other "
+        "removals ({rhs})."
+    ),
+    "records_screened = identified_total - removed_before_screening": (
+        "The records screened ({lhs}) are not the records identified less those removed before "
+        "screening ({rhs})."
+    ),
+    "records_screened = records_excluded_tiab + reports_sought (+ awaiting_tiab)": (
+        "The records screened ({lhs}) are not the records excluded plus the reports sought plus "
+        "those still waiting for a decision ({rhs})."
+    ),
+    "reports_sought = reports_retrieved + reports_not_retrieved (+ awaiting_retrieval)": (
+        "The reports sought ({lhs}) are not the reports retrieved plus those not retrieved plus "
+        "those still outstanding ({rhs})."
+    ),
+    "reports_retrieved = reports_assessed": (
+        "The reports retrieved ({lhs}) are not the reports assessed for eligibility ({rhs})."
+    ),
+    "reports_assessed = reports_excluded_ft + reports_included (+ awaiting_ft)": (
+        "The reports assessed ({lhs}) are not the reports excluded plus the reports included "
+        "plus those still waiting for a decision ({rhs})."
+    ),
+    "duplicates_removed is not negative": (
+        "More records are being screened than were identified, so the duplicates removed come "
+        "out below zero ({rhs})."
+    ),
+    "reports_excluded_ft = sum over exclusion reasons of count_per_reason": (
+        "The reports excluded at full text ({lhs}) are not the sum of the reports excluded for "
+        "each reason ({rhs})."
+    ),
+    "reports_not_retrieved = sum over not-retrieved reasons": (
+        "The reports not retrieved ({lhs}) are not the sum of the reports not retrieved for "
+        "each reason ({rhs})."
+    ),
+    STUDIES_BOUND: (
+        "There are more included studies ({rhs}) than the included reports, and the reports "
+        "split into several studies, can account for ({lhs})."
+    ),
+    STUDIES_PRESENT: (
+        "Included reports and included studies must both be present or both be absent, and "
+        "only one of them is."
+    ),
+    "reports_of_included_studies = reports_included": (
+        "The reports of included studies ({lhs}) are not the reports included at the last "
+        "screening stage ({rhs})."
+    ),
+}
+
+WHAT_TO_DO = (
+    "Run `strata verify` to find the file that does not match the event log; if it finds "
+    "nothing, this is a fault in strata and worth reporting with the identities below."
+)
+
+
+def in_words(assertion: dict[str, Any]) -> str:
+    """One failed identity as a sentence a reviewer can read, with the column it is in."""
+    identity = str(assertion["identity"])
+    base, _, where = identity.partition(" [")
+    template = _IN_WORDS.get(base)
+    if template is None:
+        return f"{identity} does not hold ({assertion['lhs']} against {assertion['rhs']})."
+    sentence = template.format(lhs=assertion["lhs"], rhs=assertion["rhs"])
+    if where:
+        column = where.rstrip("]")
+        name = "the database and register searches" if column == SEARCHES else f'"{column}"'
+        sentence += f" (In the column for {name}.)"
+    return sentence
+
+
+def failures_in_words(counts: Counts) -> list[str]:
+    """Every identity that does not hold, each as a sentence."""
+    return [in_words(a) for a in counts.assertions if not a["holds"]]
 
 
 def require_reconciled(counts: Counts) -> None:

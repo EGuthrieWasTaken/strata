@@ -41,6 +41,8 @@ async def prisma_page(request: Request) -> HTMLResponse:
             "draft": not counts.complete,
             "draft_text": flow_mod.DRAFT_TEXT,
             "failures": counts.failures,
+            "failures_in_words": counts_mod.failures_in_words(counts),
+            "what_to_do": counts_mod.WHAT_TO_DO.replace("`", ""),
             "has_other_methods": bool(counts.other_methods.identified),
         },
     )
@@ -51,7 +53,11 @@ async def prisma_svg(request: Request) -> Response | PlainTextResponse:
     state: AppState = state_of(request)
     counts = counts_mod.compute(state.open_repo())
     if not counts.reconciled:
-        return _error("the counts do not close: " + "; ".join(counts.failures), status_code=409)
+        return _error(
+            "The counts do not add up, so no diagram is drawn. "
+            + " ".join(counts_mod.failures_in_words(counts)),
+            status_code=409,
+        )
     svg = flow_mod.render(counts, fmt="svg", columns=_columns(request))
     return Response(
         svg,

@@ -11,8 +11,10 @@
 
 {% if failures %}
 <div class="error" role="alert">
-  <p><strong>E_COUNT_RECONCILE:</strong> the counts do not close, so no diagram is drawn.</p>
-  <ul>{% for f in failures %}<li>{{ f }}</li>{% endfor %}</ul>
+  <p><strong>The counts do not add up, so no diagram is drawn.</strong></p>
+  <ul>{% for sentence in failures_in_words %}<li>{{ sentence }}</li>{% endfor %}</ul>
+  <p>{{ what_to_do }}</p>
+  <p class="field-meta">For whoever looks this up: <code>E_COUNT_RECONCILE</code>{% for f in failures %}{{ "; " if not loop.first else ": " }}<code>{{ f }}</code>{% endfor %}</p>
 </div>
 {% else %}
 <p>
