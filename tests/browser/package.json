@@ -3,6 +3,6 @@
   "private": true,
   "description": "Playwright, pinned, for the real-browser tests in this directory (tests/browser/*.py drive pages_smoke.js and dropzone_smoke.js).",
   "devDependencies": {
-    "playwright": "1.63.0"
+    "playwright": "1.65.0"
   }
 }

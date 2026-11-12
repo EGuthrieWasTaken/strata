@@ -21,8 +21,14 @@ updates:
     schedule:
       interval: "weekly"
 
-  # Keeps the Dockerfile's base image (and its digest pin) current.
+  # Keeps the Dockerfile's base image (and its digest pin) current. The image stays on the Python
+  # minor the test matrix covers (tests/integration/test_container_files.py pins the tag), so a new
+  # Python minor or major is moved to by hand, together with that matrix, and not proposed here:
+  # only the digest of the pinned tag is kept current.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
