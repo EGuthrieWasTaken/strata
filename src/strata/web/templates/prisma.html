@@ -29,27 +29,29 @@
 {% endif %}
 
 <h2>Counts</h2>
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table" data-testid="prisma-counts">
+  <caption class="visually-hidden">Counts in the flow diagram</caption>
   <thead><tr><th scope="col">Step</th><th scope="col">n</th></tr></thead>
   <tbody>
-    <tr><th scope="row">Records identified</th><td>{{ totals.identified }}</td></tr>
-    <tr><th scope="row">Removed before screening</th><td>{{ totals.removed_before_screening }}</td></tr>
-    <tr><th scope="row">Records screened</th><td>{{ totals.records_screened }}</td></tr>
-    <tr><th scope="row">Records excluded</th><td>{{ totals.records_excluded_tiab }}</td></tr>
-    <tr><th scope="row">Reports sought for retrieval</th><td>{{ totals.reports_sought }}</td></tr>
-    <tr><th scope="row">Reports not retrieved</th><td>{{ totals.reports_not_retrieved }}</td></tr>
-    <tr><th scope="row">Reports assessed for eligibility</th><td>{{ totals.reports_assessed }}</td></tr>
-    <tr><th scope="row">Reports excluded</th><td>{{ totals.reports_excluded_ft }}</td></tr>
-    <tr><th scope="row">Studies included</th><td>{{ counts.studies_included }}</td></tr>
-    <tr><th scope="row">Reports of included studies</th><td>{{ counts.reports_of_included_studies }}</td></tr>
+    <tr><th scope="row">Records identified</th><td data-label="n">{{ totals.identified }}</td></tr>
+    <tr><th scope="row">Removed before screening</th><td data-label="n">{{ totals.removed_before_screening }}</td></tr>
+    <tr><th scope="row">Records screened</th><td data-label="n">{{ totals.records_screened }}</td></tr>
+    <tr><th scope="row">Records excluded</th><td data-label="n">{{ totals.records_excluded_tiab }}</td></tr>
+    <tr><th scope="row">Reports sought for retrieval</th><td data-label="n">{{ totals.reports_sought }}</td></tr>
+    <tr><th scope="row">Reports not retrieved</th><td data-label="n">{{ totals.reports_not_retrieved }}</td></tr>
+    <tr><th scope="row">Reports assessed for eligibility</th><td data-label="n">{{ totals.reports_assessed }}</td></tr>
+    <tr><th scope="row">Reports excluded</th><td data-label="n">{{ totals.reports_excluded_ft }}</td></tr>
+    <tr><th scope="row">Studies included</th><td data-label="n">{{ counts.studies_included }}</td></tr>
+    <tr><th scope="row">Reports of included studies</th><td data-label="n">{{ counts.reports_of_included_studies }}</td></tr>
   </tbody>
-</table></div>
+</table>
 {% if counts.exclusion_reasons %}
 <h3>Reports excluded, by reason</h3>
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table">
+  <caption class="visually-hidden">Reports excluded, by reason</caption>
   <thead><tr><th scope="col">Reason</th><th scope="col">n</th></tr></thead>
-  <tbody>{% for r in counts.exclusion_reasons %}<tr><th scope="row">{{ r.label }}</th><td>{{ r.count }}</td></tr>{% endfor %}</tbody>
-</table></div>
+  <tbody>{% for r in counts.exclusion_reasons %}<tr><th scope="row">{{ r.label }}</th><td data-label="n">{{ r.count }}</td></tr>{% endfor %}</tbody>
+</table>
 {% endif %}
 <p class="field-meta">{{ counts.assertions | length }} reconciliation identities checked{% if not failures %}; all hold{% endif %}.
   Flow diagram wording from PRISMA 2020 (Page et al., BMJ 2021;372:n71), CC BY 4.0.</p>

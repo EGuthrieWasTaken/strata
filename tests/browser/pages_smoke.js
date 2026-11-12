@@ -8,6 +8,7 @@
 //   node pages_smoke.js nojs     <blank-url> <exports-dir>
 //   node pages_smoke.js hostile  <dual-url>
 //   node pages_smoke.js preview  <pipeline-url>
+//   node pages_smoke.js keys     <dual-url>
 //
 // Each prints one JSON object whose `failures` is a list of sentences; it exits 1 when that list is not
 // empty. Every check runs even after one fails, so one run shows the whole picture.
@@ -111,6 +112,20 @@ async function layout(browser, urls) {
         if (width === 1024) report.pages += 1;
         const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         if (over > 0) failures.push(`${tag}: the page scrolls sideways by ${over}px`);
+        // A table's scroll box is a tab stop only while its table overflows, and the boxes on one page
+        // can be told apart by name.
+        const boxes = await page.evaluate(() => Array.from(document.querySelectorAll(".table-scroll")).map((b) => ({
+          label: b.getAttribute("aria-label") || "", stop: b.hasAttribute("tabindex"), overflows: b.scrollWidth > b.clientWidth + 1,
+        })));
+        for (const b of boxes) {
+          if (b.stop !== b.overflows) failures.push(`${tag}: scroll box "${b.label}" is ${b.stop ? "" : "not "}a tab stop but ${b.overflows ? "overflows" : "does not overflow"}`);
+        }
+        const names = boxes.map((b) => b.label);
+        if (new Set(names).size !== names.length) failures.push(`${tag}: scroll boxes share a name: ${names.join(" | ")}`);
+        if (width === 320 && (p === "/records" || p === "/history")) {
+          const stacked = await page.evaluate(() => { const t = document.querySelector("table.stack-table"); return !!t && getComputedStyle(t.querySelector("td")).display === "block"; });
+          if (!stacked) failures.push(`${tag}: the table does not stack into cards`);
+        }
         if (width < 1024) {
           const spill = await page.evaluate(() => {
             const vw = document.documentElement.clientWidth;
@@ -375,10 +390,52 @@ async function preview(browser, [pipeline]) {
   return { failures, report };
 }
 
+// The screening keys (openspec:web-ui#screening-surface-requirements): a digit ticks a reason and
+// records nothing, `e` with nothing ticked says so in place, a digit then `e` excludes, and Finish
+// session commits what was decided.
+async function keys(browser, [dual]) {
+  const failures = [];
+  const report = {};
+  const { page, problems, origin, context } = await openSession(browser, dual);
+  await page.goto(origin + "/screen/title-abstract");
+  const first = await page.textContent("article.record-card h2");
+  const start = page.url();
+  const box = page.locator('input[data-shortcut-digit="1"]');
+
+  await page.keyboard.press("1");
+  await page.waitForTimeout(400);
+  if (page.url() !== start || (await page.textContent("article.record-card h2")) !== first) failures.push("a digit key alone moved on from the record");
+  if (!(await box.isChecked())) failures.push("a digit key did not tick its reason");
+  await page.keyboard.press("1");
+  if (await box.isChecked()) failures.push("the same digit did not untick the reason");
+
+  await page.keyboard.press("e");
+  await page.waitForTimeout(400);
+  if (page.url() !== start) failures.push("e with nothing ticked posted the form");
+  const hint = page.locator("#screen-hint");
+  if (!(await hint.isVisible()) || !/Tick at least one reason/.test(await hint.textContent())) failures.push("e with nothing ticked did not say what is missing");
+  report.hint = await hint.textContent();
+
+  await page.keyboard.press("1");
+  if (await hint.isVisible()) failures.push("the hint stayed after a reason was ticked");
+  await Promise.all([page.waitForURL(/prev=rec_/), page.keyboard.press("e")]);
+  const next = await page.textContent("main");
+  if (next.includes(first) && !/Nothing left/.test(next)) failures.push("a digit then e did not record the exclusion");
+  report.after = page.url().replace(origin, "");
+
+  await Promise.all([page.waitForURL(origin + "/?finished=1"), page.click(".finish-session button")]);
+  const dashboard = await page.textContent("main");
+  if (!/Screening session finished/.test(dashboard)) failures.push("finishing the session did not say so");
+  if (/has uncommitted changes/.test(dashboard)) failures.push("the working tree is dirty after finishing the session");
+  for (const p of problems) failures.push(p);
+  await context.close();
+  return { failures, report };
+}
+
 // ------------------------------------------------------------------------------------------- main
 
 (async () => {
-  const run = { layout, contrast, motion, nojs, hostile, preview }[scenario];
+  const run = { layout, contrast, motion, nojs, hostile, preview, keys }[scenario];
   if (!run) { console.error("unknown scenario " + scenario); process.exit(2); }
   const browser = await chromium.launch();
   let result;

@@ -51,7 +51,7 @@
   <p class="field-meta">{{ estimates.model.type }}; tau&sup2; estimator {{ estimates.model.tau2_estimator }}; interval {{ estimates.model.ci_method }}.</p>
 
   {% if pooled.coefficients | length > 1 %}
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Meta-regression coefficients, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>Meta-regression coefficients</caption>
     <thead><tr><th scope="col">Term</th><th scope="col">Estimate</th><th scope="col">SE</th><th scope="col">95% CI</th><th scope="col">p</th></tr></thead>
     <tbody>
@@ -94,7 +94,7 @@
 <section aria-labelledby="sweeps-h">
   <h2 id="sweeps-h">Assumptions swept</h2>
   {% for key, sweep in estimates.sweeps.items() %}
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Assumption sweep {{ loop.index }} ({{ key }}), scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>{{ sweep.note }}</caption>
     <thead><tr><th scope="col">{{ "rho" if sweep["values"][0].rho is defined else "r" }}</th><th scope="col">Estimate</th><th scope="col">95% CI</th></tr></thead>
     <tbody>
@@ -120,7 +120,7 @@
   <p class="field-meta">{{ s.note }}</p>
   {% else %}
   <h3>{{ sid }}: {{ s.type | replace("_", " ") }}</h3>
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="{{ sid }} ({{ s.type | replace("_", " ") }}), scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <thead><tr><th scope="col">Step</th><th scope="col">Estimate</th><th scope="col">95% CI</th><th scope="col">I&sup2;</th></tr></thead>
     <tbody>
       {% for r in s.results %}
@@ -148,7 +148,7 @@
 {% if study_rows %}
 <section aria-labelledby="studies-h">
   <h2 id="studies-h">Values behind the plots</h2>
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table study-values">
+  <div class="table-scroll" role="region" aria-label="Values behind the plots, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table study-values">
     <thead><tr>{% for h in study_headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for row in study_rows %}

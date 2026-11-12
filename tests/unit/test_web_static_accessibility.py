@@ -94,3 +94,26 @@ def test_the_page_breaks_long_words_without_squeezing_table_columns() -> None:
     assert body is not None
     rule = re.sub(r"/\*.*?\*/", "", body.group(0), flags=re.S)
     assert "overflow-wrap: break-word" in rule and "anywhere" not in rule
+
+
+def test_scroll_boxes_have_names_of_their_own_and_stop_being_tab_stops_when_they_fit() -> None:
+    """#89: several boxes on a page all called "Table, scrolls sideways..." cannot be told apart,
+    and each was a tab stop whether or not its table overflowed."""
+    for template in TEMPLATES:
+        text = template.read_text(encoding="utf-8")
+        labels = re.findall(r'class="table-scroll" role="region" aria-label="([^"]+)"', text)
+        assert all(not label.startswith("Table,") for label in labels), template.name
+        assert len(set(labels)) == len(labels), f"{template.name}: {labels}"
+    script = (WEB / "static" / "keyboard.js").read_text(encoding="utf-8")
+    assert "box.scrollWidth > box.clientWidth" in script
+    assert 'box.removeAttribute("tabindex")' in script and "ResizeObserver" in script
+
+
+@pytest.mark.parametrize(
+    "name", ["records.html", "history.html", "adjudicate.html", "extract_index.html", "prisma.html"]
+)
+def test_the_tables_read_on_a_phone_stack_into_labelled_cards(name: str) -> None:
+    text = next(t for t in TEMPLATES if t.name == name).read_text(encoding="utf-8")
+    assert "stack-table" in text and "table-scroll" not in text
+    body = text[text.index("<tbody") :]
+    assert "<td>" not in body.replace('<td colspan="3">', ""), "every cell needs a data-label"

@@ -154,6 +154,25 @@ def test_the_criteria_preview_keeps_the_session_token_and_the_reason_out_of_the_
     assert status.stdout == "", "a preview must write nothing"
 
 
+@needs_browser
+def test_a_digit_ticks_a_reason_and_only_e_excludes_then_finishing_commits(
+    servers: dict[str, str], seeded: Path
+) -> None:
+    """#86 and #83, in a real browser: the keyboard script and the Finish session button."""
+    _scenario("keys", servers["dual"])
+    repo = seeded / "dual"
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+        ).stdout
+
+    assert git("status", "--porcelain") == "", "finishing the session must commit its decisions"
+    assert git("log", "-1", "--format=%s") == (
+        "screen(title-abstract): screen 1 record (1 exclude)\n"
+    )
+
+
 def test_the_browser_stack_is_installed_where_it_is_required() -> None:
     """In CI the `browser` job sets STRATA_REQUIRE_BROWSER after installing Playwright and Chromium,
     so a broken install fails here, loudly, instead of every test above being skipped."""

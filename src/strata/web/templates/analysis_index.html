@@ -6,7 +6,8 @@
 {% if stale_decisions %}
 <p class="notice flag" role="status" data-testid="stale-evidence"><span aria-hidden="true">&#9888;</span> {{ stale_decisions }} screening decision{{ "s are" if stale_decisions != 1 else " is" }} stale, so which studies are included may change. Results marked current are provisional until those decisions are rescreened (see the <a href="{{ root }}/">dashboard</a>).</p>
 {% endif %}
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table">
+  <caption class="visually-hidden">Analyses</caption>
   <thead>
     <tr>
       <th scope="col">Analysis</th>
@@ -18,17 +19,17 @@
     {% for a in analyses %}
     <tr>
       <th scope="row">{{ a.title }}<br><span class="field-meta">{{ a.id }} &middot; {{ a.label }}</span></th>
-      <td>
+      <td data-label="Results">
         {% if a.state == "fresh" %}<span class="done-note">current</span>{% if stale_decisions %} <span class="field-meta">provisional: screening has stale decisions</span>{% endif %}
         {% elif a.state == "missing" %}<span class="todo-note">not run yet</span>
         {% else %}<span class="missing-note">{{ a.state }}</span>{% endif %}
       </td>
-      <td><a href="{{ root }}/analysis/{{ a.id }}">View &rarr;</a></td>
+      <td data-label="Open"><a href="{{ root }}/analysis/{{ a.id }}">View &rarr;</a></td>
     </tr>
     {% else %}
     <tr><td colspan="3">No analyses yet. Add <code>analysis/&lt;id&gt;.yaml</code> and run <code>strata analyze</code>.</td></tr>
     {% endfor %}
   </tbody>
-</table></div>
+</table>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% endblock %}
