@@ -162,8 +162,14 @@ def test_correcting_a_field_records_the_amendment_and_the_timeline_shows_it(
     assert events[0]["body"]["new"] == "Corrected title"
 
     page = _text(client.get(f"/records/{rid}"))
-    assert "RECORD-AMEND" in page
-    assert "Original title" in page and "Corrected title" in page
+    # A sentence, with the reason that was given (it is in the commit, not the event) and no
+    # event names or stored keys (#87).
+    assert (
+        "ethan corrected the title: it was “Original title” and is now “Corrected title”." in page
+    )
+    assert "Why: fixing a typo in the title" in page
+    assert "RECORD-AMEND" not in page and "source: manual" not in page
+    assert "canonical: True" not in page
 
 
 def test_a_correction_is_what_strata_fix_records(tmp_path: Path) -> None:

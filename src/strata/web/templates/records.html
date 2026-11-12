@@ -16,9 +16,11 @@
 <p class="error" role="alert">{{ error }}</p>
 {% endif %}
 
-<p>{{ rows | length }} record{{ "s" if rows | length != 1 else "" }}</p>
+<p data-testid="record-count">{{ rows | length }} record{{ "s" if rows | length != 1 else "" }}{% if filter_expr and not error %} match{{ "es" if rows | length == 1 else "" }} the filter, of {{ distinct }}{% endif %}.
+  {% if merged %}<span class="field-meta">{{ merged }} more {{ "was" if merged == 1 else "were" }} merged into {{ "one of these" if merged == 1 else "these" }} as duplicate{{ "s" if merged != 1 else "" }} and {{ "is" if merged == 1 else "are" }} not listed ({{ distinct + merged }} imported in all). <a href="{{ root }}/dedup">Duplicates</a></span>{% endif %}</p>
 
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table" data-testid="records-table">
+  <caption class="visually-hidden">Records</caption>
   <thead>
     <tr>
       <th scope="col">ID</th>
@@ -31,11 +33,11 @@
     {% for row in rows %}
     <tr>
       <th scope="row"><a href="{{ root }}/records/{{ row.id }}">{{ row.id }}</a></th>
-      <td>{{ row.year or "" }}</td>
-      <td>{{ row.authors }}</td>
-      <td>{{ row.title }}</td>
+      <td data-label="Year">{{ row.year or "" }}</td>
+      <td data-label="Authors">{{ row.authors }}</td>
+      <td data-label="Title">{{ row.title }}</td>
     </tr>
     {% endfor %}
   </tbody>
-</table></div>
+</table>
 {% endblock %}

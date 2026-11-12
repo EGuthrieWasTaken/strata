@@ -508,3 +508,15 @@ fieldset.review-choices {
 .finish-session { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border, #ccc); }
 .finish-session .field-meta { margin-top: 0.4rem; }
 .criterion-kind { font-style: italic; }
+
+/* A record's provenance, as sentences. */
+.timeline { list-style: none; padding: 0; margin: 0; }
+.timeline > li { margin-bottom: 0.75rem; }
+.timeline-when { display: inline; margin-left: 0.4em; }
+.timeline-why { margin: 0.25rem 0 0; }
+.timeline-details { margin: 0.4rem 0 0; font-size: 0.9em; }
+.timeline-details div { display: flex; gap: 0.5em; flex-wrap: wrap; }
+.timeline-details dt { font-weight: 600; }
+.timeline-details dt::after { content: ":"; }
+.timeline-details dd { margin: 0; overflow-wrap: anywhere; }
+.error-detail { margin: 0.25rem 0 0; }

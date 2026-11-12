@@ -20,7 +20,7 @@
 </section>
 {% endif %}
 <dl class="summary-grid">
-  <div><dt>Records</dt><dd>{{ report.record_count }}</dd></div>
+  <div data-testid="record-counts"><dt>Records</dt><dd>{{ report.distinct_count }}{% if report.merged_count %} <span class="field-meta">{{ report.record_count }} imported, {{ report.merged_count }} merged as duplicate{{ "s" if report.merged_count != 1 else "" }}</span>{% endif %}</dd></div>
   <div><dt>Searches</dt><dd>{{ report.search_count }}</dd></div>
   <div><dt>Criteria version</dt><dd>v{{ report.criteria_version }}</dd></div>
   <div><dt>Actors</dt><dd>{{ report.actor_count }}</dd></div>
@@ -53,7 +53,7 @@
   &middot; <a href="{{ root }}/dedup">Duplicates &rarr;</a>
   &middot; <a href="{{ root }}/retrieve">Full texts &rarr;</a>
   &middot; <a href="{{ root }}/studies">Studies &rarr;</a>
-  &middot; <a href="{{ root }}/records">Records ({{ report.record_count }}) &rarr;</a>
+  &middot; <a href="{{ root }}/records">Records ({{ report.distinct_count }}) &rarr;</a>
   &middot; <a href="{{ root }}/history">History &rarr;</a>
   {% if report.extraction %}
   &middot; <a href="{{ root }}/extract">Extraction ({{ report.extraction.complete }}/{{ report.extraction.studies }}) &rarr;</a>

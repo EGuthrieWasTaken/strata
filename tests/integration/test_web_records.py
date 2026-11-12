@@ -139,3 +139,46 @@ def test_record_detail_unknown_id_is_404(tmp_path: Path) -> None:
     client = _client(repo)
     r = client.get("/records/rec_nonexistent0000")
     assert r.status_code == 404
+
+
+def test_the_dashboard_and_the_record_table_agree_about_how_many_records_there_are(
+    tmp_path: Path,
+) -> None:
+    """The dashboard counted merged duplicates and the table did not, and neither said so (#87)."""
+    import re
+
+    from strata.core.records import read_records, write_records
+    from strata.core.status import compute_status
+
+    repo = _repo_with_records(tmp_path)
+    rows = read_records(repo)
+    # The second record merged into the first as its duplicate.
+    rows[1].setdefault("strata", {})["canonical"] = False
+    rows[0].setdefault("strata", {})["absorbed"] = [rows[1]["id"]]
+    write_records(repo, rows)
+    repo = open_repo(repo.root)
+    report = compute_status(repo)
+    assert (report.record_count, report.merged_count, report.distinct_count) == (2, 1, 1)
+
+    client = _client(repo)
+    text = lambda page: " ".join(re.sub(r"<[^>]+>", " ", page).split())  # noqa: E731
+    dashboard = text(client.get("/").text)
+    assert "Records 1 2 imported, 1 merged as duplicate" in dashboard
+    assert "Records (1) &rarr;" in dashboard
+    table = text(client.get("/records").text)
+    assert "1 record." in table
+    assert (
+        "1 more was merged into one of these as duplicate and is not listed (2 imported in all)"
+        in table
+    )
+    # the merged record's own page says what it is, and the survivor links to it
+    merged = text(client.get(f"/records/{rows[1]['id']}").text)
+    assert "This record was merged into another as its duplicate" in merged
+    survivor = client.get(f"/records/{rows[0]['id']}").text
+    assert f'href="/records/{rows[1]["id"]}"' in survivor and "canonical: True" not in survivor
+
+
+def test_a_filtered_count_says_out_of_how_many(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path)
+    page = " ".join(_client(repo).get("/records?filter=year%3E2015").text.split())
+    assert "1 record matches the filter, of 2." in page

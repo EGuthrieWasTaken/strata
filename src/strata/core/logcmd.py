@@ -20,6 +20,12 @@ class DomainCommit:
     sha: str
     subject: str
     trailers: dict[str, str] = field(default_factory=dict)
+    #: When it was committed, as git records the author date (ISO 8601 with its zone).
+    date: str = ""
+    #: Why: the message's body without its subject and trailers, each paragraph on one line. For
+    #: most operations that is the rationale the person gave; for a routine screening batch it
+    #: is the generated description.
+    reason: str = ""
 
 
 def _parse_trailers(body: str) -> dict[str, str]:
@@ -31,6 +37,31 @@ def _parse_trailers(body: str) -> dict[str, str]:
     return trailers
 
 
+def _reason(body: str) -> str:
+    """The body of a commit message between its subject and its trailers, unwrapped."""
+    lines = body.splitlines()[1:]
+    while lines and (not lines[-1].strip() or _is_trailer(lines[-1])):
+        lines.pop()
+    paragraphs: list[str] = []
+    current: list[str] = []
+    for line in lines:
+        # A list item or a blank line starts afresh; other lines are the wrapped paragraph.
+        if not line.strip() or line.lstrip().startswith("- "):
+            if current:
+                paragraphs.append(" ".join(current))
+            current = [line.strip()] if line.strip() else []
+        else:
+            current.append(line.strip())
+    if current:
+        paragraphs.append(" ".join(current))
+    return "\n".join(paragraphs)
+
+
+def _is_trailer(line: str) -> bool:
+    key, colon, _value = line.partition(":")
+    return bool(colon) and " " not in key.strip() and "-" in key
+
+
 def domain_log(
     repo: Repo,
     *,
@@ -39,7 +70,9 @@ def domain_log(
     actor: str | None = None,
 ) -> list[DomainCommit]:
     result = gitio.run(
-        ["log", f"--format=%H{_UNIT_SEP}%B{_RECORD_SEP}"], cwd=repo.root, check=False
+        ["log", f"--format=%H{_UNIT_SEP}%aI{_UNIT_SEP}%B{_RECORD_SEP}"],
+        cwd=repo.root,
+        check=False,
     )
     if result.returncode != 0 or not result.stdout:
         return []
@@ -49,9 +82,18 @@ def domain_log(
         record = record.strip("\n")
         if not record:
             continue
-        sha, _, body = record.partition(_UNIT_SEP)
+        sha, _, rest = record.partition(_UNIT_SEP)
+        date, _, body = rest.partition(_UNIT_SEP)
         subject = body.splitlines()[0] if body else ""
-        commits.append(DomainCommit(sha=sha, subject=subject, trailers=_parse_trailers(body)))
+        commits.append(
+            DomainCommit(
+                sha=sha,
+                subject=subject,
+                trailers=_parse_trailers(body),
+                date=date.strip(),
+                reason=_reason(body),
+            )
+        )
 
     if criteria_only:
         commits = [c for c in commits if c.trailers.get("Op") == "criteria-change"]

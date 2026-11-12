@@ -78,6 +78,7 @@ from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
+from strata.web import timeline as timeline_mod
 from strata.web.app import AppState, state_of
 from strata.web.messages import for_reviewer
 
@@ -1133,9 +1134,9 @@ async def records_list_view(request: Request) -> HTMLResponse:
     state: AppState = state_of(request)
     repo = state.open_repo()
     filter_expr = request.query_params.get("filter") or ""
-    records = [
-        r for r in records_mod.read_records(repo) if r.get("strata", {}).get("canonical", True)
-    ]
+    everything = records_mod.read_records(repo)
+    records = [r for r in everything if r.get("strata", {}).get("canonical", True)]
+    distinct = len(records)
     error: str | None = None
     if filter_expr:
         try:
@@ -1162,7 +1163,13 @@ async def records_list_view(request: Request) -> HTMLResponse:
     return _render(
         request,
         "records.html",
-        {"rows": rows, "filter_expr": filter_expr, "error": error},
+        {
+            "rows": rows,
+            "filter_expr": filter_expr,
+            "error": error,
+            "distinct": distinct,
+            "merged": len(everything) - distinct,
+        },
     )
 
 
@@ -1181,7 +1188,11 @@ def record_detail_context(
         "record": record,
         "authors": _author_display(record),
         "year": _record_year(record),
-        "provenance": provenance_mod.build_provenance(repo, record["id"]),
+        "timeline": timeline_mod.timeline(
+            provenance_mod.build_provenance(repo, record["id"]),
+            record_id=record["id"],
+            commits=logcmd_mod.domain_log(repo),
+        ),
         "editable_fields": sorted(fieldedit_mod.EDITABLE_FIELDS),
         "current_values": {
             name: fieldedit_mod.format_field_value(
@@ -1228,5 +1239,15 @@ async def history_view(request: Request) -> HTMLResponse:
     repo = state.open_repo()
     stage = request.query_params.get("stage") or None
     actor = request.query_params.get("actor") or None
-    commits = logcmd_mod.domain_log(repo, stage=stage, actor=actor)
+    commits = [
+        {
+            "sha": c.sha,
+            "subject": c.subject,
+            "trailers": c.trailers,
+            "date": c.date,
+            "when": timeline_mod.when(c.date),
+            "reason": c.reason,
+        }
+        for c in logcmd_mod.domain_log(repo, stage=stage, actor=actor)
+    ]
     return _render(request, "history.html", {"commits": commits, "stage": stage, "actor": actor})
