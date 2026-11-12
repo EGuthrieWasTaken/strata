@@ -218,7 +218,7 @@ Open. Checked against the code unless marked:
 - **Web screening decisions are not committed when you leave the screen** (F3, #83); `web/routes.py` says no commit
   trigger is wired. The wiki said they were; it now says what happens, and `Known-Limitations` has the workaround.
   The next unrelated commit used to sweep them up under the wrong author and subject (F11; reproduced, also on
-  a hosted instance, and fixed separately: every commit now flushes each reviewer's pending decisions first).
+  a hosted instance, and fixed separately in #93: every commit now flushes each reviewer's pending decisions first).
 - **A split makes `/prisma` refuse to draw** (F26, #84): `studies_included <= reports_included` is an identity in
   `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
 - **The session cookie is shared by every server on `127.0.0.1`** (F20, #85), because cookies ignore ports.

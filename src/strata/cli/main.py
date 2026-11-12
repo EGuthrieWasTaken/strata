@@ -66,6 +66,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
+from strata.core.screen_batches import flush_pending_screening, flush_under_lock
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -355,6 +356,25 @@ def _preflight_rationale(
     that supplies a rationale or can prompt for one pays nothing, and a rerun that has
     nothing to commit is not refused for want of a rationale it would never use.
     """
+    _refuse_unusable_rationale(ctx, repo, always=always, needed=needed)
+    if not ctx.obj["no_commit"]:
+        _commit_pending_screening(repo)
+
+
+def _commit_pending_screening(repo: Repo) -> None:
+    """Commit every reviewer's pending screening decisions, as batches of their own, before this
+    command writes anything, so none rides along in the commit it is about to make
+    (`strata.core.screen_batches`)."""
+    flush_under_lock(repo)
+
+
+def _refuse_unusable_rationale(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    always: bool,
+    needed: Callable[[], bool] | None,
+) -> None:
     if ctx.obj["no_commit"] and not always:
         return
     supplied = _read_supplied_rationale(ctx)
@@ -1890,6 +1910,7 @@ def _commit_criteria_op(
         body=rationale,
         trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
     )
+    flush_pending_screening(repo)
     gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
     gitio.commit(repo.root, commit_obj.message())
 

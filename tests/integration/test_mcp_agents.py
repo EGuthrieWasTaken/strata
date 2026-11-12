@@ -22,6 +22,7 @@ from strata.core import events as events_mod
 from strata.core.actor import add_actor
 from strata.core.manifest import load_manifest_doc, write_manifest
 from strata.core.repo import Repo, open_repo
+from strata.core.screen_batches import flush_pending_screening, pending_screening_actors
 from strata.mcpserver.server import READ_TOOLS, WRITE_TOOLS, create_mcp_server
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import pool as pool_mod
@@ -430,6 +431,9 @@ def test_a_commit_made_for_an_agent_is_authored_by_it_and_committed_by_the_perso
     repo, ids = world
     repo = _policy(repo, retrieval="count")
     report = _report(repo, ids)
+    # The setup's screening decisions are still uncommitted; they are committed first, as their own
+    # batch (`strata.core.screen_batches`), so that what is measured below is the agent's commit.
+    flush_pending_screening(open_repo(repo.root))
     before = _commits(repo)
     _write(repo, "record_retrieval", report=report, outcome="not-retrieved", reason="no-access")
     assert len(_commits(repo)) == len(before) + 1
@@ -451,6 +455,31 @@ def test_a_commit_made_for_an_agent_is_authored_by_it_and_committed_by_the_perso
     ):
         assert trailer in message
     assert WHY in message
+
+
+def test_an_agents_commit_does_not_carry_pending_screening_decisions_and_they_are_not_its_work(
+    world: tuple[Repo, list[str]],
+) -> None:
+    """Decisions people made and nobody has committed yet are committed first, as people's, under
+    the configured identity; the agent's commit holds only the agent's own work."""
+    repo, ids = world
+    repo = _policy(repo, retrieval="count")
+    report = _report(repo, ids)  # leaves the people's screening decisions pending
+    pending = pending_screening_actors(open_repo(repo.root))
+    assert pending, "the setup was meant to leave screening decisions pending"
+    before = _commits(repo)
+    _write(repo, "record_retrieval", report=report, outcome="not-retrieved", reason="no-access")
+
+    new = gitio.run(["log", "--reverse", "--format=%H|%an|%s", f"{before[0]}..HEAD"], cwd=repo.root)
+    commits = [line.split("|", 2) for line in new.stdout.splitlines()]
+    batches = [c for c in commits if c[2].startswith("screen(")]
+    assert len(batches) == len(pending)
+    assert all(AGENT not in c[1] for c in batches)  # not authored as the agent
+    last_sha, last_author, _ = commits[-1]
+    assert last_author == f"{AGENT} (via sam)"  # the agent's own commit, last
+    held = gitio.run(["show", "--name-only", "--format=", last_sha], cwd=repo.root).stdout.split()
+    assert not [f for f in held if f.startswith("events/screen/")]
+    assert pending_screening_actors(open_repo(repo.root)) == []
 
 
 def test_strata_log_finds_the_agents_commits(world: tuple[Repo, list[str]]) -> None:
