@@ -23,7 +23,7 @@ chain, and a hand edit is exactly what `E_CHAIN` exists to catch.
 Decisions are appended to the event log and flushed as you make them; the commit is made when the session
 ends. If the process died (a crash, a closed terminal, a dead battery) every decision you saw accepted is on
 disk, uncommitted. Start `strata screen` again: it resumes with those records already done, and the commit
-comes at the end of that session. `git diff` shows exactly what is waiting to be committed.
+comes at the end of that session. In the browser nothing needs doing: the next `strata serve` commits what the last one left as it starts. `git diff` shows exactly what is waiting to be committed.
 
 ## `strata verify` says…
 
