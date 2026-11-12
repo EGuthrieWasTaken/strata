@@ -31,12 +31,13 @@ from strata.web.security import (
     CSRF_FIELD_NAME,
     DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
     MUTATING_METHODS,
-    SESSION_COOKIE_NAME,
+    NO_SESSION_MESSAGE,
     InactivityClock,
     PublicUrl,
     allowed_hosts,
     is_host_allowed,
     is_origin_allowed,
+    session_cookie_name,
 )
 
 _CSP = (
@@ -88,6 +89,7 @@ class AppState:
         self.port = port
         self.public_url = public_url
         self.allowed_hosts = allowed_hosts(host, port, public_url)
+        self.session_cookie = session_cookie_name(port, public_url)
         self.clock = InactivityClock(inactivity_timeout)
         self.max_upload_bytes = max_upload_bytes
         self.staging = uploads.UploadStaging(repo_root, max_total_bytes=max_upload_bytes)
@@ -240,12 +242,12 @@ def create_app(
             # which only requires it on mutating requests -- deliberately:
             # nothing about "local" should mean another process or browser
             # tab can read repository content without the token too).
-            cookie_token = request.cookies.get(SESSION_COOKIE_NAME)
+            cookie_token = request.cookies.get(s.session_cookie)
             authenticated = cookie_token == s.session_token
             if not authenticated and request.query_params.get("token") == s.session_token:
                 authenticated = True
             if not authenticated:
-                return PlainTextResponse("missing or invalid session", status_code=403)
+                return PlainTextResponse(NO_SESSION_MESSAGE, status_code=403)
 
             form = None
             if request.method in MUTATING_METHODS:
@@ -302,7 +304,7 @@ def create_app(
 
             if cookie_token != s.session_token:
                 response.set_cookie(
-                    SESSION_COOKIE_NAME,
+                    s.session_cookie,
                     s.session_token,
                     httponly=True,
                     samesite="strict",

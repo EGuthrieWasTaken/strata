@@ -68,7 +68,51 @@ def test_first_request_with_token_sets_the_session_cookie(tmp_path: Path) -> Non
     client = _client(repo)
     r = client.get(f"/?token={_TOKEN}")
     assert r.status_code == 200
-    assert client.cookies.get("strata_session") == _TOKEN
+    assert client.cookies.get("strata_session_8000") == _TOKEN
+
+
+def test_two_servers_on_one_host_each_keep_their_own_session(tmp_path: Path) -> None:
+    """Cookies ignore ports, so a cookie both servers called `strata_session` was overwritten by
+    whichever was opened last, and the other answered "missing or invalid session" (#85)."""
+    first = _repo_with_records(tmp_path / "a", [])
+    second = _repo_with_records(tmp_path / "b", [])
+    app_a = create_app(repo_root=first.root, actor="ethan", session_token="token-a", port=8801)
+    app_b = create_app(repo_root=second.root, actor="ethan", session_token="token-b", port=8802)
+    a = TestClient(app_a, base_url="http://127.0.0.1:8801")
+    b = TestClient(app_b, base_url="http://127.0.0.1:8802")
+
+    # One browser keeps one cookie jar for the host, whatever the port: what either server sets,
+    # the other is sent.
+    assert a.get("/?token=token-a").status_code == 200
+    b.cookies.update(a.cookies)
+    assert b.get("/?token=token-b").status_code == 200
+    a.cookies.update(b.cookies)
+    # Back to the first by plain path, then the second: both still signed in.
+    assert a.get("/").status_code == 200
+    assert b.get("/").status_code == 200
+    assert a.cookies.get("strata_session_8801") == "token-a"
+    assert a.cookies.get("strata_session_8802") == "token-b"
+
+
+def test_a_public_url_names_the_cookie_after_the_port_the_browser_uses(tmp_path: Path) -> None:
+    from strata.web.security import parse_public_url, session_cookie_name
+
+    # Two containers both listening on 8000 inside, published on different ports.
+    assert session_cookie_name(8000, parse_public_url("http://localhost:8765")) == (
+        "strata_session_8765"
+    )
+    assert session_cookie_name(8000, parse_public_url("https://review.example.org")) == (
+        "strata_session"
+    )
+    assert session_cookie_name(8000) == "strata_session_8000"
+
+
+def test_a_request_with_no_session_is_told_what_to_do(tmp_path: Path) -> None:
+    repo = _repo_with_records(tmp_path, [])
+    refused = _client(repo).get("/records")
+    assert refused.status_code == 403
+    assert refused.headers["content-type"].startswith("text/plain")
+    assert "?token=" in refused.text and "strata serve" in refused.text
 
 
 def test_request_without_token_or_cookie_is_rejected(tmp_path: Path) -> None:

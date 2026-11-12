@@ -19,6 +19,7 @@ from strata import gitio
 from strata.core.init import init_repository
 from strata.web import uploads
 from strata.web.app import create_app
+from strata.web.security import NO_SESSION_MESSAGE
 
 _TOKEN = "test-session-token-0123456789"
 MIB = uploads.MIB
@@ -210,7 +211,7 @@ def test_no_session_is_refused_before_the_size_is_looked_at(tmp_path: Path) -> N
     response = _post_files(_client(app, authenticated=False), [("big.ris", b"x" * (2 * MIB))])
 
     assert response.status_code == 403
-    assert response.text == "missing or invalid session"
+    assert response.text == NO_SESSION_MESSAGE
     assert _staged(root) == []
 
 

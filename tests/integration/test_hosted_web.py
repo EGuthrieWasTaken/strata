@@ -418,3 +418,31 @@ def test_the_instances_own_forms_refuse_a_large_or_unsized_body(tmp_path: Path) 
         headers={"content-type": "application/x-www-form-urlencoded"},
     )
     assert big.status_code == 413
+
+
+def test_an_instance_on_a_port_of_its_own_names_its_cookies_after_it(tmp_path: Path) -> None:
+    """Cookies are shared by every port of a host name, so two instances (or an instance and a
+    `strata serve`) on one host must not use the same cookie names (#85)."""
+    from strata.web.hosted import HostedServer
+    from strata.web.security import parse_public_url
+
+    h = hosted(tmp_path)
+    default = h.server
+    assert default.session_cookie == "__Host-strata_session"
+    assert default.signin_cookie == "__Host-strata_signin"
+    assert default.oidc_state_cookie == "strata_oidc_state"
+    other = HostedServer(
+        h.instance,
+        public_url=parse_public_url("https://strata.example.test:8443"),
+        background=False,
+    )
+    assert other.session_cookie == "__Host-strata_session_8443"
+    assert other.signin_cookie == "__Host-strata_signin_8443"
+    assert other.oidc_state_cookie == "strata_oidc_state_8443"
+    plain = HostedServer(
+        h.instance,
+        public_url=parse_public_url("http://localhost:8765"),
+        background=False,
+        allow_plain_http=True,
+    )
+    assert plain.session_cookie == "strata_session_8765"
