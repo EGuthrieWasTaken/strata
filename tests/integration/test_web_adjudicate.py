@@ -117,7 +117,10 @@ def test_adjudicate_view_hides_form_for_a_non_adjudicator(tmp_path: Path) -> Non
     client = _client(repo, actor="sam")
     r = client.get("/adjudicate/title-abstract")
     assert r.status_code == 200
-    assert "not an adjudicator" in r.text
+    # said in the reviewer's words, the setting muted beneath, and a way back (#90)
+    assert "You can read this disagreement but not settle it" in r.text
+    assert '<p class="field-meta error-detail">Setting: screening.adjudicators' in r.text
+    assert "Back to dashboard" in r.text
     assert 'name="rationale"' not in r.text
 
 
@@ -165,7 +168,7 @@ def test_adjudicate_post_by_a_non_adjudicator_is_rejected(tmp_path: Path) -> Non
         },
     )
     assert r.status_code == 422
-    assert "not an adjudicator" in r.text.lower()
+    assert "You can read this disagreement but not settle it" in r.text
 
 
 def test_adjudicate_post_without_rationale_is_rejected(tmp_path: Path) -> None:

@@ -80,7 +80,7 @@ from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import screening as screening_mod
 from strata.web import timeline as timeline_mod
 from strata.web.app import AppState, state_of
-from strata.web.messages import for_reviewer
+from strata.web.messages import for_reviewer, named
 
 router = APIRouter()
 
@@ -614,9 +614,7 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | Plain
     assert record is not None
     conflict_state = screening_mod.resolve_record_state(repo, stage, record_id)
     opinions = sorted(conflict_state.opinions.items(), key=lambda kv: kv[0])
-    active_criteria = sorted(
-        screening_mod.active_criteria_for_stage(repo, stage).values(), key=lambda c: c["id"]
-    )
+    active_criteria = _reasons_for_stage(repo, stage)  # numbered as the screening screens do
     return _render(
         request,
         "adjudicate.html",
@@ -628,6 +626,7 @@ async def adjudicate_stage(request: Request, stage: str) -> HTMLResponse | Plain
             "opinions": opinions,
             "active_criteria": active_criteria,
             "is_adjudicator": adjudication_mod.is_adjudicator(repo, state.actor),
+            "view_only": named("not-an-adjudicator"),
             "total": len(queue),
             "skip_csv": ",".join(sorted(skip_ids)),
             "skip_next_csv": ",".join(sorted(skip_ids | {record_id})),
@@ -662,7 +661,7 @@ async def adjudicate_stage_submit(
             cited=cited,
         )
     except (RationaleRejectedError, adjudication_mod.AdjudicationError) as exc:
-        return _error(str(exc), status_code=422)
+        return _error(for_reviewer(exc).text, status_code=422)
 
     pool_mod.regenerate_all(repo)
     # Short subject: a record id is a ~20-char ULID, and

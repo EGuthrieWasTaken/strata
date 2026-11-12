@@ -49,7 +49,12 @@ _OPEN_STATUSES = frozenset({RETRIEVAL_SOUGHT, RETRIEVAL_ILL_REQUESTED})
 
 
 class RetrievalError(ValueError):
-    pass
+    """`code`, when given, is a short stable name for the refusal, so a screen can say it in its
+    own words (`strata.web.messages`)."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass
@@ -215,10 +220,14 @@ def record_retrieval(
     elif status == NOT_RETRIEVED:
         if reason not in NOT_RETRIEVED_REASONS:
             raise RetrievalError(
-                f"a report marked not retrievable needs a reason from {NOT_RETRIEVED_REASONS}"
+                f"a report marked not retrievable needs a reason from {NOT_RETRIEVED_REASONS}",
+                code="not-retrieved-needs-reason",
             )
         if reason == "other" and not (reason_text or "").strip():
-            raise RetrievalError("reason 'other' needs free text saying what happened")
+            raise RetrievalError(
+                "reason 'other' needs free text saying what happened",
+                code="not-retrieved-other-needs-text",
+            )
         body["reason"] = reason
         if reason_text:
             body["reason_text"] = reason_text.strip()

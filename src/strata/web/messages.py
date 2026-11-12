@@ -35,10 +35,31 @@ _WORDS: dict[str, Shown] = {
         "Requirement: screening#screening-surface-contract",
     ),
     "not-retrieved-needs-reason": Shown(
-        "Choose why the report could not be retrieved (under “Why not”), then record it again.",
+        "Choose why the report could not be retrieved, under “Why not”, then record it again. "
+        "The flow diagram reports the reports not retrieved by reason.",
         "Field: reason",
     ),
+    "not-retrieved-other-needs-text": Shown(
+        "You chose “Other”: say what happened in the box beside it.",
+        "Field: reason_text",
+    ),
+    "not-an-adjudicator": Shown(
+        "You can read this disagreement but not settle it: that is for the review’s "
+        "adjudicators and its lead.",
+        "Setting: screening.adjudicators, or the role adjudicator or lead",
+    ),
 }
+
+
+def named(code: str) -> Shown:
+    """The words for a refusal a page shows without an exception having been raised."""
+    return _WORDS[code]
+
+
+def sentence(text: str) -> str:
+    """`text` ending as a sentence, so another can follow it."""
+    stripped = text.rstrip()
+    return stripped if stripped.endswith((".", "!", "?", ";", ":")) else stripped + "."
 
 
 def for_reviewer(error: Exception) -> Shown:
