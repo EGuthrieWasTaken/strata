@@ -11,8 +11,8 @@
 </form>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
-<h1>{{ stage }} rescreen &mdash; {{ total }} stale</h1>
-<p class="field-meta" data-testid="rescreen-scope">{{ total }} of your own {{ stage }} decision{{ "s" if total != 1 else "" }} need{{ "s" if total == 1 else "" }} another look{% if skipped %} &middot; {{ skipped }} skipped for now, offered again at the end{% endif %}. The dashboard counts records with a stale decision by anyone, so its number can differ.</p>
+<h1>{{ stage }} rescreen &mdash; {{ total }} of your decisions</h1>
+<p class="field-meta" data-testid="rescreen-scope">{{ total }} of your own {{ stage }} decision{{ "s" if total != 1 else "" }} {{ "is" if total == 1 else "are" }} stale: made before a change to the criteria that could alter {{ "it" if total == 1 else "them" }}{% if skipped %} &middot; {{ skipped }} skipped for now, offered again at the end{% endif %}. This is your own list. The dashboard&rsquo;s &ldquo;Stale records&rdquo; counts records for the whole review, so that number can differ and does not fall until every reviewer&rsquo;s decision on a record is fresh.</p>
 
 {% if error %}
 <div class="error" role="alert"><p>{{ error }}</p>{% if error_detail %}<p class="field-meta error-detail">{{ error_detail }}</p>{% endif %}</div>

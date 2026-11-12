@@ -75,7 +75,7 @@
       <th scope="col">Unscreened</th>
       <th scope="col">Partial</th>
       <th scope="col">Conflicts</th>
-      <th scope="col">Stale</th>
+      <th scope="col">Stale records</th>
       <th scope="col">Action</th>
     </tr>
   </thead>
@@ -88,13 +88,16 @@
       <td data-label="Unscreened">{{ stage.unscreened }}</td>
       <td data-label="Partial">{{ stage.partial }}</td>
       <td data-label="Conflicts">{{ stage.conflicts }}</td>
-      <td data-label="Stale">{{ stage.stale }}</td>
+      <td data-label="Stale records">{{ stage.stale }}</td>
       <td data-label="Action">
         {% if stage.conflicts %}
         <a href="{{ root }}/adjudicate/{{ stage.stage }}">Adjudicate &rarr;</a>
         {% endif %}
-        {% if stage.stale %}
-        <a href="{{ root }}/rescreen/{{ stage.stage }}">Rescreen &rarr;</a>
+        {% set mine = my_stale.get(stage.stage, 0) %}
+        {% if mine %}
+        <a href="{{ root }}/rescreen/{{ stage.stage }}" data-testid="rescreen-link">Rescreen {{ mine }} of your decision{{ "s" if mine != 1 else "" }} &rarr;</a>
+        {% elif stage.stale %}
+        <span class="field-meta" data-testid="stale-others">waiting for other reviewers to rescreen</span>
         {% endif %}
         {% if stage.unscreened or stage.partial %}
         <a href="{{ root }}/screen/{{ stage.stage }}">Screen &rarr;</a>
@@ -107,6 +110,9 @@
     {% endfor %}
   </tbody>
 </table>
+{% if report.stages | selectattr("stale") | list or my_stale.values() | select | list %}
+<p class="field-meta" data-testid="stale-definition"><strong>Stale records</strong> counts records, for the whole review: those whose settled decision at the stage was made before a change to the criteria that could alter it. <strong>Your decisions</strong> to rescreen are counted separately, per reviewer: your own stale decisions at the stage, including ones on records that are still in conflict or only half screened. The two numbers measure different things and need not match.</p>
+{% endif %}
 
 <p>Assign reviewers:
   {% for stage in report.stages %}<a href="{{ root }}/assign/{{ stage.stage }}">{{ stage.stage }}</a>{{ " &middot; " | safe if not loop.last else "" }}{% endfor %}</p>

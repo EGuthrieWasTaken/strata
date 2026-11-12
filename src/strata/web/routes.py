@@ -175,6 +175,12 @@ async def dashboard(request: Request) -> HTMLResponse:
             "report": report,
             "actor": state.actor,
             "finished": request.query_params.get("finished") == "1",
+            # The stage table counts records; a reviewer rescreens their own decisions, which is
+            # a different number, so the table shows both and says which is which.
+            "my_stale": {
+                stage.stage: len(rescreen_mod.rescreen_queue(repo, stage.stage, state.actor))
+                for stage in report.stages
+            },
             "awaiting_export": pipeline_mod.searches_awaiting_import(repo),
             "ai_enabled": enabled,
             "ai_policy": {

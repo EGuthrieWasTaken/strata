@@ -673,3 +673,39 @@ def test_the_dashboard_links_to_assignment_for_every_stage(tmp_path: Path) -> No
 
     assert 'href="/assign/title-abstract"' in page.text
     assert 'href="/assign/full-text"' in page.text
+
+
+# ------------------------------------------------- an assignment can be seen on the page (#88)
+
+
+def test_an_assignment_shows_in_who_has_what_and_in_the_list_of_assignments(
+    tmp_path: Path,
+) -> None:
+    repo = _review(tmp_path)
+    client = _client(repo)
+    before = _text(client.get("/assign/title-abstract"))
+    assert "Ethan (ethan) 2 0 2" in before and "Sam (sam) 2 0 2" in before
+    assert "None yet: every record goes to the review’s default reviewers." in before
+
+    # sam alone, for the newer paper: ethan no longer has it
+    response = _post(
+        client, "/assign/title-abstract", _assign(actors=["sam"], filter="year >= 2010")
+    )
+    assert response.status_code == 303
+    after = _text(client.get(response.headers["location"]))
+    assert (
+        "Assignment recorded: 1 record at title-abstract is now assigned to sam, and to nobody else"
+        in after
+    )
+    assert "Ethan (ethan) 1 0 1" in after and "Sam (sam) 2 0 2" in after
+    assert "ethan sam 1 the filter year >= 2010" in after  # by, to, how many, chosen by
+    assert " UTC ethan sam 1" in after  # and when
+
+
+def test_a_filter_that_cannot_be_read_offers_nothing_to_assign_to(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+    page = _client(repo).get("/assign/title-abstract", params={"filter": "year >>= 2018 and"})
+    text = _text(page)
+    assert "invalid filter:" in text
+    assert "The filter above cannot be read, so there is nothing to assign to yet." in text
+    assert "To the records matching" not in text and 'id="assign-form"' not in page.text

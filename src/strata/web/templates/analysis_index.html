@@ -2,6 +2,10 @@
 {% block title %}Analyses{% endblock %}
 {% block content %}
 <h1>Analyses</h1>
+<p class="field-meta" data-testid="freshness-scope">&ldquo;Current&rdquo; means the results match the data extracted from the studies now included and the analysis&rsquo;s specification. It does not look at whether the screening behind those studies is settled.</p>
+{% if stale_decisions %}
+<p class="notice flag" role="status" data-testid="stale-evidence"><span aria-hidden="true">&#9888;</span> {{ stale_decisions }} screening decision{{ "s are" if stale_decisions != 1 else " is" }} stale, so which studies are included may change. Results marked current are provisional until those decisions are rescreened (see the <a href="{{ root }}/">dashboard</a>).</p>
+{% endif %}
 <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
   <thead>
     <tr>
@@ -15,7 +19,7 @@
     <tr>
       <th scope="row">{{ a.title }}<br><span class="field-meta">{{ a.id }} &middot; {{ a.label }}</span></th>
       <td>
-        {% if a.state == "fresh" %}<span class="done-note">current</span>
+        {% if a.state == "fresh" %}<span class="done-note">current</span>{% if stale_decisions %} <span class="field-meta">provisional: screening has stale decisions</span>{% endif %}
         {% elif a.state == "missing" %}<span class="todo-note">not run yet</span>
         {% else %}<span class="missing-note">{{ a.state }}</span>{% endif %}
       </td>

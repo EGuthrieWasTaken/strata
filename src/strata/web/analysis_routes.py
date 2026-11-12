@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from strata.analysis import run as analysis_run
 from strata.analysis import spec as analysis_spec
 from strata.core.repo import Repo
+from strata.protocol import rescreen as rescreen_mod
 from strata.web.app import AppState, state_of
 from strata.web.routes import _error, _render
 
@@ -45,6 +46,14 @@ def _state(repo: Repo, analysis_id: str) -> str:
         return analysis_run.results_state(repo, analysis_id)
     except ValueError:
         return "unchecked"
+
+
+def _stale_decisions(repo: Repo) -> int:
+    """Screening decisions that are stale. An analysis is current when its inputs (the effect
+    data of the studies now included, and its specification) are what it was run on; a stale
+    decision does not change those until it is rescreened, so the results can be current while
+    the evidence behind them is in doubt, and the pages say so."""
+    return len(rescreen_mod.compute_stale_records(repo))
 
 
 def _read_json(path: Any) -> dict[str, Any] | None:
@@ -79,7 +88,11 @@ async def analysis_index(request: Request) -> HTMLResponse:
         rows.append(
             {"id": analysis_id, "title": title, "label": label, "state": _state(repo, analysis_id)}
         )
-    return _render(request, "analysis_index.html", {"actor": state.actor, "analyses": rows})
+    return _render(
+        request,
+        "analysis_index.html",
+        {"actor": state.actor, "analyses": rows, "stale_decisions": _stale_decisions(repo)},
+    )
 
 
 @router.get("/analysis/{analysis_id}", response_class=HTMLResponse, response_model=None)
@@ -107,6 +120,7 @@ async def analysis_detail(request: Request, analysis_id: str) -> HTMLResponse | 
             "spec": spec,
             "state": results_state,
             "state_text": _STATE_TEXT.get(results_state),
+            "stale_decisions": _stale_decisions(repo),
             "estimates": estimates,
             "run": run,
             "warnings": run.get("warnings", []),

@@ -12,6 +12,13 @@
 <p class="notice" role="status">{{ state_text }}{% if state != "missing" %} Run <code>strata analyze {{ id }}</code> to refresh them.{% else %} Run <code>strata analyze {{ id }}</code>.{% endif %}</p>
 {% endif %}
 
+{% if state == "fresh" %}
+<p class="field-meta" data-testid="freshness-scope">These results are current: they match the data extracted from the studies now included and this analysis&rsquo;s specification.</p>
+{% endif %}
+{% if stale_decisions and state != "missing" %}
+<p class="notice flag" role="status" data-testid="stale-evidence"><span aria-hidden="true">&#9888;</span> {{ stale_decisions }} screening decision{{ "s are" if stale_decisions != 1 else " is" }} stale, so which studies are included may change. {% if state == "fresh" %}The results are current for the studies included now, and provisional{% else %}Treat the results as provisional{% endif %} until those decisions are rescreened (see the <a href="{{ root }}/">dashboard</a>); the <a href="{{ root }}/prisma">flow diagram</a> is a draft for the same reason.</p>
+{% endif %}
+
 {% if warnings %}
 <section aria-labelledby="warnings-h">
   <h2 id="warnings-h">Guardrail warnings</h2>

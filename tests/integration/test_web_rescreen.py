@@ -94,7 +94,7 @@ def test_rescreen_shows_prior_decision_and_reason(tmp_path: Path) -> None:
     assert "A test record" in r.text
     assert "INCLUDE" in r.text
     assert "criterion-added" in r.text
-    assert "1 stale" in r.text
+    assert "1 of your decisions" in r.text
 
 
 def test_rescreen_post_keep_previous_reaffirms_the_same_decision(tmp_path: Path) -> None:
@@ -258,3 +258,18 @@ def test_rescreen_post_success_carries_skip_list_into_redirect(tmp_path: Path) -
     )
     assert r.status_code == 303
     assert "skip=rec_0000000000000099" in r.headers["location"]
+
+
+def test_the_two_stale_counts_say_what_each_one_counts(tmp_path: Path) -> None:
+    """The dashboard counts records for the whole review; the rescreen screen counts the
+    reviewer's own decisions. Each says so (#88)."""
+    repo = _repo_with_one_stale_record(tmp_path)
+    client = _client(repo)
+    dashboard = client.get("/").text
+    assert '<th scope="col">Stale records</th>' in dashboard
+    assert "Rescreen 1 of your decision &rarr;" in dashboard
+    assert 'data-testid="stale-definition"' in dashboard
+    page = client.get("/rescreen/title-abstract").text
+    assert "title-abstract rescreen &mdash; 1 of your decisions" in page
+    assert "1 of your own title-abstract decision is stale" in page
+    assert "counts records for the whole review" in page
