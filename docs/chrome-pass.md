@@ -229,8 +229,8 @@ uv run python scripts/seed_hosted.py ~/strata-chrome-pass-hosted
 uv run strata host --data ~/strata-chrome-pass-hosted/data --public-url http://127.0.0.1:8765 --port 8765 --insecure-local-testing
 ```
 
-The first prints the three accounts (`ada` the lead, `sam` a screener, `olive` an observer) and their
-password. The instance has two projects cloned from bare remotes under `remotes/`: `spacing` (the `dual`
+The first prints the three accounts (`ada` the lead, `sam` a screener, `olive` an observer); their shared
+password is the constant `PASSWORD` near the top of `scripts/seed_hosted.py`. The instance has two projects cloned from bare remotes under `remotes/`: `spacing` (the `dual`
 review) and `disputed` (the same, where the lead and a collaborator reworded EXC-01 differently). It accepts
 plain HTTP because it was told to; never serve it to anyone else. Stay on `127.0.0.1:8765`.
 

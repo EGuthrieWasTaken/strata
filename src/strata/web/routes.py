@@ -237,7 +237,7 @@ def _screen_page(
     ticked: list[str] | None = None,
     note: str = "",
     status_code: int = 200,
-) -> HTMLResponse | RedirectResponse:
+) -> HTMLResponse:
     """`/screen/<stage>` for one request: the record to show and where the reviewer is in the
     queue. The same page answers a decision that was turned away, with the reason on it."""
     state: AppState = state_of(request)
@@ -264,8 +264,9 @@ def _screen_page(
         record_id = queue[0]
     elif skipped:
         # Everything else is decided: offer the skipped records again, in order, rather than
-        # saying nothing is left while some are still undecided.
-        return _redirect(f"/screen/{quote(stage, safe='')}", prev=prev_id or "", again="1")
+        # saying nothing is left while some are still undecided. Drawn here, not redirected to:
+        # the skip list is dropped, so the page's own links no longer carry it.
+        record_id, skip_ids, skipped, again = skipped[0], set(), [], True
     else:
         record_id = None
 

@@ -316,13 +316,14 @@ def test_a_skipped_record_comes_back_when_the_rest_are_done(tmp_path: Path) -> N
     assert f"redo={_id(2)}&amp;skip={skip}" in third.text
     _decide(client, 3, skip=skip)
 
-    done = client.get(f"/screen/{STAGE}?skip={skip}&prev={_id(3)}", follow_redirects=False)
-    assert done.status_code == 303
-    assert done.headers["location"] == f"/screen/{STAGE}?prev={_id(3)}&again=1"
-    back = client.get(done.headers["location"])
+    back = client.get(f"/screen/{STAGE}?skip={skip}&prev={_id(3)}", follow_redirects=False)
+    assert back.status_code == 200  # drawn in place: no redirect built from the address
     assert "Nothing left to screen" not in back.text
     assert "These are the records you skipped" in back.text and "Paper number 1" in back.text
     assert f"{STAGE} screening &mdash; 3 of 3" in back.text
+    # the skip list is dropped from the page's own links, and undo is still offered
+    assert f'href="/screen/{STAGE}?skip={skip}"' in back.text  # skipping it again
+    assert f"redo={_id(3)}" in back.text and f"redo={_id(3)}&amp;skip=" not in back.text
     _decide(client, 1)
     assert "Nothing left to screen" in client.get(f"/screen/{STAGE}").text
 

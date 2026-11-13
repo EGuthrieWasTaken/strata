@@ -28,8 +28,9 @@ and, in the instance, two projects cloned from them:
     pushed a different wording to the remote. The first sync finds the conflict and holds it for a
     lead to resolve; nothing is pushed until then.
 
-and three accounts, all with the password ``PASSWORD`` below: ``ada`` (lead), ``sam`` (screener)
-and ``olive`` (observer: may read, may not write), each a member of both projects.
+and three accounts, all with the password in ``PASSWORD`` below (the script does not print it):
+``ada`` (lead), ``sam`` (screener) and ``olive`` (observer: may read, may not write), each a member
+of both projects.
 
 To look at it::
 
@@ -177,7 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     for name, path in built.items():
         print(f"{name:16} {path}")
-    print(f"accounts         {', '.join(USERS)} (password: {PASSWORD})")
+    # The password is not printed: it is the constant `PASSWORD` at the top of this file.
+    print(f"accounts         {', '.join(USERS)} (they share one password: see this script)")
     print(
         f"serve it         strata host --data {built['data']} --public-url {args.public_url} "
         "--port <its port> --insecure-local-testing"
