@@ -1,0 +1,13 @@
+$ strata --why relink so the new record is mapped zotero link --by tester --web --library users/22585168
+linked users/22585168 through the Web API
+  matched 12 of 16 library items to records (1 new or updated links)
+  not in this review: V8VDM5V2 Probe (2026)  Native PMID field probe (`strata 
+zotero pull` brings it in)
+  not in this review: 6HPCSR64 Probe  Created by capture script (create probe) 
+(`strata zotero pull` brings it in)
+  not in this review: 8ZM89RUI Pashler et al. (2007)  Organizing instruction and
+study to improve student learning (`strata zotero pull` brings it in)
+  not in this review: GMCCX6GH Jost (1897)  Die Assoziationsfestigkeit in ihrer 
+Abhängigkeit von der Verteilung der Wiederholungen (`strata zotero pull` brings 
+it in)
+[exit code: 0]

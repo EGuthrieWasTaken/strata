@@ -1,0 +1,3 @@
+$ strata --why include for the app edit test screen full-text --by tester --decisions $SCRATCH/decisions-ho.tsv
+recorded 1 decision(s) for full-text
+[exit code: 0]

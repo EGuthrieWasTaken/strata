@@ -16,7 +16,7 @@ The findings that matter most (the Web API path worked end to end; the local API
    `auto` picks the local API and then fails; there is no fallback. Through the Web API everything works.
 2. **The local API is not read-only.** "Only the Web API can write" is wrong for Zotero 10.0.8. Writes are
    accepted behind a `Zotero-Server-ID` header (428 without) and a *local* API key obtained from
-   `POST /api/local/authorize`, which asks the person in the app (401 without). Not exercised past the 401.
+   `POST /api/local/authorize`, which asks the person in the app (401 without). Once the person chose Always Allow in that prompt, writes through the local API worked.
 3. **PMIDs do not round-trip.** `strata push` writes a PMID into `extra` (`PMID: n`); Zotero's CSL-JSON
    exports that as `note`, never as `PMID`, so the PMID rung of the matching ladder cannot match an item
    whose PMID is in `extra`. This Zotero's journal articles have native `PMID` and `PMCID` fields, and those
@@ -27,7 +27,10 @@ The findings that matter most (the Web API path worked end to end; the local API
    `xdg-open` reaches Zotero with no prompt.
 5. The group library (second pass) behaves as the personal one in everything above: Web API link, pull and
    push work, the local API fails on `csljson`, and a native `PMID` does match.
-6. Smaller: pushing again after an outside edit to the *same* collection says "already there", not
+6. **One item with a non-ISO date breaks `zotero pull`.** An item added in the app from a DOI lookup has the date
+   `11/1984`; the Web API's CSL-JSON then has `[["1984"]]` (a string year) and strata rejects the whole pull:
+   `error: record: issued/date-parts/0/0: '1984' is not of type 'integer'`.
+7. Smaller: pushing again after an outside edit to the *same* collection says "already there", not
    "refused" (the refusal only shows when the item is not yet in the target collection); `strata` made no
    change to the library beyond what it says; the Web API behaves as the fake assumed in most respects.
 
@@ -68,7 +71,7 @@ up within seconds without a click on sync.
 | # | Assumed | Verdict | What really happens |
 |---|---|---|---|
 | 1a | the local API serves `users/0/items/top?include=data,csljson` as the Web API does | **wrong** | The URL works and `Total-Results`, `Link` and the item envelope (`key`, `version`, `library`, `links`, `meta`, `data`, `csljson`) are there, but `csljson` is a **string**: `"[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/BEITJ9RM\", ...}\n]"`. The Web API gives an object `{"id": "26075093/BEITJ9RM", ...}`. The local copy also has string year parts (`[["2008", 11]]`, the Web API's are numbers), and `data` holds only fields that are set (the Web API sends every field of the type, empty ones as `""`). `format=csljson` is likewise `text/plain` there and `{"items": [...]}` as `application/vnd.citationstyles.csl+json` on the Web. Item versions are unrelated: the same item is version 14 locally and 4 on the Web |
-| 1b | ...and is read-only | **wrong** | Reads need nothing. Writes get `428 Zotero-Server-ID not provided`; with that header (the server hands its id out on every response) `401 API key required -- POST /api/local/authorize to obtain one` (with `WWW-Authenticate`), `401 Invalid or expired API key` for any key including the zotero.org one, `412 Zotero-Server-ID does not match this server` for a wrong id. A local key comes from `POST /api/local/authorize` with `{"appName": ...}`, which shows Allow / Always Allow / Deny in the app. I did not trigger that prompt, so what a *granted* write does is untested. All twelve write attempts (POST create, POST update, PUT, PATCH, DELETE, POST collection, POST with a write token, and five more with the server id, a wrong id, a bogus key and the zotero.org key) were refused and the library did not change. This is stated in the app's own source (`server_localAPI.js`), not only inferred |
+| 1b | ...and is read-only | **wrong** | Reads need nothing. Writes get `428 Zotero-Server-ID not provided`; with that header (the server hands its id out on every response) `401 API key required -- POST /api/local/authorize to obtain one` (with `WWW-Authenticate`), `401 Invalid or expired API key` for any key including the zotero.org one, `412 Zotero-Server-ID does not match this server` for a wrong id. A local key comes from `POST /api/local/authorize` with `{"appName": ...}`, which shows Allow / Always Allow / Deny in the app. In the second pass the prompt was sent and the person chose Always Allow (`{"key": ..., "remember": true}`), after which writes worked: create (200, `successful` holds the full item, `success` maps slot to key, same envelope as the Web API), a membership-only update, an unchanged update (`unchanged`), a `DELETE` with the current version (`204`, library version moved); a stale version is per-object `failed` 412 inside a 200, but **with the `key` and a different message** (`item version mismatch: expected 1, found 52`; the Web API's has no key), a stale-version `DELETE` is `412 text/plain`, a reused write token `412 Write token already used`. Local versions (52, 53, 54) are the local library's, not the Web API's. Writing `extra: "PMID: 2"` through the local API came back with a **native `PMID` field and an empty `extra`**: the desktop app migrates it, the Web API does not. The probe item was created and then deleted by the script; nothing else was touched. The twelve write attempts made *before* authorisation (POST create, POST update, PUT, PATCH, DELETE, POST collection, POST with a write token, and five more with the server id, a wrong id, a bogus key and the zotero.org key) were refused and the library did not change. This is stated in the app's own source (`server_localAPI.js`), not only inferred |
 | 2 | the setting that switches the local API on is under Settings > Advanced | **confirmed** (from the app's source and profile; not toggled live) | Settings > Advanced, in the **Miscellaneous** group, a checkbox labelled "Allow other applications on this computer to communicate with Zotero" (below "Report broken site translators"), with "Available at http://localhost:23119/api/" beneath it. It is bound to the preference `extensions.zotero.httpServer.localAPI.enabled`, which is in the profile's `prefs.js` as `true`, and is greyed out unless `extensions.zotero.httpServer.enabled` is on. With the box unticked every `/api/` request answered `403 text/plain "Local API is not enabled"`: the `/api/` ping, `items/top`, a group's `items/top`, and a write (the check comes before the server-id and key checks). The fake's text is identical. The connector server (`/connector/ping`) stayed up (200), and `GET /api/local/authorize` answered `400 Endpoint does not support method`. The setting was unticked by the person running this and ticked again afterwards, so the UI path is confirmed too. After the re-tick `prefs.js` had just been rewritten and read `extensions.zotero.httpServer.localAPI.enabled` = `true`; it was not read while the box was unticked, so that it read `false` then is inferred, not seen |
 | 3 | `GET /keys/current` reports a key's write access per library | **confirmed for the user library; for groups only the "all groups" entry** | `{"key", "userID", "username", "displayName", "access": {"user": {"library", "files", "write"}, "groups": {"all": {"library", "write"}}}}`, unchanged after the account joined a group. The fake lacks `displayName` and `user.files`. A per-group entry (`groups.<id>`) appears only for a key made for specific groups, which was not available; a write to the group library through this key worked. The body **echoes the key**, so a capture must be redacted. No key or a wrong key: `403 Forbidden`. The local API has no `/api/keys/current` (404) |
 | 4a | `POST /items` with `key` and `version` per object updates only the named properties | **confirmed** | An object with `key`, `version`, `collections` changed `collections` and the version and nothing else (compared field by field; `dateModified` did not move either) |
@@ -115,7 +118,7 @@ per-object 412 for a stale version.
 |---|---|---|
 | `local_api` | `true` | `true` |
 | `local_api_needs_preference` | `true` | `true`; `403 "Local API is not enabled"` per the source |
-| `local_api_writable` | `false`; writes are `501 Method Not Implemented` | writes are 428, then 401 (then possible once authorised) |
+| `local_api_writable` | `false`; writes are `501 Method Not Implemented` | writes are 428, then 401, and work once authorised (see 1b) (then possible once authorised) |
 | status line | not modelled | `HTTP/1.0`, reason `undefined` on 302/401/428 |
 | default page size | the fake's 25 | none locally (the Web API's is 25, maximum 100) |
 | `itemKey=A,B` | the two items | the two items **and their child attachments** (Web API: only the two) |
@@ -156,10 +159,14 @@ five records imported from a CSL-JSON file, one criterion). Full output is in `s
 | `zotero open <record>` (first try) | exit 0 and printed the link, but **Zotero did not respond** (the attachment's `lastRead` stayed empty for 8 s). `webbrowser.get()` here is `Mozilla firefox`, so the link goes to the browser, which asked the person before handing a `zotero://` link on. `xdg-open` on the same link made Zotero open the PDF within 8 s |
 | `zotero open <record>` (after the Firefox prompt was approved) | PDF record: `lastRead` appeared within 25 s. Record without a PDF: Zotero came forward with the item selected |
 | local API switched off: `zotero status`, `pull`, `link --library users/22585168` | each printed `note: Zotero's local API is not available (the local API is switched off in Zotero (Settings > Advanced > 'Allow other applications on this computer to communicate with Zotero')); using the Web API` and then worked (exit 0). The wording matches the real label and place of the setting |
+| `zotero pull --collection strata-test` once the collection held an item added in the app from a DOI lookup (date `11/1984`) | **failed, nothing pulled**, exit 2: `error: record: issued/date-parts/0/0: '1984' is not of type 'integer'`. For a date that is not ISO the Web API gives `"issued": {"date-parts": [["1984"]]}` (string, month dropped) and the local API `[["1984", 11]]`; strata's record schema wants integers, so one such item blocks the whole pull. `link` reads the same item without complaint |
+| the same item brought in by `import` + `link` instead, included, `push --collection strata-pushed`, then edited **in the Zotero app**, then `push` again | `pushed to 'strata-pushed': 0 created, 4 added, 2 already there`; after the edit `0 created, 0 added, 6 already there`, and to `strata-pushed-2` `refused ... (version 63 is now 66)`, exit 5 |
 
-**The outside edit was made through the Web API, not in the Zotero app.** The desktop interface could not
-be driven from this session. For `strata` the effect is the same (the item's version moves) but it is not
-the same path; someone should repeat that one step by hand.
+**The edit was made twice.** The first time (the 'Library afterwards' diffs) was through the Web API, because the
+desktop interface cannot be driven from this session. The second time the person edited an item in the Zotero
+app (typed into Extra, then synced): strata had last seen it at version 63, Zotero was then at 66, `push` to the
+same collection said `0 created, 0 added, 6 already there`, and `push` to a collection it was not in said
+`refused rec_8dwhfxjkctkgh44t: edited in Zotero since strata last saw it (version 63 is now 66); pull it, then push again` (exit 5). Same behaviour both ways.
 
 ## The library afterwards
 
@@ -187,6 +194,9 @@ Not changed here; for whoever picks them up.
   `os.startfile`) avoids the prompt; at least say that nothing opened.
 - `local_api_writable: false` and "the local API is read-only" are wrong for Zotero 10; decide whether
   the local API is wanted for writes (it needs a per-app authorisation the person grants in Zotero).
+- Accept (or coerce) string `date-parts` from both APIs: one item with a date like `11/1984` stops a whole pull.
+- If a local write path is ever wanted, note it migrates `extra` lines such as `PMID:` into native fields, reports a
+  stale version with a `key` and a different message, and needs a per-app authorisation the person grants.
 - Correct the fixtures: the envelope, `csljson` shape, `failed` entries, templates, the `itemKey`
   behaviour, the writes of the local API, and add a `10` profile.
 
@@ -194,9 +204,9 @@ Not changed here; for whoever picks them up.
 
 - **Per-group key entries** in `keys/current` (the key covers "all groups"), a group where the key
   may read but not write, and the effect of the group `zotero://` links.
-- **A granted local write** (needs a click on Allow in Zotero; `POST /api/local/authorize` was not called
-  so no prompt appeared).
-- **An edit made in the Zotero app** (stand-in used).
+- **`strata` writing through the local API**: it never does (it is Web-only), so only raw writes were tried. The
+  authorisation granted for them is still in Zotero ("Always Allow") until cleared under Settings > Advanced >
+  Clear Write Authorizations.
 - **Whether the Firefox prompt returns** on later opens (it may offer "always allow"), and any other
   browser or platform.
 - **Zotero 6**, and any other major version; macOS and Windows.

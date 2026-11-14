@@ -1,0 +1,134 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:23119/api/users/0/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Server-ID": "dx2OEZVeHz9j",
+      "Zotero-API-Key": "REDACTED-LOCAL-KEY",
+      "Zotero-Write-Token": "68ad4450a69e420295c311713a3089d1"
+    },
+    "body": [
+      {
+        "itemType": "journalArticle",
+        "title": "Local API write probe (created through the local API)",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "L",
+            "lastName": "Probe"
+          }
+        ],
+        "DOI": "10.1000/local-write",
+        "extra": "PMID: 2",
+        "collections": [
+          "EDKUIRII"
+        ]
+      }
+    ]
+  },
+  "note": "the first write with a granted local key (a single-use key is consumed by this one)",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Last-Modified-Version",
+        "52"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "ZPSVHR4J",
+          "version": 52,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "My Library",
+            "links": {
+              "self": {
+                "href": "http://localhost:23119/api/users/22585168",
+                "type": "application/json"
+              },
+              "alternate": {
+                "href": "https://www.zotero.org/users/22585168",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168/items/ZPSVHR4J",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168/items/ZPSVHR4J",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "creatorSummary": "Probe",
+            "numChildren": 0
+          },
+          "data": {
+            "key": "ZPSVHR4J",
+            "version": 52,
+            "itemType": "journalArticle",
+            "title": "Local API write probe (created through the local API)",
+            "DOI": "10.1000/local-write",
+            "PMID": "2",
+            "creators": [
+              {
+                "firstName": "L",
+                "lastName": "Probe",
+                "creatorType": "author"
+              }
+            ],
+            "tags": [],
+            "collections": [
+              "EDKUIRII"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T18:34:29Z",
+            "dateModified": "2026-11-14T18:34:29Z"
+          }
+        }
+      },
+      "success": {
+        "0": "ZPSVHR4J"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}
