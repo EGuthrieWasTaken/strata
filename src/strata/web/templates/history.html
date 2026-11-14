@@ -16,28 +16,31 @@
   <button type="submit" class="btn">Filter</button>
 </form>
 
-<p>{{ commits | length }} commit{{ "s" if commits | length != 1 else "" }}</p>
+<p>{{ commits | length }} change{{ "s" if commits | length != 1 else "" }}, newest first. Each is one commit in the review's history; the reason is the one given when it was made.</p>
 
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table" data-testid="history-table">
+  <caption class="visually-hidden">History of the review</caption>
   <thead>
     <tr>
+      <th scope="col">When</th>
+      <th scope="col">Who</th>
+      <th scope="col">What</th>
+      <th scope="col">Why</th>
       <th scope="col">Commit</th>
-      <th scope="col">Subject</th>
-      <th scope="col">Op</th>
-      <th scope="col">Actor</th>
     </tr>
   </thead>
   <tbody>
     {% for c in commits %}
     <tr>
-      <th scope="row"><code>{{ c.sha[:10] }}</code></th>
-      <td>{{ c.subject }}</td>
-      <td>{{ c.trailers.get("Op", "") }}</td>
-      <td>{{ c.trailers.get("Actor", "") }}
+      <th scope="row"><time datetime="{{ c.date }}">{{ c.when }}</time></th>
+      <td data-label="Who">{{ c.trailers.get("Actor", "") or "not recorded" }}
         {% if c.trailers.get("Agent") %}<span class="ai-label" data-testid="ai-label"><span class="ai-icon" aria-hidden="true">&#129302;</span> <strong>AI</strong> <span class="ai-detail">{{ c.trailers.get("Agent") }}{% if c.trailers.get("Model") %}, model {{ c.trailers.get("Model") }} <em>(self-reported)</em>{% endif %}{% if c.trailers.get("Invoked-By") %}, invoked by {{ c.trailers.get("Invoked-By") }}{% endif %}</span></span>{% endif %}
         {% if c.trailers.get("Suggested-By") %}<span class="ai-detail">(adopted from a suggestion by {{ c.trailers.get("Suggested-By") }})</span>{% endif %}</td>
+      <td data-label="What">{{ c.subject }}{% set op = c.trailers.get("Op", "") %}{% if op and not c.subject.startswith(op) %} <span class="field-meta">{{ op }}</span>{% endif %}</td>
+      <td data-label="Why" class="reason">{% if c.reason %}{% for line in c.reason.splitlines() %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% else %}<span class="muted">no reason recorded</span>{% endif %}</td>
+      <td data-label="Commit"><code>{{ c.sha[:10] }}</code></td>
     </tr>
     {% endfor %}
   </tbody>
-</table></div>
+</table>
 {% endblock %}

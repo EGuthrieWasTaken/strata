@@ -8,6 +8,8 @@
 //   node pages_smoke.js nojs     <blank-url> <exports-dir>
 //   node pages_smoke.js hostile  <dual-url>
 //   node pages_smoke.js preview  <pipeline-url>
+//   node pages_smoke.js keys     <dual-url>
+//   node pages_smoke.js hosted   <instance-origin> <password> [<invitation-path>]
 //
 // Each prints one JSON object whose `failures` is a list of sentences; it exits 1 when that list is not
 // empty. Every check runs even after one fails, so one run shows the whole picture.
@@ -77,6 +79,68 @@ async function readLinks(page, origin, index, pattern) {
 
 // -------------------------------------------------------------------------------------- scenarios
 
+// What a script can judge about one page at one width: no sideways scroll, nothing past the right
+// edge, no word broken mid-word in a table, and scroll boxes that are tab stops only when they scroll.
+async function checkLayout(page, tag, width, p, failures) {
+  const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (over > 0) failures.push(`${tag}: the page scrolls sideways by ${over}px`);
+  // A table's scroll box is a tab stop only while its table overflows, and the boxes on one page
+  // can be told apart by name.
+  const boxes = await page.evaluate(() => Array.from(document.querySelectorAll(".table-scroll")).map((b) => ({
+    label: b.getAttribute("aria-label") || "", stop: b.hasAttribute("tabindex"), overflows: b.scrollWidth > b.clientWidth + 1,
+  })));
+  for (const b of boxes) {
+    if (b.stop !== b.overflows) failures.push(`${tag}: scroll box "${b.label}" is ${b.stop ? "" : "not "}a tab stop but ${b.overflows ? "overflows" : "does not overflow"}`);
+  }
+  const names = boxes.map((b) => b.label);
+  if (new Set(names).size !== names.length) failures.push(`${tag}: scroll boxes share a name: ${names.join(" | ")}`);
+  if (width === 320 && (p === "/records" || p === "/history")) {
+    const stacked = await page.evaluate(() => { const t = document.querySelector("table.stack-table"); return !!t && getComputedStyle(t.querySelector("td")).display === "block"; });
+    if (!stacked) failures.push(`${tag}: the table does not stack into cards`);
+  }
+  if (width < 1024) {
+    const spill = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const scrollable = (el) => { for (let e = el.parentElement; e; e = e.parentElement) { const o = getComputedStyle(e).overflowX; if (o === "auto" || o === "scroll") return true; } return false; };
+      const out = [];
+      for (const el of document.body.querySelectorAll("*")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0 || r.right <= vw + 1 || scrollable(el)) continue;
+        out.push(el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.split(" ")[0] : "") + " right=" + Math.round(r.right));
+        if (out.length === 3) break;
+      }
+      return out;
+    });
+    if (spill.length) failures.push(`${tag}: reaches past the right edge: ${spill.join(", ")}`);
+    // A word is never broken in the middle in a table: a column narrower than its longest word means
+    // the table was squeezed to fit instead of scrolling ("Yea/r"). Asked of the browser directly:
+    // does any word, laid out in a real table cell, span two lines? Words that can break at a
+    // hyphen or slash are skipped, and so are cells of a table stacked into cards (display: block),
+    // which break a long DOI on purpose.
+    const squeezed = await page.evaluate(() => {
+      const out = [];
+      for (const cell of document.querySelectorAll("th, td")) {
+        if (getComputedStyle(cell).display === "block" || cell.getBoundingClientRect().width <= 1) continue;
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          for (const match of node.data.matchAll(/\S+/g)) {
+            if (/[-\u2010-\u2015/&]/.test(match[0])) continue;
+            const range = document.createRange();
+            range.setStart(node, match.index);
+            range.setEnd(node, match.index + match[0].length);
+            const lines = new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top)));
+            if (lines.size > 1) out.push(`"${match[0].slice(0, 16)}" spans ${lines.size} lines in a ${Math.round(cell.getBoundingClientRect().width)}px cell`);
+          }
+        }
+        if (out.length >= 3) break;
+      }
+      return out.slice(0, 3);
+    });
+    if (squeezed.length) failures.push(`${tag}: a word is broken mid-word in a table: ${squeezed.join("; ")}`);
+  }
+}
+
+
 async function layout(browser, urls) {
   const failures = [];
   const report = { pages: 0, widths: [1024, 640, 320] };
@@ -109,48 +173,7 @@ async function layout(browser, urls) {
           break;
         }
         if (width === 1024) report.pages += 1;
-        const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        if (over > 0) failures.push(`${tag}: the page scrolls sideways by ${over}px`);
-        if (width < 1024) {
-          const spill = await page.evaluate(() => {
-            const vw = document.documentElement.clientWidth;
-            const scrollable = (el) => { for (let e = el.parentElement; e; e = e.parentElement) { const o = getComputedStyle(e).overflowX; if (o === "auto" || o === "scroll") return true; } return false; };
-            const out = [];
-            for (const el of document.body.querySelectorAll("*")) {
-              const r = el.getBoundingClientRect();
-              if (r.width === 0 || r.height === 0 || r.right <= vw + 1 || scrollable(el)) continue;
-              out.push(el.tagName.toLowerCase() + (typeof el.className === "string" && el.className ? "." + el.className.split(" ")[0] : "") + " right=" + Math.round(r.right));
-              if (out.length === 3) break;
-            }
-            return out;
-          });
-          if (spill.length) failures.push(`${tag}: reaches past the right edge: ${spill.join(", ")}`);
-          // A word is never broken in the middle in a table: a column narrower than its longest word means
-          // the table was squeezed to fit instead of scrolling ("Yea/r"). Asked of the browser directly:
-          // does any word, laid out in a real table cell, span two lines? Words that can break at a
-          // hyphen or slash are skipped, and so are cells of a table stacked into cards (display: block),
-          // which break a long DOI on purpose.
-          const squeezed = await page.evaluate(() => {
-            const out = [];
-            for (const cell of document.querySelectorAll("th, td")) {
-              if (getComputedStyle(cell).display === "block" || cell.getBoundingClientRect().width <= 1) continue;
-              const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
-              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-                for (const match of node.data.matchAll(/\S+/g)) {
-                  if (/[-\u2010-\u2015/&]/.test(match[0])) continue;
-                  const range = document.createRange();
-                  range.setStart(node, match.index);
-                  range.setEnd(node, match.index + match[0].length);
-                  const lines = new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top)));
-                  if (lines.size > 1) out.push(`"${match[0].slice(0, 16)}" spans ${lines.size} lines in a ${Math.round(cell.getBoundingClientRect().width)}px cell`);
-                }
-              }
-              if (out.length >= 3) break;
-            }
-            return out.slice(0, 3);
-          });
-          if (squeezed.length) failures.push(`${tag}: a word is broken mid-word in a table: ${squeezed.join("; ")}`);
-        }
+        await checkLayout(page, tag, width, p, failures);
       }
     }
     for (const p of problems) failures.push(p);
@@ -375,10 +398,248 @@ async function preview(browser, [pipeline]) {
   return { failures, report };
 }
 
+// The screening keys (openspec:web-ui#screening-surface-requirements): a digit ticks a reason and
+// records nothing, `e` with nothing ticked says so in place, a digit then `e` excludes, and Finish
+// session commits what was decided.
+async function keys(browser, [dual]) {
+  const failures = [];
+  const report = {};
+  const { page, problems, origin, context } = await openSession(browser, dual);
+  await page.goto(origin + "/screen/title-abstract");
+  const first = await page.textContent("article.record-card h2");
+  const start = page.url();
+  const box = page.locator('input[data-shortcut-digit="1"]');
+
+  await page.keyboard.press("1");
+  await page.waitForTimeout(400);
+  if (page.url() !== start || (await page.textContent("article.record-card h2")) !== first) failures.push("a digit key alone moved on from the record");
+  if (!(await box.isChecked())) failures.push("a digit key did not tick its reason");
+  await page.keyboard.press("1");
+  if (await box.isChecked()) failures.push("the same digit did not untick the reason");
+
+  await page.keyboard.press("e");
+  await page.waitForTimeout(400);
+  if (page.url() !== start) failures.push("e with nothing ticked posted the form");
+  const hint = page.locator("#screen-hint");
+  if (!(await hint.isVisible()) || !/Tick at least one reason/.test(await hint.textContent())) failures.push("e with nothing ticked did not say what is missing");
+  report.hint = await hint.textContent();
+
+  await page.keyboard.press("1");
+  if (await hint.isVisible()) failures.push("the hint stayed after a reason was ticked");
+  await Promise.all([page.waitForURL(/prev=rec_/), page.keyboard.press("e")]);
+  const next = await page.textContent("main");
+  if (next.includes(first) && !/Nothing left/.test(next)) failures.push("a digit then e did not record the exclusion");
+  report.after = page.url().replace(origin, "");
+
+  await Promise.all([page.waitForURL(origin + "/?finished=1"), page.click(".finish-session button")]);
+  const dashboard = await page.textContent("main");
+  if (!/Screening session finished/.test(dashboard)) failures.push("finishing the session did not say so");
+  if (/has uncommitted changes/.test(dashboard)) failures.push("the working tree is dirty after finishing the session");
+  for (const p of problems) failures.push(p);
+  await context.close();
+  return { failures, report };
+}
+
+// A hosted instance (`strata host`, seeded by scripts/seed_hosted.py): its own pages at three widths
+// and in both colour schemes, and what only several signed-in people can show. Each person is a
+// browser context of their own: one profile has one cookie jar, so it can hold one session.
+async function hosted(browser, [origin, password, invitation]) {
+  const failures = [];
+  const report = { pages: 0, widths: [1024, 640, 320] };
+  const problems = [];
+  const expected = /status of (401|403|429)/; // refusals this scenario asks for on purpose
+
+  const person = async (label, options = {}) => {
+    const context = await browser.newContext(options);
+    const page = await context.newPage();
+    await cspWatch(page);
+    watch(page, problems, label);
+    return { context, page };
+  };
+  const signIn = async (page, username, secret = password) => {
+    await page.goto(origin + "/signin");
+    await page.fill('input[name="username"]', username);
+    await page.fill('input[name="password"]', secret);
+    await Promise.all([page.waitForLoadState("load"), page.click('main button[type="submit"]')]);
+  };
+  const main = async (page) => ((await page.textContent("main")) || "").replace(/\s+/g, " ").trim();
+  // No form that carries the session's token may be sent with GET: the token would be in the address.
+  const tokenForms = async (page, tag) => {
+    const bad = await page.evaluate(() => Array.from(document.querySelectorAll("form"))
+      .filter((f) => f.querySelector('input[name="csrf_token"]') && (f.getAttribute("method") || "get").toLowerCase() !== "post")
+      .map((f) => f.getAttribute("action") || "(no action)"));
+    if (bad.length) failures.push(`${tag}: a form carrying the session token is sent with GET: ${bad.join(", ")}`);
+    const get = await page.evaluate(() => Array.from(document.querySelectorAll('button[formmethod="get" i], input[formmethod="get" i]'))
+      .filter((b) => b.form && b.form.querySelector('input[name="csrf_token"]')).length);
+    if (get) failures.push(`${tag}: a button sends a form carrying the session token with GET`);
+  };
+  const walk = async (page, who, paths) => {
+    for (const p of paths) {
+      for (const width of report.widths) {
+        await page.setViewportSize({ width, height: width === 1024 ? 768 : 640 });
+        const response = await page.goto(origin + p);
+        const tag = `${who} ${p} @${width}`;
+        if (!response || response.status() >= 400) { failures.push(`${tag}: answered ${response ? response.status() : "nothing"}`); break; }
+        if (width === 1024) { report.pages += 1; await tokenForms(page, tag); }
+        await checkLayout(page, tag, width, p, failures);
+      }
+    }
+    await page.setViewportSize({ width: 1024, height: 768 });
+  };
+
+  // 1. Signed out: a project's address leads to the sign-in page, which says where to come back to.
+  const anon = await person("signed-out");
+  await anon.page.goto(origin + "/p/spacing/records");
+  if (!/\/signin\?next=/.test(anon.page.url())) failures.push("signed out, a project page did not lead to the sign-in page: " + anon.page.url());
+  await walk(anon.page, "signed-out", ["/signin", ...(invitation ? [invitation] : [])]);
+
+  // 2. The sign-in rate limit, as the person meets it: a wrong password, then too many of them.
+  await signIn(anon.page, "nobody-here", "not the password");
+  report.wrong = await main(anon.page);
+  if (!/role="alert"|class="error"/.test(await anon.page.content())) failures.push("a wrong password was not answered with an error on the page");
+  for (let attempt = 0; attempt < 6; attempt += 1) await signIn(anon.page, "nobody-here", "not the password " + attempt);
+  report.locked = await main(anon.page);
+  if (!/too many failed sign-ins/i.test(report.locked)) failures.push("six wrong passwords were not answered with the rate limit: " + report.locked);
+  if (!/wait/i.test(report.locked)) failures.push("the rate-limit message does not say what to do");
+  await anon.context.close();
+
+  // 3. Three people at once.
+  const ada = await person("ada");
+  const sam = await person("sam");
+  const olive = await person("olive");
+  await signIn(ada.page, "ada");
+  await signIn(sam.page, "sam");
+  await signIn(olive.page, "olive");
+  for (const [who, p] of [["ada", ada], ["sam", sam], ["olive", olive]]) {
+    await p.page.goto(origin + "/p/spacing/");
+    const badge = (await p.page.textContent(".actor-badge")) || "";
+    if (!badge.includes(who)) failures.push(`${who} is not shown as signed in on the project: "${badge.trim()}"`);
+  }
+
+  // 4. The instance's own pages and the review inside it, for the lead and for a screener.
+  await walk(ada.page, "ada", ["/", "/p/spacing/", "/p/spacing/-/sync", "/p/spacing/-/members", "/p/spacing/records",
+    "/p/spacing/history", "/p/spacing/screen/title-abstract", "/p/spacing/adjudicate/title-abstract", "/p/spacing/assign/title-abstract"]);
+  await walk(sam.page, "sam", ["/", "/p/spacing/", "/p/spacing/-/sync", "/p/spacing/screen/title-abstract", "/p/spacing/rescreen/title-abstract"]);
+
+  // 5. The last-sync indicator.
+  await ada.page.goto(origin + "/p/spacing/");
+  const sync = ((await ada.page.textContent('[data-testid="project-sync"]')) || "").replace(/\s+/g, " ");
+  report.sync = sync.trim().slice(0, 160);
+  if (!/last synced \d{4}-\d\d-\d\d \d\d:\d\d:\d\d UTC/.test(sync)) failures.push("the dashboard does not say when the project was last synced: " + report.sync);
+
+  // 6. Roles. A screener has no Members link and is refused the page; an observer reads and cannot write.
+  if (await sam.page.locator('nav.hosted-nav a[href$="/-/members"]').count()) failures.push("a screener is offered the Members page");
+  const members = await sam.page.goto(origin + "/p/spacing/-/members");
+  if (members.status() !== 403) failures.push("a screener opened the Members page: " + members.status());
+  const reading = await olive.page.goto(origin + "/p/spacing/screen/title-abstract");
+  if (reading.status() !== 200) failures.push("an observer could not read the screening screen: " + reading.status());
+  const token = await olive.page.getAttribute('header input[name="csrf_token"]', "value");
+  const recordHref = await readLinks(olive.page, origin, "/p/spacing/records", /\/records\/rec_/);
+  const recordId = recordHref ? recordHref.split("/").pop() : "";
+  const write = await olive.page.request.post(origin + "/p/spacing/screen/title-abstract", { form: { csrf_token: token || "", record_id: recordId || "", decision: "include", skip: "" } });
+  report.observerWrite = write.status();
+  if (write.status() !== 403) failures.push("an observer's screening decision was answered " + write.status() + ", not refused");
+
+  // 7. Blinding between members: a record sam has yet to decide shows him nobody else's decision,
+  //    though ada decided it; once the record is in conflict both of them see both sides.
+  await sam.page.goto(origin + "/p/spacing/screen/title-abstract");
+  const undecided = await sam.page.getAttribute('#screen-form input[name="record_id"]', "value");
+  await sam.page.goto(origin + "/p/spacing/records/" + undecided);
+  const samSees = await main(sam.page);
+  if (/ada decided/i.test(samSees)) failures.push("sam is shown ada's decision on a record he has not screened");
+  await ada.page.goto(origin + "/p/spacing/adjudicate/title-abstract");
+  const conflict = await main(ada.page);
+  if (!/ada/.test(conflict) || !/sam/.test(conflict)) failures.push("the lead does not see both opinions on the conflicted record");
+  // The adjudication queue shows both sides of a disagreement, so on an instance it is for
+  // adjudicators and the lead: a screener is refused it.
+  const queue = await sam.page.goto(origin + "/p/spacing/adjudicate/title-abstract");
+  if (queue.status() !== 403) failures.push("a screener opened the adjudication queue: " + queue.status());
+
+  // 8. A conflict with the shared remote, in the review's terms, held for a lead.
+  await ada.page.goto(origin + "/p/disputed/-/sync");
+  await Promise.all([ada.page.waitForLoadState("load"), ada.page.click('main form.inline-form button[type="submit"]')]);
+  await ada.page.goto(origin + "/p/disputed/-/sync");
+  const held = await main(ada.page);
+  report.conflict = held.slice(0, 200);
+  for (const [what, pattern] of [["that pushes are stopped", /Pushes for this project are stopped/], ["the file", /protocol\/criteria\.yaml/],
+    ["the criterion", /EXC-01/], ["this instance's side", /Mine \(this instance\)/], ["the remote's side", /Theirs \(the shared remote\)/]]) {
+    if (!pattern.test(held)) failures.push("the held conflict does not show " + what);
+  }
+  if (!(await ada.page.locator('[data-testid="conflict-form"]').count())) failures.push("the lead is not offered a way to resolve the conflict");
+  await walk(ada.page, "ada", ["/p/disputed/-/sync"]);
+  await sam.page.goto(origin + "/p/disputed/-/sync");
+  if (await sam.page.locator('[data-testid="conflict-form"]').count()) failures.push("a screener is offered the conflict resolution form");
+  if (!/A lead of the project resolves this/.test(await main(sam.page))) failures.push("a screener is not told who resolves the conflict");
+  await ada.page.goto(origin + "/p/disputed/-/sync");
+  await ada.page.check('input[name="choice-0"][value="mine"]');
+  await Promise.all([ada.page.waitForLoadState("load"), ada.page.click('[data-testid="conflict-form"] button[type="submit"]')]);
+  await ada.page.goto(origin + "/p/disputed/-/sync");
+  const resolved = await main(ada.page);
+  if (/Pushes for this project are stopped/.test(resolved)) failures.push("the conflict is still held after the lead kept the instance's version");
+  if (/Last pushed ?not yet/.test(resolved)) failures.push("nothing was pushed after the conflict was resolved");
+
+  // 9. Colour, in light and dark, on the instance's own pages.
+  const measured = {};
+  for (const scheme of ["light", "dark"]) {
+    const viewer = await person("ada-" + scheme, { colorScheme: scheme });
+    const check = (label, worst, minimum) => {
+      measured[`${scheme} ${label}`] = worst ? worst.ratio : "absent";
+      if (!worst) failures.push(`${scheme}: nothing matched for ${label}`);
+      else if (worst.ratio < minimum) failures.push(`${scheme}: ${label} is ${worst.ratio}:1 (needs ${minimum}:1) "${worst.text}"`);
+    };
+    await viewer.page.goto(origin + "/signin");
+    check("sign-in labels", await contrastOf(viewer.page, "main label", "text"), 4.5);
+    check("sign-in button", await contrastOf(viewer.page, "main button", "text"), 4.5);
+    await signIn(viewer.page, "ada");
+    check("project list text", await contrastOf(viewer.page, "main td, main th", "text"), 4.5);
+    check("project list links", await contrastOf(viewer.page, "main a", "text"), 4.5);
+    await viewer.page.goto(origin + "/p/spacing/-/sync");
+    check("sync page text", await contrastOf(viewer.page, "main dt, main dd", "text"), 4.5);
+    await viewer.page.goto(origin + "/p/spacing/-/members");
+    check("members page text", await contrastOf(viewer.page, "main td, main th, main label, main p", "text"), 4.5);
+    await viewer.page.goto(origin + "/p/spacing/");
+    check("header badge", await contrastOf(viewer.page, ".actor-badge", "text"), 4.5);
+    check("header links", await contrastOf(viewer.page, "header a", "text"), 4.5);
+    await viewer.context.close();
+  }
+  report.contrast = measured;
+
+  // 10. Reduced motion: nothing on the instance's pages animates.
+  const still = await person("ada-still", { reducedMotion: "reduce" });
+  await signIn(still.page, "ada");
+  for (const p of ["/", "/p/spacing/-/sync", "/p/spacing/-/members"]) {
+    await still.page.goto(origin + p);
+    const moving = await still.page.evaluate(() => Array.from(document.querySelectorAll("*")).filter((el) => {
+      const c = getComputedStyle(el);
+      return c.transitionDuration.split(",").some((x) => parseFloat(x) > 0) || c.animationDuration.split(",").some((x) => parseFloat(x) > 0);
+    }).map((el) => el.tagName.toLowerCase()));
+    if (moving.length) failures.push(`reduced motion: ${p} still animates ${moving.join(", ")}`);
+  }
+  await still.context.close();
+
+  // 11. The end of a session, from the person's side: after signing out (or once the session has
+  //     expired, which leaves the browser in the same position) a project page asks them to sign in
+  //     and then takes them where they were going.
+  await Promise.all([sam.page.waitForLoadState("load"), sam.page.click('header form button[type="submit"]')]);
+  await sam.page.goto(origin + "/p/spacing/history");
+  if (!/\/signin\?next=/.test(sam.page.url())) failures.push("after signing out, a project page did not ask sam to sign in: " + sam.page.url());
+  await sam.page.fill('input[name="username"]', "sam");
+  await sam.page.fill('input[name="password"]', password);
+  await Promise.all([sam.page.waitForURL(origin + "/p/spacing/history"), sam.page.click('main button[type="submit"]')]);
+  // A session the server no longer knows (expired, or ended elsewhere) is treated the same way.
+  await olive.context.clearCookies();
+  await olive.page.goto(origin + "/p/spacing/");
+  if (!/\/signin\?next=/.test(olive.page.url())) failures.push("without a live session, a project page did not ask for sign-in: " + olive.page.url());
+
+  for (const p of problems) if (!expected.test(p)) failures.push(p);
+  for (const p of [ada, sam, olive]) await p.context.close();
+  return { failures, report };
+}
+
 // ------------------------------------------------------------------------------------------- main
 
 (async () => {
-  const run = { layout, contrast, motion, nojs, hostile, preview }[scenario];
+  const run = { layout, contrast, motion, nojs, hostile, preview, keys, hosted }[scenario];
   if (!run) { console.error("unknown scenario " + scenario); process.exit(2); }
   const browser = await chromium.launch();
   let result;

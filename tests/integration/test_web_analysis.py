@@ -136,3 +136,35 @@ def test_analysis_screens_need_the_session(tmp_path: Path) -> None:
     anonymous = TestClient(app, base_url="http://127.0.0.1:8000")
     assert anonymous.get("/analysis").status_code == 403
     assert anonymous.get("/analysis/primary/plots/forest.svg").status_code == 403
+
+
+def test_current_results_say_what_they_are_current_against(tmp_path: Path) -> None:
+    """An analysis is fresh against its inputs; the pages say so, and say when the screening
+    behind those inputs has stale decisions (#88)."""
+    from strata.protocol import rescreen as rescreen_mod
+    from strata.web import analysis_routes
+
+    repo = meta_repo(tmp_path)
+    _run(repo)
+    client = _client(repo)
+    index, detail = client.get("/analysis").text, client.get("/analysis/primary").text
+    assert "match the data extracted from the studies now included" in index
+    assert 'data-testid="freshness-scope"' in detail
+    assert 'data-testid="stale-evidence"' not in index + detail
+
+    stale = [
+        rescreen_mod.StaleRecord("rec_a", "title-abstract", "include", (), "criterion-added", 2),
+        rescreen_mod.StaleRecord("rec_b", "title-abstract", "include", (), "criterion-added", 2),
+    ]
+    original = rescreen_mod.compute_stale_records
+    rescreen_mod.compute_stale_records = lambda repo: stale  # type: ignore[assignment]
+    try:
+        assert analysis_routes._stale_decisions(repo) == 2
+        index, detail = client.get("/analysis").text, client.get("/analysis/primary").text
+    finally:
+        rescreen_mod.compute_stale_records = original  # type: ignore[assignment]
+    for page in (index, detail):
+        assert 'data-testid="stale-evidence"' in page
+        assert "2 screening decisions are stale, so which studies are included may change" in page
+    assert "provisional: screening has stale decisions" in index
+    assert "current for the studies included now, and provisional" in detail

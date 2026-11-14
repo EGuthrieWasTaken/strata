@@ -16,7 +16,8 @@
   {% endif %}
 </article>
 
-<div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+<table class="stage-table stack-table" data-testid="opinions">
+  <caption class="visually-hidden">What each reviewer decided</caption>
   <thead>
     <tr>
       <th scope="col">Reviewer</th>
@@ -30,16 +31,23 @@
     <tr>
       <th scope="row">{{ actor }}
         {% if event.agent %}{{ ai_label(event.agent) }}{% else %}{{ person_label() }}{% endif %}</th>
-      <td>{{ event.body.decision | upper }}</td>
-      <td>{{ event.body.criteria | join(", ") }}</td>
-      <td>{{ event.body.note or "" }}</td>
+      <td data-label="Decision">{{ event.body.decision | upper }}</td>
+      <td data-label="Criteria">{{ event.body.criteria | join(", ") }}</td>
+      <td data-label="Note">{{ event.body.note or "" }}</td>
     </tr>
     {% endfor %}
   </tbody>
-</table></div>
+</table>
 
 {% if not is_adjudicator %}
-<p class="error" role="alert">{{ actor }} is not an adjudicator for this review (screening.adjudicators or role adjudicator/lead) &mdash; only viewing this conflict, not resolving it.</p>
+<div class="notice" role="status" data-testid="view-only">
+  <p>{{ view_only.text }}</p>
+  <p class="field-meta error-detail">{{ view_only.detail }}</p>
+</div>
+<p class="nav-links">
+  {% if total > 1 %}<a href="{{ root }}/adjudicate/{{ stage }}?skip={{ skip_next_csv }}">Next disagreement &rarr;</a>{% endif %}
+  <a href="{{ root }}/">&larr; Back to dashboard</a>
+</p>
 {% else %}
 <form method="post" action="{{ root }}/adjudicate/{{ stage }}" id="screen-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
@@ -57,13 +65,13 @@
 
   {% if active_criteria %}
   <fieldset class="criteria-list">
-    <legend>Exclusion criteria</legend>
+    <legend>Reasons for excluding</legend>
     {% for c in active_criteria %}
     <label class="criterion" title="{{ c.definition }}">
       <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}">
       <span class="criterion-num">{{ loop.index }}</span>
       <span class="criterion-id">{{ c.id }}</span>
-      <span class="criterion-label">{{ c.label }}</span>
+      <span class="criterion-label">{% if c.kind == "inclusion" %}<span class="criterion-kind">Not met:</span> {% endif %}{{ c.label }}</span>
     </label>
     {% endfor %}
   </fieldset>

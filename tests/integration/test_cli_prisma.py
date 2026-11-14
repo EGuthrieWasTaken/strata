@@ -206,4 +206,21 @@ def test_the_web_screen_names_a_broken_identity(tmp_path: Path) -> None:
     client = _client(repo)
     page = client.get("/prisma")
     assert "E_COUNT_RECONCILE" in page.text and "<img" not in page.text
-    assert client.get("/prisma.svg").status_code == 409
+    # In words first (what does not add up, what to do); the code and formula are for looking up.
+    assert "The counts do not add up, so no diagram is drawn." in page.text
+    assert "The duplicates removed" in page.text and "strata verify" in page.text
+    refused = client.get("/prisma.svg")
+    assert refused.status_code == 409 and "The duplicates removed" in refused.text
+
+
+def test_the_web_screen_draws_the_diagram_after_a_report_is_split(tmp_path: Path) -> None:
+    """A report that describes two studies is a legitimate decision, not a counting error (#84)."""
+    from strata.protocol import studies as studies_mod
+
+    repo = _review(tmp_path)
+    report = studies_mod.included_reports(repo)[0]
+    studies_mod.split_report(repo, report=report, parts=2, actor="ethan", rationale="Two trials.")
+    client = _client(repo)
+    page = client.get("/prisma")
+    assert "E_COUNT_RECONCILE" not in page.text and "<img" in page.text
+    assert client.get("/prisma.svg").status_code == 200

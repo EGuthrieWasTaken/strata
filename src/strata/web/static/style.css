@@ -503,3 +503,29 @@ fieldset.review-choices {
   font-size: 0.9em;
 }
 .ai-label .ai-detail { font-weight: normal; }
+
+/* Ending a screening session: apart from the decision form, so a key meant for it cannot land here. */
+.finish-session { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border, #ccc); }
+.finish-session .field-meta { margin-top: 0.4rem; }
+.criterion-kind { font-style: italic; }
+
+/* A record's provenance, as sentences. */
+.timeline { list-style: none; padding: 0; margin: 0; }
+.timeline > li { margin-bottom: 0.75rem; }
+.timeline-when { display: inline; margin-left: 0.4em; }
+.timeline-why { margin: 0.25rem 0 0; }
+.timeline-details { margin: 0.4rem 0 0; font-size: 0.9em; }
+.timeline-details div { display: flex; gap: 0.5em; flex-wrap: wrap; }
+.timeline-details dt { font-weight: 600; }
+.timeline-details dt::after { content: ":"; }
+.timeline-details dd { margin: 0; overflow-wrap: anywhere; }
+.error-detail { margin: 0.25rem 0 0; }
+
+/* A conflict held for a lead (hosted sync page): two versions of a file side by side, stacked on a
+   narrow screen. A fieldset is by default as wide as its widest content, so it is told it may be
+   narrower; the file text wraps, and scrolls inside its own box if a line still cannot. */
+fieldset { min-width: 0; }
+.conflict-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; }
+.conflict-sides > div { min-width: 0; }
+.conflict-sides pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+textarea { max-width: 100%; box-sizing: border-box; }

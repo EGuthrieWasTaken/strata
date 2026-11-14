@@ -26,6 +26,7 @@ from strata.core.validate import SchemaValidationError
 from strata.protocol import retrieval as retrieval_mod
 from strata.web.common import go
 from strata.web.common import state_of as _state
+from strata.web.messages import for_reviewer
 from strata.web.routes import _error, _render
 
 router = APIRouter()
@@ -93,6 +94,7 @@ def _report_page(
     *,
     values: dict[str, str],
     error: str | None = None,
+    error_detail: str | None = None,
     status_code: int = 200,
 ) -> HTMLResponse | PlainTextResponse:
     if report not in set(retrieval_mod.sought_reports(repo)):
@@ -112,6 +114,7 @@ def _report_page(
             "reasons": [(r, _REASON_WORDS.get(r, r)) for r in retrieval_mod.NOT_RETRIEVED_REASONS],
             "values": values,
             "error": error,
+            "error_detail": error_detail,
             "session_token": _state(request).session_token,
         },
         status_code=status_code,
@@ -143,9 +146,17 @@ def retrieve_record(
         for name in ("outcome", "source", "version", "reason", "reason_text", "rationale")
     }
 
-    def refuse(message: str, status_code: int = 422) -> HTMLResponse | PlainTextResponse:
+    def refuse(
+        message: str, status_code: int = 422, detail: str | None = None
+    ) -> HTMLResponse | PlainTextResponse:
         return _report_page(
-            request, repo, report, values=values, error=message, status_code=status_code
+            request,
+            repo,
+            report,
+            values=values,
+            error=message,
+            error_detail=detail,
+            status_code=status_code,
         )
 
     problem = ops.rationale_problem(repo, values["rationale"])
@@ -176,7 +187,8 @@ def retrieve_record(
         SchemaValidationError,
         RationaleRejectedError,
     ) as exc:
-        return refuse(str(exc))
+        shown = for_reviewer(exc)
+        return refuse(shown.text, detail=shown.detail)
     except LockTimeoutError as exc:
         return _error(str(exc), status_code=503)
     return go("/retrieve")

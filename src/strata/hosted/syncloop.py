@@ -42,12 +42,15 @@ from typing import Any
 from strata import gitio
 from strata.core import sync as sync_mod
 from strata.core.repo import LockTimeoutError, Repo, repo_lock
-from strata.core.screen_batches import commit_screening_batch, pending_screening_actors
+from strata.core.screen_batches import (
+    BATCH_IDLE,
+    BATCH_SIZE,
+    commit_screening_batch,
+    pending_screening_actors,
+)
 from strata.hosted.instance import Instance, Project
 from strata.hosted.secrets import SecretError
 
-BATCH_SIZE = 200
-BATCH_IDLE = 15 * 60.0
 RETRY_BASE = 30.0
 RETRY_CAP = 15 * 60.0
 

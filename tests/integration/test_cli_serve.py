@@ -315,7 +315,7 @@ def test_a_real_server_enforces_the_upload_limit_before_reading_the_body(tmp_pat
                 break
             except OSError:
                 time.sleep(0.2)
-        assert cookie.startswith("strata_session=")
+        assert cookie.startswith("strata_session_")
 
         def multipart(size: int) -> bytes:
             return (

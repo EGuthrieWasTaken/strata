@@ -13,6 +13,9 @@
  *
  *  3. The extraction coding form: "@" in a value jumps to its source locator.
  *
+ *  4. A table's scroll box is a tab stop only while the table is wider than the box (without this
+ *     script it always is one, so it can always be scrolled from the keyboard).
+ *
  * No external requests, no build step, no dependency: this is the entire
  * client-side script strata ships (openspec:web-ui#technology's "total shipped JavaScript SHOULD
  * stay under 50 KB uncompressed" budget).
@@ -30,6 +33,40 @@
     var region = document.getElementById("announcer");
     if (region) region.textContent = text;
   }
+
+  // A message beside the decision buttons (the screening screens have the element).
+  function hint(text) {
+    var box = document.getElementById("screen-hint");
+    if (!box) return;
+    box.textContent = text;
+    box.hidden = !text;
+    if (text) announce(text);
+  }
+
+  // 4. Scroll boxes: focusable only when there is something to scroll, so a keyboard user does not
+  //    stop at a table that fits. Checked again whenever the box changes size.
+  var scrollBoxes = document.querySelectorAll(".table-scroll");
+  function fitScrollBox(box) {
+    if (box.scrollWidth > box.clientWidth + 1) {
+      box.setAttribute("tabindex", "0");
+    } else {
+      box.removeAttribute("tabindex");
+    }
+  }
+  scrollBoxes.forEach(fitScrollBox);
+  if (scrollBoxes.length) {
+    if (typeof ResizeObserver === "function") {
+      var watcher = new ResizeObserver(function (entries) {
+        entries.forEach(function (entry) { fitScrollBox(entry.target); });
+      });
+      scrollBoxes.forEach(function (box) { watcher.observe(box); });
+    } else {
+      window.addEventListener("resize", function () { scrollBoxes.forEach(fitScrollBox); });
+    }
+  }
+
+  // Text that describes what this script adds is shown only when it runs.
+  document.querySelectorAll(".js-only-hint").forEach(function (el) { el.hidden = false; });
 
   document.querySelectorAll("form[data-auto-submit-on-change]").forEach(function (form) {
     var radioName = form.dataset.autoSubmitOnChange;
@@ -88,6 +125,12 @@
       var button = form.querySelector('button[name="decision"][value="' + decisionValue + '"]');
       if (button) {
         event.preventDefault();
+        if (decisionValue === "exclude" && form.dataset.requireExclusionReason === "true" &&
+            !form.querySelector('input[name="criteria"]:checked')) {
+          // Nothing is sent: say what is missing where the reviewer is looking.
+          hint("Tick at least one reason first (keys 1 to 9), then press e to exclude.");
+          return;
+        }
         announce("recording decision…");
         button.click();
       }
@@ -95,17 +138,15 @@
     }
 
     if (key >= "1" && key <= "9") {
+      // A digit only ticks or unticks a reason. It never records a decision: a stray key must
+      // not exclude a record (the exclusion is recorded by `e`).
       var checkbox = form.querySelector('input[data-shortcut-digit="' + key + '"]');
       if (!checkbox) return;
       event.preventDefault();
       checkbox.checked = !checkbox.checked;
-      if (form.dataset.requireExclusionReason === "true" && checkbox.checked) {
-        var excludeButton = form.querySelector('button[name="decision"][value="exclude"]');
-        if (excludeButton) {
-          announce("recording decision…");
-          excludeButton.click();
-        }
-      }
+      hint("");
+      announce(checkbox.value + (checkbox.checked ? " ticked" : " unticked") +
+        "; press e to exclude");
       return;
     }
 

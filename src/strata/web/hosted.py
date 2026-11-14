@@ -73,7 +73,7 @@ from strata.web.app import (
     create_project_app,
     needs_screening_flush,
 )
-from strata.web.security import CSRF_FIELD_NAME, MUTATING_METHODS, PublicUrl
+from strata.web.security import CSRF_FIELD_NAME, MUTATING_METHODS, PublicUrl, cookie_name
 
 _HSTS = "max-age=31536000"
 #: The review's own screens and the MCP endpoint, which check a body's size themselves (an
@@ -150,14 +150,26 @@ class HostedServer:
     def secure(self) -> bool:
         return self.public_url.scheme == "https"
 
+    def _cookie(self, base: str, *, host_only: bool = True) -> str:
+        """`base` for this instance. Cookies are shared by every port of a host name, so an
+        instance on a port of its own (and a `strata serve` beside it) gets names of its own;
+        on the scheme's default port the name is bare, as it always was. `__Host-` makes the
+        browser refuse the cookie unless it is Secure, host-only and `/`."""
+        name = cookie_name(base, self.public_url.port)
+        return f"__Host-{name}" if self.secure and host_only else name
+
     @property
     def session_cookie(self) -> str:
-        # `__Host-` makes the browser refuse the cookie unless it is Secure, host-only and `/`.
-        return "__Host-strata_session" if self.secure else "strata_session"
+        return self._cookie("strata_session")
 
     @property
     def signin_cookie(self) -> str:
-        return "__Host-strata_signin" if self.secure else "strata_signin"
+        return self._cookie("strata_signin")
+
+    @property
+    def oidc_state_cookie(self) -> str:
+        # Scoped to `/auth/`, which `__Host-` does not allow.
+        return self._cookie(_OIDC_STATE_COOKIE, host_only=False)
 
     def _wake(self) -> None:
         if self.worker is not None:
@@ -510,7 +522,7 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
         # cross-site navigation, which a `Strict` cookie would not accompany.
         state = parse_qs(urlsplit(url).query).get("state", [""])[0]
         response.set_cookie(
-            _OIDC_STATE_COOKIE, _digest(state), max_age=600, path="/auth/",
+            server.oidc_state_cookie, _digest(state), max_age=600, path="/auth/",
             secure=server.secure, httponly=True, samesite="lax",
         )  # fmt: skip
         return response
@@ -521,7 +533,7 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
             return server.message(request, "Sign in", "There is no such sign-in provider.", 404)
         client = _client_of(request.scope)
         method = f"oidc:{provider.id}"
-        bound = request.cookies.get(_OIDC_STATE_COOKIE, "")
+        bound = request.cookies.get(server.oidc_state_cookie, "")
         if not hmac.compare_digest(bound, _digest(request.query_params.get("state") or "")):
             return server.message(
                 request, "Sign in", "This sign-in was not started in this browser; start again.",
@@ -567,7 +579,7 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
             request, "hosted/continue.html", {"target": "/", "user": None, "csrf": ""}
         )
         server.start_session(response, username)
-        response.delete_cookie(_OIDC_STATE_COOKIE, path="/auth/")
+        response.delete_cookie(server.oidc_state_cookie, path="/auth/")
         return response
 
     return [

@@ -20,9 +20,11 @@
   {% if record.abstract %}
   <p class="abstract">{{ record.abstract }}</p>
   {% endif %}
-  <p>canonical: {{ record.strata.canonical if record.strata else True }}</p>
+  {% if record.strata and record.strata.canonical is sameas false %}
+  <p class="notice" data-testid="merged-note">This record was merged into another as its duplicate, so it is not screened or listed. Its history is kept below, and the merge can be undone with <code>strata dedup --undo</code>.</p>
+  {% endif %}
   {% if record.strata and record.strata.absorbed %}
-  <p>absorbed: {{ record.strata.absorbed | join(", ") }}</p>
+  <p data-testid="absorbed-note">Merged into this record as duplicates of it: {% for other in record.strata.absorbed %}<a href="{{ root }}/records/{{ other }}">{{ other }}</a>{{ ", " if not loop.last else "" }}{% endfor %}.</p>
   {% endif %}
 </article>
 
@@ -61,21 +63,26 @@
 </form>
 
 <h2>Provenance</h2>
-{% if not provenance %}
+{% if not timeline %}
 <p class="todo-note">No recorded provenance for this record.</p>
 {% else %}
-{% for entry in provenance %}
-<div class="record-card">
-  <p><strong>{{ entry.kind | upper }}</strong>
-    {% if entry.ts %} {{ entry.ts }}{% endif %}
-    {% if entry.actor %} by {{ entry.actor }}{% endif %}
-    {% if entry.agent %} {{ ai_label(entry.agent) }}{% endif %}</p>
-  <dl class="summary-grid">
-    {% for key, value in entry.detail.items() %}
-    <div><dt>{{ key }}</dt><dd>{{ value }}</dd></div>
+<p class="field-meta">Where this record came from and everything done to it since, oldest first.</p>
+<ol class="timeline" data-testid="timeline">
+{% for step in timeline %}
+<li class="record-card">
+  <p><strong>{{ step.label }}.</strong> {{ step.text }}
+    {% if step.when %}<span class="field-meta timeline-when">{{ step.when }}</span>{% endif %}
+    {% if step.agent %} {{ ai_label(step.agent) }}{% endif %}</p>
+  {% if step.why %}<p class="timeline-why"><strong>Why:</strong> {{ step.why }}</p>{% endif %}
+  {% if step.details %}
+  <dl class="timeline-details">
+    {% for label, value in step.details %}
+    <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
     {% endfor %}
   </dl>
-</div>
+  {% endif %}
+</li>
 {% endfor %}
+</ol>
 {% endif %}
 {% endblock %}

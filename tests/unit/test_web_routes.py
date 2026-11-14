@@ -60,3 +60,19 @@ def test_redirect_refuses_a_scheme_or_host_in_the_path() -> None:
 def test_redirect_refuses_a_protocol_relative_target() -> None:
     with pytest.raises(ValueError, match="non-relative target"):
         _redirect("//evil.example/phish")
+
+
+def test_refusals_are_said_in_the_reviewers_words_with_the_setting_kept() -> None:
+    """#90: what is wrong and what to do first; the setting or code for whoever looks it up."""
+    from strata.protocol.screening import ScreeningError
+    from strata.web.messages import for_reviewer, named, sentence
+
+    shown = for_reviewer(ScreeningError("developer words", code="exclusion-needs-reason"))
+    assert shown.text.startswith("Tick at least one reason before excluding.")
+    assert shown.detail == "Setting: screening.require_exclusion_reason"
+    plain = for_reviewer(ScreeningError("no record 'rec_x'"))
+    assert plain.text == "no record 'rec_x'" and plain.detail is None
+    assert for_reviewer(ValueError("as it is")).text == "as it is"
+    assert "adjudicators" in (named("not-an-adjudicator").detail or "")
+    assert sentence("not the article itself") == "not the article itself."
+    assert sentence("already ends. ") == "already ends."

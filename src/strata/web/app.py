@@ -25,18 +25,19 @@ from starlette.exceptions import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from strata.core.repo import Repo, open_repo
-from strata.core.screen_batches import flush_under_lock
+from strata.core.screen_batches import BatchTracker, flush_under_lock
 from strata.web import uploads
 from strata.web.security import (
     CSRF_FIELD_NAME,
     DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
     MUTATING_METHODS,
-    SESSION_COOKIE_NAME,
+    NO_SESSION_MESSAGE,
     InactivityClock,
     PublicUrl,
     allowed_hosts,
     is_host_allowed,
     is_origin_allowed,
+    session_cookie_name,
 )
 
 _CSP = (
@@ -88,9 +89,13 @@ class AppState:
         self.port = port
         self.public_url = public_url
         self.allowed_hosts = allowed_hosts(host, port, public_url)
+        self.session_cookie = session_cookie_name(port, public_url)
         self.clock = InactivityClock(inactivity_timeout)
         self.max_upload_bytes = max_upload_bytes
         self.staging = uploads.UploadStaging(repo_root, max_total_bytes=max_upload_bytes)
+        #: When this server's screening batches are due (`commit_due_batches`); a hosted instance
+        #: keeps its own count, per project, and uses only the remembered reasons.
+        self.batches = BatchTracker()
 
     #: Set only inside a hosted instance (openspec:hosted-deployment): who is signed in, in which
     #: project, with what role. `None` in `strata serve`, which has no accounts.
@@ -144,9 +149,39 @@ def needs_screening_flush(path: str, form: Any) -> bool:
     return form is None or form.get("intent") != "preview"
 
 
-def flush_screening_for_request(state: AppState) -> None:
-    """Commit the pending screening batches in `state`'s repository (see `flush_under_lock`)."""
-    flush_under_lock(state.open_repo())
+def flush_screening_for_request(state: AppState) -> int:
+    """Commit the pending screening batches in `state`'s repository (see `flush_under_lock`); how
+    many commits that made."""
+    made = flush_under_lock(state.open_repo())
+    state.batches.clear()
+    return made
+
+
+#: Paths a screening page loads for itself: asking for one is not leaving the screen.
+_NOT_A_PAGE = ("static", "healthz", "favicon.ico")
+
+
+def leaves_the_screen(method: str, path: str) -> bool:
+    """Whether a request is the reviewer going somewhere other than the screening screens, which
+    is what ending a screening session looks like to a server
+    (openspec:git-integration#batched-screening-commits: "when the user ends a session")."""
+    first = path.strip("/").split("/", 1)[0]
+    return method == "GET" and first not in SCREENING_ROOTS and first not in _NOT_A_PAGE
+
+
+def is_screening_decision(method: str, path: str, status_code: int) -> bool:
+    """Whether a finished request recorded a screening decision (the screens answer a recorded
+    decision with a redirect to the next record)."""
+    first = path.strip("/").split("/", 1)[0]
+    return method == "POST" and first in SCREENING_ROOTS and status_code == 303
+
+
+def commit_due_batches(state: AppState) -> int:
+    """Commit the batches of reviewers who have decided nothing for `BATCH_IDLE` seconds; how many
+    commits. `strata serve` calls this on a timer."""
+    if not state.batches.idle_actors():
+        return 0
+    return flush_screening_for_request(state)
 
 
 #: Where a hosted instance puts a request's own `AppState` in the ASGI scope's `state`.
@@ -240,12 +275,12 @@ def create_app(
             # which only requires it on mutating requests -- deliberately:
             # nothing about "local" should mean another process or browser
             # tab can read repository content without the token too).
-            cookie_token = request.cookies.get(SESSION_COOKIE_NAME)
+            cookie_token = request.cookies.get(s.session_cookie)
             authenticated = cookie_token == s.session_token
             if not authenticated and request.query_params.get("token") == s.session_token:
                 authenticated = True
             if not authenticated:
-                return PlainTextResponse("missing or invalid session", status_code=403)
+                return PlainTextResponse(NO_SESSION_MESSAGE, status_code=403)
 
             form = None
             if request.method in MUTATING_METHODS:
@@ -286,11 +321,13 @@ def create_app(
             # else commits, so they never ride along in someone else's commit. A hosted instance
             # does this itself, per member, before it dispatches to the project
             # (`strata.web.hosted`).
-            if (
-                request.method in MUTATING_METHODS
-                and state_of(request).hosted is None
-                and needs_screening_flush(request.url.path, form)
-            ):
+            local = state_of(request).hosted is None
+            path = request.url.path
+            if local and request.method in MUTATING_METHODS and needs_screening_flush(path, form):
+                await run_in_threadpool(flush_screening_for_request, s)
+            elif local and leaves_the_screen(request.method, path) and s.batches.pending():
+                # Going to any other page ends the screening session, so what it decided is
+                # committed before that page is drawn (and the page shows a clean tree).
                 await run_in_threadpool(flush_screening_for_request, s)
 
             s.clock.touch()
@@ -300,9 +337,14 @@ def create_app(
                 if form is not None:
                     await form.close()
 
+            # The 200th uncommitted decision commits the batch.
+            decided = local and is_screening_decision(request.method, path, response.status_code)
+            if decided and s.batches.note(s.actor):
+                await run_in_threadpool(flush_screening_for_request, s)
+
             if cookie_token != s.session_token:
                 response.set_cookie(
-                    SESSION_COOKIE_NAME,
+                    s.session_cookie,
                     s.session_token,
                     httponly=True,
                     samesite="strict",

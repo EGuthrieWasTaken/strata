@@ -60,7 +60,7 @@ def test_history_shows_every_commit(tmp_path: Path) -> None:
     assert r.status_code == 200
     assert "criteria-add" in r.text
     assert "EXC-01" in r.text
-    assert "2 commits" in r.text  # init + the criteria-add above
+    assert "2 changes" in r.text  # init + the criteria-add above
 
 
 def test_history_filters_by_actor(tmp_path: Path) -> None:
@@ -76,7 +76,7 @@ def test_history_filters_by_actor_with_no_matches(tmp_path: Path) -> None:
     client = _client(repo)
     r = client.get("/history?actor=nobody")
     assert r.status_code == 200
-    assert "0 commits" in r.text
+    assert "0 changes" in r.text
 
 
 def test_history_filters_by_stage(tmp_path: Path) -> None:
@@ -87,7 +87,7 @@ def test_history_filters_by_stage(tmp_path: Path) -> None:
     # The criteria-add commit has no Strata-Stage trailer, so a stage
     # filter matches nothing here -- confirms the filter is real, not a
     # no-op, matching core.logcmd.domain_log's own behavior.
-    assert "0 commits" in r.text
+    assert "0 changes" in r.text
 
 
 def test_the_header_names_the_signed_in_actor_on_every_page(tmp_path: Path) -> None:
@@ -99,3 +99,22 @@ def test_the_header_names_the_signed_in_actor_on_every_page(tmp_path: Path) -> N
         r = client.get(path)
         assert r.status_code == 200, path
         assert "signed in as ethan" in r.text, path
+
+
+def test_history_says_when_and_why(tmp_path: Path) -> None:
+    """Who did what was there; why and when were only in `git log` (#87)."""
+    import re
+
+    from strata import gitio
+
+    repo = _repo_with_a_criterion_commit(tmp_path)
+    page = _client(repo).get("/history").text
+    for heading in ("When", "Who", "What", "Why", "Commit"):
+        assert f'<th scope="col">{heading}</th>' in page
+    assert re.search(
+        r'<time datetime="20\d\d-[^"]+">\d{1,2} \w{3} 20\d\d, \d\d:\d\d UTC</time>', page
+    )
+    reason = gitio.run(["log", "-1", "--format=%b"], cwd=repo.root).stdout.split("\n\n")[0]
+    assert " ".join(reason.split()) in " ".join(page.split())
+    # narrow screens get labelled cards, not a sideways scroll (#89)
+    assert 'class="stage-table stack-table"' in page and 'data-label="Why"' in page

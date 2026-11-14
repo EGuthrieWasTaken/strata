@@ -110,8 +110,10 @@ exclude, mark maybe or **keep your previous decision** (`k`).
 
 ![The records table with a filter box](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-records.png)
 
-**History** lists every commit with the operation and who made it (the same data as `strata log`), and can be
-filtered by stage or actor.
+**History** lists every change: when it was made, who made it, what it was, and why (the reason given at the
+time), newest first. It is the same data as `strata log`, and can be filtered by stage or actor. A record's own
+page tells its story the same way, in sentences: where it was found, each correction with the old and new
+value and the reason, each screening decision. Times are shown in UTC.
 
 ![The history page listing each commit with its operation and actor](https://raw.githubusercontent.com/wiki/EGuthrieWasTaken/strata/images/web-history.png)
 
@@ -138,10 +140,14 @@ The screening screen is built to be driven without a mouse:
 | Key | Does |
 |---|---|
 | `i`, `e`, `m` | include, exclude, maybe (on the re-screening screen `k` keeps your previous decision) |
-| `1` to `9` | tick the criterion with that number. When exclusions must cite a reason, ticking one while excluding records the exclusion at once |
+| `1` to `9` | tick or untick the reason with that number (the same numbers `strata screen` uses). A digit records nothing by itself: press `e` to exclude with the reasons ticked. An inclusion criterion is listed as "Not met: ...", because a record is excluded for failing it |
 | `,` | jump to the note field (the other keys are ignored while you type) |
-| `s` | skip for now |
-| `u` | undo the last decision |
+| `s` | skip for now; skipped records are offered again when the rest are done |
+| `u` | go back to the last decision. Choosing the same again changes nothing; a different decision replaces it and needs a reason |
+
+The heading counts decisions ("3 of 9" means two are made), so a skipped record is not counted as done.
+Pressing `e` with no reason ticked, when the review asks for one, records nothing and says what is missing.
+**Finish session**, under the form, commits what you have decided and returns to the dashboard.
 
 The page works with JavaScript switched off (it just reloads between records, and you click the buttons) and is
 designed for screen readers: states are shown with text and an icon, never colour alone.
@@ -151,7 +157,8 @@ designed for screen readers: states are shown with text and an icon, never colou
 Any web page in your browser can send requests to `127.0.0.1`, so `strata serve`:
 
 - listens **only on your own computer** by default;
-- generates a random **session token** at startup, delivered in the address it prints, kept in a cookie that
+- generates a random **session token** at startup, delivered in the address it prints, kept in a cookie
+  named after the server's port (so two reviews open at once do not sign each other out) that
   other sites cannot read or send;
 - accepts changes only as `POST` requests carrying a **CSRF token**, and checks the `Origin` and `Host` of
   every request (defeating DNS-rebinding);
@@ -175,11 +182,13 @@ container](Running-in-a-Container) for the container case.
 ## What it writes
 
 Screening in the browser appends the same decisions to the same files as the command line. A decision is saved
-to disk the moment you make it, but `strata serve` does not commit it when you leave the screen: it is committed
-the next time anything else in the review is committed, whether by a later `strata` command or by a change made
-in the browser. Until then the review shows uncommitted changes, `strata verify` reports its derived files out of
-date, and `strata sync` refuses; see [Known limitations](Known-Limitations) for how to commit them yourself. (A
-[hosted instance](Running-a-Hosted-Instance) commits them for you, in batches.) Recording a search and importing
+to disk the moment you make it and committed a little later, in a batch of your own with a generated message
+such as `screen(title-abstract): screen 40 records (31 exclude, 9 include)`. The batch is committed when you
+press **Finish session**, when you go to any other page, when the server stops, at your 200th uncommitted
+decision, and after 15 minutes without one; a server that was killed leaves its decisions on disk, and the next
+`strata serve` commits them as it starts. If you change a decision you made earlier, the page asks why, and the
+batch's message lists each such change with its reason. (A [hosted instance](Running-a-Hosted-Instance) does
+the same, and also commits when you sign out.) Recording a search and importing
 its files use the very same code as `strata search add` and `strata import`: the search file, the import, the
 commit messages and the PRISMA counts come out identical, whichever you used.
 

@@ -12,6 +12,13 @@
 <p class="notice" role="status">{{ state_text }}{% if state != "missing" %} Run <code>strata analyze {{ id }}</code> to refresh them.{% else %} Run <code>strata analyze {{ id }}</code>.{% endif %}</p>
 {% endif %}
 
+{% if state == "fresh" %}
+<p class="field-meta" data-testid="freshness-scope">These results are current: they match the data extracted from the studies now included and this analysis&rsquo;s specification.</p>
+{% endif %}
+{% if stale_decisions and state != "missing" %}
+<p class="notice flag" role="status" data-testid="stale-evidence"><span aria-hidden="true">&#9888;</span> {{ stale_decisions }} screening decision{{ "s are" if stale_decisions != 1 else " is" }} stale, so which studies are included may change. {% if state == "fresh" %}The results are current for the studies included now, and provisional{% else %}Treat the results as provisional{% endif %} until those decisions are rescreened (see the <a href="{{ root }}/">dashboard</a>); the <a href="{{ root }}/prisma">flow diagram</a> is a draft for the same reason.</p>
+{% endif %}
+
 {% if warnings %}
 <section aria-labelledby="warnings-h">
   <h2 id="warnings-h">Guardrail warnings</h2>
@@ -44,7 +51,7 @@
   <p class="field-meta">{{ estimates.model.type }}; tau&sup2; estimator {{ estimates.model.tau2_estimator }}; interval {{ estimates.model.ci_method }}.</p>
 
   {% if pooled.coefficients | length > 1 %}
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Meta-regression coefficients, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>Meta-regression coefficients</caption>
     <thead><tr><th scope="col">Term</th><th scope="col">Estimate</th><th scope="col">SE</th><th scope="col">95% CI</th><th scope="col">p</th></tr></thead>
     <tbody>
@@ -87,7 +94,7 @@
 <section aria-labelledby="sweeps-h">
   <h2 id="sweeps-h">Assumptions swept</h2>
   {% for key, sweep in estimates.sweeps.items() %}
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="Assumption sweep {{ loop.index }} ({{ key }}), scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <caption>{{ sweep.note }}</caption>
     <thead><tr><th scope="col">{{ "rho" if sweep["values"][0].rho is defined else "r" }}</th><th scope="col">Estimate</th><th scope="col">95% CI</th></tr></thead>
     <tbody>
@@ -113,7 +120,7 @@
   <p class="field-meta">{{ s.note }}</p>
   {% else %}
   <h3>{{ sid }}: {{ s.type | replace("_", " ") }}</h3>
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
+  <div class="table-scroll" role="region" aria-label="{{ sid }} ({{ s.type | replace("_", " ") }}), scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table">
     <thead><tr><th scope="col">Step</th><th scope="col">Estimate</th><th scope="col">95% CI</th><th scope="col">I&sup2;</th></tr></thead>
     <tbody>
       {% for r in s.results %}
@@ -141,7 +148,7 @@
 {% if study_rows %}
 <section aria-labelledby="studies-h">
   <h2 id="studies-h">Values behind the plots</h2>
-  <div class="table-scroll" role="region" aria-label="Table, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table study-values">
+  <div class="table-scroll" role="region" aria-label="Values behind the plots, scrolls sideways on a narrow screen" tabindex="0"><table class="stage-table study-values">
     <thead><tr>{% for h in study_headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for row in study_rows %}

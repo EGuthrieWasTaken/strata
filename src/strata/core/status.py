@@ -101,6 +101,14 @@ class StatusReport:
     migration_available: bool = False
     #: `None` for a review that has not enabled AI participation.
     ai: AiStatus | None = None
+    #: Of `record_count`, the records merged into another as its duplicate. They are kept (a merge
+    #: can be undone) but are not screened or listed, so `record_count - merged_count` is what
+    #: the record table shows.
+    merged_count: int = 0
+
+    @property
+    def distinct_count(self) -> int:
+        return self.record_count - self.merged_count
 
 
 def _count_ndjson_lines(path) -> int:  # type: ignore[no-untyped-def]
@@ -248,10 +256,9 @@ def compute_status(repo: Repo) -> StatusReport:
     actors = repo.config.get("actors", [])
     commits = gitio.log(repo.root)
 
+    all_records = records_mod.read_records(repo)
     canonical_ids = sorted(
-        r["id"]
-        for r in records_mod.read_records(repo)
-        if r.get("strata", {}).get("canonical", True)
+        r["id"] for r in all_records if r.get("strata", {}).get("canonical", True)
     )
     stale_by_record: dict[str, set[str]] = {}
     for stale in rescreen_mod.compute_stale_records(repo):
@@ -287,4 +294,5 @@ def compute_status(repo: Repo) -> StatusReport:
         schema_version=repo.schema_version,
         migration_available=repo.migration_available,
         ai=_ai_status(repo),
+        merged_count=len(all_records) - len(canonical_ids),
     )

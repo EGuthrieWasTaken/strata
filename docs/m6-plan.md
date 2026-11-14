@@ -187,8 +187,7 @@ What it found and did not need to fix: markup in a title or abstract (`<script>`
 
 Still open: the tables on `/records` and `/history` scroll sideways at 320 px rather than stacking into labelled
 cards as the newer tables do; a table that stacks reads better on a phone.
-Each scroll box is also a tab stop whether or not its table overflows, so a keyboard user passes through one
-more stop per table; making it a stop only when it overflows needs a few lines of script.
+Each scroll box was also a tab stop whether or not its table overflowed; it is now one only while it does (#89).
 
 
 ## add-web-ui-write-surfaces: found by the Chrome pass
@@ -213,22 +212,27 @@ Fixed, each with a test that failed first:
   change had put on the body lets a table column shrink below its longest word; it is now `break-word`. The
   layout test looks for any word spanning two lines in a table cell.
 
-Open. Checked against the code unless marked:
+Fixed since, one commit per issue (OpenSpec change `address-chrome-pass-findings`; each with a test that fails
+without it, and the browser tests for what only a browser shows):
 
-- **Web screening decisions are not committed when you leave the screen** (F3, #83); `web/routes.py` says no commit
-  trigger is wired. The wiki said they were; it now says what happens, and `Known-Limitations` has the workaround.
-  The next unrelated commit used to sweep them up under the wrong author and subject (F11; reproduced, also on
-  a hosted instance, and fixed separately in #93: every commit now flushes each reviewer's pending decisions first).
-- **A split makes `/prisma` refuse to draw** (F26, #84): `studies_included <= reports_included` is an identity in
-  `report/counts.py`, and one report describing two studies breaks it. The message shows the formulas.
-- **The session cookie is shared by every server on `127.0.0.1`** (F20, #85), because cookies ignore ports.
-- Smaller, each filed: History shows neither why nor when, a record's timeline is a raw dump and the record
-  counts disagree (F15, F9, F10: #87); the dashboard, `strata status` and the rescreen page count stale decisions
-  differently, an assignment has no visible effect and an analysis still reads "current" after decisions went
-  stale, which may be intended (F22, F23, F18: #88); "Nothing left to screen" appears while a skipped record
-  remains and a digit key records an exclusion at once (F4, F1: #86); `/records` and `/history` scroll rather
-  than stack on a narrow screen (#89); some messages name internal settings or codes (F2, F24, F25: #90).
-  The hosted UI is covered by neither the page tests nor the Chrome pass (#91).
+- **#83** `strata serve` commits each reviewer's screening batch: Finish session, any other page, stopping
+  the server, the 200th decision, 15 minutes idle, and at startup for what was left. A changed decision needs a
+  reason, kept in the event and listed in the batch's message.
+- **#84** A split report no longer breaks the PRISMA identities; a failed identity is said in words.
+- **#85** Each server's session cookie is named after its port.
+- **#86** A digit ticks a reason and only `e` excludes; skipped records come back; the counter counts decisions.
+- **#87** History and the record page say when and why; the record counts agree and say what they count.
+- **#88** The two stale counts are labelled; `/assign` shows who has what; analysis pages say what "current"
+  is measured against.
+- **#89** The short tables stack on a narrow screen; scroll boxes are named and are tab stops only when they
+  scroll.
+- **#90** Refusals are in the reviewer's words, with the setting beneath.
+- **#91** The hosted instance is driven in Chromium (`scripts/seed_hosted.py`, the `hosted` scenario), and
+  `chrome-pass.md` has a Part H for it. That test found the conflict page scrolling sideways when narrow.
+
+Still open: nobody has run the Chrome pass again on the fixed build, and Part H has never been run by hand. The
+command line still asks for a rationale at the end of every `strata screen` session when the review requires
+one, which is stricter than `git-integration#batched-screening-commits` (a routine batch needs none).
 
 Wrong in the prompt, not in the product (all corrected in the revised `chrome-pass.md`): the record counts in K2 and W6 (W3 adds a record), the expectation
 in V7 that the analysis goes stale, D4's expectation that the queue table changes, X1's "`localhost` will be
