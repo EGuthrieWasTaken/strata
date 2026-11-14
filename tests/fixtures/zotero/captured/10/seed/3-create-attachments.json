@@ -1,0 +1,271 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "2aa08bc2e09a4d45a4cc6b27bfdf7b01",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "attachment",
+        "linkMode": "linked_url",
+        "title": "Publisher page",
+        "accessDate": "",
+        "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "text/html",
+        "charset": "",
+        "parentItem": "BEITJ9RM"
+      },
+      {
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+        "md5": null,
+        "mtime": null,
+        "parentItem": "CFI7USQX"
+      },
+      {
+        "itemType": "attachment",
+        "linkMode": "imported_url",
+        "title": "Snapshot",
+        "accessDate": "",
+        "url": "https://doi.org/10.1037/0033-2909.132.3.354",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "text/html",
+        "charset": "",
+        "filename": "Snapshot.html",
+        "md5": null,
+        "mtime": null,
+        "parentItem": "VTFDUQN2"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:34:31 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "17"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "CWRCUFQN",
+          "version": 15,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/CWRCUFQN",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/CWRCUFQN",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/users/22585168/items/BEITJ9RM",
+              "type": "application/json"
+            }
+          },
+          "meta": {},
+          "data": {
+            "key": "CWRCUFQN",
+            "version": 15,
+            "parentItem": "BEITJ9RM",
+            "itemType": "attachment",
+            "linkMode": "linked_url",
+            "title": "Publisher page",
+            "accessDate": "",
+            "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+            "note": "",
+            "contentType": "text/html",
+            "charset": "",
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:34:31Z",
+            "dateModified": "2026-11-14T04:34:31Z"
+          }
+        },
+        "1": {
+          "key": "TI5GQH7I",
+          "version": 16,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/TI5GQH7I",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/TI5GQH7I",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/users/22585168/items/CFI7USQX",
+              "type": "application/json"
+            }
+          },
+          "meta": {
+            "numChildren": false
+          },
+          "data": {
+            "key": "TI5GQH7I",
+            "version": 16,
+            "parentItem": "CFI7USQX",
+            "itemType": "attachment",
+            "linkMode": "imported_file",
+            "title": "Full Text PDF",
+            "accessDate": "",
+            "url": "",
+            "note": "",
+            "contentType": "application/pdf",
+            "charset": "",
+            "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+            "md5": null,
+            "mtime": null,
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:34:31Z",
+            "dateModified": "2026-11-14T04:34:31Z"
+          }
+        },
+        "2": {
+          "key": "GM5XVZAN",
+          "version": 17,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/GM5XVZAN",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/GM5XVZAN",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/users/22585168/items/VTFDUQN2",
+              "type": "application/json"
+            }
+          },
+          "meta": {},
+          "data": {
+            "key": "GM5XVZAN",
+            "version": 17,
+            "parentItem": "VTFDUQN2",
+            "itemType": "attachment",
+            "linkMode": "imported_url",
+            "title": "Snapshot",
+            "accessDate": "",
+            "url": "https://doi.org/10.1037/0033-2909.132.3.354",
+            "note": "",
+            "contentType": "text/html",
+            "charset": "",
+            "filename": "Snapshot.html",
+            "md5": null,
+            "mtime": null,
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:34:31Z",
+            "dateModified": "2026-11-14T04:34:31Z"
+          }
+        }
+      },
+      "success": {
+        "0": "CWRCUFQN",
+        "1": "TI5GQH7I",
+        "2": "GM5XVZAN"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

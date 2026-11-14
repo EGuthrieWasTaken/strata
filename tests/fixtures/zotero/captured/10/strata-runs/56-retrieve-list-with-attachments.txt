@@ -1,0 +1,8 @@
+$ strata --why list retrieve --by tester --list
+5 reports sought. 5 outstanding. Zotero: 3 attachments found.
+  rpt_35fcqn8457xd5rt9  Roediger & Karpicke (2006)  [Zotero: pdf]
+  rpt_6nkmc81132r4p6ag  Cepeda et al. (2008)  [Zotero: none]
+  rpt_ey32wwrmzmbe91xb  Cepeda et al. (2006)  [Zotero: files]
+  rpt_mt2y8nm0wbt3er78  Dunlosky et al. (2013)  [Zotero: pdf]
+  rpt_rb2mxx0kb7p60v28  Karpicke & Blunt (2011)  [Zotero: none]
+[exit code: 0]

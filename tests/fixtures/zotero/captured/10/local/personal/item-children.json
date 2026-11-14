@@ -1,0 +1,110 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/BEITJ9RM/children",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "children of the item with the linked_url attachment",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items/BEITJ9RM/children>; rel=\"last\", <https://www.zotero.org/users/22585168/items/BEITJ9RM/children>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "CWRCUFQN",
+        "version": 17,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/CWRCUFQN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/CWRCUFQN",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "CWRCUFQN",
+          "version": 17,
+          "itemType": "attachment",
+          "title": "Publisher page",
+          "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+          "parentItem": "BEITJ9RM",
+          "linkMode": "linked_url",
+          "contentType": "text/html",
+          "charset": "",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z"
+        }
+      }
+    ]
+  }
+}

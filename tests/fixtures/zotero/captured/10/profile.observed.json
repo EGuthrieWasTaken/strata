@@ -1,0 +1,19 @@
+{
+  "major": 10,
+  "version": "10.0.8",
+  "local_api": true,
+  "local_api_needs_preference": true,
+  "local_api_writable": "only with a local API key",
+  "notes": {
+    "preference": "extensions.zotero.httpServer.localAPI.enabled (Settings > Advanced > Miscellaneous); also needs extensions.zotero.httpServer.enabled",
+    "switched_off": "403 text/plain 'Local API is not enabled' (from the app's source; not observed live)",
+    "no_api_key_for_reads": true,
+    "writes": "refused with 428 'Zotero-Server-ID not provided' without that header, 401 without a local API key, 412 if the server id is wrong; a key comes from POST /api/local/authorize, which asks the person in the app (Allow / Always Allow / Deny). The Web API key is not accepted. Not exercised past the 401.",
+    "csljson": "a JSON-encoded STRING holding a one-element array, not an object",
+    "item_versions": "unrelated to the Web API's",
+    "items_new_templates": "404 (not served locally)",
+    "keys_current": "404 (not served locally)",
+    "default_limit": "none (the Web API's is 25)",
+    "response_line": "HTTP/1.0, reason phrase 'undefined' on 302/401/428"
+  }
+}

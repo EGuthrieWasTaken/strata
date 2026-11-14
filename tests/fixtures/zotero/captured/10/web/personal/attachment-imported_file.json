@@ -1,0 +1,119 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/TI5GQH7I",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:05 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "18"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "TI5GQH7I",
+      "version": 18,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "strata-review",
+        "links": {
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://api.zotero.org/users/22585168/items/TI5GQH7I",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/strata-review/items/TI5GQH7I",
+          "type": "text/html"
+        },
+        "up": {
+          "href": "https://api.zotero.org/users/22585168/items/CFI7USQX",
+          "type": "application/json"
+        },
+        "enclosure": {
+          "type": "application/pdf",
+          "href": "https://api.zotero.org/users/22585168/items/TI5GQH7I/file/view",
+          "title": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+          "length": 671
+        }
+      },
+      "meta": {
+        "numChildren": false
+      },
+      "data": {
+        "key": "TI5GQH7I",
+        "version": 18,
+        "parentItem": "CFI7USQX",
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "url": "",
+        "note": "",
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+        "md5": "2b05a13fe8b9f59a8d9106ab125cd447",
+        "mtime": 1794630871537,
+        "tags": [],
+        "relations": {},
+        "dateAdded": "2026-11-14T04:34:31Z",
+        "dateModified": "2026-11-14T04:34:31Z"
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "OPTIONS",
+    "url": "http://127.0.0.1:23119/api/users/0/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": ""
+  }
+}

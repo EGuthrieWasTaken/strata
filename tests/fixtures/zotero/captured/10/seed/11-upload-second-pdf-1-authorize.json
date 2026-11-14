@@ -1,0 +1,66 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items/HDDHSCAD/file",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "If-None-Match": "*",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": "md5=80b6a8babcdfcd2a1a3dccc46adfb72a&filename=Dunlosky+et+al+-+2013+-+Improving+students+learning.pdf&filesize=678&mtime=1794631482652"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:44:42 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "url": "https://zoterofilestorage.s3.us-east-1.amazonaws.com/",
+      "contentType": "multipart/form-data; boundary=---------------------------cc5a62250839aa48ce3a910d53f9e98a",
+      "prefix": "REDACTED (signed storage upload form fields: key, AWSAccessKeyId, policy, signature)",
+      "suffix": "\r\n-----------------------------cc5a62250839aa48ce3a910d53f9e98a--",
+      "uploadKey": "REDACTED"
+    }
+  }
+}

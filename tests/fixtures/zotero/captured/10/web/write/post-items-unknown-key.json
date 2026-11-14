@@ -1,0 +1,83 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "db9fd598a2914004b5152e81b6b3171a",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1,
+        "collections": [
+          "EBGRU5QN"
+        ]
+      }
+    ]
+  },
+  "note": "key that does not exist",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:09 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "21"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {},
+      "success": {},
+      "unchanged": {},
+      "failed": {
+        "0": {
+          "code": 404,
+          "message": "Item doesn't exist (expected version 1; use 0 instead)"
+        }
+      }
+    }
+  }
+}

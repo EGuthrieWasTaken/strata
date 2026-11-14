@@ -1,0 +1,81 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "d9bc083eeef84f02ac556c907c75ba50",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 22,
+        "collections": [
+          "EDKUIRII",
+          "EBGRU5QN"
+        ]
+      }
+    ]
+  },
+  "note": "same collections as now, current version: reported as unchanged?",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:12 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "23"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {},
+      "success": {},
+      "unchanged": {
+        "0": "G9PKINI3"
+      },
+      "failed": {}
+    }
+  }
+}

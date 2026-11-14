@@ -1,0 +1,71 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items?itemKey=ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ,ZZZZZZZZ",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "note": "51 keys: limit on itemKey?",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:11 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "0"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "21"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": []
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/22585168/items/top?include=data,csljson&limit=1",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "the real numeric id, not the users/0 alias",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/22585168/items/top?include=data%2Ccsljson&limit=1&start=11>; rel=\"last\", <http://127.0.0.1:23119/api/users/22585168/items/top?include=data%2Ccsljson&limit=1&start=1>; rel=\"next\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 3,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/G9PKINI3",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/G9PKINI3",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Scratch",
+          "parsedDate": "2026",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "G9PKINI3",
+          "version": 3,
+          "itemType": "journalArticle",
+          "title": "Scratch item for write probes",
+          "date": "2026",
+          "language": "en",
+          "creators": [
+            {
+              "firstName": "Probe",
+              "lastName": "Scratch",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EDKUIRII"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:32Z",
+          "dateModified": "2026-11-14T04:34:32Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/G9PKINI3\",\n\t\t\"type\": \"article-journal\",\n\t\t\"language\": \"en\",\n\t\t\"title\": \"Scratch item for write probes\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Scratch\",\n\t\t\t\t\"given\": \"Probe\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2026\"\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      }
+    ]
+  }
+}

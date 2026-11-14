@@ -1,0 +1,169 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "342cb998b60e48c2aa6da1113e4955b2",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "journalArticle",
+        "title": "Created by capture script (create probe)",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "A",
+            "lastName": "Probe"
+          }
+        ],
+        "DOI": "10.1000/probe",
+        "extra": "PMID: 1\nPMCID: PMC1",
+        "collections": [
+          "EDKUIRII"
+        ]
+      }
+    ]
+  },
+  "note": "create: response shape",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:12 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "24"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "6HPCSR64",
+          "version": 24,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/6HPCSR64",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/6HPCSR64",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "creatorSummary": "Probe",
+            "numChildren": 0
+          },
+          "data": {
+            "key": "6HPCSR64",
+            "version": 24,
+            "itemType": "journalArticle",
+            "title": "Created by capture script (create probe)",
+            "creators": [
+              {
+                "creatorType": "author",
+                "firstName": "A",
+                "lastName": "Probe"
+              }
+            ],
+            "abstractNote": "",
+            "publicationTitle": "",
+            "publisher": "",
+            "place": "",
+            "date": "",
+            "volume": "",
+            "issue": "",
+            "section": "",
+            "partNumber": "",
+            "partTitle": "",
+            "pages": "",
+            "series": "",
+            "seriesTitle": "",
+            "seriesText": "",
+            "journalAbbreviation": "",
+            "DOI": "10.1000/probe",
+            "citationKey": "",
+            "url": "",
+            "accessDate": "",
+            "PMID": "",
+            "PMCID": "",
+            "ISSN": "",
+            "archive": "",
+            "archiveLocation": "",
+            "shortTitle": "",
+            "language": "",
+            "libraryCatalog": "",
+            "callNumber": "",
+            "rights": "",
+            "extra": "PMID: 1\nPMCID: PMC1",
+            "tags": [],
+            "collections": [
+              "EDKUIRII"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:36:12Z",
+            "dateModified": "2026-11-14T04:36:12Z"
+          }
+        }
+      },
+      "success": {
+        "0": "6HPCSR64"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

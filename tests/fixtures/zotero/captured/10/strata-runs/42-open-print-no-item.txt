@@ -1,0 +1,3 @@
+$ strata zotero open rec_akttfwq2axta9srp --print-only
+zotero://select/library/items/26DVGR6X
+[exit code: 0]

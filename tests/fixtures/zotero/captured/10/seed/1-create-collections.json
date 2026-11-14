@@ -1,0 +1,152 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/collections",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "16f0e307e3a74734857fb781c81dd766",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "name": "strata-test"
+      },
+      {
+        "name": "strata-scratch"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:34:28 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "3"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "EBGRU5QN",
+          "version": 2,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/collections/EBGRU5QN",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/collections/EBGRU5QN",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "numCollections": 0,
+            "numItems": 0
+          },
+          "data": {
+            "key": "EBGRU5QN",
+            "version": 2,
+            "name": "strata-test",
+            "parentCollection": false,
+            "relations": {}
+          }
+        },
+        "1": {
+          "key": "EDKUIRII",
+          "version": 3,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/collections/EDKUIRII",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/collections/EDKUIRII",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "numCollections": 0,
+            "numItems": 0
+          },
+          "data": {
+            "key": "EDKUIRII",
+            "version": 3,
+            "name": "strata-scratch",
+            "parentCollection": false,
+            "relations": {}
+          }
+        }
+      },
+      "success": {
+        "0": "EBGRU5QN",
+        "1": "EDKUIRII"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

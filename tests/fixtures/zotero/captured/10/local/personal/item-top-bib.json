@@ -1,0 +1,92 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/BEITJ9RM?include=bib,citation&style=apa",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items/BEITJ9RM>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "14"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "BEITJ9RM",
+      "version": 14,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "My Library",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/users/22585168/items/BEITJ9RM",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "creatorSummary": "Cepeda et al.",
+        "parsedDate": "2008-11",
+        "numChildren": 1
+      },
+      "bib": "<div class=\"csl-bib-body\" style=\"line-height: 2; margin-left: 2em; text-indent:-2em;\">\n  <div class=\"csl-entry\">Cepeda, N. J., Vul, E., Rohrer, D., Wixted, J. T., &amp; Pashler, H. (2008). Spacing effects in learning: A temporal ridgeline of optimal retention. <i>Psychological Science</i>, <i>19</i>(11), 1095–1102. https://doi.org/10.1111/j.1467-9280.2008.02209.x</div>\n  <span class=\"Z3988\" title=\"url_ver=Z39.88-2004&amp;ctx_ver=Z39.88-2004&amp;rfr_id=info%3Asid%2Fzotero.org%3A2&amp;rft_id=info%3Adoi%2F10.1111%2Fj.1467-9280.2008.02209.x&amp;rft_id=info%3Apmid%2F19076480&amp;rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal&amp;rft.genre=article&amp;rft.atitle=Spacing%20effects%20in%20learning%3A%20A%20temporal%20ridgeline%20of%20optimal%20retention&amp;rft.jtitle=Psychological%20Science&amp;rft.volume=19&amp;rft.issue=11&amp;rft.aufirst=Nicholas%20J.&amp;rft.aulast=Cepeda&amp;rft.au=Nicholas%20J.%20Cepeda&amp;rft.au=Edward%20Vul&amp;rft.au=Doug%20Rohrer&amp;rft.au=John%20T.%20Wixted&amp;rft.au=Harold%20Pashler&amp;rft.date=2008-11&amp;rft.pages=1095-1102&amp;rft.spage=1095&amp;rft.epage=1102&amp;rft.issn=0956-7976&amp;rft.language=en\"></span>\n</div>",
+      "citation": "(Cepeda et al., 2008)"
+    }
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "88a90b743f6e4b0cb736d0823e761643",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Dunlosky et al - 2013 - Improving students learning.pdf",
+        "md5": null,
+        "mtime": null,
+        "parentItem": "NR9FXZUN"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:44:42 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "35"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "HDDHSCAD",
+          "version": 35,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/HDDHSCAD",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/HDDHSCAD",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/users/22585168/items/NR9FXZUN",
+              "type": "application/json"
+            }
+          },
+          "meta": {
+            "numChildren": false
+          },
+          "data": {
+            "key": "HDDHSCAD",
+            "version": 35,
+            "parentItem": "NR9FXZUN",
+            "itemType": "attachment",
+            "linkMode": "imported_file",
+            "title": "Full Text PDF",
+            "accessDate": "",
+            "url": "",
+            "note": "",
+            "contentType": "application/pdf",
+            "charset": "",
+            "filename": "Dunlosky et al - 2013 - Improving students learning.pdf",
+            "md5": null,
+            "mtime": null,
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:44:42Z",
+            "dateModified": "2026-11-14T04:44:42Z"
+          }
+        }
+      },
+      "success": {
+        "0": "HDDHSCAD"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

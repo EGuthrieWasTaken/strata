@@ -1,0 +1,59 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/top?limit=1",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "If-Modified-Since-Version": "999999"
+    },
+    "body": null
+  },
+  "note": "conditional read",
+  "response": {
+    "status": 304,
+    "reason": "Not Modified",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items/top?limit=1&start=11>; rel=\"last\", <http://127.0.0.1:23119/api/users/0/items/top?limit=1&start=1>; rel=\"next\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": ""
+  }
+}

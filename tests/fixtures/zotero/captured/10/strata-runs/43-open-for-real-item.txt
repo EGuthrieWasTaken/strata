@@ -1,0 +1,3 @@
+$ strata zotero open rec_6nkmc81132r4p6ag
+zotero://select/library/items/BEITJ9RM
+[exit code: 0]

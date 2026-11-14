@@ -1,0 +1,180 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "f06458163b0e4464b99111258de99cc0",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "BEITJ9RM",
+        "version": 26,
+        "abstractNote": "Edited outside strata (stand-in for an edit in the Zotero app)."
+      }
+    ]
+  },
+  "note": "a person's edit, made through the Web API because the desktop UI could not be driven from this session",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:41:59 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "29"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "BEITJ9RM",
+          "version": 29,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/BEITJ9RM",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/BEITJ9RM",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "creatorSummary": "Cepeda et al.",
+            "parsedDate": "2008-11",
+            "numChildren": 1
+          },
+          "data": {
+            "key": "BEITJ9RM",
+            "version": 29,
+            "itemType": "journalArticle",
+            "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+            "creators": [
+              {
+                "creatorType": "author",
+                "firstName": "Nicholas J.",
+                "lastName": "Cepeda"
+              },
+              {
+                "creatorType": "author",
+                "firstName": "Edward",
+                "lastName": "Vul"
+              },
+              {
+                "creatorType": "author",
+                "firstName": "Doug",
+                "lastName": "Rohrer"
+              },
+              {
+                "creatorType": "author",
+                "firstName": "John T.",
+                "lastName": "Wixted"
+              },
+              {
+                "creatorType": "author",
+                "firstName": "Harold",
+                "lastName": "Pashler"
+              }
+            ],
+            "abstractNote": "Edited outside strata (stand-in for an edit in the Zotero app).",
+            "publicationTitle": "Psychological Science",
+            "publisher": "",
+            "place": "",
+            "date": "2008-11",
+            "volume": "19",
+            "issue": "11",
+            "section": "",
+            "partNumber": "",
+            "partTitle": "",
+            "pages": "1095-1102",
+            "series": "",
+            "seriesTitle": "",
+            "seriesText": "",
+            "journalAbbreviation": "",
+            "DOI": "10.1111/j.1467-9280.2008.02209.x",
+            "citationKey": "",
+            "url": "",
+            "accessDate": "",
+            "PMID": "",
+            "PMCID": "",
+            "ISSN": "0956-7976",
+            "archive": "",
+            "archiveLocation": "",
+            "shortTitle": "",
+            "language": "en",
+            "libraryCatalog": "",
+            "callNumber": "",
+            "rights": "",
+            "extra": "PMID: 19076480",
+            "tags": [],
+            "collections": [
+              "EBGRU5QN",
+              "MVN4JX2Z"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:34:30Z",
+            "dateModified": "2026-11-14T04:41:58Z"
+          }
+        }
+      },
+      "success": {
+        "0": "BEITJ9RM"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

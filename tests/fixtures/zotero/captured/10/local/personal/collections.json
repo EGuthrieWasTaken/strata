@@ -1,0 +1,138 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/collections",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "2"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/collections>; rel=\"last\", <https://www.zotero.org/users/22585168/collections>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "EDKUIRII",
+        "version": 1,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/collections/EDKUIRII",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/collections/EDKUIRII",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 1
+        },
+        "data": {
+          "key": "EDKUIRII",
+          "version": 1,
+          "name": "strata-scratch",
+          "parentCollection": false,
+          "relations": {}
+        }
+      },
+      {
+        "key": "EBGRU5QN",
+        "version": 2,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/collections/EBGRU5QN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/collections/EBGRU5QN",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 9
+        },
+        "data": {
+          "key": "EBGRU5QN",
+          "version": 2,
+          "name": "strata-test",
+          "parentCollection": false,
+          "relations": {}
+        }
+      }
+    ]
+  }
+}

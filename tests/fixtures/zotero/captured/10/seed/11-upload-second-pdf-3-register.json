@@ -1,0 +1,52 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items/HDDHSCAD/file",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "If-None-Match": "*",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": "upload=3d82a294f33e813c76b158db13d3fb9e"
+  },
+  "response": {
+    "status": 204,
+    "reason": "No Content",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:44:43 GMT"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "36"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": ""
+  }
+}

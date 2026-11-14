@@ -1,0 +1,140 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/BEITJ9RM?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items/BEITJ9RM>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "14"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "BEITJ9RM",
+      "version": 14,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "My Library",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/users/22585168/items/BEITJ9RM",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "creatorSummary": "Cepeda et al.",
+        "parsedDate": "2008-11",
+        "numChildren": 1
+      },
+      "data": {
+        "key": "BEITJ9RM",
+        "version": 14,
+        "itemType": "journalArticle",
+        "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+        "date": "2008-11",
+        "DOI": "10.1111/j.1467-9280.2008.02209.x",
+        "language": "en",
+        "extra": "PMID: 19076480",
+        "volume": "19",
+        "pages": "1095-1102",
+        "publicationTitle": "Psychological Science",
+        "ISSN": "0956-7976",
+        "issue": "11",
+        "creators": [
+          {
+            "firstName": "Nicholas J.",
+            "lastName": "Cepeda",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "Edward",
+            "lastName": "Vul",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "Doug",
+            "lastName": "Rohrer",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "John T.",
+            "lastName": "Wixted",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "Harold",
+            "lastName": "Pashler",
+            "creatorType": "author"
+          }
+        ],
+        "tags": [],
+        "collections": [
+          "EBGRU5QN"
+        ],
+        "relations": {},
+        "dateAdded": "2026-11-14T04:34:30Z",
+        "dateModified": "2026-11-14T04:34:30Z"
+      },
+      "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/BEITJ9RM\",\n\t\t\"type\": \"article-journal\",\n\t\t\"container-title\": \"Psychological Science\",\n\t\t\"DOI\": \"10.1111/j.1467-9280.2008.02209.x\",\n\t\t\"ISSN\": \"0956-7976\",\n\t\t\"issue\": \"11\",\n\t\t\"language\": \"en\",\n\t\t\"note\": \"PMID: 19076480\",\n\t\t\"page\": \"1095-1102\",\n\t\t\"title\": \"Spacing effects in learning: A temporal ridgeline of optimal retention\",\n\t\t\"volume\": \"19\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Cepeda\",\n\t\t\t\t\"given\": \"Nicholas J.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Vul\",\n\t\t\t\t\"given\": \"Edward\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Rohrer\",\n\t\t\t\t\"given\": \"Doug\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Wixted\",\n\t\t\t\t\"given\": \"John T.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Pashler\",\n\t\t\t\t\"given\": \"Harold\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2008\",\n\t\t\t\t\t11\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+    }
+  }
+}

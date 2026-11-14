@@ -1,0 +1,3 @@
+$ strata --why probe: link to a group that does not exist zotero link --by tester --web --library groups/777
+error: 'groups/777' is not one of your libraries: users/22585168 (My Library)
+[exit code: 2]

@@ -1,0 +1,7 @@
+$ strata --why push to a second collection after edits zotero push --collection strata-pushed-2 --by tester
+pushed to 'strata-pushed-2': 0 created, 0 added, 0 already there
+  refused rec_6nkmc81132r4p6ag: edited in Zotero since strata last saw it 
+(version 26 is now 29); pull it, then push again
+  refused rec_rb2mxx0kb7p60v28: edited in Zotero since strata last saw it 
+(version 27 is now 28); pull it, then push again
+[exit code: 5]

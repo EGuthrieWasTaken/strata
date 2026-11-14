@@ -1,0 +1,66 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items/GM5XVZAN/file",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "If-None-Match": "*",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": "md5=3c948944dc05d417d923bbf8d8ae7a1a&filename=Snapshot.html&filesize=181&mtime=1794630872086"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:34:32 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "url": "https://zoterofilestorage.s3.us-east-1.amazonaws.com/",
+      "contentType": "multipart/form-data; boundary=---------------------------0c7b4cf85735b4260bb82233299f62d8",
+      "prefix": "REDACTED (signed storage upload form fields: key, AWSAccessKeyId, policy, signature)",
+      "suffix": "\r\n-----------------------------0c7b4cf85735b4260bb82233299f62d8--",
+      "uploadKey": "REDACTED"
+    }
+  }
+}

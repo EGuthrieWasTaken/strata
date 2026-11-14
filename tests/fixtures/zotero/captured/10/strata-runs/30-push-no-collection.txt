@@ -1,0 +1,4 @@
+$ strata --why push included studies zotero push --collection strata-pushed --by tester
+error: no collection 'strata-pushed' in users/22585168; the collections are: 
+strata-scratch, strata-test
+[exit code: 1]

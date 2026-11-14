@@ -1,0 +1,253 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/top?limit=2",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "note": "no include: what a plain listing contains",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:02 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<https://api.zotero.org/users/22585168/items/top?limit=2&start=2>; rel=\"next\", <https://api.zotero.org/users/22585168/items/top?limit=2&start=10>; rel=\"last\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "20"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 20,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "strata-review",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/users/22585168/items/G9PKINI3",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review/items/G9PKINI3",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Scratch",
+          "parsedDate": "2026",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "G9PKINI3",
+          "version": 20,
+          "itemType": "journalArticle",
+          "title": "Scratch item for write probes",
+          "creators": [
+            {
+              "creatorType": "author",
+              "firstName": "Probe",
+              "lastName": "Scratch"
+            }
+          ],
+          "abstractNote": "",
+          "publicationTitle": "",
+          "publisher": "",
+          "place": "",
+          "date": "2026",
+          "volume": "",
+          "issue": "",
+          "section": "",
+          "partNumber": "",
+          "partTitle": "",
+          "pages": "",
+          "series": "",
+          "seriesTitle": "",
+          "seriesText": "",
+          "journalAbbreviation": "",
+          "DOI": "",
+          "citationKey": "",
+          "url": "",
+          "accessDate": "",
+          "PMID": "",
+          "PMCID": "",
+          "ISSN": "",
+          "archive": "",
+          "archiveLocation": "",
+          "shortTitle": "",
+          "language": "en",
+          "libraryCatalog": "",
+          "callNumber": "",
+          "rights": "",
+          "extra": "",
+          "tags": [],
+          "collections": [
+            "EDKUIRII"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:32Z",
+          "dateModified": "2026-11-14T04:34:32Z"
+        }
+      },
+      {
+        "key": "8ZM89RUI",
+        "version": 14,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "strata-review",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/users/22585168/items/8ZM89RUI",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review/items/8ZM89RUI",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Pashler et al.",
+          "parsedDate": "2007",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "8ZM89RUI",
+          "version": 14,
+          "itemType": "report",
+          "title": "Organizing instruction and study to improve student learning",
+          "creators": [
+            {
+              "creatorType": "author",
+              "firstName": "Harold",
+              "lastName": "Pashler"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Patrice M.",
+              "lastName": "Bain"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Brian A.",
+              "lastName": "Bottge"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Arthur",
+              "lastName": "Graesser"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Kenneth",
+              "lastName": "Koedinger"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Mark",
+              "lastName": "McDaniel"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Janet",
+              "lastName": "Metcalfe"
+            }
+          ],
+          "abstractNote": "",
+          "reportNumber": "NCER 2007-2004",
+          "reportType": "",
+          "institution": "National Center for Education Research, Institute of Education Sciences, U.S. Department of Education",
+          "place": "Washington, DC",
+          "date": "2007",
+          "seriesTitle": "",
+          "seriesNumber": "",
+          "pages": "",
+          "DOI": "",
+          "ISBN": "",
+          "citationKey": "",
+          "url": "",
+          "accessDate": "",
+          "ISSN": "",
+          "archive": "",
+          "archiveLocation": "",
+          "shortTitle": "",
+          "language": "en",
+          "libraryCatalog": "",
+          "callNumber": "",
+          "rights": "",
+          "extra": "",
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      }
+    ]
+  }
+}

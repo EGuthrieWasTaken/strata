@@ -1,0 +1,21 @@
+$ strata --why pull the strata-test collection zotero pull --collection strata-test --by tester --via website
+pulled 10 items from 'strata-test': 6 new records, 0 matched records already in 
+the review, 4 already linked, 11 correction(s)
+  import imp_01m7c5ppw5v8r7c2es4ywfxkmf
+  corrected rec_mtjmgphj331dpfhs DOI: None -> '10.1037/1076-898x.14.2.101'
+  corrected rec_mtjmgphj331dpfhs language: None -> 'en'
+  corrected rec_mt2y8nm0wbt3er78 author: [{'family': 'Dunlosky', 'given': 
+'John'}, {'family': 'Rawson', 'given': 'Katherine A.'}] -> [{'family': 
+'Dunlosky', 'given': 'John'}, {'family': 'Rawson', 'given': 'Katherine A.'}, 
+{'family': 'Marsh', 'given': 'Elizabeth J.'}, {'family': 'Nathan', 'given': 
+'Mitchell J.'}, {'family': 'Willingham', 'given': 'Daniel T.'}]
+  corrected rec_mt2y8nm0wbt3er78 issued: {'date-parts': [[2013]]} -> 
+{'date-parts': [[2013, 1]]}
+  corrected rec_mt2y8nm0wbt3er78 volume: None -> '14'
+  corrected rec_mt2y8nm0wbt3er78 issue: None -> '1'
+  corrected rec_mt2y8nm0wbt3er78 page: None -> '4-58'
+  corrected rec_mt2y8nm0wbt3er78 DOI: None -> '10.1177/1529100612453266'
+  corrected rec_mt2y8nm0wbt3er78 language: None -> 'en'
+  corrected rec_35fcqn8457xd5rt9 language: None -> 'en'
+  corrected rec_6nkmc81132r4p6ag language: None -> 'en'
+[exit code: 0]

@@ -1,0 +1,172 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "53b2d64e564c46efb05fe6187231c3a9",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "journalArticle",
+        "title": "Native PMID field probe",
+        "PMID": "99999991",
+        "PMCID": "PMC9999991",
+        "DOI": "10.1000/native-pmid-probe",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "N",
+            "lastName": "Probe"
+          }
+        ],
+        "date": "2026-01-02",
+        "collections": [
+          "EDKUIRII"
+        ]
+      }
+    ]
+  },
+  "note": "does a native PMID field reach csljson as PMID?",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:48:23 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "39"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "V8VDM5V2",
+          "version": 39,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/V8VDM5V2",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/V8VDM5V2",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "creatorSummary": "Probe",
+            "parsedDate": "2026-01-02",
+            "numChildren": 0
+          },
+          "data": {
+            "key": "V8VDM5V2",
+            "version": 39,
+            "itemType": "journalArticle",
+            "title": "Native PMID field probe",
+            "creators": [
+              {
+                "creatorType": "author",
+                "firstName": "N",
+                "lastName": "Probe"
+              }
+            ],
+            "abstractNote": "",
+            "publicationTitle": "",
+            "publisher": "",
+            "place": "",
+            "date": "2026-01-02",
+            "volume": "",
+            "issue": "",
+            "section": "",
+            "partNumber": "",
+            "partTitle": "",
+            "pages": "",
+            "series": "",
+            "seriesTitle": "",
+            "seriesText": "",
+            "journalAbbreviation": "",
+            "DOI": "10.1000/native-pmid-probe",
+            "citationKey": "",
+            "url": "",
+            "accessDate": "",
+            "PMID": "99999991",
+            "PMCID": "PMC9999991",
+            "ISSN": "",
+            "archive": "",
+            "archiveLocation": "",
+            "shortTitle": "",
+            "language": "",
+            "libraryCatalog": "",
+            "callNumber": "",
+            "rights": "",
+            "extra": "",
+            "tags": [],
+            "collections": [
+              "EDKUIRII"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:48:22Z",
+            "dateModified": "2026-11-14T04:48:22Z"
+          }
+        }
+      },
+      "success": {
+        "0": "V8VDM5V2"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

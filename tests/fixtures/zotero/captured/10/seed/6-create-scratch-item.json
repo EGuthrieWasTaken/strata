@@ -1,0 +1,199 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "6dc50c65731546dca9c553692edcc0c7",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "journalArticle",
+        "title": "Scratch item for write probes",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "Probe",
+            "lastName": "Scratch"
+          }
+        ],
+        "abstractNote": "",
+        "publicationTitle": "",
+        "publisher": "",
+        "place": "",
+        "date": "2026",
+        "volume": "",
+        "issue": "",
+        "section": "",
+        "partNumber": "",
+        "partTitle": "",
+        "pages": "",
+        "series": "",
+        "seriesTitle": "",
+        "seriesText": "",
+        "journalAbbreviation": "",
+        "DOI": "",
+        "citationKey": "",
+        "url": "",
+        "accessDate": "",
+        "PMID": "",
+        "PMCID": "",
+        "ISSN": "",
+        "archive": "",
+        "archiveLocation": "",
+        "shortTitle": "",
+        "language": "en",
+        "libraryCatalog": "",
+        "callNumber": "",
+        "rights": "",
+        "extra": "",
+        "tags": [],
+        "collections": [
+          "EDKUIRII"
+        ],
+        "relations": {}
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:34:33 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "20"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "G9PKINI3",
+          "version": 20,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/G9PKINI3",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/G9PKINI3",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "creatorSummary": "Scratch",
+            "parsedDate": "2026",
+            "numChildren": 0
+          },
+          "data": {
+            "key": "G9PKINI3",
+            "version": 20,
+            "itemType": "journalArticle",
+            "title": "Scratch item for write probes",
+            "creators": [
+              {
+                "creatorType": "author",
+                "firstName": "Probe",
+                "lastName": "Scratch"
+              }
+            ],
+            "abstractNote": "",
+            "publicationTitle": "",
+            "publisher": "",
+            "place": "",
+            "date": "2026",
+            "volume": "",
+            "issue": "",
+            "section": "",
+            "partNumber": "",
+            "partTitle": "",
+            "pages": "",
+            "series": "",
+            "seriesTitle": "",
+            "seriesText": "",
+            "journalAbbreviation": "",
+            "DOI": "",
+            "citationKey": "",
+            "url": "",
+            "accessDate": "",
+            "PMID": "",
+            "PMCID": "",
+            "ISSN": "",
+            "archive": "",
+            "archiveLocation": "",
+            "shortTitle": "",
+            "language": "en",
+            "libraryCatalog": "",
+            "callNumber": "",
+            "rights": "",
+            "extra": "",
+            "tags": [],
+            "collections": [
+              "EDKUIRII"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T04:34:32Z",
+            "dateModified": "2026-11-14T04:34:32Z"
+          }
+        }
+      },
+      "success": {
+        "0": "G9PKINI3"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

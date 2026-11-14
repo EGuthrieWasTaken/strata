@@ -1,0 +1,19 @@
+# Library changes made by strata (before -> after each strata write). Deleted items: none in any step.
+
+## push 1 (strata-pushed): created 1, added 1
+deleted items: []
+new items: {'UKWX94NM': ('journalArticle', 'Retrieval practice produces more learning than ela', ['MVN4JX2Z'])}
+changed BEITJ9RM Spacing effects in learning: A temporal  {'collections': (['EBGRU5QN'], ['EBGRU5QN', 'MVN4JX2Z']), '_version': (4, 26), 'version': (4, 26)}
+collections: same | trash after: []
+
+## push 2 (strata-pushed-2) after outside edits: both refused, nothing written
+deleted items: []
+new items: {}
+collections: same | trash after: []
+
+## push 3 (strata-pushed-2) after pull: added 2
+deleted items: []
+new items: {}
+changed BEITJ9RM Spacing effects in learning: A temporal  {'_version': (29, 31), 'version': (29, 31), 'collections': (['EBGRU5QN', 'MVN4JX2Z'], ['AF62HD3H', 'EBGRU5QN', 'MVN4JX2Z'])}
+changed UKWX94NM Retrieval practice produces more learnin {'_version': (28, 32), 'version': (28, 32), 'collections': (['MVN4JX2Z'], ['AF62HD3H', 'MVN4JX2Z'])}
+collections: same | trash after: []

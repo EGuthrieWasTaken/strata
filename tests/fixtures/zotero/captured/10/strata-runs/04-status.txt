@@ -1,0 +1,12 @@
+$ strata status
+Zotero real-run scratch review  criteria v1
+4 commits · 1 actors · clean
+5 records · 1 searches recorded
+format 1; format 2 is available (`strata migrate`; AI participation needs it)
+
+TITLE-ABSTRACT  5 records    0 resolved · 5 unscreened · 0 partial
+
+FULL-TEXT  5 records    0 resolved · 5 unscreened · 0 partial
+
+NEXT  strata screen title-abstract
+[exit code: 0]
