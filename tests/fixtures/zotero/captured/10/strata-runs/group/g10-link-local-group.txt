@@ -1,0 +1,4 @@
+$ strata --why link to the group through the local API zotero link --by tester --library groups/6762415
+error: Zotero sent an item without its CSL-JSON (key 'KJ9MJ46K'), which strata 
+needs to read it
+[exit code: 1]

@@ -1,0 +1,115 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/items/U5JR5IES",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/groups/6762415/items/U5JR5IES>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "10"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "U5JR5IES",
+      "version": 10,
+      "library": {
+        "type": "group",
+        "id": 6762415,
+        "name": "strata-ci-group",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/groups/6762415/items/U5JR5IES",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/groups/6762415/items/U5JR5IES",
+          "type": "text/html"
+        },
+        "up": {
+          "href": "http://localhost:23119/api/groups/6762415/items/JRNI4G2X",
+          "type": "application/json"
+        },
+        "enclosure": {
+          "href": "file:///home/USER/Zotero%20strata-test/storage/U5JR5IES/Pavlik%20and%20Anderson%20-%202008%20-%20Using%20a%20model.pdf",
+          "type": "application/pdf",
+          "title": "Pavlik and Anderson - 2008 - Using a model.pdf",
+          "length": 665
+        }
+      },
+      "meta": {
+        "numChildren": 0
+      },
+      "data": {
+        "key": "U5JR5IES",
+        "version": 10,
+        "itemType": "attachment",
+        "title": "Full Text PDF",
+        "parentItem": "JRNI4G2X",
+        "linkMode": "imported_file",
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Pavlik and Anderson - 2008 - Using a model.pdf",
+        "tags": [],
+        "relations": {},
+        "dateAdded": "2026-11-14T06:32:19Z",
+        "dateModified": "2026-11-14T06:32:19Z",
+        "mtime": 1794637939904,
+        "md5": "aa4eadb43aa2b9f90320192a335d8b40"
+      }
+    }
+  }
+}

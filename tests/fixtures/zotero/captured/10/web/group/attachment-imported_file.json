@@ -1,0 +1,130 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/items/U5JR5IES",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:06 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "11"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "U5JR5IES",
+      "version": 11,
+      "library": {
+        "type": "group",
+        "id": 6762415,
+        "name": "strata-ci-group",
+        "links": {
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/groups/6762415/items/U5JR5IES",
+          "type": "text/html"
+        },
+        "up": {
+          "href": "https://api.zotero.org/groups/6762415/items/JRNI4G2X",
+          "type": "application/json"
+        },
+        "enclosure": {
+          "type": "application/pdf",
+          "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES/file/view",
+          "title": "Pavlik and Anderson - 2008 - Using a model.pdf",
+          "length": 665
+        }
+      },
+      "meta": {
+        "createdByUser": {
+          "id": 22585168,
+          "username": "strata-review",
+          "name": "",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review",
+              "type": "text/html"
+            }
+          }
+        },
+        "numChildren": 0
+      },
+      "data": {
+        "key": "U5JR5IES",
+        "version": 11,
+        "parentItem": "JRNI4G2X",
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "url": "",
+        "note": "",
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Pavlik and Anderson - 2008 - Using a model.pdf",
+        "md5": "aa4eadb43aa2b9f90320192a335d8b40",
+        "mtime": 1794637939904,
+        "tags": [],
+        "relations": {},
+        "dateAdded": "2026-11-14T06:32:19Z",
+        "dateModified": "2026-11-14T06:32:19Z"
+      }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/items?itemType=attachment&format=json",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "2"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/groups/6762415/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "11"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "U5JR5IES",
+        "version": 11,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/U5JR5IES",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "https://api.zotero.org/groups/6762415/items/JRNI4G2X",
+            "type": "application/json"
+          },
+          "enclosure": {
+            "type": "application/pdf",
+            "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES/file/view",
+            "title": "Pavlik and Anderson - 2008 - Using a model.pdf",
+            "length": 665
+          }
+        },
+        "meta": {
+          "createdByUser": {
+            "id": 22585168,
+            "username": "strata-review",
+            "name": "",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "numChildren": 0
+        },
+        "data": {
+          "key": "U5JR5IES",
+          "version": 11,
+          "parentItem": "JRNI4G2X",
+          "itemType": "attachment",
+          "linkMode": "imported_file",
+          "title": "Full Text PDF",
+          "accessDate": "",
+          "url": "",
+          "note": "",
+          "contentType": "application/pdf",
+          "charset": "",
+          "filename": "Pavlik and Anderson - 2008 - Using a model.pdf",
+          "md5": "aa4eadb43aa2b9f90320192a335d8b40",
+          "mtime": 1794637939904,
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        }
+      },
+      {
+        "key": "S3S8FXX4",
+        "version": 9,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/items/S3S8FXX4",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/S3S8FXX4",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "https://api.zotero.org/groups/6762415/items/6BQ4WRIB",
+            "type": "application/json"
+          }
+        },
+        "meta": {
+          "createdByUser": {
+            "id": 22585168,
+            "username": "strata-review",
+            "name": "",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          }
+        },
+        "data": {
+          "key": "S3S8FXX4",
+          "version": 9,
+          "parentItem": "6BQ4WRIB",
+          "itemType": "attachment",
+          "linkMode": "linked_url",
+          "title": "Publisher page",
+          "accessDate": "",
+          "url": "https://doi.org/10.1111/j.1467-9280.2006.01693.x",
+          "note": "",
+          "contentType": "text/html",
+          "charset": "",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        }
+      }
+    ]
+  }
+}

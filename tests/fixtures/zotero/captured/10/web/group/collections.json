@@ -1,0 +1,143 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/collections",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:05 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "2"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/groups/6762415/collections>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "11"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "Q3EB6UJJ",
+        "version": 3,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/collections/Q3EB6UJJ",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/collections/Q3EB6UJJ",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 0
+        },
+        "data": {
+          "key": "Q3EB6UJJ",
+          "version": 3,
+          "name": "strata-pushed",
+          "parentCollection": false,
+          "relations": {}
+        }
+      },
+      {
+        "key": "JDXU647J",
+        "version": 2,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/collections/JDXU647J",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/collections/JDXU647J",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 4
+        },
+        "data": {
+          "key": "JDXU647J",
+          "version": 2,
+          "name": "strata-test",
+          "parentCollection": false,
+          "relations": {}
+        }
+      }
+    ]
+  }
+}

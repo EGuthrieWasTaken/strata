@@ -1,0 +1,3 @@
+$ strata --why include two records screen full-text --by tester --decisions $SCRATCH/decisions-g.tsv
+recorded 2 decision(s) for full-text
+[exit code: 0]

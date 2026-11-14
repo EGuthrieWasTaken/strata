@@ -1,0 +1,10 @@
+$ strata --why link the group through the Web API zotero link --by tester --web --library groups/6762415
+linked groups/6762415 through the Web API
+  matched 2 of 5 library items to records (2 new or updated links)
+  not in this review: KJ9MJ46K Shannon (1937)  A Symbolic Analysis of Relay and 
+Switching Circuits (`strata zotero pull` brings it in)
+  not in this review: Q4CXNISZ Vaswani et al. (2017)  Attention Is All You Need 
+(`strata zotero pull` brings it in)
+  not in this review: CMWCSWX8 Brown et al. (2014)  Make It Stick: The Science 
+of Successful Learning (`strata zotero pull` brings it in)
+[exit code: 0]

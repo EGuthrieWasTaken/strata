@@ -1,0 +1,66 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/groups/6762415/items/U5JR5IES/file",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "If-None-Match": "*",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": "md5=aa4eadb43aa2b9f90320192a335d8b40&filename=Pavlik+and+Anderson+-+2008+-+Using+a+model.pdf&filesize=665&mtime=1794637939904"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:32:20 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "url": "https://zoterofilestorage.s3.us-east-1.amazonaws.com/",
+      "contentType": "multipart/form-data; boundary=---------------------------aef847cb8002b3f9535129a13cc0ad35",
+      "prefix": "REDACTED (signed storage upload form fields: key, AWSAccessKeyId, policy, signature)",
+      "suffix": "\r\n-----------------------------aef847cb8002b3f9535129a13cc0ad35--",
+      "uploadKey": "REDACTED"
+    }
+  }
+}

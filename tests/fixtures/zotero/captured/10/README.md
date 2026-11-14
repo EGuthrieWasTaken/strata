@@ -15,8 +15,10 @@ show; this file only says how to read them.
 | `strata-runs/` | the output of every `strata` command run against this library, `review-state/` (the mapping file and `[zotero]` table the link produced) and `library-diffs.txt` (what strata changed in the library) |
 | `profile.observed.json` | what this version's local server does, in the shape of `../<major>/profile.json` |
 
-There is no `group/` directory: the throwaway account belongs to no group, so no group library could
-be captured.
+`local/group/` and `web/group/` are the same questions asked of the throwaway account's group library
+(`strata-ci-group`, id 6762415, owned by that account); `seed-group/` is how it was seeded and
+`strata-runs/group/` the `strata` runs against it. The group was created on zotero.org by the person
+running this, after the first pass, and was empty until `strata` seeded it.
 
 ## One file
 

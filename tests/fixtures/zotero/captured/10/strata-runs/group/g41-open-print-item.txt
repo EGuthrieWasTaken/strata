@@ -1,0 +1,3 @@
+$ strata zotero open rec_35fcqn8457xd5rt9 --print-only
+zotero://select/groups/6762415/items/6BQ4WRIB
+[exit code: 0]

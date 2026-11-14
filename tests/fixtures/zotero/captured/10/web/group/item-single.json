@@ -1,0 +1,187 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/items/6BQ4WRIB?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:05 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "4"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "6BQ4WRIB",
+      "version": 4,
+      "library": {
+        "type": "group",
+        "id": 6762415,
+        "name": "strata-ci-group",
+        "links": {
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://api.zotero.org/groups/6762415/items/6BQ4WRIB",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/groups/6762415/items/6BQ4WRIB",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "createdByUser": {
+          "id": 22585168,
+          "username": "strata-review",
+          "name": "",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review",
+              "type": "text/html"
+            }
+          }
+        },
+        "creatorSummary": "Roediger and Karpicke",
+        "parsedDate": "2006-03",
+        "numChildren": 1
+      },
+      "csljson": {
+        "id": "26075223/6BQ4WRIB",
+        "type": "article-journal",
+        "container-title": "Psychological Science",
+        "DOI": "10.1111/j.1467-9280.2006.01693.x",
+        "issue": "3",
+        "language": "en",
+        "page": "249-255",
+        "PMID": "16507066",
+        "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+        "volume": "17",
+        "author": [
+          {
+            "family": "Roediger",
+            "given": "Henry L."
+          },
+          {
+            "family": "Karpicke",
+            "given": "Jeffrey D."
+          }
+        ],
+        "issued": {
+          "date-parts": [
+            [
+              2006,
+              3
+            ]
+          ]
+        }
+      },
+      "data": {
+        "key": "6BQ4WRIB",
+        "version": 4,
+        "itemType": "journalArticle",
+        "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "Henry L.",
+            "lastName": "Roediger"
+          },
+          {
+            "creatorType": "author",
+            "firstName": "Jeffrey D.",
+            "lastName": "Karpicke"
+          }
+        ],
+        "abstractNote": "",
+        "publicationTitle": "Psychological Science",
+        "publisher": "",
+        "place": "",
+        "date": "2006-03",
+        "volume": "17",
+        "issue": "3",
+        "section": "",
+        "partNumber": "",
+        "partTitle": "",
+        "pages": "249-255",
+        "series": "",
+        "seriesTitle": "",
+        "seriesText": "",
+        "journalAbbreviation": "",
+        "DOI": "10.1111/j.1467-9280.2006.01693.x",
+        "citationKey": "",
+        "url": "",
+        "accessDate": "",
+        "PMID": "16507066",
+        "PMCID": "",
+        "ISSN": "",
+        "archive": "",
+        "archiveLocation": "",
+        "shortTitle": "",
+        "language": "en",
+        "libraryCatalog": "",
+        "callNumber": "",
+        "rights": "",
+        "extra": "",
+        "tags": [],
+        "collections": [
+          "JDXU647J"
+        ],
+        "relations": {},
+        "dateAdded": "2026-11-14T06:32:18Z",
+        "dateModified": "2026-11-14T06:32:18Z"
+      }
+    }
+  }
+}

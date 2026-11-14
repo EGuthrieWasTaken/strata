@@ -23,7 +23,9 @@ The findings that matter most (the Web API path worked end to end; the local API
    *do* come through as CSL `PMID`/`PMCID`.
 4. **`strata zotero open` did not reach Zotero** on this Linux machine: it opens the link with Python's
    `webbrowser`, which chose Firefox. The same link through `xdg-open` made Zotero respond.
-5. Smaller: pushing again after an outside edit to the *same* collection says "already there", not
+5. The group library (second pass) behaves as the personal one in everything above: Web API link, pull and
+   push work, the local API fails on `csljson`, and a native `PMID` does match.
+6. Smaller: pushing again after an outside edit to the *same* collection says "already there", not
    "refused" (the refusal only shows when the item is not yet in the target collection); `strata` made no
    change to the library beyond what it says; the Web API behaves as the fake assumed in most respects.
 
@@ -43,8 +45,9 @@ The findings that matter most (the Web API path worked end to end; the local API
 **Safety check.** `GET /keys/current` named the account `strata-review` (user 22585168). Both the desktop
 app's `users/0/items/top` and the Web API's returned 0 items and 0 collections before seeding, so it is a
 throwaway library and writes went ahead. The same call showed the key may write to the user library and
-to "all groups", but **the account belongs to no group** (`GET /users/22585168/groups` is `[]`), so there
-was no group library to seed or capture.
+to "all groups". On the first pass **the account belonged to no group** (`GET /users/22585168/groups` was
+`[]`), so group steps waited; a group was created afterwards, `strata-ci-group` (id 6762415, owned by
+`strata-review`, 0 items), and the second pass below used it.
 
 ## What was seeded
 
@@ -53,7 +56,9 @@ and `strata-scratch` (later `strata-pushed` and `strata-pushed-2`, created for t
 of six types from real published records (journal articles, a book, a book section, a preprint, a
 thesis, a report), DOIs on six, PMIDs (in `extra`) on five, neither on four; a linked-URL attachment, a
 stored PDF, an HTML snapshot, a second stored PDF, and one scratch item that write probes against the
-local API were aimed at. The files are tiny stand-ins generated locally. The desktop app picked all of it
+local API were aimed at. The second pass seeded the group the same way: collections `strata-test` and
+`strata-pushed`, five items (three journal articles, a book, a preprint, a thesis, with native `PMID`
+fields on the articles), a linked URL and a stored PDF. The files are tiny stand-ins generated locally. The desktop app picked all of it
 up within seconds without a click on sync.
 
 ## Assumptions in `tasks.md`
@@ -63,13 +68,13 @@ up within seconds without a click on sync.
 | 1a | the local API serves `users/0/items/top?include=data,csljson` as the Web API does | **wrong** | The URL works and `Total-Results`, `Link` and the item envelope (`key`, `version`, `library`, `links`, `meta`, `data`, `csljson`) are there, but `csljson` is a **string**: `"[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/BEITJ9RM\", ...}\n]"`. The Web API gives an object `{"id": "26075093/BEITJ9RM", ...}`. The local copy also has string year parts (`[["2008", 11]]`, the Web API's are numbers), and `data` holds only fields that are set (the Web API sends every field of the type, empty ones as `""`). `format=csljson` is likewise `text/plain` there and `{"items": [...]}` as `application/vnd.citationstyles.csl+json` on the Web. Item versions are unrelated: the same item is version 14 locally and 4 on the Web |
 | 1b | ...and is read-only | **wrong** | Reads need nothing. Writes get `428 Zotero-Server-ID not provided`; with that header (the server hands its id out on every response) `401 API key required -- POST /api/local/authorize to obtain one` (with `WWW-Authenticate`), `401 Invalid or expired API key` for any key including the zotero.org one, `412 Zotero-Server-ID does not match this server` for a wrong id. A local key comes from `POST /api/local/authorize` with `{"appName": ...}`, which shows Allow / Always Allow / Deny in the app. I did not trigger that prompt, so what a *granted* write does is untested. All twelve write attempts (POST create, POST update, PUT, PATCH, DELETE, POST collection, POST with a write token, and five more with the server id, a wrong id, a bogus key and the zotero.org key) were refused and the library did not change. This is stated in the app's own source (`server_localAPI.js`), not only inferred |
 | 2 | the setting that switches the local API on is under Settings > Advanced | **confirmed** (from the app's source and profile; not toggled live) | Settings > Advanced, in the **Miscellaneous** group, a checkbox labelled "Allow other applications on this computer to communicate with Zotero" (below "Report broken site translators"), with "Available at http://localhost:23119/api/" beneath it. It is bound to the preference `extensions.zotero.httpServer.localAPI.enabled`, which is in the profile's `prefs.js` as `true`, and is greyed out unless `extensions.zotero.httpServer.enabled` is on. When the preference is off every `/api/` request (including the `/api/` ping) is meant to answer `403 text/plain "Local API is not enabled"` (the fake's text is identical). That 403 was **not observed live**; it needs someone to toggle the box |
-| 3 | `GET /keys/current` reports a key's write access per library | **confirmed for the user library; group not testable** | `{"key", "userID", "username", "displayName", "access": {"user": {"library", "files", "write"}, "groups": {"all": {"library", "write"}}}}`. The fake lacks `displayName` and `user.files`. Per-group entries (`groups.<id>`) could not be seen. The body **echoes the key**, so a capture must be redacted. No key or a wrong key: `403 Forbidden`. The local API has no `/api/keys/current` (404) |
+| 3 | `GET /keys/current` reports a key's write access per library | **confirmed for the user library; for groups only the "all groups" entry** | `{"key", "userID", "username", "displayName", "access": {"user": {"library", "files", "write"}, "groups": {"all": {"library", "write"}}}}`, unchanged after the account joined a group. The fake lacks `displayName` and `user.files`. A per-group entry (`groups.<id>`) appears only for a key made for specific groups, which was not available; a write to the group library through this key worked. The body **echoes the key**, so a capture must be redacted. No key or a wrong key: `403 Forbidden`. The local API has no `/api/keys/current` (404) |
 | 4a | `POST /items` with `key` and `version` per object updates only the named properties | **confirmed** | An object with `key`, `version`, `collections` changed `collections` and the version and nothing else (compared field by field; `dateModified` did not move either) |
 | 4b | ...and reports a version mismatch as a per-object 412 | **confirmed, with differences** | HTTP **200** with `failed: {"0": {"code": 412, "message": "Item has been modified since specified version (expected 1, found 4)"}}`. The entry has **no `key`** (the fake adds one) and the message does not name the item. Also seen: a version *newer* than the item's is not refused (an unchanged payload comes back `unchanged`), so only an older version conflicts; a missing `version` is `failed` 428 ("Either If-Unmodified-Since-Version or 'version' property must be provided..."); an unknown key is `failed` 404; a bad field is `failed` 400 ("Invalid property 'noSuchField'"). A stale `If-Unmodified-Since-Version` *header* fails the **whole request** with `412` and a `text/html` body. `successful` holds the full item object (the fake holds `{key, version}`), `success` maps slot to key (the fake leaves it empty) and `unchanged` maps slot to key. 51 objects: `413 Cannot add more than 50 items at a time` |
 | 5 | `GET /items/new?itemType=` serves item templates | **confirmed on the Web API; not on the local one** | 200 with no key. Bad or missing type: `400`. The real templates have many fields the fake's do not (20 more on `journalArticle`; see below), and only `journalArticle` has `PMID`/`PMCID`. The local API answers 404, which does not matter because pushes go through the Web API |
 | 6 | an attachment whose `linkMode` is `linked_url` means no file | **confirmed** | No `filename`, `md5`, `mtime` or `enclosure` link; the local `/file` is `400 Not a file attachment`, the Web `/file` is `404`. `strata retrieve --list` said `Zotero: none` for it. `imported_file` and `imported_url` do have a file. (`linked_file`, a path on disk, was not tried.) Note `imported_url`, an HTML snapshot, counts as `Zotero: files`, not none |
 | 7a | `zotero://open-pdf/...` opens a PDF | **confirmed through the OS handler, not through `strata`** | `xdg-open zotero://open-pdf/library/items/<key>` made the running Zotero mark the attachment read (`lastRead` appeared and the item's version moved), which is what opening the attachment in Zotero's reader does. `strata zotero open` on the same link did nothing (see below) |
-| 7b | `zotero://select/...` opens an item | **could not verify the effect** | `xdg-open` returned 0 and started no second Zotero (the running one took it), but selection in the item tree is not visible from the API and the screen was not inspected. The link `strata` prints is the form Zotero documents |
+| 7b | `zotero://select/...` opens an item | **could not verify the effect** | `xdg-open` returned 0 and started no second Zotero (the running one took it), but selection in the item tree is not visible from the API and the screen was not inspected. The link `strata` prints is the form Zotero documents, and for a group `zotero://select/groups/6762415/items/<key>` and `zotero://open-pdf/groups/6762415/items/<key>`. For the group PDF `xdg-open` returned 0 but `lastRead` did **not** appear (it is not set for items in a group, or the open did not happen), so the group open is unverified |
 
 ## Fixture differences
 
@@ -93,7 +98,8 @@ up within seconds without a click on sync.
 | templates | `journalArticle` 16 fields, `document` 12 | `journalArticle` 36 (adds `ISSN`, `PMCID`, `PMID`, `accessDate`, `archive`, `archiveLocation`, `callNumber`, `citationKey`, `journalAbbreviation`, `libraryCatalog`, `partNumber`, `partTitle`, `place`, `publisher`, `rights`, `section`, `series`, `seriesText`, `seriesTitle`, `shortTitle`); `document` 23 against the fake's 12 (adds `DOI`, `type`, `place`, `shortTitle`, ...). `book`, `bookSection`, `preprint`, `thesis`, `report` have `DOI`, none has `PMID` |
 | headers | `content-type`, `Total-Results`, `Last-Modified-Version` on writes | also `Zotero-API-Version: 3`, `Zotero-Schema-Version`, `Last-Modified-Version` on reads, `Link` (`next`, `last`, `alternate`) on lists |
 | `Backoff`, `Retry-After`, 429/503 | modelled | never seen in the 133 captured requests |
-| group listing | `{id, version, data {id, name}}` | not capturable (no group) |
+| group listing | `{id, version, data {id, name}}` | `{id, version, links, meta, data}`. Web `meta` has `created`, `lastModified`, `numItems`, `isAdmin`; `data` has `owner`, `type`, `libraryEditing`, `libraryReading`, `fileEditing`, `description`, `url`. Local `meta` is `{numItems}` and `data` only `id`, `version`, `name`, `description` |
+| group item envelope | `library {type, id}` | `library {type: "group", id, name, links}`; the Web API adds `meta.createdByUser {id, username, name, links}` to group items; locally `csljson` is still a string. Group writes behave as the personal ones (stale version: per-object 412 inside a 200; no key 403; 51 objects 413); local group writes 428, then 401 |
 
 Fields real Zotero has that the fake lacks: everything in the right-hand column above. Fields the fake
 has that real Zotero lacks: `failed[...].key`; the `application/pdf` type on a linked URL as something
@@ -129,7 +135,11 @@ five records imported from a CSL-JSON file, one criterion). Full output is in `s
 | Command | Result |
 |---|---|
 | `zotero link --by tester` (local, no key) | **failed**, exit 1: `error: Zotero sent an item without its CSL-JSON (key '6HPCSR64'), which strata needs to read it`. Left nothing behind |
-| `zotero link --by tester --web --library groups/<id>` | not possible, no group. `--library groups/777` gave `error: 'groups/777' is not one of your libraries: users/22585168 (My Library)` (exit 2), `strata.toml` unchanged |
+| `zotero link --by tester --web --library groups/777` (first pass, before the group existed) | `error: 'groups/777' is not one of your libraries: users/22585168 (My Library)` (exit 2), `strata.toml` unchanged |
+| **group**: `zotero link --by tester --library groups/6762415` (local) | **failed** with the same CSL-JSON error (`key 'KJ9MJ46K'`) |
+| **group**: `zotero link --by tester --web --library groups/6762415` | worked: 2 of 5 items matched, the other 3 listed. Then `pull --collection strata-test --via website`: 4 items, 2 new, 2 linked; `status` `4 of 7 records mapped`. The Pavlik record, which has only a PMID, **matched `via pmid`** (the item's native `PMID` reaches CSL-JSON), and the pull copied Roediger's PMID into the record |
+| **group**: `push --collection strata-pushed`, two included records | `1 created, 1 added, 0 already there`; a second push `0 created, 0 added, 2 already there`. The group library lost nothing and the existing item only gained the collection (`strata-runs/group/library-diff.txt`) |
+| **group**: `zotero open --print-only`, and open | `zotero://select/groups/6762415/items/6BQ4WRIB`, `zotero://open-pdf/groups/6762415/items/U5JR5IES`; `strata`'s own open and `xdg-open` both exited 0, and no effect could be seen (see 7b) |
 | `zotero link --by tester --web --library users/22585168` | worked. 4 of 13 items matched: two by DOI, two by "signature" (title, year, first author); the other 9 listed. The Pavlik record, which had a PMID and no DOI, matched by signature, not by PMID |
 | `zotero pull --collection strata-test --by tester --via website` | worked (it follows the link's transport, `web`): 10 items, 6 new records, 4 already linked, 11 corrections (mostly `language: None -> 'en'`; a DOI came back lower-cased: `strata`'s own normalising, Zotero keeps `...-898X...`) |
 | `zotero status` | worked: `10 of 11 records mapped`, `no stale links` |
@@ -176,9 +186,8 @@ Not changed here; for whoever picks them up.
 
 ## Could not be tested
 
-- **A group library**: the account is in no group. Everything per group: seeding, captures,
-  `link --library groups/<id>`, `keys/current`'s per-group entries, `zotero://select/groups/...`.
-  Needs a group created on zotero.org and the key allowed to write to it.
+- **Per-group key entries** in `keys/current` (the key covers "all groups"), a group where the key
+  may read but not write, and the effect of the group `zotero://` links.
 - **The local API switched off** (needs someone to untick the box; the expected answer is above).
 - **A granted local write** (needs a click on Allow in Zotero; `POST /api/local/authorize` was not called
   so no prompt appeared).

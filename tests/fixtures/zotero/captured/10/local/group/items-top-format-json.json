@@ -1,0 +1,116 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/items/top?format=json&include=data,csljson&limit=1",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "5"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/groups/6762415/items/top?format=json&include=data%2Ccsljson&limit=1&start=4>; rel=\"last\", <http://127.0.0.1:23119/api/groups/6762415/items/top?format=json&include=data%2Ccsljson&limit=1&start=1>; rel=\"next\", <https://www.zotero.org/groups/6762415/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "10"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "KJ9MJ46K",
+        "version": 3,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/items/KJ9MJ46K",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/KJ9MJ46K",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Shannon",
+          "parsedDate": "1937",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "KJ9MJ46K",
+          "version": 3,
+          "itemType": "thesis",
+          "title": "A Symbolic Analysis of Relay and Switching Circuits",
+          "date": "1937",
+          "language": "en",
+          "place": "Cambridge, MA",
+          "thesisType": "Master's thesis",
+          "university": "Massachusetts Institute of Technology",
+          "creators": [
+            {
+              "firstName": "Claude E.",
+              "lastName": "Shannon",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/KJ9MJ46K\",\n\t\t\"type\": \"thesis\",\n\t\t\"genre\": \"Master's thesis\",\n\t\t\"language\": \"en\",\n\t\t\"publisher\": \"Massachusetts Institute of Technology\",\n\t\t\"publisher-place\": \"Cambridge, MA\",\n\t\t\"title\": \"A Symbolic Analysis of Relay and Switching Circuits\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Shannon\",\n\t\t\t\t\"given\": \"Claude E.\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"1937\"\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      }
+    ]
+  }
+}

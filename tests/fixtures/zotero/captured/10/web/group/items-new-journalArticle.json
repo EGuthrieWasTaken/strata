@@ -1,0 +1,100 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/items/new?itemType=journalArticle",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "itemType": "journalArticle",
+      "title": "",
+      "creators": [
+        {
+          "creatorType": "author",
+          "firstName": "",
+          "lastName": ""
+        }
+      ],
+      "abstractNote": "",
+      "publicationTitle": "",
+      "publisher": "",
+      "place": "",
+      "date": "",
+      "volume": "",
+      "issue": "",
+      "section": "",
+      "partNumber": "",
+      "partTitle": "",
+      "pages": "",
+      "series": "",
+      "seriesTitle": "",
+      "seriesText": "",
+      "journalAbbreviation": "",
+      "DOI": "",
+      "citationKey": "",
+      "url": "",
+      "accessDate": "",
+      "PMID": "",
+      "PMCID": "",
+      "ISSN": "",
+      "archive": "",
+      "archiveLocation": "",
+      "shortTitle": "",
+      "language": "",
+      "libraryCatalog": "",
+      "callNumber": "",
+      "rights": "",
+      "extra": "",
+      "tags": [],
+      "collections": [],
+      "relations": {}
+    }
+  }
+}
