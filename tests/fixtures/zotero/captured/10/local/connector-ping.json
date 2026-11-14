@@ -1,0 +1,47 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:23119/connector/ping",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    "body": {}
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "prefs": {
+        "automaticSnapshots": true,
+        "downloadAssociatedFiles": true,
+        "supportsAttachmentUpload": true,
+        "supportsTagsAutocomplete": true,
+        "googleDocsAddNoteEnabled": true,
+        "googleDocsAddAnnotationEnabled": true,
+        "canUserAddNote": true,
+        "googleDocsCitationExplorerEnabled": false,
+        "translatorsHash": "bfe2c0bd77a9214187828471170848cb",
+        "sortedTranslatorHash": "3653fd247bdd244f2f5a1b92d1c6d743"
+      }
+    }
+  }
+}

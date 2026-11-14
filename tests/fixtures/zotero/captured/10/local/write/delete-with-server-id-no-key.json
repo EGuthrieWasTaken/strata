@@ -1,0 +1,39 @@
+{
+  "request": {
+    "method": "DELETE",
+    "url": "http://127.0.0.1:23119/api/users/0/items/G9PKINI3",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-Server-ID": "dx2OEZVeHz9j",
+      "If-Unmodified-Since-Version": "1"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 401,
+    "reason": "undefined",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "text/plain"
+      ],
+      [
+        "WWW-Authenticate",
+        "Zotero-API-Key realm=\"Zotero Local API\""
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "API key required -- POST /api/local/authorize to obtain one"
+  }
+}

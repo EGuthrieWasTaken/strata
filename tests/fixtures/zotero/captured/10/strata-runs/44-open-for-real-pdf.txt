@@ -1,0 +1,3 @@
+$ strata zotero open rec_35fcqn8457xd5rt9
+zotero://open-pdf/library/items/TI5GQH7I
+[exit code: 0]

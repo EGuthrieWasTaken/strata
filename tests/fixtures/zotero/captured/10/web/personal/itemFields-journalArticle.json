@@ -1,0 +1,182 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/itemTypeFields?itemType=journalArticle",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:08 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "field": "title",
+        "localized": "Title"
+      },
+      {
+        "field": "abstractNote",
+        "localized": "Abstract"
+      },
+      {
+        "field": "publicationTitle",
+        "localized": "Publication"
+      },
+      {
+        "field": "publisher",
+        "localized": "Publisher"
+      },
+      {
+        "field": "place",
+        "localized": "Place"
+      },
+      {
+        "field": "date",
+        "localized": "Date"
+      },
+      {
+        "field": "volume",
+        "localized": "Volume"
+      },
+      {
+        "field": "issue",
+        "localized": "Issue"
+      },
+      {
+        "field": "section",
+        "localized": "Section"
+      },
+      {
+        "field": "partNumber",
+        "localized": "Part Number"
+      },
+      {
+        "field": "partTitle",
+        "localized": "Part Title"
+      },
+      {
+        "field": "pages",
+        "localized": "Pages"
+      },
+      {
+        "field": "series",
+        "localized": "Series"
+      },
+      {
+        "field": "seriesTitle",
+        "localized": "Series Title"
+      },
+      {
+        "field": "seriesText",
+        "localized": "Series Text"
+      },
+      {
+        "field": "journalAbbreviation",
+        "localized": "Journal Abbr"
+      },
+      {
+        "field": "DOI",
+        "localized": "DOI"
+      },
+      {
+        "field": "citationKey",
+        "localized": "Citation Key"
+      },
+      {
+        "field": "url",
+        "localized": "URL"
+      },
+      {
+        "field": "accessDate",
+        "localized": "Accessed"
+      },
+      {
+        "field": "PMID",
+        "localized": "PMID"
+      },
+      {
+        "field": "PMCID",
+        "localized": "PMCID"
+      },
+      {
+        "field": "ISSN",
+        "localized": "ISSN"
+      },
+      {
+        "field": "archive",
+        "localized": "Archive"
+      },
+      {
+        "field": "archiveLocation",
+        "localized": "Loc. in Archive"
+      },
+      {
+        "field": "shortTitle",
+        "localized": "Short Title"
+      },
+      {
+        "field": "language",
+        "localized": "Language"
+      },
+      {
+        "field": "libraryCatalog",
+        "localized": "Library Catalog"
+      },
+      {
+        "field": "callNumber",
+        "localized": "Call Number"
+      },
+      {
+        "field": "rights",
+        "localized": "License"
+      },
+      {
+        "field": "extra",
+        "localized": "Extra"
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+$ strata zotero status
+linked to users/22585168 (read-only)
+  11 of 11 records mapped to a Zotero item
+  no stale links
+[exit code: 0]

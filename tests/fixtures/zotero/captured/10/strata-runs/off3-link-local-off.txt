@@ -1,0 +1,18 @@
+$ strata --why link with the local API off zotero link --by tester --library users/22585168
+note: Zotero's local API is not available (the local API is switched off in 
+Zotero (Settings > Advanced > 'Allow other applications on this computer to 
+communicate with Zotero')); using the Web API
+linked users/22585168 through the Web API
+  matched 11 of 16 library items to records (0 new or updated links)
+  not in this review: PXURCE4Y Hedges & Olkin (1984)  Nonparametric estimators 
+of effect size in meta-analysis. (`strata zotero pull` brings it in)
+  not in this review: V8VDM5V2 Probe (2026)  Native PMID field probe (`strata 
+zotero pull` brings it in)
+  not in this review: 6HPCSR64 Probe  Created by capture script (create probe) 
+(`strata zotero pull` brings it in)
+  not in this review: 8ZM89RUI Pashler et al. (2007)  Organizing instruction and
+study to improve student learning (`strata zotero pull` brings it in)
+  not in this review: GMCCX6GH Jost (1897)  Die Assoziationsfestigkeit in ihrer 
+Abhängigkeit von der Verteilung der Wiederholungen (`strata zotero pull` brings 
+it in)
+[exit code: 0]

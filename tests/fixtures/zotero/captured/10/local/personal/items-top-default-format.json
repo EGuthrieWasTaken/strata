@@ -1,0 +1,202 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/top?limit=2",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "no include: what a plain listing contains",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items/top?limit=2&start=10>; rel=\"last\", <http://127.0.0.1:23119/api/users/0/items/top?limit=2&start=2>; rel=\"next\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 3,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/G9PKINI3",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/G9PKINI3",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Scratch",
+          "parsedDate": "2026",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "G9PKINI3",
+          "version": 3,
+          "itemType": "journalArticle",
+          "title": "Scratch item for write probes",
+          "date": "2026",
+          "language": "en",
+          "creators": [
+            {
+              "firstName": "Probe",
+              "lastName": "Scratch",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EDKUIRII"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:32Z",
+          "dateModified": "2026-11-14T04:34:32Z"
+        }
+      },
+      {
+        "key": "8ZM89RUI",
+        "version": 4,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/8ZM89RUI",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/8ZM89RUI",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Pashler et al.",
+          "parsedDate": "2007",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "8ZM89RUI",
+          "version": 4,
+          "itemType": "report",
+          "title": "Organizing instruction and study to improve student learning",
+          "date": "2007",
+          "language": "en",
+          "place": "Washington, DC",
+          "institution": "National Center for Education Research, Institute of Education Sciences, U.S. Department of Education",
+          "reportNumber": "NCER 2007-2004",
+          "creators": [
+            {
+              "firstName": "Harold",
+              "lastName": "Pashler",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Patrice M.",
+              "lastName": "Bain",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Brian A.",
+              "lastName": "Bottge",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Arthur",
+              "lastName": "Graesser",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Kenneth",
+              "lastName": "Koedinger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Mark",
+              "lastName": "McDaniel",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Janet",
+              "lastName": "Metcalfe",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      }
+    ]
+  }
+}

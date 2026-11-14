@@ -1,0 +1,3 @@
+$ strata zotero open rec_mt2y8nm0wbt3er78
+zotero://open-pdf/library/items/HDDHSCAD
+[exit code: 0]

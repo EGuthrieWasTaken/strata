@@ -1,0 +1,115 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/TI5GQH7I",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items/TI5GQH7I>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "18"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "TI5GQH7I",
+      "version": 18,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "My Library",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/users/22585168/items/TI5GQH7I",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/users/22585168/items/TI5GQH7I",
+          "type": "text/html"
+        },
+        "up": {
+          "href": "http://localhost:23119/api/users/22585168/items/CFI7USQX",
+          "type": "application/json"
+        },
+        "enclosure": {
+          "href": "file:///home/USER/Zotero%20strata-test/storage/TI5GQH7I/Roediger%20and%20Karpicke%20-%202006%20-%20Test-enhanced%20learning.pdf",
+          "type": "application/pdf",
+          "title": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+          "length": 671
+        }
+      },
+      "meta": {
+        "numChildren": 0
+      },
+      "data": {
+        "key": "TI5GQH7I",
+        "version": 18,
+        "itemType": "attachment",
+        "title": "Full Text PDF",
+        "parentItem": "CFI7USQX",
+        "linkMode": "imported_file",
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+        "tags": [],
+        "relations": {},
+        "dateAdded": "2026-11-14T04:34:31Z",
+        "dateModified": "2026-11-14T04:34:31Z",
+        "mtime": 1794630871537,
+        "md5": "2b05a13fe8b9f59a8d9106ab125cd447"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+$ strata --why pull the group collection zotero pull --collection strata-test --by tester --via website
+pulled 4 items from 'strata-test': 2 new records, 0 matched records already in 
+the review, 2 already linked, 4 correction(s)
+  import imp_01m7cc63gkeyvkjya36yv9x9zd
+  corrected rec_mtjmgphj331dpfhs DOI: None -> '10.1037/1076-898x.14.2.101'
+  corrected rec_mtjmgphj331dpfhs language: None -> 'en'
+  corrected rec_35fcqn8457xd5rt9 PMID: None -> '16507066'
+  corrected rec_35fcqn8457xd5rt9 language: None -> 'en'
+[exit code: 0]

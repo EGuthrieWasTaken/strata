@@ -1,0 +1,58 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/top?format=csljson&limit=2",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "format=csljson (not include)",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items/top?format=csljson&limit=2&start=10>; rel=\"last\", <http://127.0.0.1:23119/api/users/0/items/top?format=csljson&limit=2&start=2>; rel=\"next\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "text/plain"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/G9PKINI3\",\n\t\t\"type\": \"article-journal\",\n\t\t\"language\": \"en\",\n\t\t\"title\": \"Scratch item for write probes\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Scratch\",\n\t\t\t\t\"given\": \"Probe\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2026\"\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t},\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/8ZM89RUI\",\n\t\t\"type\": \"report\",\n\t\t\"language\": \"en\",\n\t\t\"number\": \"NCER 2007-2004\",\n\t\t\"publisher\": \"National Center for Education Research, Institute of Education Sciences, U.S. Department of Education\",\n\t\t\"publisher-place\": \"Washington, DC\",\n\t\t\"title\": \"Organizing instruction and study to improve student learning\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Pashler\",\n\t\t\t\t\"given\": \"Harold\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Bain\",\n\t\t\t\t\"given\": \"Patrice M.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Bottge\",\n\t\t\t\t\"given\": \"Brian A.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Graesser\",\n\t\t\t\t\"given\": \"Arthur\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Koedinger\",\n\t\t\t\t\"given\": \"Kenneth\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"McDaniel\",\n\t\t\t\t\"given\": \"Mark\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Metcalfe\",\n\t\t\t\t\"given\": \"Janet\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2007\"\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+  }
+}

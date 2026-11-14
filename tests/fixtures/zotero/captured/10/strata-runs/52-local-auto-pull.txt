@@ -1,0 +1,4 @@
+$ strata --why pull through the local API zotero pull --collection strata-test --by tester --via website
+error: Zotero sent an item without its CSL-JSON (key 'BEITJ9RM'), which strata 
+needs to read it
+[exit code: 1]
