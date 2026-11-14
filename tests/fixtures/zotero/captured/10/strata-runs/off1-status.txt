@@ -1,0 +1,8 @@
+$ strata zotero status
+note: Zotero's local API is not available (the local API is switched off in 
+Zotero (Settings > Advanced > 'Allow other applications on this computer to 
+communicate with Zotero')); using the Web API
+linked to users/22585168 (read-only)
+  11 of 11 records mapped to a Zotero item
+  no stale links
+[exit code: 0]

@@ -1,0 +1,141 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "ca4475c246de436daa679baf568aafd0",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Pavlik and Anderson - 2008 - Using a model (personal).pdf",
+        "md5": null,
+        "mtime": null,
+        "parentItem": "8REME2HU"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 18:29:08 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "52"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "3NHIFP6I",
+          "version": 52,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/3NHIFP6I",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/3NHIFP6I",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/users/22585168/items/8REME2HU",
+              "type": "application/json"
+            }
+          },
+          "meta": {
+            "numChildren": false
+          },
+          "data": {
+            "key": "3NHIFP6I",
+            "version": 52,
+            "parentItem": "8REME2HU",
+            "itemType": "attachment",
+            "linkMode": "imported_file",
+            "title": "Full Text PDF",
+            "accessDate": "",
+            "url": "",
+            "note": "",
+            "contentType": "application/pdf",
+            "charset": "",
+            "filename": "Pavlik and Anderson - 2008 - Using a model (personal).pdf",
+            "md5": null,
+            "mtime": null,
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T18:29:08Z",
+            "dateModified": "2026-11-14T18:29:08Z"
+          }
+        }
+      },
+      "success": {
+        "0": "3NHIFP6I"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}
