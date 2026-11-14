@@ -180,7 +180,11 @@ which also moved their versions. No key was stored in the keychain.
 
 ## Consequences for `strata`
 
-Not changed here; for whoever picks them up.
+Not changed in the run itself. **Since fixed** (see the notes in
+`openspec/changes/add-zotero-integration/tasks.md` and `tests/unit/test_zotero_real_captures.py`): the
+string `csljson`, local versions, native PMID fields and PMIDs in `note`, the opener, string
+`date-parts`, the fixtures and a `10` profile. Left as it is: an edited item already in the collection is
+"already there", and `strata` does not write through the local API.
 
 - Read `csljson` as a string holding JSON on the local API (and probe for the shape you read, not just
   the key). Local item versions are not Web versions: a link made through the local API would store

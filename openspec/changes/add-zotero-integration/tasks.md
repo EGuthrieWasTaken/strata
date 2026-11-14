@@ -39,7 +39,29 @@ Written and tested locally, never run against a real Zotero: task 5.1 stays open
   running Zotero answer. 5.1 is open because its point is to pin what real versions serve; these pins are
   assumptions until `library.json` is checked against a capture from a running Zotero (see the fixtures'
   README).
-- **Assumed about Zotero, and not confirmed:** the local API at `127.0.0.1:23119/api` serves
+- **Run against a real Zotero 10.0.8 on 13-14 November 2026** (`docs/zotero-real-run.md`, captures in
+  `tests/fixtures/zotero/captured/10/`). The Web API path worked end to end; the local API path did not.
+  What that run found wrong is fixed and held by `tests/unit/test_zotero_real_captures.py`, which replays
+  the captured responses through `strata`'s own readers:
+  - the local API sends `csljson` as a string holding a one-element list (read by
+    `integrations/zotero/csl.py`; the probe now checks the shape it reads, not just the key);
+  - the desktop app's item versions are its own, so a local read records `item_version` 0 and a push
+    does not refuse on it;
+  - a PMID in `extra` never comes back as CSL `PMID`: pushes use the native `PMID`/`PMCID` fields where
+    the item type has them, and reads take `PMID:`/`PMCID:` lines out of CSL `note`;
+  - `date-parts` arrive as strings for a date Zotero could not parse (`11/1984`), which stopped a whole
+    pull; they are coerced;
+  - `strata zotero open` went through the browser and did nothing until a prompt was approved; it now
+    hands the link to the operating system (`xdg-open`, `open`, `os.startfile`);
+  - the fake's write replies, error texts, templates and `itemKey` behaviour are corrected to the
+    captures, and there is a `10/profile.json`.
+  **5.1 is still open** for one reason: only Zotero 10 has been seen. The `6` and `7` profiles are still
+  assumptions; either capture those versions or drop them from the task. Also not done: a pinned Zotero
+  in CI (the plan is a nightly job against the throwaway account for the Web API, and a Zotero under
+  `xvfb` for the local one). The local API of Zotero 10 does take writes, with an authorisation granted
+  in the app; `strata` still writes through the Web API only. An edited item that is already in the
+  target collection is reported "already there", not "refused", because nothing would be written to it.
+- **Assumed about Zotero before that run** (see the run's table for each verdict)**:** the local API at `127.0.0.1:23119/api` serves
   `users/0/items/top?include=data,csljson` as the Web API does and is read-only; the setting that switches
   it on is under Settings > Advanced; `GET /keys/current` reports a key's write access per library;
   `POST /items` with `key` and `version` per object updates only the named properties and reports a version

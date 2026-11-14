@@ -74,7 +74,7 @@ def test_the_local_api_is_used_when_the_app_offers_it_and_no_key_is_asked_for(ma
         sleep=Sleeper(),
     )
 
-    if major == "7":
+    if major != "6":
         assert connection.transport == "local"
         assert asked == [] and store.writes == []
         assert set(_hosts(fake)) == {LOCAL_HOST}  # nothing left the machine
@@ -156,7 +156,7 @@ def test_asking_for_the_local_api_alone_is_an_error_when_it_is_unavailable() -> 
 
 
 def test_asking_to_write_with_the_local_api_alone_is_refused() -> None:
-    with pytest.raises(ZoteroUnavailableError, match="read-only"):
+    with pytest.raises(ZoteroUnavailableError, match="through the Web API only"):
         connect("local", need_write=True, http=FakeZotero("7"), sleep=Sleeper())
 
 

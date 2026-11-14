@@ -73,7 +73,9 @@ what is deliberately partial.
   for writes or on mismatch), `credentials`, `mapping`, `matching` (the canonical-key ladder), `manager`,
   `operations` (what each command does) and `retrieval`. The command line only gathers arguments and
   presents results.
-- **Never run against a real Zotero.** Everything is tested against `tests/zotero_fake.py`, which serves
+- **Run against a real Zotero 10.0.8** (`docs/zotero-real-run.md`); what it found is fixed and replayed by
+  `tests/unit/test_zotero_real_captures.py`. Zotero 6 and 7 have still not been seen. Before that run,
+  everything was tested against `tests/zotero_fake.py`, which serves
   `tests/fixtures/zotero/` the way the API v3 documentation says Zotero does, for Zotero 6 (no local API) and
   Zotero 7 (read-only local API). The assumptions are listed in the change's `tasks.md`. Until a person has
   run `strata zotero link` against a running Zotero 7 and a real Web API key and compared a capture with

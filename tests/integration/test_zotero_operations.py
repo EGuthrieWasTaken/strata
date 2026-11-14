@@ -67,7 +67,10 @@ def test_link_maps_the_records_it_can_match_by_the_canonical_key_ladder(
     assert (rows["AB3D9XYZ"].record, rows["AB3D9XYZ"].via) == (ids[0], "doi")
     assert (rows["CD4E5FGH"].record, rows["CD4E5FGH"].via) == (ids[1], "doi")
     assert (rows["JK6L7MNP"].record, rows["JK6L7MNP"].via) == (ids[2], "signature")
-    assert all(r.library == LIB and r.item_version > 0 for r in rows.values())
+    assert all(r.library == LIB for r in rows.values())
+    # A version read through the desktop app is the app's own, not the Web API's: recorded as
+    # "not known" (0) so it is never compared with a Web version (docs/zotero-real-run.md).
+    assert all((r.item_version == 0) == (major != "6") for r in rows.values())
     assert result.rows_written == 3
     # The library's Okafor item matches nothing in the review: reported, not forced onto a record.
     assert [i.ref.key for i in result.report.unmatched] == ["QR8S2TUV"]
@@ -182,11 +185,11 @@ def test_link_follows_an_item_edited_in_zotero_with_a_new_row_not_a_rewrite(
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
     fake = FakeZotero("7")
-    _link(repo, fake)
+    _link(repo, fake, web=True)
     first = (repo.root / "integrations" / "zotero.ndjson").read_bytes()
     new_version = fake.edit_item(LIB, "AB3D9XYZ", volume="19")
 
-    _link(repo, fake)
+    _link(repo, fake, web=True)
 
     text = (repo.root / "integrations" / "zotero.ndjson").read_bytes()
     assert text.startswith(first) and len(text.splitlines()) == 2
@@ -363,7 +366,7 @@ def test_a_pull_commits_with_its_collection_and_import_in_the_trailers(tmp_path:
 def test_a_title_corrected_in_zotero_is_recorded_as_a_record_amend_event(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ROEDIGER)
     fake = FakeZotero("7")
-    _link(repo, fake)
+    _link(repo, fake, web=True)
     corrected = "Spacing effects in learning: a temporal ridgeline of optimal retention"
     new_version = fake.edit_item(LIB, "AB3D9XYZ", title=corrected)
 

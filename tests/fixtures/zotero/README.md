@@ -16,6 +16,14 @@ version). `tests/zotero_fake.py` serves them as the Zotero API v3 would.
 The integration tests run once per major version, so a change in what one version's server does
 shows up as a failing test for that version only.
 
+## What was captured from a running Zotero
+
+`captured/10/` holds raw requests and responses from Zotero 10.0.8 and `api.zotero.org` (read its
+`README.md`; `docs/zotero-real-run.md` says what they showed). `10/profile.json`, the item templates in
+`library.json` and the fake's write replies and error texts follow those captures, and
+`tests/unit/test_zotero_real_captures.py` replays them through `strata`'s own readers. The `6` and `7`
+profiles, and the items in `library.json`, are still as described below.
+
 ## Provenance and what these do not prove
 
 Everything here is **hand-written from the published Zotero API v3 documentation**, not captured

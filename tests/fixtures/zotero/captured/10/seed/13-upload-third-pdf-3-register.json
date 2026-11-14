@@ -10,7 +10,7 @@
       "If-None-Match": "*",
       "Zotero-API-Key": "REDACTED"
     },
-    "body": "upload=02f3968e0477ba4aec775d7a8ad66792"
+    "body": "upload=REDACTED"
   },
   "response": {
     "status": 204,

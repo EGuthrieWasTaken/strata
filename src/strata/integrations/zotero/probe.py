@@ -18,6 +18,7 @@ from strata.integrations.zotero.api import (
     ZoteroError,
     ZoteroUnavailableError,
 )
+from strata.integrations.zotero.csl import read_csl
 from strata.integrations.zotero.http import HttpTransport
 
 #: The local API's alias for "the library of the person using this Zotero".
@@ -76,7 +77,11 @@ def probe_local(
         return None, "the local API did not answer as Zotero's API does (no list of items)"
     if items:
         first = items[0]
-        if not (isinstance(first, dict) and {"key", "version", "data", "csljson"} <= first.keys()):
+        if not (
+            isinstance(first, dict)
+            and {"key", "version", "data", "csljson"} <= first.keys()
+            and read_csl(first["csljson"]) is not None
+        ):
             return None, (
                 "the local API does not provide items with their CSL-JSON, which strata reads"
             )

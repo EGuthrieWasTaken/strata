@@ -53,6 +53,10 @@ canonical-key ladder as record identity (DOI, then PMID, then the
 title/year/first-author signature). Items matching nothing above the dedup
 review threshold MUST be reported, never guessed. A stale `item_key` MUST
 degrade to "full text unavailable", never to an error that blocks screening.
+`item_version` MUST be the Web API's version of the item; an item read through
+the desktop app's local API, whose versions are the app's own, MUST be recorded
+with `item_version` 0 ("not known"), and a push MUST NOT refuse an item on the
+strength of a version that is not known.
 
 #### Scenario: Item deleted in Zotero
 

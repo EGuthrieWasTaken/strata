@@ -3,8 +3,10 @@
 Implements openspec:zotero-integration#transport-selection and
 openspec:zotero-integration#api-keys-are-never-stored-in-the-repository. The local API is tried
 first, with no key; the Web API is used when the local one is absent, switched off, shaped
-differently from what `strata` reads, or the operation writes (the local API is read-only). A key is
-asked for only when the Web API is the one being used.
+differently from what `strata` reads, or the operation writes. `strata` writes through the Web API
+only: the local API of Zotero 10 does take writes, but only with an authorisation the person
+grants in the app, program by program. A key is asked for only when the Web API is the one being
+used.
 """
 
 from __future__ import annotations
@@ -98,7 +100,7 @@ def connect(
 
     if need_write and preference == "local":
         raise ZoteroUnavailableError(
-            "writing to Zotero needs the Web API: the local API is read-only"
+            "strata writes to Zotero through the Web API only; link with `--web`"
         )
     if not need_write and preference in ("auto", "local"):
         local, reason = probe_local(transport)

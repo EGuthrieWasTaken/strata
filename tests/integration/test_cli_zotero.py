@@ -341,7 +341,9 @@ def test_open_prints_the_link_and_launches_it(
     _install(monkeypatch, FakeZotero("7"))
     _linked(repo.root)
     launched: list[str] = []
-    monkeypatch.setattr("webbrowser.open", lambda url: launched.append(url) or True)
+    monkeypatch.setattr(
+        "strata.integrations.zotero.launch.open_link", lambda url: launched.append(url) or True
+    )
 
     printed = _run(repo.root, "zotero", "open", ids[0][:12], "--print-only")
     opened = _run(repo.root, "zotero", "open", ids[0])
@@ -402,7 +404,9 @@ def test_the_queue_offers_to_open_a_pdf_in_zotero_and_records_the_item_key_not_a
 ) -> None:
     repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("7"))
     launched: list[str] = []
-    monkeypatch.setattr("webbrowser.open", lambda url: launched.append(url) or True)
+    monkeypatch.setattr(
+        "strata.integrations.zotero.launch.open_link", lambda url: launched.append(url) or True
+    )
 
     # report 1 has a PDF: open it, then record it as retrieved from Zotero (default version);
     # report 2 has none: skip it
