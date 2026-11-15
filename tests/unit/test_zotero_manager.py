@@ -67,7 +67,7 @@ def test_a_missing_collection_lists_the_ones_there_are() -> None:
 def test_a_collection_is_pulled_as_items_with_csl_versions_and_collections(
     transport: str,
 ) -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     manager = local_manager(fake) if transport == "local" else web_manager(fake)
 
     pulled = manager.pull("Hand-searched trials")
@@ -83,7 +83,7 @@ def test_a_collection_is_pulled_as_items_with_csl_versions_and_collections(
 
 
 def test_the_local_api_addresses_the_personal_library_as_users_0() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     local_manager(fake).pull("Hand-searched trials")
 
     assert all("/users/0/" in r.path for r in fake.requests)
@@ -123,7 +123,7 @@ def test_what_a_key_may_write_is_read_from_zotero() -> None:
 
 
 def test_resolving_finds_the_pdf_and_ignores_snapshots_and_links() -> None:
-    manager = local_manager(FakeZotero("7"))
+    manager = local_manager(FakeZotero("10"))
 
     resolved = manager.resolve([_ref("AB3D9XYZ"), _ref("CD4E5FGH"), _ref("JK6L7MNP")])
 
@@ -382,7 +382,7 @@ def test_a_key_without_write_access_is_refused_by_zotero_itself() -> None:
 
 
 def test_the_local_api_cannot_write() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     manager = ZoteroManager(local_api(fake), LIB, local=True, writable=True)
 
     with pytest.raises(ZoteroError, match="through the Web API only"):

@@ -37,7 +37,7 @@ libraries.
 ## Risks / Trade-offs
 
 - Local API shape changes between Zotero versions: capability probe, Web API
-  fallback, integration tests pinned per Zotero major version.
+  fallback, integration tests pinned to the supported Zotero major version (10 or later).
 - Web API rate limits: honour `Backoff` and `Retry-After`, batch, cache by item
   version.
 - Group-library permissions: check write permission at `link` time, not at

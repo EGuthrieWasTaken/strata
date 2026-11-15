@@ -74,7 +74,7 @@ def test_link_over_the_local_api_says_what_it_matched_and_what_it_did_not(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA, ROEDIGER, SMITH, ONLY_HERE)
-    _install(monkeypatch, FakeZotero("7"), keychain=False, key=None)
+    _install(monkeypatch, FakeZotero("10"), keychain=False, key=None)
 
     result = _run(repo.root, "zotero", "link", "--by", "ethan", "--library", LIB)
 
@@ -88,7 +88,7 @@ def test_link_over_the_local_api_says_what_it_matched_and_what_it_did_not(
 
 def test_link_as_json_is_machine_readable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, _ = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     result = runner.invoke(
         app,
@@ -141,7 +141,7 @@ def test_link_with_a_choice_of_libraries_and_no_terminal_lists_them(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     result = _run(repo.root, "zotero", "link", "--by", "ethan")
 
@@ -153,7 +153,7 @@ def test_link_without_a_rationale_is_refused_and_writes_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     result = _run(repo.root, "zotero", "link", "--by", "ethan", "--library", LIB, why=None)
 
@@ -166,7 +166,7 @@ def test_every_zotero_command_refuses_a_review_that_is_not_linked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     for args in (
         ["zotero", "status"],
@@ -186,7 +186,7 @@ def test_pull_a_hand_built_collection_reports_what_it_brought_in(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     result = _run(
@@ -205,7 +205,7 @@ def test_a_review_that_has_been_linked_and_pulled_still_verifies_clean(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _install(monkeypatch, fake)
     _linked(repo.root)
     fake.edit_item(LIB, "AB3D9XYZ", title="Spacing effects in learning: a corrected title")
@@ -225,7 +225,7 @@ def test_pull_without_a_search_or_a_via_is_a_usage_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     result = _run(
@@ -238,7 +238,7 @@ def test_pull_without_a_search_or_a_via_is_a_usage_error(
 
 def test_pull_shows_what_zotero_corrected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _install(monkeypatch, fake)
     _linked(repo.root)
     fake.edit_item(LIB, "AB3D9XYZ", title="Spacing effects in learning: a corrected title")
@@ -255,7 +255,7 @@ def test_pull_shows_what_zotero_corrected(tmp_path: Path, monkeypatch: pytest.Mo
 
 def test_pull_as_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, _ = review_with(tmp_path)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     result = runner.invoke(
@@ -282,7 +282,7 @@ def test_push_reports_what_it_created_added_and_refused(
     repo, ids = review_with(tmp_path, CEPEDA, SMITH, ONLY_HERE)
     decide(repo, "title-abstract", ids)
     decide(repo, "full-text", ids)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _install(monkeypatch, fake)
     _web_linked(repo.root)
     fake.edit_item(LIB, "JK6L7MNP", title="Spacing effects in a classroom: a quasi-experiment!")
@@ -301,7 +301,7 @@ def test_push_over_a_read_only_link_says_how_to_make_it_writable(
     repo, ids = review_with(tmp_path, CEPEDA)
     decide(repo, "title-abstract", ids)
     decide(repo, "full-text", ids)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     result = _run(repo.root, "zotero", "push", "--collection", "Included studies", "--by", "ethan")
@@ -317,7 +317,7 @@ def test_status_lists_stale_links_and_unmapped_records(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ROEDIGER, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _install(monkeypatch, fake)
     _linked(repo.root)
     fake.delete_item(LIB, "CD4E5FGH")
@@ -338,7 +338,7 @@ def test_open_prints_the_link_and_launches_it(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
     launched: list[str] = []
     monkeypatch.setattr(
@@ -357,7 +357,7 @@ def test_open_on_a_record_with_no_item_or_a_deleted_one_says_why(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _install(monkeypatch, fake)
     _linked(repo.root)
 
@@ -385,7 +385,7 @@ def _sought(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake: FakeZotero): 
 def test_the_retrieval_queue_shows_which_reports_have_an_attachment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("10"))
 
     listed = _run(repo.root, "retrieve", "--by", "ethan", "--list")
     as_json = runner.invoke(app, ["--json", "-C", str(repo.root), "retrieve", "--by", "ethan"])
@@ -402,7 +402,7 @@ def test_the_retrieval_queue_shows_which_reports_have_an_attachment(
 def test_the_queue_offers_to_open_a_pdf_in_zotero_and_records_the_item_key_not_a_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("10"))
     launched: list[str] = []
     monkeypatch.setattr(
         "strata.integrations.zotero.launch.open_link", lambda url: launched.append(url) or True
@@ -426,7 +426,7 @@ def test_the_queue_offers_to_open_a_pdf_in_zotero_and_records_the_item_key_not_a
 def test_a_report_with_no_attachment_is_not_offered_zotero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("10"))
 
     result = _run(repo.root, "retrieve", "--by", "ethan", input="s\ns\n")
 
@@ -437,7 +437,7 @@ def test_a_report_with_no_attachment_is_not_offered_zotero(
 def test_retrieved_from_zotero_non_interactively_records_the_item(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("10"))
     report = "rpt_" + ids[0][len("rec_") :]
 
     result = _run(
@@ -454,7 +454,7 @@ def test_retrieved_from_zotero_non_interactively_records_the_item(
 def test_retrieved_from_zotero_is_refused_when_zotero_has_no_attachment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, ids = _sought(tmp_path, monkeypatch, FakeZotero("10"))
     report = "rpt_" + ids[1][len("rec_") :]
 
     result = _run(
@@ -470,8 +470,8 @@ def test_retrieved_from_zotero_is_refused_when_zotero_has_no_attachment(
 def test_the_queue_carries_on_when_zotero_cannot_be_reached(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("7"))
-    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    repo, _ = _sought(tmp_path, monkeypatch, FakeZotero("10"))
+    _install(monkeypatch, FakeZotero("10", local_running=False), keychain=False, key=None)
 
     result = _run(repo.root, "retrieve", "--by", "ethan", "--list")
 
@@ -494,7 +494,7 @@ def _full_text_ready(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake: Fake
 def test_full_text_screening_shows_where_the_full_text_is_in_zotero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, ids = _full_text_ready(tmp_path, monkeypatch, FakeZotero("7"))
+    repo, ids = _full_text_ready(tmp_path, monkeypatch, FakeZotero("10"))
 
     result = _run(repo.root, "screen", "full-text", "--by", "ethan", input="i\n\n")
 
@@ -506,7 +506,7 @@ def test_full_text_screening_shows_where_the_full_text_is_in_zotero(
 def test_screening_proceeds_when_the_zotero_item_was_deleted_and_says_the_full_text_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     repo, ids = _full_text_ready(tmp_path, monkeypatch, fake)
     fake.delete_item(LIB, "AB3D9XYZ")
 
@@ -520,8 +520,8 @@ def test_screening_proceeds_when_the_zotero_item_was_deleted_and_says_the_full_t
 def test_screening_proceeds_when_zotero_is_not_running(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, ids = _full_text_ready(tmp_path, monkeypatch, FakeZotero("7"))
-    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    repo, ids = _full_text_ready(tmp_path, monkeypatch, FakeZotero("10"))
+    _install(monkeypatch, FakeZotero("10", local_running=False), keychain=False, key=None)
 
     result = _run(repo.root, "screen", "full-text", "--by", "ethan", input="i\n\n")
 
@@ -533,7 +533,7 @@ def test_screening_proceeds_when_zotero_is_not_running(
 def test_title_abstract_screening_never_asks_zotero_anything(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     repo, _ = review_with(tmp_path, CEPEDA)
     _install(monkeypatch, fake)
     _linked(repo.root)
@@ -618,7 +618,7 @@ def test_link_lists_a_close_item_as_a_possible_match_and_does_not_link_it(
     near = {**CEPEDA, "title": CEPEDA["title"].replace("ridgeline", "ridge-line")}
     near.pop("DOI")
     repo, ids = review_with(tmp_path, near)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     result = _run(repo.root, "zotero", "link", "--by", "ethan", "--library", LIB)
 
@@ -632,11 +632,11 @@ def test_status_says_so_when_nothing_is_stale_and_when_zotero_cannot_be_asked(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     fine = _run(repo.root, "zotero", "status")
-    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    _install(monkeypatch, FakeZotero("10", local_running=False), keychain=False, key=None)
     down = _run(repo.root, "zotero", "status")
 
     assert fine.exit_code == down.exit_code == EXIT_OK
@@ -649,7 +649,7 @@ def test_open_and_push_as_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
     decide(repo, "title-abstract", ids)
     decide(repo, "full-text", ids)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _web_linked(repo.root)
 
     opened = runner.invoke(app, ["--json", "-C", str(repo.root), "zotero", "open", ids[0]])
@@ -674,7 +674,7 @@ def test_full_text_screening_says_when_zotero_has_the_item_but_no_file(
 ) -> None:
     repo, ids = review_with(tmp_path, SMITH)
     decide(repo, "title-abstract", ids)
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
     _linked(repo.root)
 
     result = _run(repo.root, "screen", "full-text", "--by", "ethan", input="i\n\n")
@@ -690,11 +690,11 @@ def test_retrieved_from_zotero_needs_a_link_and_a_reachable_zotero(
     decide(repo, "title-abstract", ids)
     report = "rpt_" + ids[0][len("rec_") :]
     args = ("retrieve", "--by", "ethan", "--report", report, "--outcome", "retrieved", "--zotero")
-    _install(monkeypatch, FakeZotero("7"))
+    _install(monkeypatch, FakeZotero("10"))
 
     unlinked = _run(repo.root, *args)
     _linked(repo.root)
-    _install(monkeypatch, FakeZotero("7", local_running=False), keychain=False, key=None)
+    _install(monkeypatch, FakeZotero("10", local_running=False), keychain=False, key=None)
     unreachable = _run(repo.root, *args)
 
     assert unlinked.exit_code == EXIT_USAGE and "needs a Zotero link" in _text(unlinked)
@@ -707,7 +707,7 @@ def test_a_pull_says_what_it_could_not_import(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _ = review_with(tmp_path)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     fake.add_item(LIB, "NOTITLE1", "", collections=("HANDPICK",))
     _install(monkeypatch, fake)
     _linked(repo.root)

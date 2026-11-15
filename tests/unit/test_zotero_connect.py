@@ -10,7 +10,14 @@ from strata.integrations.zotero.connect import connect
 from strata.integrations.zotero.credentials import ENV_VAR
 from strata.integrations.zotero.probe import probe_local
 from tests.unit._zotero import MemoryKeystore, Sleeper
-from tests.zotero_fake import API_KEY, LOCAL_HOST, MAJOR_VERSIONS, WEB_HOST, FakeZotero
+from tests.zotero_fake import (
+    API_KEY,
+    LOCAL_HOST,
+    MAJOR_VERSIONS,
+    NO_LOCAL_API,
+    WEB_HOST,
+    FakeZotero,
+)
 
 
 def _hosts(fake: FakeZotero) -> list[str]:
@@ -21,7 +28,7 @@ def _hosts(fake: FakeZotero) -> list[str]:
 
 
 def test_zotero_7_with_the_local_api_switched_on_is_usable() -> None:
-    api, reason = probe_local(FakeZotero("7"))
+    api, reason = probe_local(FakeZotero("10"))
 
     assert reason == ""
     assert api is not None
@@ -32,25 +39,25 @@ def test_zotero_6_has_no_local_api_and_the_reason_says_so() -> None:
     api, reason = probe_local(FakeZotero("6"))
 
     assert api is None
-    assert "no local API" in reason and "Zotero 7" in reason
+    assert "no local API" in reason and "Zotero 10" in reason
 
 
 def test_a_local_api_that_is_switched_off_says_where_to_switch_it_on() -> None:
-    api, reason = probe_local(FakeZotero("7", local_api_enabled=False))
+    api, reason = probe_local(FakeZotero("10", local_api_enabled=False))
 
     assert api is None
     assert "switched off" in reason and "Allow other applications" in reason
 
 
 def test_zotero_not_running_is_reported_as_such() -> None:
-    api, reason = probe_local(FakeZotero("7", local_running=False))
+    api, reason = probe_local(FakeZotero("10", local_running=False))
 
     assert api is None
     assert reason == "Zotero is not running on this computer"
 
 
 def test_a_local_api_shaped_differently_from_what_strata_reads_is_not_used() -> None:
-    api, reason = probe_local(FakeZotero("7", reshape_local=True))
+    api, reason = probe_local(FakeZotero("10", reshape_local=True))
 
     assert api is None
     assert "did not answer as Zotero's API does" in reason
@@ -59,7 +66,7 @@ def test_a_local_api_shaped_differently_from_what_strata_reads_is_not_used() -> 
 # ------------------------------------------------------------------------- choosing a transport
 
 
-@pytest.mark.parametrize("major", MAJOR_VERSIONS)
+@pytest.mark.parametrize("major", [NO_LOCAL_API, *MAJOR_VERSIONS])
 def test_the_local_api_is_used_when_the_app_offers_it_and_no_key_is_asked_for(major: str) -> None:
     fake = FakeZotero(major)
     store = MemoryKeystore(available_=True, secret=None)
@@ -135,7 +142,7 @@ def test_a_key_read_from_the_environment_with_no_keychain_comes_with_a_notice() 
 
 
 def test_writing_always_goes_through_the_web_api_even_when_the_local_one_is_there() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     connection = connect(
         "auto",
@@ -151,17 +158,17 @@ def test_writing_always_goes_through_the_web_api_even_when_the_local_one_is_ther
 
 
 def test_asking_for_the_local_api_alone_is_an_error_when_it_is_unavailable() -> None:
-    with pytest.raises(ZoteroUnavailableError, match="Zotero 7 or later"):
+    with pytest.raises(ZoteroUnavailableError, match="Zotero 10 or later"):
         connect("local", http=FakeZotero("6"), sleep=Sleeper())
 
 
 def test_asking_to_write_with_the_local_api_alone_is_refused() -> None:
     with pytest.raises(ZoteroUnavailableError, match="through the Web API only"):
-        connect("local", need_write=True, http=FakeZotero("7"), sleep=Sleeper())
+        connect("local", need_write=True, http=FakeZotero("10"), sleep=Sleeper())
 
 
 def test_the_web_api_can_be_chosen_outright() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     connection = connect(
         "web",

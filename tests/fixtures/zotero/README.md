@@ -10,10 +10,10 @@ version). `tests/zotero_fake.py` serves them as the Zotero API v3 would.
 
   | Major | Local API |
   |---|---|
-  | `7` | Serves the read-only local API at `127.0.0.1:23119/api`, once the person has switched it on in Settings |
+  | `10` | Serves the local API at `127.0.0.1:23119/api`, once the person has switched it on in Settings; `csljson` is a string and item versions are the app's own (captured) |
   | `6` | Has the connector server only: `/api/...` is a 404, so the Web API is the only way in |
 
-The integration tests run once per major version, so a change in what one version's server does
+The integration tests run once per profile, so a change in what one version's server does
 shows up as a failing test for that version only.
 
 ## What was captured from a running Zotero
@@ -21,8 +21,10 @@ shows up as a failing test for that version only.
 `captured/10/` holds raw requests and responses from Zotero 10.0.8 and `api.zotero.org` (read its
 `README.md`; `docs/zotero-real-run.md` says what they showed). `10/profile.json`, the item templates in
 `library.json` and the fake's write replies and error texts follow those captures, and
-`tests/unit/test_zotero_real_captures.py` replays them through `strata`'s own readers. The `6` and `7`
-profiles, and the items in `library.json`, are still as described below.
+`tests/unit/test_zotero_real_captures.py` replays them through `strata`'s own readers. `strata` supports
+Zotero 10 or later, so `10` is the one pinned version. `6/profile.json` is not a supported version: it
+stands for a Zotero too old to have a local API, so that falling back to the Web API stays tested. The
+items in `library.json` are still as described below.
 
 ## Provenance and what these do not prove
 

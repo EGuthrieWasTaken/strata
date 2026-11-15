@@ -34,7 +34,11 @@ WEB_HOST = "api.zotero.org"
 API_KEY = "TESTKEYTESTKEYTESTKEY"
 
 #: The Zotero majors the integration tests are pinned to.
-MAJOR_VERSIONS = ("6", "7", "10")
+MAJOR_VERSIONS = ("10",)
+
+#: Not a supported version: a stand-in for a Zotero too old to have a local API, kept so the
+#: fall back to the Web API stays tested.
+NO_LOCAL_API = "6"
 
 #: How far the desktop app's own item versions sit from the Web API's in a profile whose
 #: `local_versions` is `own` (seen in Zotero 10: the same item was 14 locally and 4 on the Web).
@@ -87,7 +91,7 @@ class FakeZotero:
 
     def __init__(
         self,
-        major: str = "7",
+        major: str = "10",
         *,
         local_running: bool = True,
         local_api_enabled: bool = True,

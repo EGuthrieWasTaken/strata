@@ -50,9 +50,9 @@ items are fixed.
 
 ## Zotero
 
-- **Tried against one running Zotero only**: version 10.0.8 on Linux, with a personal and a group library.
-  Zotero 6 and 7, macOS and Windows are tested only against a stand-in written from Zotero's published API
-  documentation. If `strata zotero link` says the local API "did not answer as Zotero's API does", `strata`
+- **Zotero 10 or later is what is supported**, and it has been tried against one running Zotero only:
+  version 10.0.8 on Linux, with a personal and a group library. macOS and Windows have not been tried, and
+  an older Zotero is not supported (with one too old to have a local API, `strata` uses the Web API). If `strata zotero link` says the local API "did not answer as Zotero's API does", `strata`
   falls back to the Web API; please report what you saw.
 - Pushing always goes through the Web API and needs a key. (Zotero 10's local API can take writes, but only
   with a permission you grant in the app; `strata` does not use it.)

@@ -28,7 +28,7 @@ def test_a_review_with_no_link_is_not_looked_up_and_zotero_is_never_asked(tmp_pa
 
 def test_records_with_no_zotero_item_are_unlinked_without_asking_zotero(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     zotero_ops.link(repo, actor="ethan", connector=connector_for(fake), library=LIB, rationale=WHY)
     asked_before = len(fake.requests)
 
@@ -43,11 +43,11 @@ def test_records_with_no_zotero_item_are_unlinked_without_asking_zotero(tmp_path
 def test_a_zotero_that_cannot_be_asked_is_reported_not_raised(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
     zotero_ops.link(
-        repo, actor="ethan", connector=connector_for(FakeZotero("7")), library=LIB, rationale=WHY
+        repo, actor="ethan", connector=connector_for(FakeZotero("10")), library=LIB, rationale=WHY
     )
 
     found = lookup(
-        repo, ids, connector=connector_for(FakeZotero("7", local_running=False), keychain=False)
+        repo, ids, connector=connector_for(FakeZotero("10", local_running=False), keychain=False)
     )
 
     assert found is not None
