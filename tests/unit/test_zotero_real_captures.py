@@ -197,3 +197,42 @@ def test_a_zotero_link_goes_to_the_operating_system_not_the_browser(
     monkeypatch.setattr(launch.shutil, "which", lambda name: None)
     assert launch.open_link("zotero://select/library/items/BEITJ9RM") is True
     assert browser == ["zotero://select/library/items/BEITJ9RM"]
+
+
+def test_csl_json_that_is_not_csl_json_is_not_read() -> None:
+    assert read_csl("{not json") is None
+    assert read_csl([]) is None
+    assert read_csl(7) is None
+
+
+def test_a_date_is_kept_only_as_far_as_it_is_numbers() -> None:
+    def issued(value: Any) -> Any:
+        return (read_csl({"title": "T", "issued": value}) or {}).get("issued")
+
+    assert issued({"date-parts": [["2008", "Nov", 3]]}) == {"date-parts": [[2008]]}
+    assert issued({"date-parts": [[2008, True]]}) == {"date-parts": [[2008]]}
+    assert issued({"date-parts": [["n.d."]]}) is None  # nothing usable: the field is dropped
+    assert issued({"date-parts": [[]]}) is None
+    assert issued("2008") is None
+    assert issued({"raw": "circa 1984"}) == {"raw": "circa 1984"}  # a date CSL keeps as text
+    assert issued({}) is None
+
+
+def test_the_link_is_handed_over_on_windows_and_the_browser_is_tried_if_that_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started: list[str] = []
+    browser: list[str] = []
+    monkeypatch.setattr(launch.sys, "platform", "win32")
+    monkeypatch.setattr(launch.os, "startfile", started.append, raising=False)
+    monkeypatch.setattr(launch.webbrowser, "open", lambda uri: browser.append(uri) or False)
+
+    assert launch.open_link("zotero://select/library/items/A") is True
+    assert started == ["zotero://select/library/items/A"] and browser == []
+
+    def refuse(uri: str) -> None:
+        raise OSError("no program is registered for zotero links")
+
+    monkeypatch.setattr(launch.os, "startfile", refuse, raising=False)
+    assert launch.open_link("zotero://select/library/items/A") is False  # nothing could open it
+    assert browser == ["zotero://select/library/items/A"]
