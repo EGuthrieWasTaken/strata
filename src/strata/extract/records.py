@@ -233,7 +233,13 @@ def coerce_value(
         if not re.fullmatch(r"\d{4}(-\d{2}(-\d{2})?)?", text):
             raise ExtractionError(f"{spec['name']}: {text!r} is not YYYY, YYYY-MM or YYYY-MM-DD")
         if len(text) == 10:
-            date.fromisoformat(text)
+            try:
+                date.fromisoformat(text)
+            except ValueError:
+                # Python's own wording differs between versions; say it in ours.
+                raise ExtractionError(
+                    f"{spec['name']}: {text!r} is not a date (the month or day is out of range)"
+                ) from None
         return {"value": text}
     return {"value": text}  # text, citation
 
