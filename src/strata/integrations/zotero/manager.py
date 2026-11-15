@@ -33,6 +33,7 @@ from strata.integrations.reference_manager import (
     Resolution,
 )
 from strata.integrations.zotero.api import ZoteroApi, ZoteroError, ZoteroNotFoundError
+from strata.integrations.zotero.csl import read_csl
 from strata.integrations.zotero.probe import LOCAL_USER_LIBRARY
 
 #: Item types that are not bibliographic items in their own right.
@@ -68,10 +69,16 @@ _FIELD_CANDIDATES: dict[str, tuple[str, ...]] = {
     "language": ("language",),
     "ISBN": ("ISBN",),
     "publisher": ("publisher",),
+    # Native fields on the item types that have them (journal articles, in Zotero 10); only a
+    # native field comes back as CSL `PMID`. Elsewhere they are `PMID: n` lines in `extra`.
+    "PMID": ("PMID",),
+    "PMCID": ("PMCID",),
 }
 
-#: Fields Zotero has no slot for, kept in the item's `extra` as `Label: value` lines.
-_EXTRA_LABELS = {"PMID": "PMID", "PMCID": "PMCID"}
+#: The version recorded for an item read through the local API. The desktop app numbers versions
+#: on its own, unrelated to the Web API's (the same item was 14 locally and 4 on the Web), so a
+#: local version must never be compared with a Web one: it is recorded as "not known".
+UNKNOWN_VERSION = 0
 
 
 _P = ParamSpec("_P")
@@ -241,7 +248,10 @@ class ZoteroManager(ReferenceManager):
                 resolved[key] = Resolution(ref, present=False, version=None)
             else:
                 resolved[key] = Resolution(
-                    ref, present=True, version=state[0], attachments=tuple(attachments.get(key, ()))
+                    ref,
+                    present=True,
+                    version=None if self.local else state[0],
+                    attachments=tuple(attachments.get(key, ())),
                 )
         return resolved
 
@@ -264,18 +274,16 @@ class ZoteroManager(ReferenceManager):
         data = obj.get("data", {})
         if data.get("itemType") in NON_BIBLIOGRAPHIC:
             return None
-        csl = obj.get("csljson")
-        if isinstance(csl, list):
-            csl = csl[0] if csl else None
-        if not isinstance(csl, dict):
+        csl = read_csl(obj.get("csljson"))
+        if csl is None:
             raise ZoteroError(
                 f"Zotero sent an item without its CSL-JSON (key {obj.get('key')!r}), "
                 "which strata needs to read it"
             )
         return RemoteItem(
             ref=ItemRef(self.library, str(obj["key"])),
-            version=int(obj["version"]),
-            csl={k: v for k, v in csl.items() if k != "id"},
+            version=UNKNOWN_VERSION if self.local else int(obj["version"]),
+            csl=csl,
             collections=tuple(str(c) for c in data.get("collections", [])),
         )
 
@@ -339,7 +347,7 @@ class ZoteroManager(ReferenceManager):
     @_reads_replies_safely
     def push(self, items: Sequence[PushItem], collection: str) -> list[PushOutcome]:
         if self.local:
-            raise ZoteroError("the local API is read-only; writing goes through the Web API")
+            raise ZoteroError("strata writes to Zotero through the Web API only")
         if not self.writable:
             raise ZoteroError(
                 f"this link cannot write to {self.library}; run `strata zotero link --web` with "
@@ -369,7 +377,7 @@ class ZoteroManager(ReferenceManager):
                 outcomes[position] = PushOutcome(
                     item.record_id, "unchanged", item.existing, version
                 )
-            elif item.existing_version is not None and version != item.existing_version:
+            elif item.existing_version and version != item.existing_version:
                 outcomes[position] = PushOutcome(
                     item.record_id,
                     "refused",
@@ -464,9 +472,6 @@ class ZoteroManager(ReferenceManager):
                 item[slot] = str(value)
             else:
                 extra.append(f"{csl_field}: {value}")
-        for csl_field, label in _EXTRA_LABELS.items():
-            if csl.get(csl_field):
-                extra.append(f"{label}: {csl[csl_field]}")
         date = _date_of(csl.get("issued"))
         if date and "date" in template:
             item["date"] = date

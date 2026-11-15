@@ -1,0 +1,3 @@
+$ strata --why record the search search add --database MEDLINE --platform PubMed --by tester --query retrieval practice
+recorded search S-01-medline
+[exit code: 0]

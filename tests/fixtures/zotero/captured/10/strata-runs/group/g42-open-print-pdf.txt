@@ -1,0 +1,3 @@
+$ strata zotero open rec_mtjmgphj331dpfhs --print-only
+zotero://open-pdf/groups/6762415/items/U5JR5IES
+[exit code: 0]

@@ -1,0 +1,112 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/collections",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "7be7195625cf43e5b666ed5e54e2d8e3",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "name": "strata-pushed"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:41:14 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "25"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "MVN4JX2Z",
+          "version": 25,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/collections/MVN4JX2Z",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/collections/MVN4JX2Z",
+              "type": "text/html"
+            }
+          },
+          "meta": {
+            "numCollections": 0,
+            "numItems": 0
+          },
+          "data": {
+            "key": "MVN4JX2Z",
+            "version": 25,
+            "name": "strata-pushed",
+            "parentCollection": false,
+            "relations": {}
+          }
+        }
+      },
+      "success": {
+        "0": "MVN4JX2Z"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

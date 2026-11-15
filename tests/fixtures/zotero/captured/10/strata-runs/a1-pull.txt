@@ -1,0 +1,3 @@
+$ strata --why pull the item added in the app zotero pull --collection strata-test --by tester --via website
+error: record: issued/date-parts/0/0: '1984' is not of type 'integer'
+[exit code: 2]

@@ -103,13 +103,17 @@ def _env_for_hooks() -> dict[str, str] | None:
     return env
 
 
-def _command_env() -> dict[str, str] | None:
+def _command_env() -> dict[str, str]:
     """The environment for one git command: the hook `PATH` fix, plus this context's extras."""
     base = _env_for_hooks()
     extra = _EXTRA_ENV.get()
-    if not extra:
-        return base
-    return {**(base if base is not None else os.environ), **extra}
+    env = {**(base if base is not None else os.environ), **(extra or {})}
+    # A read such as `git status` refreshes the index and, to save the result, briefly takes
+    # `index.lock`. Reads run outside strata's own repository lock, so one could make another
+    # process's `git add` or `git commit` fail with "Another git process seems to be running".
+    # With this set, reads never take the lock.
+    env.setdefault("GIT_OPTIONAL_LOCKS", "0")
+    return env
 
 
 def run(

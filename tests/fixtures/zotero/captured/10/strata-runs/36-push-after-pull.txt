@@ -1,0 +1,3 @@
+$ strata --why push again after pulling zotero push --collection strata-pushed-2 --by tester
+pushed to 'strata-pushed-2': 0 created, 2 added, 0 already there
+[exit code: 0]

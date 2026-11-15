@@ -60,6 +60,12 @@ degrade to "full text unavailable", never to an error that blocks screening.
 - **WHEN** the record is opened for screening
 - **THEN** screening proceeds and the full text is reported unavailable
 
+#### Scenario: Item read through the local API
+
+- **GIVEN** an item read through the desktop app's local API, whose item versions are the app's own and not the Web API's
+- **WHEN** it is linked to a record
+- **THEN** its `item_version` is recorded as 0 ("not known"), and a later push does not refuse the item on the strength of that version
+
 ### Requirement: Append-only meets mutable
 
 Every pull that changes a record MUST write ordinary `record-amend` events.

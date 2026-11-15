@@ -1,0 +1,134 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/PXURCE4Y?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items/PXURCE4Y>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "55"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "PXURCE4Y",
+      "version": 55,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "My Library",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/users/22585168/items/PXURCE4Y",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/users/22585168/items/PXURCE4Y",
+          "type": "text/html"
+        },
+        "attachment": {
+          "href": "http://localhost:23119/api/users/22585168/items/UII52E7P",
+          "type": "application/json",
+          "attachmentType": "application/pdf",
+          "attachmentSize": 697477
+        }
+      },
+      "meta": {
+        "creatorSummary": "⁨Hedges⁩ and ⁨Olkin⁩",
+        "parsedDate": "1984-11",
+        "numChildren": 1
+      },
+      "data": {
+        "key": "PXURCE4Y",
+        "version": 55,
+        "itemType": "journalArticle",
+        "title": "Nonparametric estimators of effect size in meta-analysis.",
+        "date": "11/1984",
+        "DOI": "10.1037/0033-2909.96.3.573",
+        "url": "https://doi.apa.org/doi/10.1037/0033-2909.96.3.573",
+        "accessDate": "2026-11-14T05:26:38Z",
+        "language": "en",
+        "libraryCatalog": "DOI.org (Crossref)",
+        "volume": "96",
+        "pages": "573-580",
+        "publicationTitle": "Psychological Bulletin",
+        "ISSN": "1939-1455, 0033-2909",
+        "issue": "3",
+        "journalAbbreviation": "Psychological Bulletin",
+        "creators": [
+          {
+            "firstName": "Larry V.",
+            "lastName": "Hedges",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "Ingram",
+            "lastName": "Olkin",
+            "creatorType": "author"
+          }
+        ],
+        "tags": [],
+        "collections": [
+          "EBGRU5QN"
+        ],
+        "relations": {},
+        "dateAdded": "2026-11-14T05:26:38Z",
+        "dateModified": "2026-11-14T05:26:38Z"
+      },
+      "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/users/22585168/items/PXURCE4Y\",\n\t\t\"type\": \"article-journal\",\n\t\t\"container-title\": \"Psychological Bulletin\",\n\t\t\"DOI\": \"10.1037/0033-2909.96.3.573\",\n\t\t\"ISSN\": \"1939-1455, 0033-2909\",\n\t\t\"issue\": \"3\",\n\t\t\"journalAbbreviation\": \"Psychological Bulletin\",\n\t\t\"language\": \"en\",\n\t\t\"page\": \"573-580\",\n\t\t\"source\": \"DOI.org (Crossref)\",\n\t\t\"title\": \"Nonparametric estimators of effect size in meta-analysis.\",\n\t\t\"URL\": \"https://doi.apa.org/doi/10.1037/0033-2909.96.3.573\",\n\t\t\"volume\": \"96\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Hedges\",\n\t\t\t\t\"given\": \"Larry V.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Olkin\",\n\t\t\t\t\"given\": \"Ingram\"\n\t\t\t}\n\t\t],\n\t\t\"accessed\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2026\",\n\t\t\t\t\t11,\n\t\t\t\t\t14\n\t\t\t\t]\n\t\t\t]\n\t\t},\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"1984\",\n\t\t\t\t\t11\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+    }
+  }
+}

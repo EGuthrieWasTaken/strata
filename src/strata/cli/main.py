@@ -79,6 +79,7 @@ from strata.ingest import pipeline as pipeline_mod
 from strata.ingest.enrich import unpaywall as unpaywall_mod
 from strata.integrations.reference_manager import ReferenceManagerError
 from strata.integrations.zotero import connect as zotero_connect
+from strata.integrations.zotero import launch as zotero_launch
 from strata.integrations.zotero import operations as zotero_ops
 from strata.integrations.zotero import retrieval as zotero_retrieval
 from strata.mcpserver import server as mcp_server_mod
@@ -2785,7 +2786,10 @@ def retrieve_command(
             continue
         if choice == "o" and document is not None and document.uri is not None:
             out_console.print(f"opening {document.uri}")
-            if not webbrowser.open(document.uri):
+            opener = (
+                zotero_launch.open_link if document.uri.startswith("zotero:") else webbrowser.open
+            )
+            if not opener(document.uri):
                 out_console.print(
                     "[yellow]could not open it; paste the link above into a browser[/]"
                 )
@@ -3353,7 +3357,7 @@ def zotero_open_command(
         _print_json({"record": target.record_id, "kind": target.kind, "uri": target.uri})
         return
     out_console.print(target.uri, soft_wrap=True, markup=False, highlight=False)
-    if not print_only and not webbrowser.open(target.uri):
+    if not print_only and not zotero_launch.open_link(target.uri):
         err_console.print("[yellow]note:[/] could not launch Zotero from here; use the link above")
 
 

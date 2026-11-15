@@ -1,0 +1,62 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "b13f35ac680a4e7491880f2228ac3d2e",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 20,
+        "collections": [
+          "EDKUIRII",
+          "EBGRU5QN"
+        ]
+      }
+    ]
+  },
+  "note": "the same write token a second time",
+  "response": {
+    "status": 412,
+    "reason": "Precondition Failed",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:11 GMT"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "Write token already used"
+  }
+}

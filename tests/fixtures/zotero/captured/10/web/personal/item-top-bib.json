@@ -1,0 +1,93 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/BEITJ9RM?include=bib,citation&style=apa",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:06 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "4"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "BEITJ9RM",
+      "version": 4,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "strata-review",
+        "links": {
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://api.zotero.org/users/22585168/items/BEITJ9RM",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/strata-review/items/BEITJ9RM",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "creatorSummary": "Cepeda et al.",
+        "parsedDate": "2008-11",
+        "numChildren": 1
+      },
+      "bib": "<div class=\"csl-bib-body\" style=\"line-height: 2; padding-left: 1em; text-indent:-1em;\">\n  <div class=\"csl-entry\">Cepeda, N. J., Vul, E., Rohrer, D., Wixted, J. T., &amp; Pashler, H. (2008). Spacing effects in learning: A temporal ridgeline of optimal retention. <i>Psychological Science</i>, <i>19</i>(11), 1095&#x2013;1102. https://doi.org/10.1111/j.1467-9280.2008.02209.x</div>\n</div>",
+      "citation": "<span>(Cepeda et al., 2008)</span>"
+    }
+  }
+}

@@ -1,0 +1,204 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/BEITJ9RM?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:04 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "4"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "BEITJ9RM",
+      "version": 4,
+      "library": {
+        "type": "user",
+        "id": 22585168,
+        "name": "strata-review",
+        "links": {
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://api.zotero.org/users/22585168/items/BEITJ9RM",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/strata-review/items/BEITJ9RM",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "creatorSummary": "Cepeda et al.",
+        "parsedDate": "2008-11",
+        "numChildren": 1
+      },
+      "csljson": {
+        "id": "26075093/BEITJ9RM",
+        "type": "article-journal",
+        "container-title": "Psychological Science",
+        "DOI": "10.1111/j.1467-9280.2008.02209.x",
+        "ISSN": "0956-7976",
+        "issue": "11",
+        "language": "en",
+        "note": "PMID: 19076480",
+        "page": "1095-1102",
+        "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+        "volume": "19",
+        "author": [
+          {
+            "family": "Cepeda",
+            "given": "Nicholas J."
+          },
+          {
+            "family": "Vul",
+            "given": "Edward"
+          },
+          {
+            "family": "Rohrer",
+            "given": "Doug"
+          },
+          {
+            "family": "Wixted",
+            "given": "John T."
+          },
+          {
+            "family": "Pashler",
+            "given": "Harold"
+          }
+        ],
+        "issued": {
+          "date-parts": [
+            [
+              2008,
+              11
+            ]
+          ]
+        }
+      },
+      "data": {
+        "key": "BEITJ9RM",
+        "version": 4,
+        "itemType": "journalArticle",
+        "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+        "creators": [
+          {
+            "creatorType": "author",
+            "firstName": "Nicholas J.",
+            "lastName": "Cepeda"
+          },
+          {
+            "creatorType": "author",
+            "firstName": "Edward",
+            "lastName": "Vul"
+          },
+          {
+            "creatorType": "author",
+            "firstName": "Doug",
+            "lastName": "Rohrer"
+          },
+          {
+            "creatorType": "author",
+            "firstName": "John T.",
+            "lastName": "Wixted"
+          },
+          {
+            "creatorType": "author",
+            "firstName": "Harold",
+            "lastName": "Pashler"
+          }
+        ],
+        "abstractNote": "",
+        "publicationTitle": "Psychological Science",
+        "publisher": "",
+        "place": "",
+        "date": "2008-11",
+        "volume": "19",
+        "issue": "11",
+        "section": "",
+        "partNumber": "",
+        "partTitle": "",
+        "pages": "1095-1102",
+        "series": "",
+        "seriesTitle": "",
+        "seriesText": "",
+        "journalAbbreviation": "",
+        "DOI": "10.1111/j.1467-9280.2008.02209.x",
+        "citationKey": "",
+        "url": "",
+        "accessDate": "",
+        "PMID": "",
+        "PMCID": "",
+        "ISSN": "0956-7976",
+        "archive": "",
+        "archiveLocation": "",
+        "shortTitle": "",
+        "language": "en",
+        "libraryCatalog": "",
+        "callNumber": "",
+        "rights": "",
+        "extra": "PMID: 19076480",
+        "tags": [],
+        "collections": [
+          "EBGRU5QN"
+        ],
+        "relations": {},
+        "dateAdded": "2026-11-14T04:34:30Z",
+        "dateModified": "2026-11-14T04:34:30Z"
+      }
+    }
+  }
+}

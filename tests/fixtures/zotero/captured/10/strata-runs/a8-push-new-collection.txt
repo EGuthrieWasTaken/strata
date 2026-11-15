@@ -1,0 +1,5 @@
+$ strata --why push to a collection the item is not in zotero push --collection strata-pushed-2 --by tester
+pushed to 'strata-pushed-2': 0 created, 3 added, 2 already there
+  refused rec_8dwhfxjkctkgh44t: edited in Zotero since strata last saw it 
+(version 63 is now 66); pull it, then push again
+[exit code: 5]

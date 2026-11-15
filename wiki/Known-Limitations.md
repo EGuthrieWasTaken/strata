@@ -50,12 +50,14 @@ items are fixed.
 
 ## Zotero
 
-- **Never tried against a running Zotero.** The link is tested against a stand-in written from Zotero's
-  published API documentation, for Zotero 6 and 7. The local API in particular has not been seen answering,
-  so how Zotero 7 actually replies, and whether its replies carry what `strata` reads, is unconfirmed. If
-  `strata zotero link` says the local API "did not answer as Zotero's API does", `strata` falls back to the
-  Web API; please report what you saw.
-- The local API is read-only, so pushing always goes through the Web API and needs a key.
+- **Zotero 10 or later is what is supported**, and it has been tried against one running Zotero only:
+  version 10.0.8 on Linux, with a personal and a group library. macOS and Windows have not been tried, and
+  an older Zotero is not supported (with one too old to have a local API, `strata` uses the Web API). If `strata zotero link` says the local API "did not answer as Zotero's API does", `strata`
+  falls back to the Web API; please report what you saw.
+- Pushing always goes through the Web API and needs a key. (Zotero 10's local API can take writes, but only
+  with a permission you grant in the app; `strata` does not use it.)
+- A link made through the local API does not know Zotero's version of each item, so the first push after it
+  cannot tell whether an item was edited in Zotero meanwhile. It only ever adds the item to a collection.
 - A pull brings in journal articles, books and the like but not notes or attachments as records of their own.
 - Pushing creates a plain item (title, authors, journal, date, abstract, identifiers) and attaches no
   files.

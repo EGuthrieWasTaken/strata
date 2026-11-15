@@ -67,7 +67,7 @@ def test_a_missing_collection_lists_the_ones_there_are() -> None:
 def test_a_collection_is_pulled_as_items_with_csl_versions_and_collections(
     transport: str,
 ) -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     manager = local_manager(fake) if transport == "local" else web_manager(fake)
 
     pulled = manager.pull("Hand-searched trials")
@@ -75,14 +75,15 @@ def test_a_collection_is_pulled_as_items_with_csl_versions_and_collections(
     assert pulled.collection.key == "HANDPICK"
     assert [i.ref.key for i in pulled.items] == ["AB3D9XYZ", "CD4E5FGH", "JK6L7MNP"]
     cepeda = pulled.items[0]
-    assert cepeda.version == 8842
+    # the desktop app's versions are its own; only a Web version is one strata can compare
+    assert cepeda.version == (8842 if transport == "web" else 0)
     assert cepeda.collections == ("HANDPICK",)
     assert cepeda.csl["DOI"] == "10.1111/j.1467-9280.2008.02209.x"
     assert "id" not in cepeda.csl  # Zotero's own id is not a strata record id
 
 
 def test_the_local_api_addresses_the_personal_library_as_users_0() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     local_manager(fake).pull("Hand-searched trials")
 
     assert all("/users/0/" in r.path for r in fake.requests)
@@ -122,7 +123,7 @@ def test_what_a_key_may_write_is_read_from_zotero() -> None:
 
 
 def test_resolving_finds_the_pdf_and_ignores_snapshots_and_links() -> None:
-    manager = local_manager(FakeZotero("7"))
+    manager = local_manager(FakeZotero("10"))
 
     resolved = manager.resolve([_ref("AB3D9XYZ"), _ref("CD4E5FGH"), _ref("JK6L7MNP")])
 
@@ -213,7 +214,9 @@ def test_a_record_zotero_lacks_becomes_a_new_item_built_on_zoteros_own_template(
     assert sent["creators"] == [
         {"creatorType": "author", "firstName": "Ada", "lastName": "Okonkwo"}
     ]
-    assert sent["extra"] == "PMID: 12345"  # no PMID field in Zotero: kept where Zotero keeps such
+    # a journal article has a native PMID field (Zotero 10's template); only that comes back as
+    # CSL `PMID`, so that is where it goes
+    assert sent["PMID"] == "12345" and "extra" not in sent
     assert sent["collections"] == ["INCLUDED"]
     assert set(sent) <= set(fake.templates["journalArticle"])  # only fields the type has
     assert write.headers["zotero-write-token"]  # so a retried POST cannot create twice
@@ -232,7 +235,8 @@ def test_a_type_zotero_has_no_template_for_is_filed_as_a_document() -> None:
     assert "publicationTitle" not in sent
     # nothing is lost: what the document type has no slot for is kept in `extra`
     assert "container-title: Journal X" in sent["extra"].splitlines()
-    assert "DOI: 10.1000/new.1" in sent["extra"].splitlines()
+    assert sent["DOI"] == "10.1000/new.1"  # Zotero 10's document type has a DOI field
+    assert "volume: 4" in sent["extra"].splitlines()
 
 
 def test_an_item_already_in_zotero_is_only_added_to_the_collection() -> None:
@@ -378,10 +382,10 @@ def test_a_key_without_write_access_is_refused_by_zotero_itself() -> None:
 
 
 def test_the_local_api_cannot_write() -> None:
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     manager = ZoteroManager(local_api(fake), LIB, local=True, writable=True)
 
-    with pytest.raises(ZoteroError, match="local API is read-only"):
+    with pytest.raises(ZoteroError, match="through the Web API only"):
         manager.push([PushItem("rec_a", _journal_csl())], "Included studies")
     assert fake.writes() == []
 

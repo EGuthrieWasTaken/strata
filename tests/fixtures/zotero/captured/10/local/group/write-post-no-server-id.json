@@ -1,0 +1,54 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    "body": [
+      {
+        "key": "6BQ4WRIB",
+        "version": 1,
+        "collections": [
+          "JDXU647J"
+        ]
+      }
+    ]
+  },
+  "response": {
+    "status": 428,
+    "reason": "undefined",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "text/plain"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "Zotero-Server-ID not provided"
+  }
+}

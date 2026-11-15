@@ -1,0 +1,6 @@
+$ strata zotero status
+linked to groups/6762415
+  4 of 7 records mapped to a Zotero item
+  3 not mapped
+  no stale links
+[exit code: 0]

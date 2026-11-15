@@ -1,0 +1,124 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/items/6BQ4WRIB?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/groups/6762415/items/6BQ4WRIB>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "7"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "6BQ4WRIB",
+      "version": 7,
+      "library": {
+        "type": "group",
+        "id": 6762415,
+        "name": "strata-ci-group",
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415",
+            "type": "text/html"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "http://localhost:23119/api/groups/6762415/items/6BQ4WRIB",
+          "type": "application/json"
+        },
+        "alternate": {
+          "href": "https://www.zotero.org/groups/6762415/items/6BQ4WRIB",
+          "type": "text/html"
+        }
+      },
+      "meta": {
+        "creatorSummary": "⁨Roediger⁩ and ⁨Karpicke⁩",
+        "parsedDate": "2006-03",
+        "numChildren": 1
+      },
+      "data": {
+        "key": "6BQ4WRIB",
+        "version": 7,
+        "itemType": "journalArticle",
+        "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+        "date": "2006-03",
+        "DOI": "10.1111/j.1467-9280.2006.01693.x",
+        "language": "en",
+        "volume": "17",
+        "pages": "249-255",
+        "publicationTitle": "Psychological Science",
+        "issue": "3",
+        "PMID": "16507066",
+        "creators": [
+          {
+            "firstName": "Henry L.",
+            "lastName": "Roediger",
+            "creatorType": "author"
+          },
+          {
+            "firstName": "Jeffrey D.",
+            "lastName": "Karpicke",
+            "creatorType": "author"
+          }
+        ],
+        "tags": [],
+        "collections": [
+          "JDXU647J"
+        ],
+        "relations": {},
+        "dateAdded": "2026-11-14T06:32:18Z",
+        "dateModified": "2026-11-14T06:32:18Z"
+      },
+      "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/6BQ4WRIB\",\n\t\t\"type\": \"article-journal\",\n\t\t\"container-title\": \"Psychological Science\",\n\t\t\"DOI\": \"10.1111/j.1467-9280.2006.01693.x\",\n\t\t\"issue\": \"3\",\n\t\t\"language\": \"en\",\n\t\t\"page\": \"249-255\",\n\t\t\"PMID\": \"16507066\",\n\t\t\"title\": \"Test-enhanced learning: Taking memory tests improves long-term retention\",\n\t\t\"volume\": \"17\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Roediger\",\n\t\t\t\t\"given\": \"Henry L.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Karpicke\",\n\t\t\t\t\"given\": \"Jeffrey D.\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2006\",\n\t\t\t\t\t3\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+    }
+  }
+}

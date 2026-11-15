@@ -1,0 +1,139 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/top?format=csljson&limit=2",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "note": "format=csljson (not include)",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:06 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/vnd.citationstyles.csl+json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "12"
+      ],
+      [
+        "Link",
+        "<https://api.zotero.org/users/22585168/items/top?format=csljson&limit=2&start=2>; rel=\"next\", <https://api.zotero.org/users/22585168/items/top?format=csljson&limit=2&start=10>; rel=\"last\", <https://www.zotero.org/users/22585168/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "20"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "items": [
+        {
+          "id": "26075093/G9PKINI3",
+          "type": "article-journal",
+          "language": "en",
+          "title": "Scratch item for write probes",
+          "author": [
+            {
+              "family": "Scratch",
+              "given": "Probe"
+            }
+          ],
+          "issued": {
+            "date-parts": [
+              [
+                2026
+              ]
+            ]
+          }
+        },
+        {
+          "id": "26075093/8ZM89RUI",
+          "type": "report",
+          "language": "en",
+          "number": "NCER 2007-2004",
+          "publisher": "National Center for Education Research, Institute of Education Sciences, U.S. Department of Education",
+          "publisher-place": "Washington, DC",
+          "title": "Organizing instruction and study to improve student learning",
+          "author": [
+            {
+              "family": "Pashler",
+              "given": "Harold"
+            },
+            {
+              "family": "Bain",
+              "given": "Patrice M."
+            },
+            {
+              "family": "Bottge",
+              "given": "Brian A."
+            },
+            {
+              "family": "Graesser",
+              "given": "Arthur"
+            },
+            {
+              "family": "Koedinger",
+              "given": "Kenneth"
+            },
+            {
+              "family": "McDaniel",
+              "given": "Mark"
+            },
+            {
+              "family": "Metcalfe",
+              "given": "Janet"
+            }
+          ],
+          "issued": {
+            "date-parts": [
+              [
+                2007
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

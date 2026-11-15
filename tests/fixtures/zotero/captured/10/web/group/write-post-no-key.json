@@ -1,0 +1,59 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/groups/6762415/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "90fb64ed4ca24588b28d37b0674ec0ea"
+    },
+    "body": [
+      {
+        "key": "6BQ4WRIB",
+        "version": 1,
+        "collections": [
+          "JDXU647J"
+        ]
+      }
+    ]
+  },
+  "response": {
+    "status": 403,
+    "reason": "Forbidden",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "An API key is required for write requests."
+  }
+}

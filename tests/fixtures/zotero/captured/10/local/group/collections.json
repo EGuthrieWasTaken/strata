@@ -1,0 +1,138 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/collections",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "2"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/groups/6762415/collections>; rel=\"last\", <https://www.zotero.org/groups/6762415/collections>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "10"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "Q3EB6UJJ",
+        "version": 1,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/collections/Q3EB6UJJ",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/collections/Q3EB6UJJ",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 0
+        },
+        "data": {
+          "key": "Q3EB6UJJ",
+          "version": 1,
+          "name": "strata-pushed",
+          "parentCollection": false,
+          "relations": {}
+        }
+      },
+      {
+        "key": "JDXU647J",
+        "version": 2,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/collections/JDXU647J",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/collections/JDXU647J",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "numCollections": 0,
+          "numItems": 4
+        },
+        "data": {
+          "key": "JDXU647J",
+          "version": 2,
+          "name": "strata-test",
+          "parentCollection": false,
+          "relations": {}
+        }
+      }
+    ]
+  }
+}

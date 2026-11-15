@@ -1,0 +1,341 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/groups/6762415/collections/JDXU647J/items/top?include=data,csljson",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "4"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/groups/6762415/collections/JDXU647J/items/top?include=data%2Ccsljson>; rel=\"last\", <https://www.zotero.org/groups/6762415/collections/JDXU647J/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "10"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "Q4CXNISZ",
+        "version": 4,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/items/Q4CXNISZ",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/Q4CXNISZ",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Vaswani et al.",
+          "parsedDate": "2017-06-12",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "Q4CXNISZ",
+          "version": 4,
+          "itemType": "preprint",
+          "title": "Attention Is All You Need",
+          "date": "2017-06-12",
+          "DOI": "10.48550/arXiv.1706.03762",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "language": "en",
+          "repository": "arXiv",
+          "archiveID": "arXiv:1706.03762",
+          "creators": [
+            {
+              "firstName": "Ashish",
+              "lastName": "Vaswani",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Noam",
+              "lastName": "Shazeer",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Niki",
+              "lastName": "Parmar",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/Q4CXNISZ\",\n\t\t\"type\": \"article\",\n\t\t\"DOI\": \"10.48550/arXiv.1706.03762\",\n\t\t\"language\": \"en\",\n\t\t\"number\": \"arXiv:1706.03762\",\n\t\t\"publisher\": \"arXiv\",\n\t\t\"title\": \"Attention Is All You Need\",\n\t\t\"URL\": \"https://arxiv.org/abs/1706.03762\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Vaswani\",\n\t\t\t\t\"given\": \"Ashish\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Shazeer\",\n\t\t\t\t\"given\": \"Noam\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Parmar\",\n\t\t\t\t\"given\": \"Niki\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2017\",\n\t\t\t\t\t6,\n\t\t\t\t\t12\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      },
+      {
+        "key": "CMWCSWX8",
+        "version": 5,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/items/CMWCSWX8",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/CMWCSWX8",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Brown et al.",
+          "parsedDate": "2014",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "CMWCSWX8",
+          "version": 5,
+          "itemType": "book",
+          "title": "Make It Stick: The Science of Successful Learning",
+          "date": "2014",
+          "language": "en",
+          "publisher": "Belknap Press of Harvard University Press",
+          "place": "Cambridge, MA",
+          "ISBN": "978-0-674-72901-8",
+          "creators": [
+            {
+              "firstName": "Peter C.",
+              "lastName": "Brown",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Henry L.",
+              "lastName": "Roediger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Mark A.",
+              "lastName": "McDaniel",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/CMWCSWX8\",\n\t\t\"type\": \"book\",\n\t\t\"ISBN\": \"978-0-674-72901-8\",\n\t\t\"language\": \"en\",\n\t\t\"publisher\": \"Belknap Press of Harvard University Press\",\n\t\t\"publisher-place\": \"Cambridge, MA\",\n\t\t\"title\": \"Make It Stick: The Science of Successful Learning\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Brown\",\n\t\t\t\t\"given\": \"Peter C.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Roediger\",\n\t\t\t\t\"given\": \"Henry L.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"McDaniel\",\n\t\t\t\t\"given\": \"Mark A.\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2014\"\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      },
+      {
+        "key": "JRNI4G2X",
+        "version": 6,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/items/JRNI4G2X",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/JRNI4G2X",
+            "type": "text/html"
+          },
+          "attachment": {
+            "href": "http://localhost:23119/api/groups/6762415/items/U5JR5IES",
+            "type": "application/json",
+            "attachmentType": "application/pdf",
+            "attachmentSize": 665
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Pavlik⁩ and ⁨Anderson⁩",
+          "parsedDate": "2008-06",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "JRNI4G2X",
+          "version": 6,
+          "itemType": "journalArticle",
+          "title": "Using a model to compute the optimal schedule of practice",
+          "date": "2008-06",
+          "DOI": "10.1037/1076-898X.14.2.101",
+          "language": "en",
+          "volume": "14",
+          "pages": "101-117",
+          "publicationTitle": "Journal of Experimental Psychology: Applied",
+          "issue": "2",
+          "PMID": "18590367",
+          "creators": [
+            {
+              "firstName": "Philip I.",
+              "lastName": "Pavlik",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "John R.",
+              "lastName": "Anderson",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/JRNI4G2X\",\n\t\t\"type\": \"article-journal\",\n\t\t\"container-title\": \"Journal of Experimental Psychology: Applied\",\n\t\t\"DOI\": \"10.1037/1076-898X.14.2.101\",\n\t\t\"issue\": \"2\",\n\t\t\"language\": \"en\",\n\t\t\"page\": \"101-117\",\n\t\t\"PMID\": \"18590367\",\n\t\t\"title\": \"Using a model to compute the optimal schedule of practice\",\n\t\t\"volume\": \"14\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Pavlik\",\n\t\t\t\t\"given\": \"Philip I.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Anderson\",\n\t\t\t\t\"given\": \"John R.\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2008\",\n\t\t\t\t\t6\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      },
+      {
+        "key": "6BQ4WRIB",
+        "version": 7,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/groups/6762415",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/groups/6762415/items/6BQ4WRIB",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/6BQ4WRIB",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Roediger⁩ and ⁨Karpicke⁩",
+          "parsedDate": "2006-03",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "6BQ4WRIB",
+          "version": 7,
+          "itemType": "journalArticle",
+          "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+          "date": "2006-03",
+          "DOI": "10.1111/j.1467-9280.2006.01693.x",
+          "language": "en",
+          "volume": "17",
+          "pages": "249-255",
+          "publicationTitle": "Psychological Science",
+          "issue": "3",
+          "PMID": "16507066",
+          "creators": [
+            {
+              "firstName": "Henry L.",
+              "lastName": "Roediger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Jeffrey D.",
+              "lastName": "Karpicke",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:18Z",
+          "dateModified": "2026-11-14T06:32:18Z"
+        },
+        "csljson": "[\n\t{\n\t\t\"id\": \"http://zotero.org/groups/6762415/items/6BQ4WRIB\",\n\t\t\"type\": \"article-journal\",\n\t\t\"container-title\": \"Psychological Science\",\n\t\t\"DOI\": \"10.1111/j.1467-9280.2006.01693.x\",\n\t\t\"issue\": \"3\",\n\t\t\"language\": \"en\",\n\t\t\"page\": \"249-255\",\n\t\t\"PMID\": \"16507066\",\n\t\t\"title\": \"Test-enhanced learning: Taking memory tests improves long-term retention\",\n\t\t\"volume\": \"17\",\n\t\t\"author\": [\n\t\t\t{\n\t\t\t\t\"family\": \"Roediger\",\n\t\t\t\t\"given\": \"Henry L.\"\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"family\": \"Karpicke\",\n\t\t\t\t\"given\": \"Jeffrey D.\"\n\t\t\t}\n\t\t],\n\t\t\"issued\": {\n\t\t\t\"date-parts\": [\n\t\t\t\t[\n\t\t\t\t\t\"2006\",\n\t\t\t\t\t3\n\t\t\t\t]\n\t\t\t]\n\t\t}\n\t}\n]"
+      }
+    ]
+  }
+}

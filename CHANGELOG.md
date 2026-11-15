@@ -484,6 +484,14 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **The Zotero link, after its first run against a real Zotero** (10.0.8; `docs/zotero-real-run.md`).
+  `strata zotero link` and `pull` failed through the desktop app's local API, which sends each item's
+  CSL-JSON as a string; it is now read, and the probe checks the shape it reads. One item with a date such as
+  `11/1984` no longer stops a whole pull. A PMID is pushed into Zotero's own PMID field where the item type
+  has one and is read back from `extra`, so a record with only a PMID matches. `strata zotero open` hands the
+  link to the operating system instead of the browser, which did nothing until a prompt was approved. The
+  desktop app's item versions, which are not the Web API's, are no longer recorded as if they were. The test
+  stand-in follows the captured responses, which `tests/unit/test_zotero_real_captures.py` replays.
 - **Screening in the browser was never committed** (#83). `strata serve` now commits each reviewer's batch
   when the session ends (the new **Finish session** button, any other page, stopping the server), at the 200th
   uncommitted decision, after 15 minutes without one, and at startup for what an earlier server left. One web

@@ -1,0 +1,45 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:23119/api/users/0/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Server-ID": "dx2OEZVeHz9j",
+      "Zotero-API-Key": "bogusbogusbogusbogus"
+    },
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 1,
+        "collections": [
+          "EDKUIRII"
+        ]
+      }
+    ]
+  },
+  "note": "server id + an invalid local API key",
+  "response": {
+    "status": 401,
+    "reason": "undefined",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "text/plain"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "Invalid or expired API key"
+  }
+}

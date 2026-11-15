@@ -1,0 +1,3 @@
+$ strata --why include three more to test retrieval resolution screen full-text --by tester --decisions $SCRATCH/decisions2.tsv
+recorded 3 decision(s) for full-text
+[exit code: 0]

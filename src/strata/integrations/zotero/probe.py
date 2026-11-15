@@ -1,8 +1,9 @@
 """Finding out what the Zotero running on this computer can do, rather than assuming.
 
 Implements the capability probing of openspec:zotero-integration#transport-selection. The local API
-exists from Zotero 7 and only when the person has switched it on; its shape is whatever this
-Zotero's version serves. The probe asks for one item the way `strata` will ask for all of them and
+exists in the Zotero `strata` supports (10 or later) only when the person has switched it on;
+its shape is whatever this Zotero's version serves. The probe asks for one item the way
+`strata` will ask for all of them and
 accepts the answer only if it has the shape `strata` reads. Anything else is a reason, in words a
 person can act on, and the caller falls back to the Web API.
 """
@@ -18,6 +19,7 @@ from strata.integrations.zotero.api import (
     ZoteroError,
     ZoteroUnavailableError,
 )
+from strata.integrations.zotero.csl import read_csl
 from strata.integrations.zotero.http import HttpTransport
 
 #: The local API's alias for "the library of the person using this Zotero".
@@ -61,7 +63,7 @@ def probe_local(
         return None, "Zotero is not running on this computer"
     except ZoteroError as exc:
         if exc.status == 404:
-            return None, "this Zotero has no local API (it needs Zotero 7 or later)"
+            return None, "this Zotero has no local API (strata supports Zotero 10 or later)"
         if exc.status in (401, 403):
             return None, f"the local API is switched off in Zotero ({SWITCH_ON})"
         return None, f"the local API answered with an error ({exc})"
@@ -76,7 +78,11 @@ def probe_local(
         return None, "the local API did not answer as Zotero's API does (no list of items)"
     if items:
         first = items[0]
-        if not (isinstance(first, dict) and {"key", "version", "data", "csljson"} <= first.keys()):
+        if not (
+            isinstance(first, dict)
+            and {"key", "version", "data", "csljson"} <= first.keys()
+            and read_csl(first["csljson"]) is not None
+        ):
             return None, (
                 "the local API does not provide items with their CSL-JSON, which strata reads"
             )
