@@ -2,7 +2,8 @@
 
 Implements the capability probing of openspec:zotero-integration#transport-selection. The local API
 exists in the Zotero `strata` supports (10 or later) only when the person has switched it on;
-its shape is whatever this Zotero's version serves. The probe asks for one item the way `strata` will ask for all of them and
+its shape is whatever this Zotero's version serves. The probe asks for one item the way
+`strata` will ask for all of them and
 accepts the answer only if it has the shape `strata` reads. Anything else is a reason, in words a
 person can act on, and the caller falls back to the Web API.
 """
