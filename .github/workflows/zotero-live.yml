@@ -44,6 +44,15 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
+      # On a pull request the tests skip without the key (a fork has no secrets); a scheduled or
+      # manual run that cannot use it has checked nothing, and says so.
+      - name: Require the key outside pull requests
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -z "$STRATA_ZOTERO_API_KEY" ]; then
+            echo "::error::the repository secret STRATA_ZOTERO_API_KEY is not set, so nothing was checked against the Web API"
+            exit 1
+          fi
       - name: Run the Web API tests
         run: uv run pytest tests/live/test_zotero_web.py -v -p no:cacheprovider -rs
 
