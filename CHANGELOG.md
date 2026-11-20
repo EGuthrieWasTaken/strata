@@ -7,6 +7,12 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **A worked example** (`examples/bcg-vaccine/`): the 13 BCG vaccine trials of Colditz et al. (1994), built
+  through the command line, whose pooled risk ratio, heterogeneity and latitude meta-regression match
+  Viechtbauer's (2010) published `metafor` analysis; a test rebuilds it and compares.
+- **Standalone binaries** for Linux, macOS and Windows, built and smoke-tested by
+  `.github/workflows/binaries.yml` and attached to each release; released container images are signed
+  with cosign.
 - **Moving a review from Rayyan, Covidence or EPPI-Reviewer** (OpenSpec change
   `add-distribution-and-adoption`, tasks 2.1-2.3). `strata import --format rayyan|covidence|eppi-json`
   imports the records of each tool's export, and `strata screen <stage> --decisions <file> --from <tool>`

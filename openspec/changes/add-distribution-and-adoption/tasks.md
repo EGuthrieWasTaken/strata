@@ -27,6 +27,16 @@
 
 ## Notes
 
+- 3.1: `examples/bcg-vaccine/` is the 13 BCG trials of Colditz et al. (1994), built through the command
+  line by `build.py` (import, dual screening, extraction of each 2x2 table, latitude and allocation, two
+  analyses, the PRISMA diagram, Methods and Results), with the results a rebuild reproduces byte for byte in
+  `results/`. `tests/e2e/test_worked_example_bcg.py` rebuilds it, holds it to Viechtbauer's (2010) published
+  values (pooled log RR -0.7145, tau^2 0.3132, latitude slope -0.0291) and to `results/`, and verifies it.
+  **Not yet complete as a review:** the records are stubs naming each trial (`dat.bcg` gives first author and
+  year only), so no full text can be recorded as retrieved and the PRISMA diagram is a draft. Giving each
+  trial its real citation (title, journal, DOI or PMID) would finish it; that needs someone with access to
+  the literature. Stays open until then.
+
 - 1.2: `packaging/pyinstaller/strata.spec` builds a single-file binary; `.github/workflows/binaries.yml` builds
   it on Linux x64, macOS arm64, macOS x64 and Windows x64, smoke-tests each on its own runner
   (`scripts/binary_smoke.sh`: init, import, verify, a report and the web UI's `/healthz`), and `release.yml`
