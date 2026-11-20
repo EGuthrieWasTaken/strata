@@ -153,3 +153,73 @@ def test_decisions_for_records_not_yet_imported_are_reported(tmp_path: Path) -> 
 
     assert out["recorded"] == 0
     assert all("import the file first" in s["why"] for s in out["skipped"])
+
+
+# ------------------------------------------------------------------------ what is refused
+
+
+def test_a_migration_that_cannot_be_read_as_asked_is_refused_with_the_reason(
+    tmp_path: Path,
+) -> None:
+    repo = _review(tmp_path)
+    rayyan = str(FIXTURES / "rayyan-articles.csv")
+    covidence = str(FIXTURES / "covidence-excluded.csv")
+    cases = [
+        (["--from", "rayyan"], "--from needs --decisions FILE"),
+        (["--decisions", rayyan, "--from", "zotero"], "--from must be one of"),
+        (["--decisions", str(tmp_path / "none.csv"), "--from", "rayyan"], "no such file"),
+        (["--decisions", rayyan, "--from", "rayyan", "--reviewer", "Ada", "--reason", "x"],
+         "is not REASON=CRITERION"),
+        (["--decisions", rayyan, "--from", "rayyan", "--reviewer", "Nobody"],
+         "no reviewer 'Nobody'"),
+        (["--decisions", covidence, "--from", "covidence"], "pass --list"),
+        (["--decisions", covidence, "--from", "rayyan"], "not a Rayyan CSV export"),
+    ]  # fmt: skip
+    for args, message in cases:
+        result = _cli(repo, "screen", "title-abstract", "--by", "ada", *args, code=EXIT_USAGE)
+        assert message in " ".join(result.output.split()), (args, result.output)
+    result = _cli(
+        repo, "screen", "no-such-stage", "--by", "ada", "--decisions", rayyan, "--from", "rayyan",
+        "--reviewer", "Ada", code=EXIT_USAGE,
+    )  # fmt: skip
+    assert "unknown stage" in result.output
+    assert _events(repo, "title-abstract", "ada") == []
+
+
+def test_an_irrelevant_covidence_list_says_nothing_about_full_text(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+    _imported(repo, "covidence-excluded.csv", "covidence")
+
+    out = _cli(
+        repo, "screen", "full-text", "--by", "ada", "--decisions",
+        str(FIXTURES / "covidence-excluded.csv"), "--from", "covidence", "--list", "irrelevant",
+    )  # fmt: skip
+
+    assert out["recorded"] == 0 and out["skipped"] == []
+
+
+def test_importing_a_file_as_the_wrong_tool_is_refused(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+
+    result = _cli(
+        repo, "import", str(FIXTURES / "covidence-excluded.csv"), "--format", "eppi-json",
+        "--via", "citation-searching", "--by", "ethan", code=EXIT_USAGE,
+    )  # fmt: skip
+
+    assert "not an EPPI-Reviewer JSON export" in result.output
+
+
+def test_a_human_readable_run_lists_what_was_not_recorded(tmp_path: Path) -> None:
+    repo = _review(tmp_path)
+    _imported(repo, "rayyan-articles.csv", "rayyan")
+
+    result = runner.invoke(
+        app,
+        ["--why", WHY, "-C", str(repo.root), "screen", "title-abstract", "--by", "sam",
+         "--decisions", str(FIXTURES / "rayyan-articles.csv"), "--from", "rayyan",
+         "--reviewer", "Sam"],
+    )  # fmt: skip
+
+    assert result.exit_code == EXIT_OK, result.output
+    assert "recorded 2 imported decision(s)" in result.output
+    assert "not recorded:" in result.output and "wrong outcome" in result.output

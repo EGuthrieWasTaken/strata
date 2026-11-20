@@ -60,7 +60,7 @@ def test_latitude_explains_most_of_the_heterogeneity_as_published(review: Path) 
 
 @pytest.mark.parametrize(
     "path",
-    sorted(str(p.relative_to(EXAMPLE / "results")) for p in (EXAMPLE / "results").rglob("*")
+    sorted(p.relative_to(EXAMPLE / "results").as_posix() for p in (EXAMPLE / "results").rglob("*")
            if p.is_file()),
 )  # fmt: skip
 def test_a_rebuild_reproduces_the_committed_results(review: Path, path: str) -> None:

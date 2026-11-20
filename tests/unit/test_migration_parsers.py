@@ -96,3 +96,21 @@ def test_an_eppi_reference_coded_both_ways_is_left_as_maybe() -> None:
 def test_an_eppi_export_of_an_odd_shape_is_read_or_rejected_row_by_row(document: str) -> None:
     parsed = migration.parse_eppi_json(document)
     assert len(parsed.decisions) == len(parsed.records.records)
+
+
+def test_the_odd_corners_of_each_format() -> None:
+    with pytest.raises(migration.MigrationFormatError, match="--list must be one of"):
+        migration.covidence_decision("maybe", "full-text")
+    with pytest.raises(migration.MigrationFormatError, match="not an EPPI-Reviewer JSON export"):
+        migration.parse_eppi_json("{not json")
+    header = '"Title","Authors","Covidence #"\n'
+    covidence = migration.parse_covidence(
+        header + '"","Nobody, A.","#1"\n"Real","Smith, A.","#2"\n'
+    )
+    assert [r.error for r in covidence.records.rejected] == ["no title"]
+    assert len(covidence.records.records) == 1
+    rayyan = migration.parse_rayyan(
+        'key,title,notes\n1,A title,"RAYYAN-INCLUSION: {""Ada""=>""Undecided""}"\n'
+        "2,Another,no decisions here\n"
+    )
+    assert rayyan.decisions == [[], []]  # an unknown label and no inclusion block: no decision
