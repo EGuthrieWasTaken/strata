@@ -186,3 +186,39 @@ def test_fuzz_describing_a_workbook_only_ever_refuses_cleanly(raw: bytes) -> Non
 @given(_mutated_bytes(_seed_corpus(_FIXTURES_DIR / "csv")))
 def test_fuzz_describing_a_csv_only_ever_refuses_cleanly(raw: bytes) -> None:
     _describe_survives(raw, "export.csv")
+
+
+# Migration exports (openspec:literature-import#migration-imports-from-incumbent-tools): a mutated
+# export either parses (records and decisions, one decision list per record) or is refused as not
+# being that tool's export, with `MigrationFormatError` and nothing else.
+_MIGRATION_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "migration"
+
+
+def _migration_survives(tool: str, raw: bytes) -> None:
+    from strata.ingest.parsers import migration
+
+    text, _encoding = decode_bytes(raw)
+    try:
+        parsed = migration.PARSERS[tool](normalise_newlines(text))
+    except migration.MigrationFormatError:
+        return
+    assert isinstance(parsed.records, ParseResult)
+    assert len(parsed.decisions) == len(parsed.records.records)
+
+
+@_SETTINGS
+@given(_mutated_bytes([(_MIGRATION_FIXTURES / "rayyan-articles.csv").read_bytes()]))
+def test_fuzz_rayyan_only_ever_refuses_cleanly(raw: bytes) -> None:
+    _migration_survives("rayyan", raw)
+
+
+@_SETTINGS
+@given(_mutated_bytes([(_MIGRATION_FIXTURES / "covidence-excluded.csv").read_bytes()]))
+def test_fuzz_covidence_only_ever_refuses_cleanly(raw: bytes) -> None:
+    _migration_survives("covidence", raw)
+
+
+@_SETTINGS
+@given(_mutated_bytes([(_MIGRATION_FIXTURES / "eppi-reviewer.json").read_bytes()]))
+def test_fuzz_eppi_reviewer_only_ever_refuses_cleanly(raw: bytes) -> None:
+    _migration_survives("eppi-json", raw)

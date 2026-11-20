@@ -26,9 +26,10 @@ from strata.cli.main import app as cli_app
 from strata.core import operations as ops
 from strata.core.actor import add_actor
 from strata.core.init import init_repository
-from strata.core.repo import open_repo, repo_lock
+from strata.core.repo import open_repo
 from strata.web import uploads
 from strata.web.app import create_app
+from tests.unit._locks import held_elsewhere
 from tests.unit._xlsx import build_xlsx
 
 _TOKEN = "test-session-token-0123456789"
@@ -464,9 +465,9 @@ def test_a_search_cannot_be_recorded_while_another_process_holds_the_lock(
     root = _review(tmp_path)
     client = _client(root)
     real = ops.repo_lock
-    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout: real(r, timeout=0.2))
+    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout=None: real(r, timeout=0.2))
 
-    with repo_lock(open_repo(root)):
+    with held_elsewhere(open_repo(root)):
         response = _post(client, "/searches", _search_fields(), files=[("m.ris", _RIS.encode())])
 
     assert response.status_code == 503 and "repository is locked" in response.text
@@ -823,9 +824,9 @@ def test_confirming_while_the_lock_is_held_keeps_the_batch_and_writes_nothing(
     _record_search(client)
     batch = _stage(client, [("m.ris", _RIS.encode())])
     real = ops.repo_lock
-    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout: real(r, timeout=0.2))
+    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout=None: real(r, timeout=0.2))
 
-    with repo_lock(open_repo(root)):
+    with held_elsewhere(open_repo(root)):
         response = _post(client, f"/import/review/{batch}", {"rationale": _WHY})
 
     assert response.status_code == 503 and "repository is locked" in response.text

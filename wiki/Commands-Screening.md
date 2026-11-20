@@ -117,6 +117,11 @@ Guide: [Screening](Screening)
 
 Open the screening queue for `stage`, or bulk-import decisions with `--decisions`.
 
+With `--from`, the decisions file is an export from another tool (whose records were imported
+with `strata import --format <tool>`); every decision is attributed to `--by` and marked
+imported. Example: strata screen title-abstract --by ada --decisions articles.csv
+--from rayyan --reviewer Ada --reason "wrong population=EXC-01"
+
 ```
 strata screen [OPTIONS] STAGE
 ```
@@ -130,7 +135,11 @@ strata screen [OPTIONS] STAGE
 | `--by` (required) | str |  | Actor handle doing the screening |
 | `--filter` | str |  | Narrow the queue |
 | `--limit` | int |  | Screen at most N records |
-| `--decisions` | str |  | TSV of record_id/decision/criteria/note |
+| `--decisions` | str |  | TSV of record_id/decision/criteria/note, or a tool's export |
+| `--from` | str |  | The --decisions file is an export from rayyan \| covidence \| eppi-json |
+| `--reviewer` | str |  | --from: whose decisions to take, as the export names them |
+| `--list` | str |  | --from covidence: irrelevant \| excluded \| included |
+| `--reason` | str, repeatable |  | --from: 'REASON=CRITERION', an exclusion reason as a criterion |
 
 Guide: [Screening](Screening), [Blinding and independence](Blinding-and-Independence)
 

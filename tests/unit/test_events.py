@@ -183,3 +183,27 @@ def test_iter_event_files_finds_ndjson_files(tmp_path: Path) -> None:
     append_new_event(path, ev="note", actor="ethan", body={"subject": "a", "text": "1"})
     files = iter_event_files(tmp_path)
     assert files == [path]
+
+
+def test_two_writers_on_one_file_number_and_chain_their_events_in_turn(tmp_path: Path) -> None:
+    import threading
+
+    (tmp_path / "strata.toml").write_text('schema_version = 1\n[project]\ntitle = "t"\n')
+    path = tmp_path / "events" / "screen" / "title-abstract" / "ada.ndjson"
+    start = threading.Barrier(2)
+
+    def write(who: str) -> None:
+        start.wait()
+        for n in range(60):
+            append_new_event(path, ev="note", actor="ada", body={"by": who, "n": n})
+
+    threads = [threading.Thread(target=write, args=(who,)) for who in ("web", "cli")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    events = read_events(path)
+    assert sorted(int(e["seq"]) for e in events) == list(range(1, 121))  # no number twice
+    assert verify_chain(path) == []  # each event chained to the one before it
+    assert not (tmp_path / ".strata" / "lock").exists()  # and the lock let go

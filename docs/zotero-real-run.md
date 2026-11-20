@@ -1,6 +1,6 @@
 # The Zotero integration against a real Zotero
 
-First run of `strata`'s Zotero integration (`openspec/changes/add-zotero-integration`) against a running
+First run of `strata`'s Zotero integration (`openspec/changes/add-zotero-integration`, since archived as `openspec/changes/archive/2026-11-20-add-zotero-integration`) against a running
 Zotero. Until now every test talked to `tests/zotero_fake.py`, written from the API documentation. This
 records where real Zotero differs. Nothing under `src/` was changed. Raw evidence is in
 `tests/fixtures/zotero/captured/10/` (read its `README.md` first).
@@ -181,7 +181,7 @@ which also moved their versions. No key was stored in the keychain.
 ## Consequences for `strata`
 
 Not changed in the run itself. **Since fixed** (see the notes in
-`openspec/changes/add-zotero-integration/tasks.md` and `tests/unit/test_zotero_real_captures.py`): the
+`openspec/changes/archive/2026-11-20-add-zotero-integration/tasks.md` and `tests/unit/test_zotero_real_captures.py`): the
 string `csljson`, local versions, native PMID fields and PMIDs in `note`, the opener, string
 `date-parts`, the fixtures and a `10` profile. Left as it is: an edited item already in the collection is
 "already there", and `strata` does not write through the local API.

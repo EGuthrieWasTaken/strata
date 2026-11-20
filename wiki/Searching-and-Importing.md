@@ -111,6 +111,33 @@ are recognised from the header row, so `strata import scopus.csv` just works; fo
 - **Nothing is fetched.** `strata` does not look anything up unless you enable *enrichment* in
   `strata.toml` (it then only asks Unpaywall for legal open-access links).
 
+### Moving a review from Rayyan, Covidence or EPPI-Reviewer
+
+`strata` reads an export from each, in two steps: the records first, then the screening decisions in
+the same file.
+
+```
+strata import articles.csv --format rayyan --search S-01-medline --by ada
+strata screen title-abstract --by ada --decisions articles.csv --from rayyan --reviewer Ada \
+    --reason "wrong population=EXC-01"
+```
+
+| Tool | The export | What `--from` needs |
+|---|---|---|
+| Rayyan | the CSV export (`articles.csv`) | `--reviewer`, the name Rayyan shows, since the file holds every reviewer's decisions; run once per reviewer, each with their own `--by` |
+| Covidence | the CSV export of one list | `--list irrelevant`, `excluded` or `included`; the list is the decision (an excluded study was included at title and abstract and excluded at full text) |
+| EPPI-Reviewer | the JSON export | nothing more: a reference's Include and Exclude codes are its decision |
+
+- **Every decision is marked as imported** and attributed to `--by`: `strata` cannot show that two
+  reviewers in another tool decided independently, and says so wherever it counts agreement.
+- **An exclusion needs a criterion.** The tools record a reason as text; `--reason "TEXT=CRITERION"` says
+  which of your criteria it stands for. An exclusion whose reason you have not mapped is listed as not
+  recorded, with the reason, rather than recorded without one.
+- **A decision for a record not yet imported is listed, not recorded.** Import the file first.
+- **Not yet checked against real exports.** The three formats were written from each tool's
+  documentation. If an export of yours is refused or read wrongly, please report it (with the
+  identifying details removed).
+
 ## Looking at what you have
 
 ```

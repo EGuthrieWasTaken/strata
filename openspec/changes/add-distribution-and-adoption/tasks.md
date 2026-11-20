@@ -27,8 +27,39 @@
 
 ## Notes
 
-Only task 2.4 is built. 4.1 stays open: it covers every new parser, and the Covidence, Rayyan and
-EPPI-Reviewer imports (2.1-2.3) do not exist yet.
+- 3.1: `examples/bcg-vaccine/` is the 13 BCG trials of Colditz et al. (1994), built through the command
+  line by `build.py` (import, dual screening, extraction of each 2x2 table, latitude and allocation, two
+  analyses, the PRISMA diagram, Methods and Results), with the results a rebuild reproduces byte for byte in
+  `results/`. `tests/e2e/test_worked_example_bcg.py` rebuilds it, holds it to Viechtbauer's (2010) published
+  values (pooled log RR -0.7145, tau^2 0.3132, latitude slope -0.0291) and to `results/`, and verifies it.
+  **Not yet complete as a review:** the records are stubs naming each trial (`dat.bcg` gives first author and
+  year only), so no full text can be recorded as retrieved and the PRISMA diagram is a draft. Giving each
+  trial its real citation (title, journal, DOI or PMID) would finish it; that needs someone with access to
+  the literature. Stays open until then.
+
+- 1.2: `packaging/pyinstaller/strata.spec` builds a single-file binary; `.github/workflows/binaries.yml` builds
+  it on Linux x64, macOS arm64, macOS x64 and Windows x64, smoke-tests each on its own runner
+  (`scripts/binary_smoke.sh`: init, import, verify, a report and the web UI's `/healthz`), and `release.yml`
+  attaches them to the draft release. Built and smoke-tested here on Linux x64; the other three are first
+  built by CI. **Not yet as the task says:** macOS is two binaries rather than one universal one (that
+  needs a universal Python build), and there is no musl Linux binary (that needs a build in an Alpine
+  container). Stays open for those and for a release that carries them.
+- 1.3, 4.2: Homebrew's formula and conda-forge's recipe both start from a published sdist on PyPI (its URL and
+  SHA-256, and for Homebrew a resource for each dependency), so they wait for 1.1; so does a nightly
+  cold install of the published artefacts.
+
+Task 2.4 is built. 2.1-2.3 are built from each tool's documented export format but stay open until a
+real export from each has been checked against them; 4.1 stays open with them.
+
+- 2.1-2.3: `ingest/parsers/migration.py` reads the Rayyan CSV export (decisions per reviewer in `notes`,
+  `RAYYAN-INCLUSION` and `RAYYAN-EXCLUSION-REASONS`), the Covidence CSV export of one list and the
+  EPPI-Reviewer JSON export (Include and Exclude codes). `strata import --format rayyan|covidence|eppi-json`
+  imports the records; `strata screen <stage> --decisions <file> --from <tool>` records the decisions,
+  attributed to `--by` and marked `imported: true` (`protocol/migrated_decisions.py`), with `--reviewer`
+  for Rayyan, `--list` for Covidence and `--reason TEXT=CRITERION` to say which criterion an exclusion
+  reason stands for. A row matching no record, and an exclusion whose reason names no criterion, are
+  reported and not recorded. Fixtures (`tests/fixtures/migration/`) are hand-written and say so; parser
+  and CLI tests and fuzz tests cover them. **Not checked against a real export of any of the three.**
 
 - 2.4: EndNote XML (`ingest/parsers/endnote_xml.py`), Excel (`ingest/parsers/xlsx.py`, standard library
   only, with caps on file size, unpacked size, rows, columns and cell length, `--sheet`) and the

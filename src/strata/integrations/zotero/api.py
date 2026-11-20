@@ -45,7 +45,11 @@ class ZoteroError(ReferenceManagerError):
 
 
 class ZoteroUnavailableError(ReferenceManagerUnavailableError):
-    """Zotero could not be reached."""
+    """Zotero could not be reached; `timed_out` when it was there but too slow to answer."""
+
+    def __init__(self, message: str, *, timed_out: bool = False) -> None:
+        super().__init__(message)
+        self.timed_out = timed_out
 
 
 class ZoteroNotFoundError(ZoteroError):
@@ -136,7 +140,8 @@ class ZoteroApi:
                 raw = self.transport.request(method, url, sent_headers, payload, self.timeout)
             except TransportError as exc:
                 raise ZoteroUnavailableError(
-                    f"could not reach Zotero at {self.base_url}: {exc}"
+                    f"could not reach Zotero at {self.base_url}: {exc}",
+                    timed_out=getattr(exc, "timed_out", False),
                 ) from None
             response = ApiResponse(raw.status, raw.headers, raw.body)
             self._backoff = _seconds(response.headers.get("backoff")) or 0.0

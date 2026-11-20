@@ -31,14 +31,16 @@ front of it obtaining the TLS certificate. Copy the folder to the server, then:
 ```
 mkdir -p secrets
 python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())' > secrets/strata_instance_key
-chmod 600 secrets/strata_instance_key
+sudo chown 10001:10001 secrets/strata_instance_key && sudo chmod 600 secrets/strata_instance_key
 export STRATA_DOMAIN=strata.example.org
 docker compose run --rm strata host init --admin you --admin-name "Your Name" --invite
 docker compose up -d
 ```
 
 `strata_instance_key` encrypts the secrets the instance stores (it is kept out of the data volume on
-purpose). `host init` creates the instance and its first administrator, and with `--invite` prints a link you
+purpose). Compose hands a secret file to the container as it is on the server, owner and mode included, and
+the instance runs as uid 10001: a key readable only by you is unreadable to it, and `host init` stops with
+"Permission denied". Give each file in `secrets/` to uid 10001, as above. `host init` creates the instance and its first administrator, and with `--invite` prints a link you
 open to choose your password:
 
 ```
@@ -71,7 +73,8 @@ docker compose run --rm strata host project add spacing \
 
 `ssh-key:spacing-deploy-key` names a *secret*, not a file: the private key is the container secret
 `secrets/spacing-deploy-key` in `compose.yaml` (or an environment variable `STRATA_SECRET_SPACING_DEPLOY_KEY`,
-or stored encrypted with `strata host secret set spacing-deploy-key < id_ed25519`). For HTTPS use
+or stored encrypted with `strata host secret set spacing-deploy-key < id_ed25519`). Like the instance key, the
+file must belong to uid 10001 (`sudo chown 10001:10001 secrets/spacing-deploy-key`). For HTTPS use
 `--credential token:<name>`. A remote URL with a password or token written into it is refused, because it would
 be stored in plain text.
 

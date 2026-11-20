@@ -33,5 +33,5 @@ from a running Zotero. The bibliographic metadata is the project's usual running
 al. 2008, Roediger & Karpicke 2006) plus invented records; nothing is copied from a real library.
 They pin the shape `strata` reads; they cannot show that a particular Zotero release serves that
 shape. That needs a person with Zotero running: capture a library from it, check `library.json`
-against the capture, and add a `profile.json` for any further major version. Until that has been
-done, task 5.1 of `add-zotero-integration` stays open.
+against the capture, and add a `profile.json` for any further major version. That was done for Zotero 10, the
+supported version (`captured/10/`), which closed task 5.1 of `add-zotero-integration` (archived).

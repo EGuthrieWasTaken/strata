@@ -98,3 +98,24 @@ def test_the_local_zotero_is_never_sent_through_a_proxy(
     response = UrllibTransport().request("GET", f"{server}/api/x", {}, None, 5.0)
 
     assert response.status == 200
+
+
+def test_a_timeout_is_told_apart_from_a_refusal(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import urllib.error
+
+    from strata.integrations.zotero import http as http_mod
+    from strata.integrations.zotero.probe import probe_local
+
+    def refuse(*_a, **_k):  # type: ignore[no-untyped-def]
+        raise urllib.error.URLError(ConnectionRefusedError(111, "Connection refused"))
+
+    def stall(*_a, **_k):  # type: ignore[no-untyped-def]
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    from strata.integrations.zotero.connect import make_http_transport
+
+    transport = make_http_transport()
+    monkeypatch.setattr(http_mod._DIRECT_OPENER, "open", refuse)
+    assert probe_local(transport)[1] == "Zotero is not running on this computer"
+    monkeypatch.setattr(http_mod._DIRECT_OPENER, "open", stall)
+    assert "is running but did not answer" in probe_local(transport)[1]

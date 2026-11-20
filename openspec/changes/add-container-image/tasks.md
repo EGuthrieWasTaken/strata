@@ -5,7 +5,7 @@
 - [x] 1.1 Add a multi-stage `Dockerfile` (`python:3.12-slim` pinned by digest, `uv sync --frozen`, `git` installed, non-root uid 10001, writable `HOME`, `WORKDIR /review`, entrypoint `strata`) and a `.dockerignore`
 - [x] 1.2 Set `safe.directory = *` in the container's system git config and document why
 - [x] 1.3 Add a `HEALTHCHECK` using `/healthz`
-- [ ] 1.4 Add an example `compose.yaml` for the local web UI (loopback-published port, repository bind mount, token from an environment variable)
+- [x] 1.4 Add an example `compose.yaml` for the local web UI (loopback-published port, repository bind mount, token from an environment variable) *(run on 20 November 2026 with Docker 29.9: published on 127.0.0.1 only, healthy, 403 without the token and the dashboard with it; a write run as uid 1000 left files owned by uid 1000 and a commit with the author passed in)*
 
 ## 2. Web UI changes
 
@@ -43,11 +43,13 @@ that run has not covered.
   token; `/healthz`) passed, and the determinism fixture was byte-identical natively and in the image. The base
   image is pinned by digest (the index digest of `python:3.12-slim`, taken from a registry lookup in CI).
 - 1.3 / 1.4: the `HEALTHCHECK` is declared and the smoke test waits for Docker to report the container
-  healthy, which the `container` jobs have seen on every run, so 1.3 is done; `compose.yaml`'s structure is
-  tested but it has not been run, so 1.4 stays open.
-- 3.4: GHCR publishing with BuildKit SBOM and provenance is in `release.yml`; **cosign signing is not
-  done** (same reason as the Sigstore note in `release.yml`); the release-tag publish has not run, while the
-  `container.yml` publish for pull requests has.
+  healthy, which the `container` jobs have seen on every run, so 1.3 is done; `compose.yaml` was run with
+  Docker on Linux (see 1.4), not yet on Docker Desktop for macOS or Windows.
+- 3.4: GHCR publishing with BuildKit SBOM and provenance is in `release.yml`, and the manifest job now signs
+  the multi-architecture image with cosign v2.5.0 (pinned by version and SHA-256, keyless with GitHub's OIDC
+  token, by digest) and checks the signature as a user would. **None of the release-tag path has run**: it
+  waits for the first tag, so 3.4 stays open until that run is seen green. The `container.yml` publish for
+  pull requests has run.
 - 3.5: `cold-install-container` is in `nightly.yml` and passes (it builds the image without a cache and runs
   the smoke test).
 - 4.1: the wiki page is `wiki/Running-in-a-Container.md`, the same material as `docs/container.md`.

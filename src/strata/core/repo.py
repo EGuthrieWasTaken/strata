@@ -7,6 +7,7 @@ and the locking model in openspec:architecture#concurrency-and-locking.
 from __future__ import annotations
 
 import contextlib
+import threading
 import tomllib
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -108,6 +109,10 @@ class HeldLock:
     reclaimed_from: int | None = None
 
 
+#: The repository locks this thread holds, and how many times over (`repo_lock`).
+_HELD = threading.local()
+
+
 @contextlib.contextmanager
 def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[HeldLock]:
     """Advisory lock guarding mutating operations, per
@@ -116,9 +121,22 @@ def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[Hel
     Readers never take this lock. Held for the duration of an append-plus-commit. The lock is the
     operating system's, so a holder that dies releases it with its last breath
     (`strata.core.lockfile`); the result says when that happened to the previous holder.
+
+    Re-entrant within a thread: an operation that holds it can call a helper that takes it too (a
+    commit takes it whoever calls it), and only the outermost release lets it go. Another thread,
+    like another process, waits.
     """
     lock_path = repo.path(*LOCK_PATH.split("/"))
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+    held: dict[str, int] = _HELD.__dict__.setdefault("paths", {})
+    key = str(lock_path.resolve())
+    if key in held:
+        held[key] += 1
+        try:
+            yield HeldLock()
+        finally:
+            held[key] -= 1
+        return
     try:
         fd, reclaimed_from = lockfile.acquire(lock_path, timeout)
     except lockfile.LockTimeout as exc:
@@ -126,7 +144,9 @@ def repo_lock(repo: Repo, timeout: float = DEFAULT_LOCK_TIMEOUT) -> Iterator[Hel
         raise LockTimeoutError(
             f"repository is locked (held by process {holder}); timed out after {timeout:g}s"
         ) from None
+    held[key] = 1
     try:
         yield HeldLock(reclaimed_from=reclaimed_from)
     finally:
+        del held[key]
         lockfile.release(lock_path, fd)

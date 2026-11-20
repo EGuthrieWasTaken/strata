@@ -43,6 +43,7 @@ from strata.protocol import suggestions as sugg
 from strata.protocol.suggestions import Suggestion
 from strata.report import counts as counts_mod
 from strata.report import flow as flow_mod
+from strata.report import sections as sections_mod
 
 #: Kinds of work whose validity or meaning depends on the criteria, so a change of criteria since a
 #: suggestion was made means the person should look again before adopting it.
@@ -386,6 +387,29 @@ def _write_prisma(repo: Repo, args: Mapping[str, Any], actor: str, rationale: st
     return CommitShape("prisma", None, f"drew the PRISMA flow diagram ({fmt})")
 
 
+def _check_report(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> None:
+    del actor, rationale
+    try:
+        name = ops_mod.check_report_request(args["section"], args.get("format", "md"))
+    except ops_mod.ReportRequestError as exc:
+        raise sugg.SuggestionError(str(exc)) from None
+    if name != "amendments":
+        counts_mod.require_reconciled(counts_mod.compute(repo))  # checks; regenerates nothing
+
+
+def _write_report(repo: Repo, args: Mapping[str, Any], actor: str, rationale: str) -> CommitShape:
+    del actor, rationale
+    fmt = args.get("format", "md")
+    name = ops_mod.check_report_request(args["section"], fmt)
+    facts = ops_mod.report_facts(repo, name)
+    try:
+        outputs = ops_mod.render_report(repo, name, fmt, facts)
+    except sections_mod.PandocError as exc:
+        raise sugg.SuggestionError(str(exc)) from None
+    ops_mod.write_report(repo, outputs, out=None)
+    return CommitShape("report", name, f"generated the {name} report")
+
+
 sugg.register(
     sugg.OpSpec(
         name="analyze",
@@ -408,7 +432,19 @@ sugg.register(
         summary=lambda a: f"draw the PRISMA flow diagram ({a.get('format', 'svg')})",
     )
 )
+sugg.register(
+    sugg.OpSpec(
+        name="report",
+        kind="analysis",
+        required=("section",),
+        optional=("format",),
+        check=_check_report,
+        target=lambda a: f"report:{a['section']}:{a.get('format', 'md')}",
+        summary=lambda a: f"generate the {a['section']} report ({a.get('format', 'md')})",
+    )
+)
 WRITERS["analyze"] = _write_analyze
+WRITERS["report"] = _write_report
 WRITERS["prisma"] = _write_prisma
 
 

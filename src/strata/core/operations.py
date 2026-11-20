@@ -29,7 +29,7 @@ own terms.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeAlias
@@ -58,8 +58,11 @@ from strata.protocol import retrieval as retrieval_mod
 from strata.protocol import screening as screening_mod
 from strata.protocol import searches as searches_mod
 from strata.protocol import studies as studies_mod
+from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
+from strata.report import facts as facts_mod
 from strata.report import flow as flow_mod
+from strata.report import sections as sections_mod
 
 #: What a caller can hand an operation as its rationale: the text, nothing, or a function that
 #: produces it once the work is written (the interactive prompt).
@@ -137,10 +140,6 @@ def _commit(
     trailers: dict[str, str],
     paths: list[str],
 ) -> None:
-    # Another reviewer's screening decisions that are still waiting for their batch must not ride
-    # along in this commit (`strata.core.screen_batches`). A screening commit is the one that is
-    # meant to hold its own reviewer's.
-    flush_pending_screening(repo, except_actors=_own_screening(op, trailers))
     fitted_scope, fitted_summary = fit_subject(op, scope, summary)
     acting = agents_mod.current_context()
     message = StructuredCommit(
@@ -150,8 +149,15 @@ def _commit(
         body=rationale,
         trailers={**trailers, **(acting.commit_trailers() if acting else {})},
     ).message()
-    gitio.add(repo.root, paths)
-    gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
+    # Staging and committing hold the repository lock, whoever calls this
+    # (openspec:architecture#concurrency-and-locking); an operation that already holds it re-enters.
+    with repo_lock(repo):
+        # Another reviewer's screening decisions that are still waiting for their batch must not
+        # ride along in this commit (`strata.core.screen_batches`). A screening commit is the one
+        # that is meant to hold its own reviewer's.
+        flush_pending_screening(repo, except_actors=_own_screening(op, trailers))
+        gitio.add(repo.root, paths)
+        gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
 
 
 def _own_screening(op: str, trailers: dict[str, str]) -> tuple[str, ...]:
@@ -206,12 +212,14 @@ def commit_domain_work(
         pool_mod.regenerate_all(repo)  # whatever this changed, the derived views follow it
     if not commit:
         return False
-    # First, so that pending screening files are not mistaken for this operation's own changes: with
-    # them counted, an operation that changed nothing would "have something to commit".
-    flush_pending_screening(repo, except_actors=_own_screening(op, {"Actor": actor}))
-    paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
-    if not gitio.has_changes(repo.root, paths):
-        return False
+    with repo_lock(repo):
+        # First, so that pending screening files are not mistaken for this operation's own changes:
+        # with them counted, an operation that changed nothing would "have something to commit".
+        flush_pending_screening(repo, except_actors=_own_screening(op, {"Actor": actor}))
+        paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
+        if not gitio.has_changes(repo.root, paths):
+            return False
+    # The rationale is asked for outside the lock: a person may take a while to give it.
     text = _resolve_rationale(repo, rationale)
     _commit(
         repo,
@@ -690,6 +698,109 @@ def add_criterion(
     )
 
 
+@dataclass(frozen=True)
+class CriterionChanged:
+    """A criterion edited or retired: the criterion as it now stands and the criteria version."""
+
+    criterion: dict[str, Any]
+    version: int
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def _commit_criteria_change(
+    repo: Repo, *, op: str, criterion_id: str, summary: str, actor: str, rationale: str
+) -> None:
+    _commit(
+        repo,
+        op=op,
+        scope=criterion_id,
+        summary=summary,
+        rationale=rationale,
+        trailers={"Op": op, "Criterion": criterion_id, "Actor": actor},
+        paths=["protocol/criteria.yaml", "events/criteria", "derived"],
+    )
+
+
+def edit_criterion(
+    repo: Repo,
+    criterion_id: str,
+    *,
+    direction: str,
+    actor: str,
+    rationale: str,
+    label: str | None = None,
+    definition: str | None = None,
+    applies_at: Sequence[str] | None = None,
+    commit: bool = True,
+    on_written: Callable[[CriterionChanged], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> CriterionChanged:
+    """Edit a criterion (`strata criteria edit`), classifying the change's direction
+    (openspec:criteria-management#declaring-the-direction-of-a-change).
+
+    Like `add_criterion`: the rationale is required and recorded in the event, and what the change
+    makes stale is regenerated even when nothing is committed.
+    """
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        criterion = criteria_mod.edit_criterion(
+            repo,
+            criterion_id,
+            direction=direction,  # type: ignore[arg-type]
+            actor=actor,
+            rationale=text,
+            label=label,
+            definition=definition,
+            applies_at=list(applies_at) if applies_at is not None else None,
+        )
+        version = int(criteria_mod.read_criteria_doc(repo)["version"])
+        if on_written is not None:
+            on_written(CriterionChanged(criterion, version, False, held.reclaimed_from))
+        pool_mod.regenerate_all(repo)
+        if commit:
+            _commit_criteria_change(
+                repo,
+                op="criteria-edit",
+                criterion_id=criterion_id,
+                summary=f"edit criterion {criterion_id} ({direction})",
+                actor=actor,
+                rationale=text,
+            )
+    return CriterionChanged(criterion, version, commit, held.reclaimed_from)
+
+
+def retire_criterion(
+    repo: Repo,
+    criterion_id: str,
+    *,
+    actor: str,
+    rationale: str,
+    commit: bool = True,
+    on_written: Callable[[CriterionChanged], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> CriterionChanged:
+    """Retire a criterion (`strata criteria retire`); it behaves as `loosened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        criterion = criteria_mod.retire_criterion(repo, criterion_id, actor=actor, rationale=text)
+        version = int(criteria_mod.read_criteria_doc(repo)["version"])
+        if on_written is not None:
+            on_written(CriterionChanged(criterion, version, False, held.reclaimed_from))
+        pool_mod.regenerate_all(repo)
+        if commit:
+            _commit_criteria_change(
+                repo,
+                op="criteria-retire",
+                criterion_id=criterion_id,
+                summary=f"retire criterion {criterion_id}",
+                actor=actor,
+                rationale=text,
+            )
+    return CriterionChanged(criterion, version, commit, held.reclaimed_from)
+
+
 # ---------------------------------------------------------------------------------- assignment
 
 
@@ -1151,6 +1262,111 @@ def write_prisma(
         table = path.with_name("prisma-exclusion-reasons.tsv")
         table.write_text(flow_mod.reasons_table(rendered.counts), encoding="utf-8", newline="\n")
         written.append(table)
+    return written
+
+
+# ------------------------------------------------------------------------------ manuscript text
+
+#: The file extension each `strata report --format` is written with.
+REPORT_EXT = {
+    "md": "md",
+    "html": "html",
+    "docx": "docx",
+    "latex": "tex",
+    "csv": "csv",
+    "svg": "svg",
+}
+
+
+class ReportRequestError(ValueError):
+    """A report that cannot be asked for (`str()` is fit to show a person); `refused` when it is
+    one `strata` never writes (a Discussion or a Conclusion), as opposed to one mistyped."""
+
+    def __init__(self, message: str, *, refused: bool = False) -> None:
+        super().__init__(message)
+        self.refused = refused
+
+
+def report_formats(name: str) -> set[str]:
+    """The `--format` values a section can be written in."""
+    return (
+        {"md", "html", "docx", "latex"}
+        | ({"csv"} if name == "characteristics" else set())
+        | ({"svg"} if name == "rob" else set())
+    )
+
+
+def check_report_request(section: str, fmt: str) -> str:
+    """The section's name, or `ReportRequestError` for one that cannot be written as asked."""
+    name = section.lower()
+    if "discussion" in name or "conclusion" in name:
+        raise ReportRequestError(sections_mod.DISCUSSION_REFUSAL, refused=True)
+    if name not in sections_mod.SECTIONS:
+        raise ReportRequestError(
+            f"unknown report section {section!r}; "
+            f"the sections are {', '.join(sections_mod.SECTIONS)}"
+        )
+    allowed = report_formats(name)
+    if fmt not in allowed:
+        raise ReportRequestError(f"--format for {name} must be one of {', '.join(sorted(allowed))}")
+    return name
+
+
+def report_facts(repo: Repo, name: str) -> facts_mod.Facts:
+    """What a report is written from, with `derived/counts.json` regenerated and (but for the
+    amendments, which do not use them) the counts required to close
+    (`counts.CountReconcileError`)."""
+    facts = facts_mod.collect(repo)
+    counts_mod.regenerate_counts_json(repo, facts.counts)
+    if name != "amendments":
+        counts_mod.require_reconciled(facts.counts)
+    return facts
+
+
+def render_report(repo: Repo, name: str, fmt: str, facts: facts_mod.Facts) -> dict[str, bytes]:
+    """The files a section is written as (`strata report`), by file name; nothing is written.
+    `sections.PandocError` when a format needs pandoc and it fails or is absent."""
+    outputs: dict[str, bytes] = {}
+    if name == "checklist":
+        outputs["prisma-checklist.md"] = checklist_mod.render(facts).encode("utf-8")
+    elif name == "rob":
+        if fmt != "svg":
+            outputs["rob.md"] = sections_mod.rob_markdown(repo, facts).encode("utf-8")
+        plot = sections_mod.rob_svg(repo)
+        if plot is not None and fmt in ("md", "svg"):
+            outputs["rob-traffic-light.svg"] = plot
+    elif name == "characteristics" and fmt == "csv":
+        columns, rows = sections_mod.characteristics_rows(repo)
+        table = "\n".join(
+            "\t".join(c.replace("\t", " ").replace("\n", " ") for c in row)
+            for row in [columns, *rows]
+        )
+        outputs["characteristics.tsv"] = (table + "\n").encode("utf-8")
+    else:
+        text = {
+            "methods": lambda: sections_mod.methods(facts),
+            "results": lambda: sections_mod.results(facts),
+            "characteristics": lambda: sections_mod.characteristics_markdown(repo, facts),
+            "amendments": lambda: sections_mod.amendments_section(facts),
+            "manuscript": lambda: sections_mod.manuscript(facts),
+        }[name]()
+        outputs[f"{name}.{REPORT_EXT[fmt]}"] = sections_mod.convert(
+            text, fmt, title=str(facts.project.get("title", ""))
+        )
+    return outputs
+
+
+def write_report(repo: Repo, outputs: Mapping[str, bytes], *, out: Path | None) -> list[Path]:
+    """Write rendered report files to `reports/` or, with `out`, there (beside it when there is
+    more than one file); the files written."""
+    written: list[Path] = []
+    for filename, payload in outputs.items():
+        target = out if out is not None else repo.path("reports", filename)
+        if out is not None and len(outputs) > 1:
+            target = out.parent / filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        written.append(target)
     return written
 
 

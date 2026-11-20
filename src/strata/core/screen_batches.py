@@ -232,8 +232,9 @@ def commit_screening_batch(repo: Repo, actor: str, *, body: str = BROWSER_BODY) 
         body=body,
         trailers=trailers,
     ).message()
-    gitio.add(repo.root, [*changed, "derived"])
-    gitio.commit(repo.root, message)
+    with repo_lock(repo):
+        gitio.add(repo.root, [*changed, "derived"])
+        gitio.commit(repo.root, message)
     return True
 
 
@@ -244,8 +245,8 @@ def flush_pending_screening(
     own identity; how many commits that made. `except_actors` are left alone (a screening commit
     for them is the thing being made).
 
-    Does not take the repository lock: it is called from inside operations that already hold it
-    (the lock is the operating system's and is not reentrant), and by callers that take it first.
+    Each batch's commit takes the repository lock (re-entrant, so an operation that holds it can
+    call this); `flush_under_lock` holds it across the whole flush.
     """
     resolver = _IDENTITY.get()
     made = 0
