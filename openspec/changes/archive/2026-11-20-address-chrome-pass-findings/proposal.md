@@ -2,7 +2,7 @@
 
 ## Why
 
-An agent went through `strata serve` in Chrome ([`docs/chrome-pass-results.md`](../../../docs/chrome-pass-results.md))
+An agent went through `strata serve` in Chrome ([`docs/chrome-pass-results.md`](../../../../docs/chrome-pass-results.md))
 and filed nine issues, #83 to #91. Seven are faults or gaps in the web interface that the specification
 either did not cover or covered in a way the pass showed to be wrong:
 
