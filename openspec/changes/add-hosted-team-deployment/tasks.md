@@ -33,6 +33,14 @@
 - [x] 4.4 Server-side blinding between users on the same instance, including MCP responses
 - [x] 4.5 Remote credentials and OIDC secrets from operator-supplied secrets or encrypted at rest; never in a review repository or echoed in the UI
 - [ ] 4.6 Security review before release
+- [ ] 4.7 Host keys: keep trust on first use as the default, let the operator pin a project's SSH host key when adding it, and print the accepted key's fingerprint at the first clone
+- [ ] 4.8 API tokens name one project and expire (`strata host token add --project --days`); existing tokens keep working until revoked
+- [ ] 4.9 A signed-in person can change their own password with their current one; their other sessions end
+- [ ] 4.10 Warn once when `X-Forwarded-For` arrives from an address not in `--trusted-proxies`
+- [ ] 4.11 Log membership grants, role changes, removals and token creation and revocation, with who did each, beside the sign-in log
+- [ ] 4.12 An OpenID Connect invitation is used only once the identity is known not to be linked to another account
+- [ ] 4.13 A project with a symbolic link is refused on its own (shown as unavailable, naming the link); the instance and its other projects start
+- [ ] 4.14 Every refusal added by 4.7 to 4.13 says, in plain language, in the log and to the person refused, what was refused, why, and what fixes it (for example: the project, the link's path, and how to remove it and push), without revealing to a non-member that a project exists
 
 ## 5. Remote MCP
 
@@ -93,8 +101,8 @@
   pre-sign-in CSRF token was compared in variable time. It lists seven choices for the maintainer
   (host-key pinning, per-project and expiring API tokens, self-service password change, a warning for
   an untrusted proxy, invitation use with OpenID Connect, an audit log of grants, failing closed on a
-  symbolic link). Still by the same kind of reviewer that wrote the code, so 4.6 stays open for the
-  maintainer's decision.
+  symbolic link). The maintainer decided them on 20 November 2026 (4.7 to 4.13). Still by the same kind
+  of reviewer that wrote the code, so 4.6 stays open for the maintainer's decision on an independent review.
 - 6.1: `docker/hosted/compose.yaml` and `Caddyfile` were written and structure-tested, then run with Docker
   (see the task). Not exercised: Let's Encrypt (it needs a public DNS name) and a deploy key reaching a real
   git host.

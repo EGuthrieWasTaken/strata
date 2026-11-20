@@ -66,6 +66,24 @@ Also hardened: `gitio.clone` now passes `--` before the URL, so no URL can be re
 None of these is a defect in what the specification asks for; each is a choice the specification
 does not make.
 
+**Decided on 20 November 2026** (tasks 4.7 to 4.13 of `add-hosted-team-deployment`):
+
+| # | Decision |
+|---|---|
+| 1 | Optional pinning: trust on first use stays the default, the operator can supply a project's host key, and the first clone prints the accepted key's fingerprint |
+| 2 | Tokens name one project and expire; existing tokens work until revoked |
+| 3 | Self-service password change, with the current password; other sessions end |
+| 4 | Warn once on `X-Forwarded-For` from an untrusted address |
+| 5 | Check the identity is not linked elsewhere before using the invitation |
+| 6 | Log grants, role changes, removals and token creation and revocation |
+| 7 | Refuse the project with a link on its own; the instance starts |
+
+For all seven, every refusal says in plain language, in the log and to the person refused, what was
+refused, why, and how to fix it (task 4.14). Messages to someone who is not a member still do not
+reveal whether a project exists.
+
+The choices as they were put:
+
 1. **Host keys are trusted on first use** (`StrictHostKeyChecking=accept-new`). An attacker in the
    network path at the first clone could pose as the git host. Pinning would need the operator to
    supply the host key (`known_hosts` in instance state) when adding a project.
