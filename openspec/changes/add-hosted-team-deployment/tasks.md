@@ -85,6 +85,16 @@
   pre-sign-in forms (now refused over 1 MiB or without a length), login CSRF through the OIDC callback (the
   state is now bound to the browser with a cookie), and invitation tokens in the access log (now off). That
   pass is not the independent review this task asks for before a release.
+  A second pass (`docs/security-review-hosted.md`, 20 November 2026) fixed six more, each with a test: a
+  symbolic link pushed to a project's remote was checked out as one, letting the screens reach files outside
+  the project (now `core.symlinks=false` from the first checkout, and a project with a link is refused); an
+  invitation could be used twice by concurrent requests; a new password did not end old sessions; the
+  members form could demote the only lead; an `ssh://` URL with a password was accepted; and the
+  pre-sign-in CSRF token was compared in variable time. It lists seven choices for the maintainer
+  (host-key pinning, per-project and expiring API tokens, self-service password change, a warning for
+  an untrusted proxy, invitation use with OpenID Connect, an audit log of grants, failing closed on a
+  symbolic link). Still by the same kind of reviewer that wrote the code, so 4.6 stays open for the
+  maintainer's decision.
 - 6.1: `docker/hosted/compose.yaml` and `Caddyfile` are written and their structure is tested (only the proxy
   is published, the options are ones `strata host` takes, `/data` in the image is writable); **they have not
   been run** (no container runtime was available), so 6.1 stays open, as `add-container-image`'s 1.4 did.

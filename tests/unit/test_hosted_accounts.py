@@ -141,3 +141,26 @@ def test_api_tokens_are_stored_hashed_and_revocable(store: Store, tmp_path: Path
     assert accounts.user_for_api_token(store, None) is None
     assert accounts.revoke_api_tokens(store, "sam", label="laptop") == 1
     assert accounts.user_for_api_token(store, token) is None
+
+
+def test_an_invitation_checked_by_two_requests_at_once_is_used_only_once(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    accounts.add_user(store, "ada")
+    token = accounts.create_invitation(store, "ada", now=100.0)
+    accounts.use_invitation(store, token, now=101.0)
+    # The second request passed the check before the first marked the invitation used.
+    monkeypatch.setattr(accounts, "invitation_user", lambda *_a, **_k: "ada")
+
+    with pytest.raises(accounts.AccountError, match="already been used"):
+        accounts.use_invitation(store, token, now=102.0)
+
+
+def test_a_new_password_ends_the_sessions_signed_in_with_the_old_one(store: Store) -> None:
+    accounts.add_user(store, "ada", password="correct horse battery")
+    cookie, _session = accounts.create_session(store, "ada", hours=8, now=100.0)
+    assert accounts.session_for(store, cookie, idle_minutes=60, now=101.0) is not None
+
+    accounts.set_password(store, "ada", "a different long passphrase")
+
+    assert accounts.session_for(store, cookie, idle_minutes=60, now=102.0) is None

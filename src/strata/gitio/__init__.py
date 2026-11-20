@@ -147,9 +147,12 @@ def init(path: Path, *, initial_branch: str = "main") -> None:
     run(["init", "--initial-branch", initial_branch], cwd=path)
 
 
-def clone(url: str, dest: Path) -> None:
+def clone(url: str, dest: Path, *, config: dict[str, str] | None = None) -> None:
+    """`git clone url dest`, with `config` set in the new repository before it checks anything out
+    (`git clone -c`)."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    run(["clone", url, str(dest)], cwd=dest.parent)
+    options = [arg for key, value in (config or {}).items() for arg in ("-c", f"{key}={value}")]
+    run(["clone", *options, "--", url, str(dest)], cwd=dest.parent)
 
 
 def add(path: Path, pathspecs: list[str]) -> None:

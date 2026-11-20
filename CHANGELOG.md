@@ -497,6 +497,11 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **Hosted instance security** (`docs/security-review-hosted.md`): a symbolic link pushed to a project's
+  remote is now checked out as a plain file (it could otherwise lead the screens outside the project), an
+  invitation can no longer be used twice by concurrent requests, a new password signs out the old
+  sessions, the only lead of a project cannot be demoted, and a remote URL with a password in it is
+  refused whatever its scheme.
 - **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
   another process's operation; they now run through `core/operations` under the lock, as `criteria add`
   does.
