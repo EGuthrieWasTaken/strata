@@ -67,7 +67,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
-from strata.core.screen_batches import batch_summary, flush_pending_screening, flush_under_lock
+from strata.core.screen_batches import batch_summary, flush_under_lock
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -1892,33 +1892,6 @@ def _split_stages(raw: str) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def _commit_criteria_op(
-    ctx: typer.Context,
-    repo: Repo,
-    *,
-    op: str,
-    criterion_id: str,
-    summary: str,
-    by: str,
-    rationale: str,
-) -> None:
-    # Regenerated regardless of --no-commit: a criteria change can make
-    # decisions stale even when the caller doesn't want a commit yet.
-    pool_mod.regenerate_all(repo)
-    if ctx.obj["no_commit"]:
-        return
-    commit_obj = StructuredCommit(
-        op=op,
-        scope=criterion_id,
-        summary=summary,
-        body=rationale,
-        trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
-    )
-    flush_pending_screening(repo)
-    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
-    gitio.commit(repo.root, commit_obj.message())
-
-
 @criteria_app.command("add")
 def criteria_add(
     ctx: typer.Context,
@@ -1981,36 +1954,34 @@ def criteria_edit(
     (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are editing {criterion_id} ({direction}).")
+
+    def say_what_was_edited(changed: ops_mod.CriterionChanged) -> None:
+        _warn_lock_reclaimed(changed.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json(changed.criterion)
+        else:
+            out_console.print(
+                f"[green]edited[/] {criterion_id} (criteria v{changed.version}, {direction})"
+            )
+
     try:
-        updated = criteria_mod.edit_criterion(
+        ops_mod.edit_criterion(
             repo,
             criterion_id,
-            direction=direction,  # type: ignore[arg-type]
+            direction=direction,
             actor=by,
             rationale=rationale,
             label=label,
             definition=definition,
             applies_at=_split_stages(applies_at) if applies_at is not None else None,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_edited,
         )
     except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json(updated)
-    else:
-        out_console.print(f"[green]edited[/] {criterion_id} (criteria v{version}, {direction})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-edit",
-        criterion_id=criterion_id,
-        summary=f"edit criterion {criterion_id} ({direction})",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("retire")
@@ -2021,27 +1992,28 @@ def criteria_retire(
     (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are retiring {criterion_id}.")
+
+    def say_what_was_retired(changed: ops_mod.CriterionChanged) -> None:
+        _warn_lock_reclaimed(changed.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json({"id": criterion_id, "status": "retired"})
+        else:
+            out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{changed.version})")
+
     try:
-        criteria_mod.retire_criterion(repo, criterion_id, actor=by, rationale=rationale)
+        ops_mod.retire_criterion(
+            repo,
+            criterion_id,
+            actor=by,
+            rationale=rationale,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_retired,
+        )
     except criteria_mod.CriteriaError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json({"id": criterion_id, "status": "retired"})
-    else:
-        out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{version})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-retire",
-        criterion_id=criterion_id,
-        summary=f"retire criterion {criterion_id}",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("list")

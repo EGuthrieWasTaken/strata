@@ -293,3 +293,51 @@ def test_a_dry_run_import_works_while_the_lock_is_held(tmp_path: Path) -> None:
 
     assert result.exit_code == EXIT_OK, result.output
     assert "would import" in result.output
+
+
+def test_editing_or_retiring_a_criterion_waits_for_the_lock_and_writes_nothing_without_it(
+    tmp_path: Path,
+) -> None:
+    repo = _init(tmp_path)
+    added = ops.add_criterion(
+        repo,
+        kind="inclusion",
+        label="Adults",
+        definition="Participants aged 18 or over",
+        applies_at=["title-abstract"],
+        actor="ethan",
+        rationale=_WHY,
+    )
+    criterion = added.criterion["id"]
+    before = len(gitio.log(repo.root))
+    criteria = (repo.root / "protocol" / "criteria.yaml").read_bytes()
+
+    with repo_lock(repo):
+        with pytest.raises(LockTimeoutError):
+            ops.edit_criterion(
+                repo,
+                criterion,
+                direction="editorial",
+                actor="ethan",
+                rationale=_WHY,
+                label="Adult participants",
+                lock_timeout=0.2,
+            )
+        with pytest.raises(LockTimeoutError):
+            ops.retire_criterion(repo, criterion, actor="ethan", rationale=_WHY, lock_timeout=0.2)
+
+    assert len(gitio.log(repo.root)) == before
+    assert (repo.root / "protocol" / "criteria.yaml").read_bytes() == criteria
+
+    edited = ops.edit_criterion(
+        repo, criterion, direction="editorial", actor="ethan", rationale=_WHY, label="Adults (18+)"
+    )
+    assert edited.committed and edited.criterion["label"] == "Adults (18+)"
+    message = gitio.commit_message(repo.root, "HEAD")
+    assert (
+        message.splitlines()[0]
+        == f"criteria-edit({criterion}): edit criterion {criterion} (editorial)"
+    )
+    assert (
+        f"Strata-Op: criteria-edit\nStrata-Criterion: {criterion}\nStrata-Actor: ethan" in message
+    )

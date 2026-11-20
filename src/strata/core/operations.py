@@ -693,6 +693,109 @@ def add_criterion(
     )
 
 
+@dataclass(frozen=True)
+class CriterionChanged:
+    """A criterion edited or retired: the criterion as it now stands and the criteria version."""
+
+    criterion: dict[str, Any]
+    version: int
+    committed: bool
+    lock_reclaimed_from: int | None = None
+
+
+def _commit_criteria_change(
+    repo: Repo, *, op: str, criterion_id: str, summary: str, actor: str, rationale: str
+) -> None:
+    _commit(
+        repo,
+        op=op,
+        scope=criterion_id,
+        summary=summary,
+        rationale=rationale,
+        trailers={"Op": op, "Criterion": criterion_id, "Actor": actor},
+        paths=["protocol/criteria.yaml", "events/criteria", "derived"],
+    )
+
+
+def edit_criterion(
+    repo: Repo,
+    criterion_id: str,
+    *,
+    direction: str,
+    actor: str,
+    rationale: str,
+    label: str | None = None,
+    definition: str | None = None,
+    applies_at: Sequence[str] | None = None,
+    commit: bool = True,
+    on_written: Callable[[CriterionChanged], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> CriterionChanged:
+    """Edit a criterion (`strata criteria edit`), classifying the change's direction
+    (openspec:criteria-management#declaring-the-direction-of-a-change).
+
+    Like `add_criterion`: the rationale is required and recorded in the event, and what the change
+    makes stale is regenerated even when nothing is committed.
+    """
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        criterion = criteria_mod.edit_criterion(
+            repo,
+            criterion_id,
+            direction=direction,  # type: ignore[arg-type]
+            actor=actor,
+            rationale=text,
+            label=label,
+            definition=definition,
+            applies_at=list(applies_at) if applies_at is not None else None,
+        )
+        version = int(criteria_mod.read_criteria_doc(repo)["version"])
+        if on_written is not None:
+            on_written(CriterionChanged(criterion, version, False, held.reclaimed_from))
+        pool_mod.regenerate_all(repo)
+        if commit:
+            _commit_criteria_change(
+                repo,
+                op="criteria-edit",
+                criterion_id=criterion_id,
+                summary=f"edit criterion {criterion_id} ({direction})",
+                actor=actor,
+                rationale=text,
+            )
+    return CriterionChanged(criterion, version, commit, held.reclaimed_from)
+
+
+def retire_criterion(
+    repo: Repo,
+    criterion_id: str,
+    *,
+    actor: str,
+    rationale: str,
+    commit: bool = True,
+    on_written: Callable[[CriterionChanged], None] | None = None,
+    lock_timeout: float = DEFAULT_LOCK_TIMEOUT,
+) -> CriterionChanged:
+    """Retire a criterion (`strata criteria retire`); it behaves as `loosened`
+    (openspec:criteria-management#declaring-the-direction-of-a-change)."""
+    text = validate_rationale(rationale)
+    with repo_lock(repo, timeout=lock_timeout) as held:
+        criterion = criteria_mod.retire_criterion(repo, criterion_id, actor=actor, rationale=text)
+        version = int(criteria_mod.read_criteria_doc(repo)["version"])
+        if on_written is not None:
+            on_written(CriterionChanged(criterion, version, False, held.reclaimed_from))
+        pool_mod.regenerate_all(repo)
+        if commit:
+            _commit_criteria_change(
+                repo,
+                op="criteria-retire",
+                criterion_id=criterion_id,
+                summary=f"retire criterion {criterion_id}",
+                actor=actor,
+                rationale=text,
+            )
+    return CriterionChanged(criterion, version, commit, held.reclaimed_from)
+
+
 # ---------------------------------------------------------------------------------- assignment
 
 
