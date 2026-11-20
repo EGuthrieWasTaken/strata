@@ -40,7 +40,7 @@
 
 ## 6. Operations
 
-- [ ] 6.1 Example `compose.yaml` for a hosted instance (image, data volume, secrets, reverse proxy with TLS)
+- [x] 6.1 Example `compose.yaml` for a hosted instance (image, data volume, secrets, reverse proxy with TLS) *(run on 20 November 2026 with Docker 29.9 and `STRATA_DOMAIN=localhost`, so Caddy used its own certificate rather than Let's Encrypt: only Caddy's ports published, plain HTTP redirected, an invitation accepted over HTTPS with a `__Host-` `Secure` session cookie, and used only once. Running it found that compose keeps a secret file's owner, so the `chmod 600` the walk-through gave left the key unreadable to the instance; the instructions now give the files to uid 10001)*
 - [x] 6.2 Wiki pages: running an instance, backups and restore from remotes, upgrading, inviting collaborators, mixing hosted and local collaborators
 
 ## 7. Tests (suite additions, docs/roadmap.md M5.1)
@@ -95,8 +95,8 @@
   an untrusted proxy, invitation use with OpenID Connect, an audit log of grants, failing closed on a
   symbolic link). Still by the same kind of reviewer that wrote the code, so 4.6 stays open for the
   maintainer's decision.
-- 6.1: `docker/hosted/compose.yaml` and `Caddyfile` are written and their structure is tested (only the proxy
-  is published, the options are ones `strata host` takes, `/data` in the image is writable); **they have not
-  been run** (no container runtime was available), so 6.1 stays open, as `add-container-image`'s 1.4 did.
+- 6.1: `docker/hosted/compose.yaml` and `Caddyfile` were written and structure-tested, then run with Docker
+  (see the task). Not exercised: Let's Encrypt (it needs a public DNS name) and a deploy key reaching a real
+  git host.
 - `strata host` itself was run for real on one machine with `--insecure-local-testing`: init, project add from
   a bare remote, user and member add, sign-in, the project dashboard, a refused write, sign-out.
