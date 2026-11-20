@@ -804,8 +804,9 @@ def _commit_manifest_op(
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    gitio.add(repo.root, ["strata.toml"])
-    gitio.commit(repo.root, commit_obj.message())
+    with _holding_lock(repo):
+        gitio.add(repo.root, ["strata.toml"])
+        gitio.commit(repo.root, commit_obj.message())
 
 
 @actor_app.command("add")

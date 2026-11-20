@@ -508,9 +508,11 @@ All notable changes to `strata` are documented here. Format follows
   invitation can no longer be used twice by concurrent requests, a new password signs out the old
   sessions, the only lead of a project cannot be demoted, and a remote URL with a password in it is
   refused whatever its scheme.
-- **`strata analyze`, `prisma` and `report` took no repository lock** for their write and commit, so a run
-  could interleave with another process's; they now hold it. (The interactive commands still take none; see
-  `add-ai-participation` task 3.1.)
+- **Commits could interleave.** `strata analyze`, `prisma`, `report`, the interactive commands, several web
+  routes and the screening-batch commit staged and committed without the repository lock, so two at once
+  could fail with git's "Another git process seems to be running" or sweep up each other's files. Every
+  commit now holds the lock (re-entrant within a thread), and `analyze`, `prisma` and `report` hold it
+  from their first write to their commit.
 - **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
   another process's operation; they now run through `core/operations` under the lock, as `criteria add`
   does.

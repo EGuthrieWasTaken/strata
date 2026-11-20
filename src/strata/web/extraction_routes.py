@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from strata import gitio
 from strata.core import records as records_mod
 from strata.core.commit import StructuredCommit
+from strata.core.repo import repo_lock
 from strata.core.screen_batches import flush_pending_screening
 from strata.extract import reconcile as reconcile_mod
 from strata.extract import records as extraction_records_mod
@@ -54,13 +55,6 @@ def _included(repo: Any, study: str) -> bool:
 def _commit(
     repo: Any, *, op: str, scope: str, summary: str, actor: str, rationale: str | None
 ) -> None:
-    # First, so that pending screening files are not counted as this operation's own changes.
-    flush_pending_screening(repo)
-    paths = [
-        p for p in ("records", "events", "derived", "extraction", "rob") if repo.path(p).exists()
-    ]
-    if not gitio.has_changes(repo.root, paths):
-        return
     commit_obj = StructuredCommit(
         op=op,
         scope=scope,
@@ -68,8 +62,18 @@ def _commit(
         body=rationale,
         trailers={"Op": op, "Study": scope, "Actor": actor},
     )
-    gitio.add(repo.root, paths)
-    gitio.commit(repo.root, commit_obj.message())
+    with repo_lock(repo):  # openspec:architecture#concurrency-and-locking
+        # First, so that pending screening files are not counted as this operation's own changes.
+        flush_pending_screening(repo)
+        paths = [
+            p
+            for p in ("records", "events", "derived", "extraction", "rob")
+            if repo.path(p).exists()
+        ]
+        if not gitio.has_changes(repo.root, paths):
+            return
+        gitio.add(repo.root, paths)
+        gitio.commit(repo.root, commit_obj.message())
 
 
 def _field_rows(schema: Any, record: dict[str, Any]) -> list[dict[str, Any]]:

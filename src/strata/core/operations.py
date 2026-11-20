@@ -140,10 +140,6 @@ def _commit(
     trailers: dict[str, str],
     paths: list[str],
 ) -> None:
-    # Another reviewer's screening decisions that are still waiting for their batch must not ride
-    # along in this commit (`strata.core.screen_batches`). A screening commit is the one that is
-    # meant to hold its own reviewer's.
-    flush_pending_screening(repo, except_actors=_own_screening(op, trailers))
     fitted_scope, fitted_summary = fit_subject(op, scope, summary)
     acting = agents_mod.current_context()
     message = StructuredCommit(
@@ -153,8 +149,15 @@ def _commit(
         body=rationale,
         trailers={**trailers, **(acting.commit_trailers() if acting else {})},
     ).message()
-    gitio.add(repo.root, paths)
-    gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
+    # Staging and committing hold the repository lock, whoever calls this
+    # (openspec:architecture#concurrency-and-locking); an operation that already holds it re-enters.
+    with repo_lock(repo):
+        # Another reviewer's screening decisions that are still waiting for their batch must not
+        # ride along in this commit (`strata.core.screen_batches`). A screening commit is the one
+        # that is meant to hold its own reviewer's.
+        flush_pending_screening(repo, except_actors=_own_screening(op, trailers))
+        gitio.add(repo.root, paths)
+        gitio.commit(repo.root, message, author=acting.commit_author() if acting else None)
 
 
 def _own_screening(op: str, trailers: dict[str, str]) -> tuple[str, ...]:
@@ -209,12 +212,14 @@ def commit_domain_work(
         pool_mod.regenerate_all(repo)  # whatever this changed, the derived views follow it
     if not commit:
         return False
-    # First, so that pending screening files are not mistaken for this operation's own changes: with
-    # them counted, an operation that changed nothing would "have something to commit".
-    flush_pending_screening(repo, except_actors=_own_screening(op, {"Actor": actor}))
-    paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
-    if not gitio.has_changes(repo.root, paths):
-        return False
+    with repo_lock(repo):
+        # First, so that pending screening files are not mistaken for this operation's own changes:
+        # with them counted, an operation that changed nothing would "have something to commit".
+        flush_pending_screening(repo, except_actors=_own_screening(op, {"Actor": actor}))
+        paths = [p for p in (*_DOMAIN_PATHS, *extra_paths) if repo.path(*p.split("/")).exists()]
+        if not gitio.has_changes(repo.root, paths):
+            return False
+    # The rationale is asked for outside the lock: a person may take a while to give it.
     text = _resolve_rationale(repo, rationale)
     _commit(
         repo,

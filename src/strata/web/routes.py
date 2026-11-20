@@ -69,6 +69,7 @@ from strata.core import provenance as provenance_mod
 from strata.core import records as records_mod
 from strata.core import status as status_mod
 from strata.core.commit import RationaleRejectedError, StructuredCommit, validate_rationale
+from strata.core.repo import repo_lock
 from strata.core.screen_batches import flush_pending_screening, flush_under_lock, own_decision
 from strata.dedup import engine as engine_mod
 from strata.ingest import pipeline as pipeline_mod
@@ -679,9 +680,10 @@ async def adjudicate_stage_submit(
         body=rationale,
         trailers={"Op": "adjudicate", "Stage": stage, "Record": record_id, "Actor": state.actor},
     )
-    flush_pending_screening(repo)
-    gitio.add(repo.root, ["records", "events", "derived"])
-    gitio.commit(repo.root, commit_obj.message())
+    with repo_lock(repo):
+        flush_pending_screening(repo)
+        gitio.add(repo.root, ["records", "events", "derived"])
+        gitio.commit(repo.root, commit_obj.message())
 
     return _redirect(f"/adjudicate/{quote(stage, safe='')}", skip=skip_csv)
 
@@ -706,9 +708,10 @@ def _commit_criteria_change(
         body=rationale,
         trailers={"Op": op, "Criterion": criterion_id, "Actor": actor},
     )
-    flush_pending_screening(repo)
-    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
-    gitio.commit(repo.root, commit_obj.message())
+    with repo_lock(repo):
+        flush_pending_screening(repo)
+        gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
+        gitio.commit(repo.root, commit_obj.message())
 
 
 @router.get("/criteria", response_class=HTMLResponse)
@@ -954,9 +957,10 @@ def _commit_dedup_change(
     # The pool and the identified and duplicate counts move with every merge, as they do for
     # `strata dedup`.
     pool_mod.regenerate_all(repo)
-    flush_pending_screening(repo)
-    gitio.add(repo.root, ["records", "events", "derived"])
-    gitio.commit(repo.root, commit_obj.message())
+    with repo_lock(repo):
+        flush_pending_screening(repo)
+        gitio.add(repo.root, ["records", "events", "derived"])
+        gitio.commit(repo.root, commit_obj.message())
 
 
 @router.get("/dedup", response_class=HTMLResponse)

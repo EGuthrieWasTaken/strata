@@ -21,7 +21,8 @@ from strata.cli import main as cli_main
 from strata.cli.main import EXIT_GENERIC, EXIT_OK, app
 from strata.core import operations as ops
 from strata.core.init import init_repository
-from strata.core.repo import LockTimeoutError, Repo, open_repo, repo_lock
+from strata.core.repo import LockTimeoutError, Repo, open_repo
+from tests.unit._locks import held_elsewhere
 
 runner = CliRunner()
 
@@ -46,7 +47,7 @@ _RUN_STRATA = "import sys; from strata.cli.main import app; app()"
 # machine is; that the wait ends in a refusal is tested with a short timeout further down.
 _RUN_STRATA_PATIENTLY = (
     "import sys; from strata.core import operations as ops, repo; real = repo.repo_lock; "
-    "ops.repo_lock = lambda r, timeout: real(r, timeout=600); "
+    "ops.repo_lock = lambda r, timeout=None: real(r, timeout=600); "
     "from strata.cli.main import app; app()"
 )
 
@@ -151,7 +152,7 @@ def test_an_operation_that_cannot_get_the_lock_writes_nothing(tmp_path: Path) ->
     repo = _init(tmp_path)
     before = len(gitio.log(repo.root))
 
-    with repo_lock(repo), pytest.raises(LockTimeoutError, match="held by process"):
+    with held_elsewhere(repo), pytest.raises(LockTimeoutError, match="held by process"):
         ops.record_search(
             repo,
             database="MEDLINE",
@@ -182,7 +183,7 @@ def test_an_import_waits_for_the_lock_before_it_writes_anything(tmp_path: Path) 
         rationale=_WHY,
     )
 
-    with repo_lock(repo), pytest.raises(LockTimeoutError):
+    with held_elsewhere(repo), pytest.raises(LockTimeoutError):
         ops.import_file(
             repo,
             export,
@@ -210,7 +211,7 @@ def test_a_dry_run_and_the_pre_check_do_not_need_the_lock(tmp_path: Path) -> Non
         rationale=_WHY,
     )
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):
         dry = ops.import_file(
             repo,
             export,
@@ -269,9 +270,9 @@ def test_the_command_reports_a_lock_that_stays_held(
 ) -> None:
     repo = _init(tmp_path)
     real_lock = ops.repo_lock
-    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout: real_lock(r, timeout=0.2))
+    monkeypatch.setattr(ops, "repo_lock", lambda r, timeout=None: real_lock(r, timeout=0.2))
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):
         result = runner.invoke(app, ["-C", str(repo.root), *_search_args("MEDLINE")])
 
     assert result.exit_code == EXIT_GENERIC
@@ -285,7 +286,7 @@ def test_a_dry_run_import_works_while_the_lock_is_held(tmp_path: Path) -> None:
     export.write_text(json.dumps([{"title": "A paper", "DOI": "10.1000/aaa"}]), encoding="utf-8")
     runner.invoke(app, ["-C", str(repo.root), *_search_args("MEDLINE")])
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):
         result = runner.invoke(
             app,
             ["-C", str(repo.root), "import", str(export), "--by", "ethan", "--search"]
@@ -313,7 +314,7 @@ def test_editing_or_retiring_a_criterion_waits_for_the_lock_and_writes_nothing_w
     before = len(gitio.log(repo.root))
     criteria = (repo.root / "protocol" / "criteria.yaml").read_bytes()
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):
         with pytest.raises(LockTimeoutError):
             ops.edit_criterion(
                 repo,
@@ -368,7 +369,7 @@ def test_generating_reports_diagrams_and_analyses_waits_for_the_lock(
     real_lock = cli_main.repo_lock
     monkeypatch.setattr(cli_main, "repo_lock", lambda r, timeout=0.2: real_lock(r, timeout=0.2))
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):
         result = runner.invoke(app, ["--why", _WHY, "-C", str(repo.root), *args])
 
     assert result.exit_code == EXIT_GENERIC, result.output
