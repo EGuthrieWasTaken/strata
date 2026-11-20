@@ -264,6 +264,19 @@ def _warn_lock_reclaimed(previous_holder: int | None) -> None:
         )
 
 
+@contextlib.contextmanager
+def _holding_lock(repo: Repo) -> Iterator[None]:
+    """The repository lock for a command's write and commit
+    (openspec:architecture#concurrency-and-locking); a lock held elsewhere for too long ends the
+    command with the holder named."""
+    try:
+        with repo_lock(repo) as held:
+            _warn_lock_reclaimed(held.reclaimed_from)
+            yield
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+
+
 def _lock_busy(exc: LockTimeoutError) -> NoReturn:
     err_console.print(f"[red]error:[/] {exc}")
     raise typer.Exit(EXIT_GENERIC)
@@ -4832,12 +4845,32 @@ def analyze_command(
     if not check:
         _preflight_rationale(ctx, repo)
     summaries: list[dict[str, Any]] = []
+    with contextlib.ExitStack() as locked:
+        if not check:
+            locked.enter_context(_holding_lock(repo))
+        _analyze_targets(ctx, repo, targets, summaries, check, force, ack or [], plot_format)
+    if ctx.obj["json"]:
+        _print_json({"checked" if check else "ran": summaries})
+        return
+    _say_analyzed(summaries, check)
+
+
+def _analyze_targets(
+    ctx: typer.Context,
+    repo: Repo,
+    targets: list[str],
+    summaries: list[dict[str, Any]],
+    check: bool,
+    force: bool,
+    ack: list[str],
+    plot_format: str,
+) -> None:
     try:
         for target in targets:
             if check:
                 spec = analysis_mod_spec.load_spec(repo, target)
                 selection = analysis_rows.build_rows(repo, spec)
-                warnings = analysis_engine.check_analysis(spec, selection, ack or [])
+                warnings = analysis_engine.check_analysis(spec, selection, ack)
                 summaries.append(
                     {
                         "analysis": target,
@@ -4850,7 +4883,7 @@ def analyze_command(
                 )
                 continue
             outcome = analysis_run.run_analysis(
-                repo, target, force=force, acknowledged=ack or [], plot_format=plot_format
+                repo, target, force=force, acknowledged=ack, plot_format=plot_format
             )
             summaries.append(_analysis_summary(outcome))
     except analysis_guardrails.BlockingGuardrail as exc:
@@ -4876,9 +4909,9 @@ def analyze_command(
             summary="ran " + ", ".join(s["analysis"] for s in summaries),
             by=_acting_handle(repo),
         )
-    if ctx.obj["json"]:
-        _print_json({"checked" if check else "ran": summaries})
-        return
+
+
+def _say_analyzed(summaries: list[dict[str, Any]], check: bool) -> None:
     for item in summaries:
         if check:
             out_console.print(
@@ -4904,6 +4937,42 @@ def _acting_handle(repo: Repo) -> str:
         if actor.get("role") != "inactive":
             return str(actor["handle"])
     return "strata"
+
+
+def _draw_prisma(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    fmt: str,
+    columns: str,
+    allow_stale: bool,
+    out: str | None,
+) -> tuple[list[str], counts_mod.Counts] | None:
+    try:
+        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    except flow_mod.StaleDecisionsError as exc:
+        err_console.print(f"[red]refused:[/] {exc}")
+        raise typer.Exit(EXIT_GUARDRAIL) from None
+    except flow_mod.FlowError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    counts = rendered.counts
+    if out == "-":
+        sys.stdout.write(rendered.payload.decode("utf-8"))
+        return None
+    written = [
+        str(p)
+        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
+    ]
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    return written, counts
 
 
 @app.command("prisma")
@@ -4941,30 +5010,11 @@ def prisma_command(
         raise typer.Exit(EXIT_USAGE)
     if not out:  # --out writes elsewhere and commits nothing
         _preflight_rationale(ctx, repo)
-    try:
-        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
-    except counts_mod.CountReconcileError as exc:
-        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
-        raise typer.Exit(EXIT_VALIDATION) from None
-    except flow_mod.StaleDecisionsError as exc:
-        err_console.print(f"[red]refused:[/] {exc}")
-        raise typer.Exit(EXIT_GUARDRAIL) from None
-    except flow_mod.FlowError as exc:
-        err_console.print(f"[red]error:[/] {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    counts = rendered.counts
-    if out == "-":
-        sys.stdout.write(rendered.payload.decode("utf-8"))
+    with _holding_lock(repo):
+        drawn = _draw_prisma(ctx, repo, fmt=fmt, columns=columns, allow_stale=allow_stale, out=out)
+    if drawn is None:
         return
-    written = [
-        str(p)
-        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
-    ]
-    if not out:
-        _commit_domain_op(
-            ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
-            by=_acting_handle(repo),
-        )  # fmt: skip
+    written, counts = drawn
     draft = not counts.complete
     if ctx.obj["json"]:
         _print_json({"written": written, "draft": draft, "counts": counts.to_dict()["totals"]})
@@ -4974,6 +5024,48 @@ def prisma_command(
         out_console.print(
             f"[yellow]{flow_mod.DRAFT_TEXT}[/]: the diagram is watermarked as a draft"
         )
+
+
+def _write_report_section(
+    ctx: typer.Context, repo: Repo, *, name: str, fmt: str, out: str | None, status: bool
+) -> list[str] | None:
+    try:
+        facts = ops_mod.report_facts(repo, name)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    if name == "checklist" and status:
+        summary = checklist_mod.status(checklist_mod.build(facts))
+        if ctx.obj["json"]:
+            _print_json(summary)
+        else:
+            out_console.print(
+                f"{summary['auto_filled']} auto-filled, {summary['auto_located']} auto-located, "
+                f"{summary['author']} for the author (of {summary['items']} items and sub-items)"
+            )
+            if summary["needs_author"]:
+                out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
+        return None
+    try:
+        outputs = ops_mod.render_report(repo, name, fmt, facts)
+    except sections_mod.PandocError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out == "-":
+        if len(outputs) != 1 or fmt in ("docx",):
+            err_console.print(
+                "[red]error:[/] this output has more than one file or is binary; give --out FILE"
+            )
+            raise typer.Exit(EXIT_USAGE)
+        sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
+        return None
+    written = [str(p) for p in ops_mod.write_report(repo, outputs, out=Path(out) if out else None)]
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="report", scope=name, summary=f"generated the {name} report",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    return written
 
 
 @app.command("report")
@@ -5008,42 +5100,10 @@ def report_command(
         raise typer.Exit(EXIT_USAGE)
     if not out and not status:  # --out writes elsewhere; --status only reports (checklist)
         _preflight_rationale(ctx, repo)
-    try:
-        facts = ops_mod.report_facts(repo, name)
-    except counts_mod.CountReconcileError as exc:
-        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
-        raise typer.Exit(EXIT_VALIDATION) from None
-    if name == "checklist" and status:
-        summary = checklist_mod.status(checklist_mod.build(facts))
-        if ctx.obj["json"]:
-            _print_json(summary)
-        else:
-            out_console.print(
-                f"{summary['auto_filled']} auto-filled, {summary['auto_located']} auto-located, "
-                f"{summary['author']} for the author (of {summary['items']} items and sub-items)"
-            )
-            if summary["needs_author"]:
-                out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
+    with _holding_lock(repo):
+        written = _write_report_section(ctx, repo, name=name, fmt=fmt, out=out, status=status)
+    if written is None:
         return
-    try:
-        outputs = ops_mod.render_report(repo, name, fmt, facts)
-    except sections_mod.PandocError as exc:
-        err_console.print(f"[red]error:[/] {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    if out == "-":
-        if len(outputs) != 1 or fmt in ("docx",):
-            err_console.print(
-                "[red]error:[/] this output has more than one file or is binary; give --out FILE"
-            )
-            raise typer.Exit(EXIT_USAGE)
-        sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
-        return
-    written = [str(p) for p in ops_mod.write_report(repo, outputs, out=Path(out) if out else None)]
-    if not out:
-        _commit_domain_op(
-            ctx, repo, op="report", scope=name, summary=f"generated the {name} report",
-            by=_acting_handle(repo),
-        )  # fmt: skip
     if ctx.obj["json"]:
         _print_json({"section": name, "written": written})
         return

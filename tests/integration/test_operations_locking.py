@@ -17,6 +17,7 @@ import pytest
 from typer.testing import CliRunner
 
 from strata import gitio
+from strata.cli import main as cli_main
 from strata.cli.main import EXIT_GENERIC, EXIT_OK, app
 from strata.core import operations as ops
 from strata.core.init import init_repository
@@ -341,3 +342,38 @@ def test_editing_or_retiring_a_criterion_waits_for_the_lock_and_writes_nothing_w
     assert (
         f"Strata-Op: criteria-edit\nStrata-Criterion: {criterion}\nStrata-Actor: ethan" in message
     )
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["report", "methods"],
+        ["prisma"],
+        ["analyze", "primary"],
+    ],
+)
+def test_generating_reports_diagrams_and_analyses_waits_for_the_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]
+) -> None:
+    repo = _init(tmp_path)
+    (repo.root / "analysis").mkdir(exist_ok=True)
+    (repo.root / "analysis" / "primary.yaml").write_text(
+        "id: primary\ntitle: Primary\npreregistered: true\neffect_size:\n  measure: SMD\n"
+        "model:\n  type: random-effects\n  tau2_estimator: REML\n  ci_method: wald\n",
+        encoding="utf-8",
+    )
+    gitio.add_all(repo.root)
+    gitio.commit(repo.root, "test: an analysis\n\nStrata-Op: test\nStrata-Actor: ethan\n")
+    before = len(gitio.log(repo.root))
+    real_lock = cli_main.repo_lock
+    monkeypatch.setattr(cli_main, "repo_lock", lambda r, timeout=0.2: real_lock(r, timeout=0.2))
+
+    with repo_lock(repo):
+        result = runner.invoke(app, ["--why", _WHY, "-C", str(repo.root), *args])
+
+    assert result.exit_code == EXIT_GENERIC, result.output
+    assert "repository is locked (held by process" in " ".join(result.output.split())
+    assert len(gitio.log(repo.root)) == before
+    assert not (repo.root / "reports" / "methods.md").exists()
+    assert not (repo.root / "reports" / "prisma.svg").exists()
+    assert not (repo.root / "analysis" / "results" / "primary").exists()
