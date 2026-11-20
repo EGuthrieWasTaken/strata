@@ -45,9 +45,11 @@ that run has not covered.
 - 1.3 / 1.4: the `HEALTHCHECK` is declared and the smoke test waits for Docker to report the container
   healthy, which the `container` jobs have seen on every run, so 1.3 is done; `compose.yaml` was run with
   Docker on Linux (see 1.4), not yet on Docker Desktop for macOS or Windows.
-- 3.4: GHCR publishing with BuildKit SBOM and provenance is in `release.yml`; **cosign signing is not
-  done** (same reason as the Sigstore note in `release.yml`); the release-tag publish has not run, while the
-  `container.yml` publish for pull requests has.
+- 3.4: GHCR publishing with BuildKit SBOM and provenance is in `release.yml`, and the manifest job now signs
+  the multi-architecture image with cosign v2.5.0 (pinned by version and SHA-256, keyless with GitHub's OIDC
+  token, by digest) and checks the signature as a user would. **None of the release-tag path has run**: it
+  waits for the first tag, so 3.4 stays open until that run is seen green. The `container.yml` publish for
+  pull requests has run.
 - 3.5: `cold-install-container` is in `nightly.yml` and passes (it builds the image without a cache and runs
   the smoke test).
 - 4.1: the wiki page is `wiki/Running-in-a-Container.md`, the same material as `docs/container.md`.

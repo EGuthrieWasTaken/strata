@@ -63,6 +63,18 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/review \
 Desktop documentation describes agent forwarding for your setup.) The container's `known_hosts` is
 empty: the first connection to a host fails unless you mount yours (`-v ~/.ssh/known_hosts:/home-strata/.ssh/known_hosts:ro`).
 
+## Checking a released image
+
+From the first tagged release, each published image is signed with cosign, keyless, by the release
+workflow, and carries an SBOM and a provenance attestation. To check that an image is the one this
+repository's release workflow built before you run it:
+
+```
+cosign verify ghcr.io/eguthriewastaken/strata:<version> \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github.com/EGuthrieWasTaken/strata/\.github/workflows/release\.yml@refs/tags/v'
+```
+
 ## Notes and limits
 
 - **Platforms.** Linux is what the smoke test covers. Docker Desktop on macOS and Windows remaps file
