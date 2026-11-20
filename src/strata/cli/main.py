@@ -97,7 +97,6 @@ from strata.protocol import suggestions as suggestions_mod
 from strata.report import bibliography as bibliography_mod
 from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
-from strata.report import facts as facts_mod
 from strata.report import flow as flow_mod
 from strata.report import package as package_mod
 from strata.report import sections as sections_mod
@@ -4901,16 +4900,6 @@ def prisma_command(
         )
 
 
-_REPORT_EXT = {
-    "md": "md",
-    "html": "html",
-    "docx": "docx",
-    "latex": "tex",
-    "csv": "csv",
-    "svg": "svg",
-}
-
-
 @app.command("report")
 def report_command(
     ctx: typer.Context,
@@ -4933,39 +4922,21 @@ def report_command(
     Example: strata report manuscript --format docx
     """
     repo = _resolve_repo(ctx)
-    name = section.lower()
-    if "discussion" in name or "conclusion" in name:
-        err_console.print(f"[red]refused:[/] {sections_mod.DISCUSSION_REFUSAL}")
-        raise typer.Exit(EXIT_USAGE)
-    if name not in sections_mod.SECTIONS:
-        err_console.print(
-            f"[red]error:[/] unknown report section {section!r}; "
-            f"the sections are {', '.join(sections_mod.SECTIONS)}"
-        )
-        raise typer.Exit(EXIT_USAGE)
-    allowed = (
-        {"md", "html", "docx", "latex"}
-        | ({"csv"} if name == "characteristics" else set())
-        | ({"svg"} if name == "rob" else set())
-    )
-    if fmt not in allowed:
-        err_console.print(
-            f"[red]error:[/] --format for {name} must be one of {', '.join(sorted(allowed))}"
-        )
-        raise typer.Exit(EXIT_USAGE)
+    try:
+        name = ops_mod.check_report_request(section, fmt)
+    except ops_mod.ReportRequestError as exc:
+        err_console.print(f"[red]{'refused' if exc.refused else 'error'}:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
     if status and name != "checklist":
         err_console.print("[red]error:[/] --status applies to the checklist only")
         raise typer.Exit(EXIT_USAGE)
     if not out and not status:  # --out writes elsewhere; --status only reports (checklist)
         _preflight_rationale(ctx, repo)
-    facts = facts_mod.collect(repo)
-    counts_mod.regenerate_counts_json(repo, facts.counts)
-    if name != "amendments":
-        try:
-            counts_mod.require_reconciled(facts.counts)
-        except counts_mod.CountReconcileError as exc:
-            err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
-            raise typer.Exit(EXIT_VALIDATION) from None
+    try:
+        facts = ops_mod.report_facts(repo, name)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
     if name == "checklist" and status:
         summary = checklist_mod.status(checklist_mod.build(facts))
         if ctx.obj["json"]:
@@ -4978,34 +4949,8 @@ def report_command(
             if summary["needs_author"]:
                 out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
         return
-    outputs: dict[str, bytes] = {}
     try:
-        if name == "checklist":
-            outputs["prisma-checklist.md"] = checklist_mod.render(facts).encode("utf-8")
-        elif name == "rob":
-            if fmt != "svg":
-                outputs["rob.md"] = sections_mod.rob_markdown(repo, facts).encode("utf-8")
-            plot = sections_mod.rob_svg(repo)
-            if plot is not None and fmt in ("md", "svg"):
-                outputs["rob-traffic-light.svg"] = plot
-        elif name == "characteristics" and fmt == "csv":
-            columns, rows = sections_mod.characteristics_rows(repo)
-            table = "\n".join(
-                "\t".join(c.replace("\t", " ").replace("\n", " ") for c in row)
-                for row in [columns, *rows]
-            )
-            outputs["characteristics.tsv"] = (table + "\n").encode("utf-8")
-        else:
-            text = {
-                "methods": lambda: sections_mod.methods(facts),
-                "results": lambda: sections_mod.results(facts),
-                "characteristics": lambda: sections_mod.characteristics_markdown(repo, facts),
-                "amendments": lambda: sections_mod.amendments_section(facts),
-                "manuscript": lambda: sections_mod.manuscript(facts),
-            }[name]()
-            outputs[f"{name}.{_REPORT_EXT[fmt]}"] = sections_mod.convert(
-                text, fmt, title=str(facts.project.get("title", ""))
-            )
+        outputs = ops_mod.render_report(repo, name, fmt, facts)
     except sections_mod.PandocError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
@@ -5017,14 +4962,7 @@ def report_command(
             raise typer.Exit(EXIT_USAGE)
         sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
         return
-    written = []
-    for filename, payload in outputs.items():
-        target = Path(out) if out else repo.path("reports", filename)
-        if out and len(outputs) > 1:
-            target = Path(out).parent / filename
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(payload)
-        written.append(str(target))
+    written = [str(p) for p in ops_mod.write_report(repo, outputs, out=Path(out) if out else None)]
     if not out:
         _commit_domain_op(
             ctx, repo, op="report", scope=name, summary=f"generated the {name} report",

@@ -272,7 +272,7 @@ What the assistant sees, every time it connects:
 | Records, deduplication | `correct_record`, `add_note`, `decide_duplicate` |
 | Searches and imports | `record_search`, `import_records` |
 | Criteria | `add_criterion`, `edit_criterion`, `retire_criterion` |
-| Analysis | `run_analysis`, `draw_prisma` |
+| Analysis | `run_analysis`, `draw_prisma`, `generate_report` |
 
 Each takes the assistant's `model` and a `rationale`, and the policy is checked **on the call itself**, so a
 lead changing it takes effect on the next write. A kind that is `off` is refused and nothing is recorded; the
