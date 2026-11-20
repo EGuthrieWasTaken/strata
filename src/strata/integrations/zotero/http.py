@@ -16,7 +16,12 @@ from typing import Protocol
 
 
 class TransportError(OSError):
-    """The request never produced a response: refused, unreachable, or timed out."""
+    """The request never produced a response: refused, unreachable, or timed out (`timed_out`:
+    something is there, but it did not answer in time)."""
+
+    def __init__(self, message: str, *, timed_out: bool = False) -> None:
+        super().__init__(message)
+        self.timed_out = timed_out
 
 
 @dataclass(frozen=True)
@@ -73,4 +78,4 @@ class UrllibTransport:
             return HttpResponse(exc.code, _lower(exc.headers.items()), exc.read())
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
-            raise TransportError(str(reason)) from None
+            raise TransportError(str(reason), timed_out=isinstance(reason, TimeoutError)) from None

@@ -49,7 +49,7 @@ def _library_of(item: dict[str, object]) -> str:
 
 
 def probe_local(
-    transport: HttpTransport, *, base_url: str = LOCAL_BASE_URL, timeout: float = 3.0
+    transport: HttpTransport, *, base_url: str = LOCAL_BASE_URL, timeout: float = 10.0
 ) -> tuple[LocalApi | None, str]:
     """`(api, "")` if the local API is usable, else `(None, why not)`."""
     api = ZoteroApi(base_url, transport, timeout=timeout, max_retries=0)
@@ -59,7 +59,11 @@ def probe_local(
             f"/{LOCAL_USER_LIBRARY}/items/top",
             params={"limit": 1, "format": "json", "include": "data,csljson"},
         )
-    except ZoteroUnavailableError:
+    except ZoteroUnavailableError as exc:
+        # A Zotero that is not running refuses at once; one that is there but slow (just started,
+        # a large library) times out, which is a different thing to tell a person.
+        if exc.timed_out:
+            return None, f"Zotero is running but did not answer within {timeout:g} s; try again"
         return None, "Zotero is not running on this computer"
     except ZoteroError as exc:
         if exc.status == 404:

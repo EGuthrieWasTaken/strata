@@ -45,6 +45,9 @@ start() {
   for _ in $(seq 1 90); do
     if curl -fsS "http://127.0.0.1:$PORT/connector/ping" > /dev/null 2>&1; then
       curl -sS -D - -o /dev/null "http://127.0.0.1:$PORT/api/" || true
+      # The first library query of a freshly started Zotero can take several seconds; make it here,
+      # so the tests measure strata and not Zotero's start-up.
+      curl -fsS -m 60 -o /dev/null "http://127.0.0.1:$PORT/api/users/0/items/top?limit=1" || true
       return 0
     fi
     sleep 2
