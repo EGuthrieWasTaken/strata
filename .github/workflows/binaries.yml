@@ -1,0 +1,70 @@
+name: Standalone binaries
+
+# add-distribution-and-adoption task 1.2: a single-file `strata` for each platform, built with
+# PyInstaller (packaging/pyinstaller/strata.spec) and smoke-tested on the runner that built it
+# (scripts/binary_smoke.sh: init, import, verify, report, the web UI's /healthz). release.yml calls
+# this on a tag and attaches the binaries to the draft release; a pull request that touches the
+# packaging runs it too, so the build is seen working before a release depends on it.
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "packaging/pyinstaller/**"
+      - "scripts/binary_smoke.sh"
+      - ".github/workflows/binaries.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  binary:
+    name: binary (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+          - name: macos-arm64
+            os: macos-latest
+          - name: macos-x64
+            os: macos-15-intel
+          - name: windows-x64
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --no-dev
+      - name: Configure git identity (the smoke test makes a review repository)
+        shell: bash
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - name: Build the binary
+        shell: bash
+        working-directory: packaging/pyinstaller
+        run: uv run --no-dev --with pyinstaller==6.16.0 pyinstaller --noconfirm --clean strata.spec
+      - name: Smoke-test it
+        shell: bash
+        run: |
+          binary=packaging/pyinstaller/dist/strata
+          [ "$RUNNER_OS" = "Windows" ] && binary="${binary}.exe"
+          scripts/binary_smoke.sh "$binary"
+      - name: Name it for its platform
+        shell: bash
+        run: |
+          mkdir -p out
+          suffix=""
+          [ "$RUNNER_OS" = "Windows" ] && suffix=".exe"
+          cp "packaging/pyinstaller/dist/strata${suffix}" "out/strata-${{ matrix.name }}${suffix}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: binary-${{ matrix.name }}
+          path: out/*

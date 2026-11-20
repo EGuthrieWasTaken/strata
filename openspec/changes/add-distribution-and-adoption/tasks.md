@@ -27,6 +27,17 @@
 
 ## Notes
 
+- 1.2: `packaging/pyinstaller/strata.spec` builds a single-file binary; `.github/workflows/binaries.yml` builds
+  it on Linux x64, macOS arm64, macOS x64 and Windows x64, smoke-tests each on its own runner
+  (`scripts/binary_smoke.sh`: init, import, verify, a report and the web UI's `/healthz`), and `release.yml`
+  attaches them to the draft release. Built and smoke-tested here on Linux x64; the other three are first
+  built by CI. **Not yet as the task says:** macOS is two binaries rather than one universal one (that
+  needs a universal Python build), and there is no musl Linux binary (that needs a build in an Alpine
+  container). Stays open for those and for a release that carries them.
+- 1.3, 4.2: Homebrew's formula and conda-forge's recipe both start from a published sdist on PyPI (its URL and
+  SHA-256, and for Homebrew a resource for each dependency), so they wait for 1.1; so does a nightly
+  cold install of the published artefacts.
+
 Task 2.4 is built. 2.1-2.3 are built from each tool's documented export format but stay open until a
 real export from each has been checked against them; 4.1 stays open with them.
 

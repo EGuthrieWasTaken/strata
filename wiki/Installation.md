@@ -47,6 +47,14 @@ from the checkout directory, or point at a review with `-C /path/to/review`).
 
 No Python needed, only a container runtime. See [Running in a container](Running-in-a-Container).
 
+## Option 4: a single file, from a release
+
+From the first tagged release, each release on GitHub carries a standalone `strata` for Linux (x64),
+macOS (Apple silicon and Intel) and Windows (x64): one file with Python and everything else inside, so
+there is nothing to install but git. Download the one for your computer, rename it `strata` (`strata.exe`
+on Windows), make it executable (`chmod +x strata`) and put it on your PATH. macOS may refuse to open a
+file downloaded this way until you allow it under *System Settings > Privacy & Security*.
+
 ## Check that it works
 
 ```
