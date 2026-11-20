@@ -243,6 +243,19 @@ def append_event(path: Path, envelope: dict[str, Any]) -> None:
         os.close(fd)
 
 
+def _repository_lock(path: Path) -> contextlib.AbstractContextManager[Any]:
+    """The repository lock of the review `path` is in, for an append
+    (openspec:architecture#concurrency-and-locking): computing the next `seq` and `prev` reads the
+    file, so two writers on one file at once could number two events alike or break the chain.
+    Re-entrant, so an operation that holds the lock appends under it; nothing outside a review."""
+    from strata.core.repo import Repo, repo_lock  # repo knows nothing of events; no cycle
+
+    for parent in path.parents:
+        if (parent / "strata.toml").is_file():
+            return repo_lock(Repo(root=parent, config={}))
+    return contextlib.nullcontext()
+
+
 def append_new_event(
     path: Path,
     *,
@@ -251,16 +264,18 @@ def append_new_event(
     body: dict[str, Any],
     tool: str = TOOL_VERSION,
 ) -> dict[str, Any]:
-    """Build the next envelope for `path` (correct seq and prev) and append it."""
-    envelope = build_envelope(
-        ev=ev,
-        actor=actor,
-        seq=next_seq(path),
-        body=body,
-        prev=last_digest(path),
-        tool=tool,
-    )
-    append_event(path, envelope)
+    """Build the next envelope for `path` (correct seq and prev) and append it, under the
+    repository lock."""
+    with _repository_lock(path):
+        envelope = build_envelope(
+            ev=ev,
+            actor=actor,
+            seq=next_seq(path),
+            body=body,
+            prev=last_digest(path),
+            tool=tool,
+        )
+        append_event(path, envelope)
     return envelope
 
 
@@ -294,15 +309,16 @@ def append_new_events(
     """
     if not entries:
         return []
-    seq = next_seq(path)
-    prev = last_digest(path)
     envelopes = []
-    for ev, actor, body in entries:
-        envelope = build_envelope(ev=ev, actor=actor, seq=seq, body=body, prev=prev, tool=tool)
-        append_event(path, envelope)
-        envelopes.append(envelope)
-        seq += 1
-        prev = envelope["digest"]
+    with _repository_lock(path):
+        seq = next_seq(path)
+        prev = last_digest(path)
+        for ev, actor, body in entries:
+            envelope = build_envelope(ev=ev, actor=actor, seq=seq, body=body, prev=prev, tool=tool)
+            append_event(path, envelope)
+            envelopes.append(envelope)
+            seq += 1
+            prev = envelope["digest"]
     return envelopes
 
 

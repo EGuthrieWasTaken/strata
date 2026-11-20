@@ -513,6 +513,9 @@ All notable changes to `strata` are documented here. Format follows
   could fail with git's "Another git process seems to be running" or sweep up each other's files. Every
   commit now holds the lock (re-entrant within a thread), and `analyze`, `prisma` and `report` hold it
   from their first write to their commit.
+- **Two writers on one event file could number two events alike** (the web UI and the command line for
+  one reviewer, say), because the next sequence number and chain link are read from the file before the
+  append. Each append now holds the repository lock.
 - **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
   another process's operation; they now run through `core/operations` under the lock, as `criteria add`
   does.
