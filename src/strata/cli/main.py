@@ -87,6 +87,7 @@ from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import audit as audit_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import irr as irr_mod
+from strata.protocol import migrated_decisions as migrated_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
@@ -1367,7 +1368,7 @@ def import_command(
         None,
         "--format",
         help="Override format detection: csl-json | ris | bibtex | medline | endnote-xml | "
-        "csv | tsv | xlsx | citation-list",
+        "csv | tsv | xlsx | citation-list, or a tool's export: rayyan | covidence | eppi-json",
     ),
     sheet: str | None = typer.Option(
         None, "--sheet", help="For .xlsx: the sheet name or position (default: the first sheet)"
@@ -2109,6 +2110,75 @@ def _render_screen_record(
     return "\n".join(lines)
 
 
+def _screen_from_tool(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    stage: str,
+    by: str,
+    path: Path,
+    tool: str,
+    reviewer: str | None,
+    covidence_list: str | None,
+    reasons: list[str],
+) -> None:
+    mapped: dict[str, str] = {}
+    for item in reasons:
+        text, sep, criterion = item.rpartition("=")
+        if not sep or not text.strip() or not criterion.strip():
+            err_console.print(f"[red]error:[/] --reason {item!r} is not REASON=CRITERION")
+            raise typer.Exit(EXIT_USAGE)
+        mapped[text.strip()] = criterion.strip()
+    if not path.is_file():
+        err_console.print(f"[red]error:[/] no such file: {path}")
+        raise typer.Exit(EXIT_USAGE)
+    _preflight_rationale(ctx, repo)
+    try:
+        with repo_lock(repo):
+            result = migrated_mod.import_tool_decisions(
+                repo,
+                stage=stage,
+                tool=tool,
+                raw=path.read_bytes(),
+                actor=by,
+                reviewer=reviewer,
+                covidence_list=covidence_list,
+                reasons=mapped,
+            )
+            if result.recorded:
+                pool_mod.regenerate_all(repo)
+                _commit_domain_op(
+                    ctx,
+                    repo,
+                    op="screen-import",
+                    scope=stage,
+                    summary=f"imported {len(result.recorded)} {stage} decisions from {tool}",
+                    by=by,
+                )
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "stage": stage,
+                "recorded": len(result.recorded),
+                "skipped": [{"title": s.title, "why": s.why} for s in result.skipped],
+            }
+        )
+        return
+    out_console.print(f"[green]recorded[/] {len(result.recorded)} imported decision(s) for {stage}")
+    for skipped in result.skipped:
+        out_console.print(f"  [yellow]not recorded:[/] {skipped.title[:70]}: {skipped.why}")
+
+
+_REASON_OPTION = typer.Option(
+    None, "--reason", help="--from: 'REASON=CRITERION', an exclusion reason as a criterion"
+)
+
+
 @app.command("screen")
 def screen_command(
     ctx: typer.Context,
@@ -2117,12 +2187,46 @@ def screen_command(
     filter_expr: str | None = typer.Option(None, "--filter", help="Narrow the queue"),
     limit: int | None = typer.Option(None, "--limit", help="Screen at most N records"),
     decisions_file: str | None = typer.Option(
-        None, "--decisions", help="TSV of record_id/decision/criteria/note"
+        None, "--decisions", help="TSV of record_id/decision/criteria/note, or a tool's export"
     ),
+    from_tool: str | None = typer.Option(
+        None,
+        "--from",
+        help="The --decisions file is an export from rayyan | covidence | eppi-json",
+    ),
+    reviewer: str | None = typer.Option(
+        None, "--reviewer", help="--from: whose decisions to take, as the export names them"
+    ),
+    covidence_list: str | None = typer.Option(
+        None, "--list", help="--from covidence: irrelevant | excluded | included"
+    ),
+    reason: list[str] | None = _REASON_OPTION,
 ) -> None:
-    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`."""
+    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`.
+
+    With `--from`, the decisions file is an export from another tool (whose records were imported
+    with `strata import --format <tool>`); every decision is attributed to `--by` and marked
+    imported. Example: strata screen title-abstract --by ada --decisions articles.csv
+    --from rayyan --reviewer Ada --reason "wrong population=EXC-01"
+    """
     repo = _resolve_repo(ctx)
 
+    if from_tool is not None and not decisions_file:
+        err_console.print("[red]error:[/] --from needs --decisions FILE")
+        raise typer.Exit(EXIT_USAGE)
+    if decisions_file and from_tool is not None:
+        _screen_from_tool(
+            ctx,
+            repo,
+            stage=stage,
+            by=by,
+            path=Path(decisions_file),
+            tool=from_tool,
+            reviewer=reviewer,
+            covidence_list=covidence_list,
+            reasons=reason or [],
+        )
+        return
     if decisions_file:
         _preflight_rationale(ctx, repo)
         text = Path(decisions_file).read_text(encoding="utf-8")

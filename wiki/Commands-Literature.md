@@ -68,7 +68,7 @@ strata import [OPTIONS] FILES
 | `--by` (required) | str |  | Actor handle who ran the import |
 | `--search` | str |  | Id of the search that produced this export |
 | `--via` | str |  | citation-searching \| website \| organisation \| registry \| contact |
-| `--format` | str |  | Override format detection: csl-json \| ris \| bibtex \| medline \| endnote-xml \| csv \| tsv \| xlsx \| citation-list |
+| `--format` | str |  | Override format detection: csl-json \| ris \| bibtex \| medline \| endnote-xml \| csv \| tsv \| xlsx \| citation-list, or a tool's export: rayyan \| covidence \| eppi-json |
 | `--sheet` | str |  | For .xlsx: the sheet name or position (default: the first sheet) |
 | `--map` | str |  | CSV/TSV column mapping, e.g. title=Article Title,author=Authors,doi=DOI |
 | `--dry-run` | flag |  | Parse and report without writing anything |

@@ -7,6 +7,19 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **Moving a review from Rayyan, Covidence or EPPI-Reviewer** (OpenSpec change
+  `add-distribution-and-adoption`, tasks 2.1-2.3). `strata import --format rayyan|covidence|eppi-json`
+  imports the records of each tool's export, and `strata screen <stage> --decisions <file> --from <tool>`
+  records the screening decisions in it, attributed to `--by` and marked imported, with `--reviewer`
+  (Rayyan), `--list` (Covidence) and `--reason TEXT=CRITERION`. A decision that cannot be recorded as made
+  here (no matching record, an exclusion reason that names no criterion) is listed, not recorded. Written
+  from each tool's documented export format; not yet checked against a real export.
+- **An agent can draft manuscript sections** (`generate_report`, kind `analysis`): `strata report` now runs
+  on `core/operations`, and the same code backs the MCP write tool.
+- **The Zotero integration is checked against a real Zotero** nightly and on pull requests that touch it
+  (`.github/workflows/zotero-live.yml`): the Web API with a throwaway account, and the current Zotero
+  desktop app under a virtual display.
+
 - **A hosted team instance** (`strata host`; OpenSpec change `add-hosted-team-deployment`). One self-hosted
   instance serves several reviews to several people, each signed in with their own account: local accounts
   (Argon2id passwords, invitations, `strata host user add|invite|disable`) and optional OpenID Connect or
@@ -484,6 +497,9 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
+  another process's operation; they now run through `core/operations` under the lock, as `criteria add`
+  does.
 - **The Zotero link, after its first run against a real Zotero** (10.0.8; `docs/zotero-real-run.md`).
   `strata zotero link` and `pull` failed through the desktop app's local API, which sends each item's
   CSL-JSON as a string; it is now read, and the probe checks the shape it reads. One item with a date such as

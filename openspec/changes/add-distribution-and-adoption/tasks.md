@@ -27,8 +27,18 @@
 
 ## Notes
 
-Only task 2.4 is built. 4.1 stays open: it covers every new parser, and the Covidence, Rayyan and
-EPPI-Reviewer imports (2.1-2.3) do not exist yet.
+Task 2.4 is built. 2.1-2.3 are built from each tool's documented export format but stay open until a
+real export from each has been checked against them; 4.1 stays open with them.
+
+- 2.1-2.3: `ingest/parsers/migration.py` reads the Rayyan CSV export (decisions per reviewer in `notes`,
+  `RAYYAN-INCLUSION` and `RAYYAN-EXCLUSION-REASONS`), the Covidence CSV export of one list and the
+  EPPI-Reviewer JSON export (Include and Exclude codes). `strata import --format rayyan|covidence|eppi-json`
+  imports the records; `strata screen <stage> --decisions <file> --from <tool>` records the decisions,
+  attributed to `--by` and marked `imported: true` (`protocol/migrated_decisions.py`), with `--reviewer`
+  for Rayyan, `--list` for Covidence and `--reason TEXT=CRITERION` to say which criterion an exclusion
+  reason stands for. A row matching no record, and an exclusion whose reason names no criterion, are
+  reported and not recorded. Fixtures (`tests/fixtures/migration/`) are hand-written and say so; parser
+  and CLI tests and fuzz tests cover them. **Not checked against a real export of any of the three.**
 
 - 2.4: EndNote XML (`ingest/parsers/endnote_xml.py`), Excel (`ingest/parsers/xlsx.py`, standard library
   only, with caps on file size, unpacked size, rows, columns and cell length, `--sheet`) and the

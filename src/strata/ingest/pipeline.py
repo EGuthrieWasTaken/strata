@@ -35,6 +35,7 @@ from strata.ingest.parsers import csl_json as csl_json_parser
 from strata.ingest.parsers import csv_tsv as csv_tsv_parser
 from strata.ingest.parsers import endnote_xml as endnote_xml_parser
 from strata.ingest.parsers import medline as medline_parser
+from strata.ingest.parsers import migration as migration_parser
 from strata.ingest.parsers import ris as ris_parser
 from strata.ingest.parsers import xlsx as xlsx_parser
 from strata.ingest.profiles import detect_profile
@@ -55,6 +56,9 @@ _PARSERS = {
     "medline": medline_parser.parse,
     "endnote-xml": endnote_xml_parser.parse,
     "citation-list": citation_list_parser.parse,
+    # Migration imports (openspec:literature-import#migration-imports-from-incumbent-tools): the
+    # records; `strata screen --from` reads the decisions in the same file.
+    **{tool: migration_parser.records_only(tool) for tool in migration_parser.TOOLS},
 }
 
 # CSV/TSV are handled separately (see `_parse_csv_like`): they need a column
@@ -366,7 +370,10 @@ def import_file(
         parser = _PARSERS.get(resolved_format)
         if parser is None:
             raise ImportPipelineError(f"unsupported format {resolved_format!r}")
-        parsed = parser(text)
+        try:
+            parsed = parser(text)
+        except migration_parser.MigrationFormatError as exc:
+            raise ImportPipelineError(f"{source_path.name}: {exc}") from None
 
     import_id = new_import_id()
     by_id = records_mod.index_by_id(records_mod.read_records(repo))
