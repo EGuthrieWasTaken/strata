@@ -1,0 +1,5 @@
+key,title,authors,journal,issn,volume,issue,pages,year,month,day,publisher,url,abstract,notes,doi,keywords
+1,"Spacing effects in learning: A temporal ridgeline of optimal retention","Cepeda, Nicholas J. and Vul, Edward and Rohrer, Doug",Psychological Science,0956-7976,19,11,1095-1102,2008,11,,SAGE,,"Spacing study abstract.","RAYYAN-INCLUSION: {""Ada""=>""Included"", ""Sam""=>""Included""} | RAYYAN-LABELS: spacing",10.1111/j.1467-9280.2008.02209.x,spacing
+2,"Test-enhanced learning: Taking memory tests improves long-term retention","Roediger, Henry L. and Karpicke, Jeffrey D.",Psychological Science,0956-7976,17,3,249-255,2006,Mar,,SAGE,,"Testing effect abstract.","RAYYAN-INCLUSION: {""Ada""=>""Excluded"", ""Sam""=>""Maybe""} | RAYYAN-EXCLUSION-REASONS: wrong population",10.1111/j.1467-9280.2006.01693.x,testing
+3,"A trial only Rayyan knows about","Okonkwo, Ada",Journal of Trials,,4,,10-20,2015,,,,,,"RAYYAN-INCLUSION: {""Sam""=>""Excluded""} | RAYYAN-EXCLUSION-REASONS: wrong outcome",10.1000/rayyan.only,
+4,,"Nobody, A.",Journal of Nothing,,,,,2010,,,,,,"RAYYAN-INCLUSION: {""Ada""=>""Included""}",,

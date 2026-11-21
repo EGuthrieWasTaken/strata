@@ -401,7 +401,11 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
     def presession_ok(request: Request, form: FormData) -> bool:
         cookie = request.cookies.get(server.signin_cookie)
         submitted = form.get(CSRF_FIELD_NAME)
-        return bool(cookie) and isinstance(submitted, str) and submitted == cookie
+        return (
+            bool(cookie)
+            and isinstance(submitted, str)
+            and hmac.compare_digest(submitted, str(cookie))
+        )
 
     async def signin(request: Request) -> Response:
         if request.method == "GET":

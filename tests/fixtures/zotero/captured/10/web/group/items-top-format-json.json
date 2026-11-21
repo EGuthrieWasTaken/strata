@@ -1,0 +1,174 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/items/top?format=json&include=data,csljson&limit=1",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:05 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "5"
+      ],
+      [
+        "Link",
+        "<https://api.zotero.org/groups/6762415/items/top?include=csljson%2Cdata&limit=1&start=1>; rel=\"next\", <https://api.zotero.org/groups/6762415/items/top?include=csljson%2Cdata&limit=1&start=4>; rel=\"last\", <https://www.zotero.org/groups/6762415/items/top>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "11"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "KJ9MJ46K",
+        "version": 8,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/items/KJ9MJ46K",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/KJ9MJ46K",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "createdByUser": {
+            "id": 22585168,
+            "username": "strata-review",
+            "name": "",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "creatorSummary": "Shannon",
+          "parsedDate": "1937",
+          "numChildren": 0
+        },
+        "csljson": {
+          "id": "26075223/KJ9MJ46K",
+          "type": "thesis",
+          "genre": "Master's thesis",
+          "language": "en",
+          "publisher": "Massachusetts Institute of Technology",
+          "publisher-place": "Cambridge, MA",
+          "title": "A Symbolic Analysis of Relay and Switching Circuits",
+          "author": [
+            {
+              "family": "Shannon",
+              "given": "Claude E."
+            }
+          ],
+          "issued": {
+            "date-parts": [
+              [
+                1937
+              ]
+            ]
+          }
+        },
+        "data": {
+          "key": "KJ9MJ46K",
+          "version": 8,
+          "itemType": "thesis",
+          "title": "A Symbolic Analysis of Relay and Switching Circuits",
+          "creators": [
+            {
+              "creatorType": "author",
+              "firstName": "Claude E.",
+              "lastName": "Shannon"
+            }
+          ],
+          "abstractNote": "",
+          "thesisType": "Master's thesis",
+          "university": "Massachusetts Institute of Technology",
+          "place": "Cambridge, MA",
+          "date": "1937",
+          "series": "",
+          "seriesNumber": "",
+          "numPages": "",
+          "DOI": "",
+          "ISBN": "",
+          "citationKey": "",
+          "url": "",
+          "accessDate": "",
+          "ISSN": "",
+          "archive": "",
+          "archiveLocation": "",
+          "shortTitle": "",
+          "language": "en",
+          "libraryCatalog": "",
+          "callNumber": "",
+          "rights": "",
+          "extra": "",
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        }
+      }
+    ]
+  }
+}

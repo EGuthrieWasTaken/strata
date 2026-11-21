@@ -1,0 +1,10 @@
+{
+  "major": 10,
+  "local_api": true,
+  "local_api_writable": false,
+  "local_api_needs_preference": true,
+  "local_write_refusal": [428, "Zotero-Server-ID not provided"],
+  "local_csljson": "string",
+  "local_versions": "own",
+  "local_itemkey_includes_children": true
+}

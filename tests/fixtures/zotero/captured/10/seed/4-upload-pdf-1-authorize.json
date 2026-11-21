@@ -1,0 +1,66 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items/TI5GQH7I/file",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "If-None-Match": "*",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": "md5=2b05a13fe8b9f59a8d9106ab125cd447&filename=Roediger+and+Karpicke+-+2006+-+Test-enhanced+learning.pdf&filesize=671&mtime=1794630871537"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:34:31 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "url": "https://zoterofilestorage.s3.us-east-1.amazonaws.com/",
+      "contentType": "multipart/form-data; boundary=---------------------------63d379754e520d7113b95de7c7f71504",
+      "prefix": "REDACTED (signed storage upload form fields: key, AWSAccessKeyId, policy, signature)",
+      "suffix": "\r\n-----------------------------63d379754e520d7113b95de7c7f71504--",
+      "uploadKey": "REDACTED"
+    }
+  }
+}

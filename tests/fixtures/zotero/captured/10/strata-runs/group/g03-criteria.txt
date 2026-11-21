@@ -1,0 +1,4 @@
+$ strata --why criterion criteria add --kind exclusion --label Not about learning --definition Not about learning. --applies-at title-abstract,full-text --by tester
+error: the rationale must be at least 12 characters (this goes in the permanent 
+record)
+[exit code: 7]

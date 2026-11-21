@@ -1,0 +1,59 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/TI5GQH7I/file/view",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "note": "stored file: redirect to storage?",
+  "response": {
+    "status": 302,
+    "reason": "Found",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:47:06 GMT"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Location",
+        "https://files.zotero.net/REDACTED-SIGNED-TOKEN"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": ""
+  }
+}

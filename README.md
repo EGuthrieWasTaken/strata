@@ -139,7 +139,7 @@ M5.1 and M6 are under way alongside. `strata sync` shares a review through a git
 screening never conflicts; a criterion two people reworded is settled with `--resolve mine|theirs`). A container
 image is built and smoke-tested by CI on amd64 and arm64 but not yet released
 ([`docs/container.md`](docs/container.md)). `strata zotero link|pull|push|status|open` is an optional Zotero
-integration, tested against a stand-in for Zotero 6 and 7 and not yet against a real Zotero. `strata init --ci`
+integration, supported for Zotero 10 or later and run once against a real Zotero 10 (`docs/zotero-real-run.md`). `strata init --ci`
 installs a pull-request workflow that runs `strata verify`, comments on what a change does to the review and
 labels criteria changes `protocol-amendment`; it has not yet run on GitHub. `strata host` runs a
 hosted multi-user instance (per-user sign-in, roles, an automatic sync loop with the shared remote); it is

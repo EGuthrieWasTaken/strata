@@ -34,7 +34,7 @@ linked users/12345 through the local API
   not in this review: QR8S2TUV Okafor (2017)  Retrieval practice in secondary school science: a cluster trial (`strata zotero pull` brings it in)
 ```
 
-`strata` uses Zotero's **local API** when the desktop app offers it. That needs Zotero 7 or later with
+`strata` uses Zotero's **local API** when the desktop app offers it. That needs Zotero 10 or later with
 *Settings > Advanced > "Allow other applications on this computer to communicate with Zotero"* switched on. It
 asks for no key, and nothing leaves your computer. If the local API is not there, `strata` says why and uses
 the **Web API** (`api.zotero.org`) instead, which does need a key (below).

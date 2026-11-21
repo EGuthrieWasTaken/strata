@@ -1,0 +1,119 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/users/22585168/items/BEITJ9RM/children",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "note": "children of the item with the linked_url attachment",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:04 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "1"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/users/22585168/items/BEITJ9RM/children>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "20"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "CWRCUFQN",
+        "version": 15,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "strata-review",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/users/22585168/items/CWRCUFQN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/strata-review/items/CWRCUFQN",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "https://api.zotero.org/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          }
+        },
+        "meta": {},
+        "data": {
+          "key": "CWRCUFQN",
+          "version": 15,
+          "parentItem": "BEITJ9RM",
+          "itemType": "attachment",
+          "linkMode": "linked_url",
+          "title": "Publisher page",
+          "accessDate": "",
+          "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+          "note": "",
+          "contentType": "text/html",
+          "charset": "",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z"
+        }
+      }
+    ]
+  }
+}

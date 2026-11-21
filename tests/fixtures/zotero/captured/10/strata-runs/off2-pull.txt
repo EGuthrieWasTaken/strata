@@ -1,0 +1,7 @@
+$ strata --why pull with the local API off zotero pull --collection strata-test --by tester --via website
+note: Zotero's local API is not available (the local API is switched off in 
+Zotero (Settings > Advanced > 'Allow other applications on this computer to 
+communicate with Zotero')); using the Web API
+pulled 10 items from 'strata-test': 0 new records, 0 matched records already in 
+the review, 10 already linked, 0 correction(s)
+[exit code: 0]

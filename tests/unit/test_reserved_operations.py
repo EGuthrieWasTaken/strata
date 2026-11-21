@@ -39,6 +39,7 @@ AGENT_COMMANDS: dict[str, tuple[str, ...]] = {
     "criteria retire": ("retire_criterion",),
     "analyze": ("run_analysis",),
     "prisma": ("draw_prisma",),
+    "report": ("generate_report",),
 }
 
 #: Commands that change who counts, what is allowed, or reach outside the review: for people only.
@@ -125,9 +126,7 @@ READ_ONLY = frozenset(
 
 #: A mutating command no tool covers yet. Each one is a gap in
 #: `openspec:mcp-server#write-tools`, named here so it cannot be forgotten.
-NOT_YET_AVAILABLE_TO_AGENTS = {
-    "report": "generating the Methods, Results and checklist text still lives inside the command",
-}
+NOT_YET_AVAILABLE_TO_AGENTS: dict[str, str] = {}
 
 
 def _leaf_commands(command: click.Command, prefix: str = "") -> Iterator[str]:
@@ -204,6 +203,7 @@ def test_every_operation_an_agent_can_propose_is_reached_by_a_write_tool() -> No
         "retire_criterion": "criteria-retire",
         "run_analysis": "analyze",
         "draw_prisma": "prisma",
+        "generate_report": "report",
     }
     assert set(operations) == set(WRITE_TOOLS)
     assert set(operations.values()) == set(sugg.OPS)

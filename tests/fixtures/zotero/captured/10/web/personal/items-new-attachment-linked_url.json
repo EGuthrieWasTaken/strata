@@ -1,0 +1,69 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/items/new?itemType=attachment&linkMode=linked_url",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "itemType": "attachment",
+      "linkMode": "linked_url",
+      "title": "",
+      "accessDate": "",
+      "url": "",
+      "note": "",
+      "tags": [],
+      "collections": [],
+      "relations": {},
+      "contentType": "",
+      "charset": ""
+    }
+  }
+}

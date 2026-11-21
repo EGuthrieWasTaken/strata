@@ -431,3 +431,47 @@ def test_a_client_that_does_not_say_who_it_is_leaves_the_name_unrecorded() -> No
     assert _client_of(session(named)) == ("claude-code", "2.1.3")  # type: ignore[arg-type]
     unnamed = SimpleNamespace(client_info=Implementation(name="", version=""))
     assert _client_of(session(unnamed)) == (None, None)  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------- manuscript text
+
+
+def test_an_agent_drafts_a_section_in_count_mode_as_the_command_would(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    repo = _policy(repo, analysis="count")
+    result = _write(repo, "generate_report", section="methods")
+
+    assert (result["mode"], result["recorded"], result["committed"]) == ("count", "work", True)
+    written = (repo.root / "reports" / "methods.md").read_text(encoding="utf-8")
+    assert "Methods" in written  # drafted by the same code as `strata report methods`
+    from strata import gitio
+
+    message = gitio.commit_message(repo.root, "HEAD")
+    assert message.splitlines()[0] == "report(methods): generated the methods report"
+    assert "Strata-Op: report" in message and f"Strata-Agent: {AGENT}" in message
+
+
+def test_an_agent_cannot_ask_for_a_discussion_and_suggest_mode_writes_nothing(
+    world: tuple[Repo, list[str]],
+) -> None:
+    repo, _ = world
+    counted = _policy(repo, analysis="count")
+    refused = _call(
+        _server(counted),
+        "generate_report",
+        {"model": MODEL, "rationale": WHY, "section": "discussion"},
+    )
+    assert refused.is_error and "Discussion" in refused.text
+    unknown_format = _call(
+        _server(counted),
+        "generate_report",
+        {"model": MODEL, "rationale": WHY, "section": "methods", "format": "pdf"},
+    )
+    assert unknown_format.is_error and "--format for methods" in unknown_format.text
+
+    suggested = _policy(repo, analysis="suggest")
+    result = _write(suggested, "generate_report", section="results")
+    assert result["recorded"] == "suggestion"
+    assert not (repo.root / "reports" / "results.md").exists()

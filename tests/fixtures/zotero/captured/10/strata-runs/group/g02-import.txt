@@ -1,0 +1,6 @@
+$ strata --why first import import $SCRATCH/seed-records.json --by tester --search S-01-medline
+imported 
+/tmp/claude-1000/-home-ethan--claude-spares-spare-am0LAT/da6631fb-d1bd-4336-9437
+-63c2ce681c62/scratchpad/seed-records.json as imp_01m7cc5npf9g7vcbv2bfdwkm4z: 5 
+new, 0 matched existing, 0 rejected
+[exit code: 0]

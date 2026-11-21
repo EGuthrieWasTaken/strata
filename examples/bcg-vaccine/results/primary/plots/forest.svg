@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 456" width="760" height="456" role="img" aria-labelledby="strata-title strata-desc">
+<title id="strata-title">Forest plot: BCG vaccine and tuberculosis</title>
+<desc id="strata-desc">Forest plot of 13 effects (logRR) with the pooled estimate 0.49 and a prediction interval.</desc>
+<style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
+<rect id="rect-9616f226" class="f-surface" x="0" y="0" width="760" height="456"/>
+<text id="text-dbe39997" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Forest plot: BCG vaccine and tuberculosis</text>
+<text id="text-36280480" class="f-muted" x="10" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Study</text>
+<text id="text-ac1c915a" class="f-muted" x="270" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">n</text>
+<text id="text-7348eafb" class="f-muted" x="532" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">RR [CI]</text>
+<text id="text-74b922ce" class="f-muted" x="750" y="48" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end" font-weight="bold">Weight</text>
+<text id="text-f723f45c" class="f-ink" x="10" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Vandiviere (1973) [tuberculosis]</text>
+<text id="text-2d36a858" class="f-muted" x="270" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">3174</text>
+<line id="line-5bfd4375" class="s-ink" x1="312.89" y1="66" x2="395.39" y2="66" stroke-width="1"/>
+<rect id="rect-a48ac76d" class="f-accent" x="348.29" y="60.15" width="11.69" height="11.69"/>
+<text id="text-510cb03c" class="f-ink" x="532" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.20 [0.08, 0.50]</text>
+<text id="text-890ef6a6" class="f-muted" x="750" y="70" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">6.0%</text>
+<text id="text-b85949fd" class="f-ink" x="10" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Coetzee &amp; Berjak (1968) [tuberculosis]</text>
+<text id="text-b3fbbdb2" class="f-muted" x="270" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">14776</text>
+<line id="line-f8c3f75d" class="s-ink" x1="384.71" y1="86" x2="426.21" y2="86" stroke-width="1"/>
+<rect id="rect-a174c2b6" class="f-accent" x="398.83" y="79.37" width="13.26" height="13.26"/>
+<text id="text-350078f7" class="f-ink" x="532" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.63 [0.39, 1.00]</text>
+<text id="text-1beb5117" class="f-muted" x="750" y="90" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.7%</text>
+<text id="text-dcb6dd40" class="f-ink" x="10" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Rosenthal (1960) [tuberculosis]</text>
+<text id="text-648092ed" class="f-muted" x="270" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">451</text>
+<line id="line-7e7fc6f2" class="s-ink" x1="310" y1="106" x2="422.6" y2="106" stroke-width="1"/>
+<rect id="rect-2a2aa19c" class="f-accent" x="361" y="100.7" width="10.6" height="10.6"/>
+<text id="text-4f893741" class="f-ink" x="532" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.26 [0.07, 0.92]</text>
+<text id="text-d9f83b36" class="f-muted" x="750" y="110" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">4.4%</text>
+<text id="text-cd4d7a7e" class="f-ink" x="10" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Comstock &amp; Webster (1969) [tuberculos...</text>
+<text id="text-b955c350" class="f-muted" x="270" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">4839</text>
+<line id="line-f8f119ee" class="s-ink" x1="382.51" y1="126" x2="510" y2="126" stroke-width="1"/>
+<rect id="rect-5bc891a3" class="f-accent" x="441.19" y="120.94" width="10.12" height="10.12"/>
+<text id="text-80acf1b0" class="f-ink" x="532" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.56 [0.37, 6.53]</text>
+<text id="text-73963c46" class="f-muted" x="750" y="130" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">3.8%</text>
+<text id="text-2c1b9fcd" class="f-ink" x="10" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Ferguson &amp; Simes (1949) [tuberculosis]</text>
+<text id="text-82f42659" class="f-muted" x="270" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">609</text>
+<line id="line-a039ac64" class="s-ink" x1="317.19" y1="146" x2="394.25" y2="146" stroke-width="1"/>
+<rect id="rect-4793825a" class="f-accent" x="349.77" y="140.05" width="11.9" height="11.9"/>
+<text id="text-a7a8e731" class="f-ink" x="532" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.20 [0.09, 0.49]</text>
+<text id="text-f1b8f126" class="f-muted" x="750" y="150" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">6.4%</text>
+<text id="text-f4486f96" class="f-ink" x="10" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">TPT Madras (1980) [tuberculosis]</text>
+<text id="text-7fac7339" class="f-muted" x="270" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">176782</text>
+<line id="line-f3432b57" class="s-ink" x1="421.42" y1="166" x2="432.41" y2="166" stroke-width="1"/>
+<rect id="rect-834832f4" class="f-accent" x="419.91" y="159" width="14" height="14"/>
+<text id="text-9b69e90b" class="f-ink" x="532" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">1.01 [0.89, 1.14]</text>
+<text id="text-189a3588" class="f-muted" x="750" y="170" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">10.2%</text>
+<text id="text-aa6850ba" class="f-ink" x="10" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Aronson (1948) [tuberculosis]</text>
+<text id="text-764b028d" class="f-muted" x="270" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">262</text>
+<line id="line-9491741a" class="s-ink" x1="336.9" y1="186" x2="436.59" y2="186" stroke-width="1"/>
+<rect id="rect-8b1a3a4a" class="f-accent" x="381.22" y="180.48" width="11.05" height="11.05"/>
+<text id="text-291e23d8" class="f-ink" x="532" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.41 [0.13, 1.26]</text>
+<text id="text-1b312c54" class="f-muted" x="750" y="190" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">5.1%</text>
+<text id="text-0105442d" class="f-ink" x="10" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Comstock (1974) [tuberculosis]</text>
+<text id="text-ebb3053a" class="f-muted" x="270" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">77972</text>
+<line id="line-62a6603d" class="s-ink" x1="401.52" y1="206" x2="420.99" y2="206" stroke-width="1"/>
+<rect id="rect-4d5514cc" class="f-accent" x="404.32" y="199.07" width="13.87" height="13.87"/>
+<text id="text-cb94493b" class="f-ink" x="532" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.71 [0.57, 0.89]</text>
+<text id="text-963f86f2" class="f-muted" x="750" y="210" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">9.9%</text>
+<text id="text-a559a667" class="f-ink" x="10" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Frimodt-Moller (1973) [tuberculosis]</text>
+<text id="text-a16f16cb" class="f-muted" x="270" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">10877</text>
+<line id="line-90550d4e" class="s-ink" x1="396.92" y1="226" x2="436.45" y2="226" stroke-width="1"/>
+<rect id="rect-ddbd7730" class="f-accent" x="410.02" y="219.34" width="13.33" height="13.33"/>
+<text id="text-e791ca56" class="f-ink" x="532" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.80 [0.52, 1.25]</text>
+<text id="text-4eac3a64" class="f-muted" x="750" y="230" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.9%</text>
+<text id="text-d50315f6" class="f-ink" x="10" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Hart &amp; Sutherland (1977) [tuberculosi...</text>
+<text id="text-326873e1" class="f-muted" x="270" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">26465</text>
+<line id="line-f9d81d4d" class="s-ink" x1="349.78" y1="246" x2="374.49" y2="246" stroke-width="1"/>
+<rect id="rect-c8e07339" class="f-accent" x="355.25" y="239.12" width="13.76" height="13.76"/>
+<text id="text-4b5d67ba" class="f-ink" x="532" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.24 [0.18, 0.31]</text>
+<text id="text-0e76b388" class="f-muted" x="750" y="250" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">9.7%</text>
+<text id="text-439f5084" class="f-ink" x="10" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Comstock (1976) [tuberculosis]</text>
+<text id="text-e01dfb77" class="f-muted" x="270" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">34767</text>
+<line id="line-c4a61bef" class="s-ink" x1="402.27" y1="266" x2="448.95" y2="266" stroke-width="1"/>
+<rect id="rect-1e2d1e86" class="f-accent" x="419.07" y="259.46" width="13.08" height="13.08"/>
+<text id="text-e1de3569" class="f-ink" x="532" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.98 [0.58, 1.66]</text>
+<text id="text-13044c89" class="f-muted" x="750" y="270" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
+<text id="text-a3958294" class="f-ink" x="10" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Stein &amp; Aronson (1953) [tuberculosis]</text>
+<text id="text-144bbdd4" class="f-muted" x="270" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">2992</text>
+<line id="line-ae65bf75" class="s-ink" x1="384.09" y1="286" x2="398.6" y2="286" stroke-width="1"/>
+<rect id="rect-2a4a4ce0" class="f-accent" x="384.37" y="279.02" width="13.95" height="13.95"/>
+<text id="text-09a36ce7" class="f-ink" x="532" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.46 [0.39, 0.54]</text>
+<text id="text-7cd08497" class="f-muted" x="750" y="290" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">10.1%</text>
+<text id="text-8fbe4a32" class="f-ink" x="10" y="310" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Rosenthal (1961) [tuberculosis]</text>
+<text id="text-2d4ea9e8" class="f-muted" x="270" y="310" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">3381</text>
+<line id="line-957168a1" class="s-ink" x1="341.66" y1="306" x2="388.87" y2="306" stroke-width="1"/>
+<rect id="rect-6b3f06fb" class="f-accent" x="358.73" y="299.47" width="13.06" height="13.06"/>
+<text id="text-efb8925e" class="f-ink" x="532" y="310" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">0.25 [0.15, 0.43]</text>
+<text id="text-fdf4547c" class="f-muted" x="750" y="310" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="end">8.4%</text>
+<text id="text-9eb09b7d" class="f-ink" x="10" y="340" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">Pooled</text>
+<polygon id="polygon-8933c552" class="f-accent2" points="378.83,336 394.54,329 410.24,336 394.54,343"/>
+<text id="text-175c59ef" class="f-ink" x="532" y="340" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start" font-weight="bold">0.49 [0.34, 0.70]</text>
+<text id="text-57a9c4e6" class="f-ink" x="10" y="360" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">Prediction interval</text>
+<rect id="rect-bdd3ca9d" class="f-band" x="336.87" y="351" width="115.33" height="10"/>
+<rect id="rect-be4b87d6" class="s-accent" fill="none" x="336.87" y="351" width="115.33" height="10"/>
+<line id="line-cff7d9de" class="s-accent" x1="394.54" y1="349" x2="394.54" y2="363" stroke-width="1"/>
+<text id="text-64524d91" class="f-ink" x="532" y="360" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">[0.13, 1.78]</text>
+<line id="line-cf55c39d" class="s-ink" x1="300" y1="380" x2="520" y2="380" stroke-width="1"/>
+<line id="line-b1780feb" class="s-ink" x1="337.24" y1="380" x2="337.24" y2="384" stroke-width="1"/>
+<text id="text-4f3f663d" class="f-muted" x="337.24" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0.14</text>
+<line id="line-f765c5e5" class="s-ink" x1="381.81" y1="380" x2="381.81" y2="384" stroke-width="1"/>
+<text id="text-004b7fcc" class="f-muted" x="381.81" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">0.37</text>
+<line id="line-d9006e4d" class="s-ink" x1="426.38" y1="380" x2="426.38" y2="384" stroke-width="1"/>
+<text id="text-216c2e81" class="f-muted" x="426.38" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">1</text>
+<line id="line-516aef02" class="s-ink" x1="470.95" y1="380" x2="470.95" y2="384" stroke-width="1"/>
+<text id="text-34473c5f" class="f-muted" x="470.95" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">2.72</text>
+<line id="line-990387ba" class="s-ink" x1="515.52" y1="380" x2="515.52" y2="384" stroke-width="1"/>
+<text id="text-81aab8be" class="f-muted" x="515.52" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">7.39</text>
+<line id="line-206e9d5b" class="s-muted" x1="426.38" y1="56" x2="426.38" y2="380" stroke-width="1" stroke-dasharray="4 3"/>
+<text id="text-21dfa8e4" class="f-muted" x="10" y="418" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="start">k = 13; tau = 0.560; I2 = 92.1%; Q(12) = 152.23, p = &lt;0.001</text>
+</svg>

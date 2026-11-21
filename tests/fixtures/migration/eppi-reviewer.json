@@ -1,0 +1,35 @@
+{
+  "CodeSets": [
+    {
+      "SetId": 101,
+      "SetName": "Screening on title and abstract",
+      "Attributes": {
+        "AttributesList": [
+          {"AttributeId": 1001, "AttributeName": "Include", "AttributeType": "Include", "Attributes": null},
+          {"AttributeId": 1002, "AttributeName": "Exclude: not about learning", "AttributeType": "Exclude", "Attributes": null},
+          {"AttributeId": 1003, "AttributeName": "Exclude: not empirical", "AttributeType": "Exclude", "Attributes": null}
+        ]
+      }
+    }
+  ],
+  "References": [
+    {
+      "ItemId": 5001, "Title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+      "ShortTitle": "Cepeda (2008)", "Authors": "Cepeda, Nicholas J.; Vul, Edward;", "Year": "2008",
+      "Month": "November", "ParentTitle": "Psychological Science", "Volume": "19", "Issue": "11",
+      "Pages": "1095-1102", "DOI": "10.1111/j.1467-9280.2008.02209.x", "Abstract": "Spacing study abstract.",
+      "Codes": [{"AttributeId": 1001, "AttributeName": "Include", "AdditionalText": ""}]
+    },
+    {
+      "ItemId": 5002, "Title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+      "ShortTitle": "Roediger (2006)", "Authors": "Roediger H L; Karpicke J D", "Year": "2006",
+      "ParentTitle": "Psychological Science", "Volume": "17", "Issue": "3", "Pages": "249-255",
+      "DOI": "10.1111/j.1467-9280.2006.01693.x", "Abstract": "Testing effect abstract.",
+      "Codes": [{"AttributeId": 1003, "AttributeName": "Exclude: not empirical", "AdditionalText": ""}]
+    },
+    {
+      "ItemId": 5003, "Title": "An item nobody has coded yet", "Authors": "Smith, Anna", "Year": "2010",
+      "ParentTitle": "Journal of Classroom Studies", "Codes": []
+    }
+  ]
+}

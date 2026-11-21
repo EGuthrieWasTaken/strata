@@ -1,0 +1,8 @@
+$ strata --why pull the edited items zotero pull --collection strata-pushed --by tester --via website
+pulled 2 items from 'strata-pushed': 0 new records, 0 matched records already in
+the review, 2 already linked, 2 correction(s)
+  corrected rec_6nkmc81132r4p6ag abstract: None -> 'Edited outside strata 
+(stand-in for an edit in the Zotero app).'
+  corrected rec_rb2mxx0kb7p60v28 abstract: None -> 'Edited outside strata 
+(stand-in for an edit in the Zotero app).'
+[exit code: 0]

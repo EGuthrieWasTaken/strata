@@ -1,0 +1,50 @@
+{
+  "request": {
+    "method": "DELETE",
+    "url": "http://127.0.0.1:23119/api/users/0/items/ZPSVHR4J",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Server-ID": "dx2OEZVeHz9j",
+      "Zotero-API-Key": "REDACTED-LOCAL-KEY",
+      "If-Unmodified-Since-Version": "1"
+    },
+    "body": null
+  },
+  "note": "delete with a stale version",
+  "response": {
+    "status": 412,
+    "reason": "Precondition Failed",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "text/plain"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "item has been modified since specified version (expected 1, found 53)"
+  }
+}

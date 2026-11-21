@@ -1,0 +1,74 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items?since=0&format=versions",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "format=versions",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "15"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items?since=0&format=versions>; rel=\"last\", <https://www.zotero.org/users/22585168/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "G9PKINI3": 3,
+      "GM5XVZAN": 19,
+      "TI5GQH7I": 18,
+      "CWRCUFQN": 17,
+      "8ZM89RUI": 4,
+      "GMCCX6GH": 5,
+      "ZJVWVFUA": 6,
+      "PN4APK5M": 7,
+      "26DVGR6X": 8,
+      "ZZHHPIS3": 9,
+      "8REME2HU": 10,
+      "NR9FXZUN": 11,
+      "VTFDUQN2": 12,
+      "CFI7USQX": 13,
+      "BEITJ9RM": 14
+    }
+  }
+}

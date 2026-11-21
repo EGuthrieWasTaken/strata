@@ -1,0 +1,266 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "d9f6f6ef7e7242d99cb0a9a958f54074",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      },
+      {
+        "key": "ZZZZZZZZ",
+        "version": 1
+      }
+    ]
+  },
+  "note": "51 objects: is 50 the limit?",
+  "response": {
+    "status": 413,
+    "reason": "Request Entity Too Large",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 04:36:11 GMT"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": "Cannot add more than 50 items at a time"
+  }
+}

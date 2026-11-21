@@ -152,11 +152,15 @@ def list_users(store: Store) -> list[User]:
 
 
 def set_password(store: Store, username: str, password: str) -> None:
+    """Set an account's password and end its sessions: whoever was signed in with the old one is
+    signed out."""
     hashed = hash_password(password)
-    if not store.execute(
-        "UPDATE users SET password_hash = ? WHERE username = ?", (hashed, username)
-    ):
-        raise AccountError(f"there is no account called {username!r}")
+    with store.connect() as db:
+        if not db.execute(
+            "UPDATE users SET password_hash = ? WHERE username = ?", (hashed, username)
+        ).rowcount:
+            raise AccountError(f"there is no account called {username!r}")
+        db.execute("DELETE FROM sessions WHERE username = ?", (username,))
 
 
 def disable_user(store: Store, username: str) -> None:
@@ -206,10 +210,15 @@ def invitation_user(store: Store, token: str, *, now: float | None = None) -> st
 
 
 def use_invitation(store: Store, token: str, *, now: float | None = None) -> str:
+    """Use an invitation up; its user name. Two requests with the same token cannot both use it:
+    the update that marks it used is also the check that it was not."""
     username = invitation_user(store, token, now=now)
-    if username is None:
+    current = now if now is not None else time.time()
+    if username is None or not store.execute(
+        "UPDATE invitations SET used = 1 WHERE token_hash = ? AND used = 0 AND expires >= ?",
+        (_digest(token), current),
+    ):
         raise AccountError("this invitation has expired or has already been used")
-    store.execute("UPDATE invitations SET used = 1 WHERE token_hash = ?", (_digest(token),))
     return username
 
 
