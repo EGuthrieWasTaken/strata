@@ -51,7 +51,7 @@ def test_the_only_lead_cannot_be_demoted_by_the_members_form(tmp_path: Path) -> 
 
     with pytest.raises(members_mod.MembershipError, match="only lead"):
         members_mod.add_member(
-            world.instance, "spacing", lead.username, actor=lead.actor, role="observer"
+            world.instance, "spacing", lead.username, actor=lead.actor, role="observer", by="test"
         )
     assert members_mod.membership(world.instance, "spacing", lead.username).role == "lead"  # type: ignore[union-attr]
 

@@ -145,11 +145,21 @@ def test_users_are_added_invited_disabled_and_listed(tmp_path: Path) -> None:
     assert log[0]["username"] == "sam" and log[0]["outcome"] == "success"
 
 
-def test_tokens_and_secrets_are_shown_once_or_never(tmp_path: Path) -> None:
-    data, _bare = _instance(tmp_path)
+def _project_with_sam(tmp_path: Path) -> Path:
+    data, bare = _instance(tmp_path)
+    host(data, "project", "add", "spacing", "--remote", str(bare))
     host(data, "user", "add", "sam")
-    token = json.loads(host(data, "token", "add", "sam", json_output=True))["token"]
-    assert accounts.user_for_api_token(Instance(data).store, token) == "sam"
+    host(data, "member", "add", "spacing", "sam", "--actor", "sam", "--role", "screener")
+    return data
+
+
+def test_tokens_and_secrets_are_shown_once_or_never(tmp_path: Path) -> None:
+    data = _project_with_sam(tmp_path)
+    token = json.loads(host(data, "token", "add", "sam", "--project", "spacing", json_output=True))[
+        "token"
+    ]
+    found = accounts.api_token(Instance(data).store, token)
+    assert found is not None and found.username == "sam" and found.project == "spacing"
     assert "revoked 1" in host(data, "token", "revoke", "sam")
     host(data, "secret", "set", "spacing-token", input="ghp_value-from-stdin\n")
     listed = host(data, "secret", "list", "spacing-token", "absent")
@@ -379,9 +389,14 @@ def test_member_token_and_secret_commands_report_in_both_forms(tmp_path: Path) -
         data, "member", "add", "spacing", "sam", "--actor", "gone", "--role", "screener", code=2
     )
 
-    printed = host(data, "token", "add", "sam", "--label", "laptop").splitlines()
+    host(data, "member", "add", "spacing", "sam", "--actor", "sam", "--role", "screener")
+    printed = host(
+        data, "token", "add", "sam", "--project", "spacing", "--label", "laptop"
+    ).splitlines()
     assert "it is not shown again" in printed[0] and printed[1].startswith("strata_")
-    assert "no account called 'ghost'" in host(data, "token", "add", "ghost", code=2)
+    assert "no account called 'ghost'" in host(
+        data, "token", "add", "ghost", "--project", "spacing", code=2
+    )
 
     import os
 
@@ -397,3 +412,75 @@ def test_member_token_and_secret_commands_report_in_both_forms(tmp_path: Path) -
     assert "invalid secret name" in host(
         data, "secret", "set", "../escape", input="value\n", code=2
     )
+
+
+# ------------------------------------------------------------------ tokens that expire (4.8)
+
+
+def test_a_token_is_made_for_one_project_and_expires(tmp_path: Path) -> None:
+    data = _project_with_sam(tmp_path)
+
+    made = json.loads(
+        host(data, "token", "add", "sam", "--project", "spacing", "--days", "30", json_output=True)
+    )
+
+    assert made["project"] == "spacing" and made["days"] == 30
+    found = accounts.api_token(Instance(data).store, made["token"])
+    assert found is not None and found.expires is not None
+    assert 29.9 * 86400 < found.expires - found.created < 30.1 * 86400
+    default = json.loads(
+        host(data, "token", "add", "sam", "--project", "spacing", json_output=True)
+    )
+    assert default["days"] == 90
+    out = host(data, "token", "add", "sam", "--project", "spacing", "--label", "laptop")
+    assert "expires" in out and "spacing" in out and "not shown again" in out
+
+
+def test_a_token_cannot_be_made_without_naming_its_project(tmp_path: Path) -> None:
+    data = _project_with_sam(tmp_path)
+    out = host(data, "token", "add", "sam", code=2)
+    assert "--project" in out
+
+
+def test_a_token_for_someone_outside_the_project_is_refused_in_plain_words(tmp_path: Path) -> None:
+    data = _project_with_sam(tmp_path)
+    host(data, "user", "add", "zoe")
+
+    out = host(data, "token", "add", "zoe", "--project", "spacing", code=2)
+
+    assert "zoe" in out and "spacing" in out and "not a member" in out
+    assert "strata host member add spacing zoe" in out
+    assert not Instance(data).store.all("SELECT 1 FROM api_tokens")
+
+
+def test_a_token_for_an_unknown_project_or_a_nonsense_length_is_refused_in_plain_words(
+    tmp_path: Path,
+) -> None:
+    data = _project_with_sam(tmp_path)
+    assert "no project called 'nope'" in host(
+        data, "token", "add", "sam", "--project", "nope", code=2
+    )
+    out = host(data, "token", "add", "sam", "--project", "spacing", "--days", "0", code=2)
+    assert "at least one day" in out and "--days 1" in out
+
+
+# --------------------------------------------------------------------- the audit log (4.11)
+
+
+def test_the_audit_command_shows_who_changed_access_and_how(tmp_path: Path) -> None:
+    data = _project_with_sam(tmp_path)
+    host(data, "member", "add", "spacing", "sam", "--actor", "sam", "--role", "adjudicator")
+    host(data, "token", "add", "sam", "--project", "spacing", "--label", "laptop")
+    host(data, "token", "revoke", "sam", "--label", "laptop")
+    host(data, "member", "remove", "spacing", "sam")
+
+    rows = json.loads(host(data, "audit", json_output=True))
+
+    assert [r["action"] for r in rows] == [
+        "member-remove", "token-revoke", "token-create", "role-change", "member-grant",
+    ]  # fmt: skip
+    for row in rows:
+        assert row["by"].startswith("command line (") and row["subject"] == "sam"
+    assert "laptop" in rows[1]["detail"] and "laptop" in rows[2]["detail"]
+    text = host(data, "audit", "--limit", "2")
+    assert "member-remove" in text and "token-revoke" in text and "member-grant" not in text

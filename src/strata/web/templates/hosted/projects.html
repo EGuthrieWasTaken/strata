@@ -11,7 +11,7 @@
     <td><a href="/p/{{ row.project.id | urlencode }}/">{{ row.project.title }}</a> <code>{{ row.project.id }}</code></td>
     <td>{{ row.membership.actor }}</td>
     <td>{{ row.membership.role }}</td>
-    <td>{% if row.sync.remote %}{% if row.sync.conflicts %}<strong>conflict waiting for a lead</strong>{% elif row.sync.last_error %}<strong>last sync failed</strong>{% else %}synced {{ row.sync.last_success or "not yet" }}{% endif %}{% else %}none{% endif %}</td>
+    <td>{% if row.unavailable %}<strong data-testid="project-unavailable">unavailable</strong>: a symbolic link at <code>{{ row.unavailable.links[0] }}</code>{% if row.unavailable.links | length > 1 %} and {{ row.unavailable.links | length - 1 }} more{% endif %}; <a href="/p/{{ row.project.id | urlencode }}/">what to do</a>{% elif row.sync.remote %}{% if row.sync.conflicts %}<strong>conflict waiting for a lead</strong>{% elif row.sync.last_error %}<strong>last sync failed</strong>{% else %}synced {{ row.sync.last_success or "not yet" }}{% endif %}{% else %}none{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

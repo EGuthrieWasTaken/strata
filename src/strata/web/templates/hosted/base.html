@@ -13,6 +13,7 @@
   <a class="brand" href="/">strata</a>
   {% if user %}
   <span class="actor-badge">{{ user.display_name }} ({{ user.username }})</span>
+  <a href="/account/password">Change password</a>
   <form method="post" action="/signout" class="inline-form">
     <input type="hidden" name="{{ csrf_field_name }}" value="{{ csrf }}">
     <button type="submit">Sign out</button>

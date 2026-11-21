@@ -63,7 +63,9 @@ def _two_projects(tmp_path: Path) -> tuple[Hosted, list[str]]:
     other_seed = seed_review(tmp_path, "other-seed", title="Confidential trial review", first=101)
     h.instance.add_project("secret-trial", remote=str(other_seed.root))
     accounts.add_user(h.instance.store, "zoe", password=PASSWORD)
-    members_mod.add_member(h.instance, "secret-trial", "zoe", actor="ethan", role="lead")
+    members_mod.add_member(
+        h.instance, "secret-trial", "zoe", actor="ethan", role="lead", by="test setup"
+    )
     other_ids = sorted(
         r["id"] for r in records_mod.read_records(h.instance.open_project("secret-trial"))
     )
@@ -115,14 +117,16 @@ def test_mcp_returns_another_projects_data_to_no_one_but_its_members(tmp_path: P
     h, other_ids = _two_projects(tmp_path)
     client = h.client()
     sam_token = accounts.create_api_token(
-        h.instance.store, "sam.okonkwo", label="mcp", now=h.clock()
+        h.instance.store, "sam.okonkwo", label="mcp", project="spacing", by="test", now=h.clock()
     )
     refused = _mcp(
         client, "secret-trial", sam_token, "tools/call", {"name": "records", "arguments": {}}
     )
     assert refused.status_code == 404 and other_ids[0] not in refused.text
     assert "Confidential" not in refused.text
-    zoe_token = accounts.create_api_token(h.instance.store, "zoe", label="mcp", now=h.clock())
+    zoe_token = accounts.create_api_token(
+        h.instance.store, "zoe", label="mcp", project="secret-trial", by="test", now=h.clock()
+    )
     assert [r["id"] for r in _tool(client, "secret-trial", zoe_token, "records")] == other_ids
     assert _mcp(client, "spacing", zoe_token, "tools/list").status_code == 404
 
@@ -140,7 +144,9 @@ def test_an_unauthenticated_mcp_client_is_refused(tmp_path: Path) -> None:
     # A browser session is not an MCP credential, and a disabled account's token stops working.
     sam = h.signed_in("sam.okonkwo")
     assert _mcp(sam, "spacing", None, "initialize").status_code == 401
-    token = accounts.create_api_token(h.instance.store, "sam.okonkwo", label="mcp", now=h.clock())
+    token = accounts.create_api_token(
+        h.instance.store, "sam.okonkwo", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     assert _mcp(client, "spacing", token, "initialize").status_code == 200
     accounts.disable_user(h.instance.store, "sam.okonkwo")
     assert _mcp(client, "spacing", token, "initialize").status_code == 401
@@ -149,7 +155,9 @@ def test_an_unauthenticated_mcp_client_is_refused(tmp_path: Path) -> None:
 def test_remote_mcp_serves_the_read_only_tools_and_nothing_that_writes(tmp_path: Path) -> None:
     h = hosted(tmp_path)
     client = h.client()
-    token = accounts.create_api_token(h.instance.store, "olive", label="mcp", now=h.clock())
+    token = accounts.create_api_token(
+        h.instance.store, "olive", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     listed = _mcp(client, "spacing", token, "tools/list")
     assert listed.status_code == 200
     names = sorted(tool["name"] for tool in listed.json()["result"]["tools"])
@@ -246,7 +254,9 @@ def test_blinding_is_off_when_the_review_turns_it_off(
 ) -> None:
     h, record = _blinding_fixture(tmp_path, blind=False)
     _a_resolved_decision_in_the_preview(monkeypatch, record)
-    token = accounts.create_api_token(h.instance.store, "ethan.g", label="mcp", now=h.clock())
+    token = accounts.create_api_token(
+        h.instance.store, "ethan.g", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     stale = _tool(h.client(), "spacing", token, "preview_criterion_change_impact",
                   criterion_id="EXC-01", direction="loosened", origin="retired")  # fmt: skip
     assert [s["record_id"] for s in stale] == [record]
@@ -257,7 +267,9 @@ def test_mcp_never_gives_a_screener_a_colleagues_undecided_record_opinion(
 ) -> None:
     h, record = _blinding_fixture(tmp_path)
     client = h.client()
-    ethan_token = accounts.create_api_token(h.instance.store, "ethan.g", label="mcp", now=h.clock())
+    ethan_token = accounts.create_api_token(
+        h.instance.store, "ethan.g", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     for name, arguments in (
         ("why", {"record_id": record}),
         ("records", {}),
@@ -278,7 +290,9 @@ def test_mcp_never_gives_a_screener_a_colleagues_undecided_record_opinion(
                   criterion_id="EXC-01", direction="loosened", origin="retired")  # fmt: skip
     assert stale == []
     # An observer screens nothing, so there is no independent judgement of theirs to protect.
-    olive_token = accounts.create_api_token(h.instance.store, "olive", label="mcp", now=h.clock())
+    olive_token = accounts.create_api_token(
+        h.instance.store, "olive", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     seen = _tool(client, "spacing", olive_token, "preview_criterion_change_impact",
                  criterion_id="EXC-01", direction="loosened", origin="retired")  # fmt: skip
     assert [s["record_id"] for s in seen] == [record]
@@ -312,6 +326,8 @@ def test_remote_mcp_offers_no_write_tool_even_when_the_review_enables_ai(
 
     h = hosted(tmp_path)
     monkeypatch.setattr(agents_mod, "is_enabled", lambda repo: True)
-    token = accounts.create_api_token(h.instance.store, "ethan.g", label="mcp", now=h.clock())
+    token = accounts.create_api_token(
+        h.instance.store, "ethan.g", label="mcp", project="spacing", by="test", now=h.clock()
+    )
     listed = _mcp(h.client(), "spacing", token, "tools/list").json()["result"]["tools"]
     assert listed and not {tool["name"] for tool in listed} & set(WRITE_TOOLS)

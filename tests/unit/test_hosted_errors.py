@@ -46,7 +46,7 @@ def test_account_operations_name_an_account_that_does_not_exist(store: Store) ->
         lambda: accounts.disable_user(store, "ghost"),
         lambda: accounts.enable_user(store, "ghost"),
         lambda: accounts.create_invitation(store, "ghost"),
-        lambda: accounts.create_api_token(store, "ghost", label="x"),
+        lambda: accounts.create_api_token(store, "ghost", label="x", project="p", by="t"),
     ):
         with pytest.raises(accounts.AccountError, match="no account called 'ghost'"):
             call()
@@ -58,7 +58,7 @@ def test_a_disabled_account_gets_no_token_and_its_invitation_stops_working(store
     accounts.disable_user(store, "sam")
     assert accounts.invitation_user(store, invitation, now=1.0) is None
     with pytest.raises(accounts.AccountError, match="disabled"):
-        accounts.create_api_token(store, "sam", label="mcp")
+        accounts.create_api_token(store, "sam", label="mcp", project="p", by="t")
 
 
 def test_an_old_hash_is_upgraded_at_the_next_sign_in(store: Store) -> None:

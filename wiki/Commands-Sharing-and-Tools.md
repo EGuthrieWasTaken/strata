@@ -96,6 +96,19 @@ strata host signins [OPTIONS]
 | `--limit` | int | `50` |  |
 | `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
 
+### `strata host audit`
+
+Show who granted or changed access (memberships and API tokens), newest first.
+
+```
+strata host audit [OPTIONS]
+```
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--limit` | int | `50` |  |
+| `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
+
 ### `strata host project`
 
 Projects on this instance.
@@ -121,6 +134,7 @@ strata host project add [OPTIONS] PROJECT_ID
 | `--remote` | str |  | Clone this review's git remote |
 | `--credential` | str |  | KIND:SECRET -- ssh-key:<secret> (deploy key) or token:<secret> (HTTPS token) |
 | `--credential-user` | str |  | User name sent with an HTTPS token |
+| `--host-key` | str, repeatable |  | Pin the remote's SSH host key: a known_hosts line, as `ssh-keyscan -t ed25519 HOST` prints it (repeat for more than one key), instead of trusting it on first use |
 | `--title` | str |  |  |
 | `--actor` | str |  | First actor of a new review |
 | `--actor-name` | str |  |  |
@@ -137,6 +151,24 @@ strata host project list [OPTIONS]
 
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
+| `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
+
+#### `strata host project host-key`
+
+Show, pin or unpin the SSH host key a project's remote is trusted with.
+
+```
+strata host project host-key [OPTIONS] PROJECT_ID
+```
+
+| Argument | | Meaning |
+|---|---|---|
+| `project_id` | required |  |
+
+| Option | Takes | Default | Meaning |
+|---|---|---|---|
+| `--host-key` | str, repeatable |  | Pin the remote's SSH host key: a known_hosts line, as `ssh-keyscan -t ed25519 HOST` prints it (repeat for more than one key), instead of trusting it on first use |
+| `--clear` | flag |  | Go back to trusting the key on first use |
 | `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
 
 ### `strata host user`
@@ -299,6 +331,9 @@ strata host token COMMAND
 
 Create an API token for a user's MCP client; shown once, stored only as a hash.
 
+A token reads one project and expires, so one that leaks gives a stranger one review for a
+while rather than every review its owner is in.
+
 ```
 strata host token add [OPTIONS] USERNAME
 ```
@@ -309,6 +344,8 @@ strata host token add [OPTIONS] USERNAME
 
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
+| `--project` (required) | str |  | The one project the token reads (the user must be a member) |
+| `--days` | int | `90` | How many days until the token expires |
 | `--label` | str | `mcp` | What the token is for |
 | `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
 

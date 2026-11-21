@@ -23,6 +23,10 @@ strata host user disable sam.okonkwo    # signs them out everywhere and revokes 
 strata host user list
 ```
 
+Once signed in, a person changes their own password at *Change password* in the page header: it needs their
+current password and signs them out of every other session. Someone who has forgotten theirs needs a new
+invitation (`strata host user invite`), which also ends their old sessions when they use it.
+
 An administrator manages accounts and projects; they have no role in any review unless a lead gives them one.
 
 ## Memberships
@@ -95,7 +99,9 @@ or store it: `strata host secret set oidc-university`.
 A provider sign-in reaches an account only once it is **linked**: the person opens their invitation and
 chooses the provider there. Someone with an account at the same provider but no invitation is turned away (and
 the attempt is logged). For GitHub the link is to GitHub's numeric user id, so renaming a GitHub login does not
-break it.
+break it. If the provider account someone chooses is already linked to a different account on the instance, the
+invitation is **not** used up: the page says so and that the link is still good, and they can open it again and
+choose another provider account.
 
 ## Assistants (remote MCP)
 
@@ -104,10 +110,15 @@ are served at `https://<your instance>/p/<project>/mcp` over MCP's HTTP transpor
 an API token:
 
 ```
-strata host token add sam.okonkwo --label laptop
-API token for sam.okonkwo (laptop); it is not shown again:
+strata host token add sam.okonkwo --project spacing --label laptop
+API token for sam.okonkwo (laptop), for the project spacing, expires 2027-02-14; it is not shown again:
 strata_...
 ```
 
-The token sees exactly the projects its owner is a member of, with the same blinding, and can never record a
-decision. `strata host token revoke sam.okonkwo` withdraws it.
+A token reads **one project**, the one you name (its owner must be a member of it), and **expires**: after 90
+days unless you say otherwise with `--days`. A leaked token then gives a stranger one review for a while, not
+every review its owner is in for ever. It has the same blinding as its owner and can never record a decision.
+Used for another project, or after it expires, the client is told so in words (which project the token is for,
+or when it expired, and how to get another). `strata host token revoke sam.okonkwo` withdraws a person's
+tokens. Tokens made by an earlier version, which named no project and never expired, keep working until you
+revoke them.

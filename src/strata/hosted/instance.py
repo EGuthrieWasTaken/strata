@@ -46,6 +46,8 @@ from strata.core import doctor as doctor_mod
 from strata.core.hooks import HOOK_SCRIPTS
 from strata.core.init import init_repository
 from strata.core.repo import Repo, RepoNotFoundError, open_repo
+from strata.hosted import hostkeys
+from strata.hosted.errors import InstanceError as InstanceError  # re-exported
 from strata.hosted.secrets import SecretStore, git_credential_env
 from strata.hosted.store import Store
 
@@ -58,8 +60,38 @@ DEFAULT_SESSION_IDLE_MINUTES = 120
 DEFAULT_SESSION_HOURS = 12
 
 
-class InstanceError(ValueError):
-    """Something about the instance or a project is not as the command needs it."""
+#: How many links a refusal names before it counts the rest.
+_LINKS_NAMED = 5
+
+
+def _unavailable_message(project_id: str, links: list[str]) -> str:
+    """Why a project is not served, in plain words: which project, which link, why that matters,
+    and how to remove it and push (openspec:hosted-deployment#hosted-security-baseline)."""
+    shown = links[:_LINKS_NAMED]
+    more = len(links) - len(shown)
+    named = ", ".join(shown) + (f" and {more} more" if more else "")
+    one = len(links) == 1
+    removals = "; ".join(f"git -C projects/{project_id} rm {link}" for link in shown)
+    return (
+        f"The project {project_id!r} is unavailable: its working copy contains "
+        f"{'a symbolic link' if one else f'{len(links)} symbolic links'} ({named}), and an "
+        "instance never serves a project that has one, because the screens could follow the link "
+        "to files outside the project, such as the instance's own state or another project. "
+        "Other projects on this instance are not affected. To fix it, remove "
+        f"{'the link' if one else 'the links'} from the project's working copy and push the "
+        f"removal: in the instance's data directory run `{removals}` (`rm` instead of `git rm` "
+        "if git does not track it), commit, and `git push` from there. The project returns when "
+        "its page is next opened."
+    )
+
+
+class ProjectUnavailable(InstanceError):
+    """A project the instance will not serve, and why; the message is safe to show a member."""
+
+    def __init__(self, project_id: str, links: list[str]) -> None:
+        self.project_id = project_id
+        self.links = links
+        super().__init__(_unavailable_message(project_id, links))
 
 
 @dataclass(frozen=True)
@@ -102,6 +134,18 @@ class Project:
     credential_secret: str | None
     credential_username: str | None
     created: float
+    #: The SSH host key(s) the remote is pinned to, as `known_hosts` lines; `None` is trust on
+    #: first use (`strata.hosted.hostkeys`).
+    host_key: str | None = None
+
+
+@dataclass(frozen=True)
+class HostKeyReport:
+    """Which SSH host key(s) a project's remote is trusted with, and how that came about."""
+
+    host: str
+    pinned: bool
+    keys: list[hostkeys.HostKey]
 
 
 def _settings_from(doc: dict[str, Any]) -> Settings:
@@ -146,6 +190,7 @@ SECURE_GIT_CONFIG = {"core.symlinks": "false"}
 
 
 def _symlinks_in(root: Path) -> list[Path]:
+    """Every symbolic link in a working tree outside `.git`, sorted."""
     found: list[Path] = []
     for directory, dirnames, filenames in os.walk(root):
         if ".git" in dirnames:
@@ -187,6 +232,7 @@ class Instance:
         self.store = Store(self.state_dir / "instance.db")
         self.secrets = SecretStore(self.store, self.state_dir / "instance.key", environ=environ)
         self._settings: Settings | None = None
+        self._unavailable: dict[str, ProjectUnavailable] = {}
 
     # -- set-up ----------------------------------------------------------------------------
 
@@ -199,6 +245,9 @@ class Instance:
                 f"{self.data_dir} holds no strata instance; run `strata host init --data "
                 f"{self.data_dir}` first"
             )
+        if self.store.needs_upgrade():
+            # State made by an earlier version: bring it up to date, keeping what it holds.
+            self.store.upgrade()
 
     def initialise(self, *, public_url: str | None = None) -> None:
         """Create the instance's state (idempotent: an existing instance keeps what it has)."""
@@ -223,32 +272,61 @@ class Instance:
 
     def secure_project(self, project_id: str) -> None:
         """Make a project's git run the instance's own hooks, never the repository's, and check
-        out no symbolic links.
+        out no symbolic links; refuse (`ProjectUnavailable`) a project that already has one.
 
         A symbolic link committed to a project's remote would otherwise be checked out as one, and
         the screens that read and write a review's files would follow it out of the project: to
         the instance's own state, its key, its hooks or another project. With `core.symlinks`
         off, git writes such a link as a small file holding the link's text.
+
+        The hardening is applied first and the refusal comes after, so even a project that is
+        refused never runs a hook from its repository.
         """
         root = self.project_dir(project_id)
         for key, value in SECURE_GIT_CONFIG.items():
             if gitio.get_config(root, key) != value:
                 gitio.set_config(root, key, value)
-        for link in _symlinks_in(root):
-            raise InstanceError(
-                f"project {project_id!r} has a symbolic link in its working tree "
-                f"({link.relative_to(root)}), which an instance does not serve; remove it from the "
-                "remote, then add the project again"
-            )
         self.hooks_dir.mkdir(parents=True, exist_ok=True)
         for name, script in HOOK_SCRIPTS.items():
             path = self.hooks_dir / name
             if not path.exists() or path.read_text(encoding="utf-8") != script:
                 path.write_text(script, encoding="utf-8")
             path.chmod(0o755)
-        root = self.project_dir(project_id)
         if gitio.get_config(root, "core.hooksPath") != str(self.hooks_dir):
             gitio.set_config(root, "core.hooksPath", str(self.hooks_dir))
+        links = self.symlinks_in(project_id)
+        if links:
+            raise ProjectUnavailable(project_id, links)
+
+    def symlinks_in(self, project_id: str) -> list[str]:
+        """The symbolic links in a project's working tree, relative to it; changes nothing."""
+        root = self.project_dir(project_id)
+        return [str(link.relative_to(root)) for link in _symlinks_in(root)]
+
+    def check_project(self, project_id: str) -> ProjectUnavailable | None:
+        """Secure a project and remember whether the instance will serve it: why not, or `None`."""
+        try:
+            self.secure_project(project_id)
+        except ProjectUnavailable as refusal:
+            self._unavailable[project_id] = refusal
+            return refusal
+        self._unavailable.pop(project_id, None)
+        return None
+
+    def unavailable(self, project_id: str) -> ProjectUnavailable | None:
+        """Why a project is not served, or `None` if it is. A project refused earlier is looked at
+        again each time, so removing its link brings it back without a restart; one that was fine
+        costs nothing here."""
+        if project_id not in self._unavailable:
+            return None
+        return self.check_project(project_id)
+
+    def unavailable_projects(self) -> list[ProjectUnavailable]:
+        return [
+            refusal
+            for project in self.list_projects()
+            if (refusal := self.unavailable(project.id)) is not None
+        ]
 
     @property
     def settings(self) -> Settings:
@@ -291,6 +369,7 @@ class Instance:
                 secret=project.credential_secret,
                 username=project.credential_username,
                 tmp_dir=self.tmp_dir,
+                host_key=project.host_key,
             ) as env,
             gitio.environment(env),
         ):
@@ -308,9 +387,13 @@ class Instance:
         actor_handle: str | None = None,
         actor_name: str | None = None,
         actor_email: str | None = None,
+        host_keys: list[str] | None = None,
         now: float | None = None,
     ) -> Project:
-        """Add a project: clone `remote`, or initialise a new review when there is none."""
+        """Add a project: clone `remote`, or initialise a new review when there is none.
+
+        `host_keys` pins the remote's SSH host key (`known_hosts` lines) instead of trusting
+        whatever the host shows at the first clone (`strata.hosted.hostkeys`)."""
         self.require_initialised()
         dest = self.project_dir(project_id)
         if self.get_project(project_id) is not None or dest.exists():
@@ -324,6 +407,11 @@ class Instance:
         if credential_kind is not None and remote is None:
             raise InstanceError("a credential is only used with a remote")
         stored_remote = check_remote_url(remote) if remote is not None else None
+        pinned = (
+            "\n".join(k.line for k in hostkeys.parse_host_keys(host_keys, remote=stored_remote))
+            if host_keys
+            else None
+        )
         pending = Project(
             id=project_id,
             title=title or project_id,
@@ -332,6 +420,7 @@ class Instance:
             credential_secret=credential_secret,
             credential_username=credential_username,
             created=now if now is not None else time.time(),
+            host_key=pinned,
         )
         try:
             if stored_remote is not None:
@@ -366,6 +455,8 @@ class Instance:
             self.secure_project(project_id)
         except gitio.GitError as exc:
             _remove_tree(dest)
+            if hostkeys.is_verification_failure(exc.stderr):
+                raise InstanceError(self.host_key_refusal(pending, during="clone")) from None
             raise InstanceError(f"could not clone {stored_remote}: {exc.stderr.strip()}") from None
         except Exception:
             _remove_tree(dest)
@@ -373,7 +464,7 @@ class Instance:
         project = Project(**{**pending.__dict__, "title": resolved_title or project_id})
         self.store.execute(
             "INSERT INTO projects (id, title, remote, credential_kind, credential_secret, "
-            "credential_username, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "credential_username, created, host_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 project.id,
                 project.title,
@@ -382,9 +473,57 @@ class Instance:
                 project.credential_secret,
                 project.credential_username,
                 project.created,
+                project.host_key,
             ),
         )
         return project
+
+    # -- SSH host keys ---------------------------------------------------------------------
+
+    def host_key_report(self, project_id: str) -> HostKeyReport | None:
+        """The SSH host key(s) a project's remote is trusted with: the pinned ones, or the ones
+        trust on first use accepted. `None` where the instance chose no key (an https remote, or
+        ssh with no deploy key and no pin, which uses the machine's own known_hosts)."""
+        project = self.get_project(project_id)
+        target = hostkeys.ssh_host_of(project.remote) if project and project.remote else None
+        if project is None or target is None:
+            return None
+        host, port = target
+        name = hostkeys.known_hosts_host(host, port)
+        if project.host_key:
+            return HostKeyReport(name, True, hostkeys.parse_stored(project.host_key))
+        if project.credential_kind == "ssh-key":
+            accepted = hostkeys.accepted_keys(self.state_dir / "known_hosts", host, port)
+            return HostKeyReport(name, False, accepted)
+        return None
+
+    def set_host_keys(self, project_id: str, host_keys: list[str] | None) -> list[hostkeys.HostKey]:
+        """Pin an existing project's remote to `host_keys` (`known_hosts` lines), or with `None`
+        go back to trust on first use. The keys pinned."""
+        project = self.get_project(project_id)
+        if project is None:
+            known = ", ".join(p.id for p in self.list_projects()) or "none yet"
+            raise InstanceError(
+                f"there is no project called {project_id!r}; this instance has: {known}"
+            )
+        keys = hostkeys.parse_host_keys(host_keys, remote=project.remote) if host_keys else []
+        self.store.execute(
+            "UPDATE projects SET host_key = ? WHERE id = ?",
+            ("\n".join(k.line for k in keys) or None, project_id),
+        )
+        return keys
+
+    def host_key_refusal(self, project: Project, *, during: str) -> str:
+        """The plain-words message for ssh having refused `project`'s git host because of its key
+        (`during` is `clone` or `sync`)."""
+        report_keys: list[hostkeys.HostKey] = []
+        target = hostkeys.ssh_host_of(project.remote) if project.remote else None
+        if target is not None and project.host_key is None and project.credential_kind == "ssh-key":
+            report_keys = hostkeys.accepted_keys(self.state_dir / "known_hosts", *target)
+        pinned = hostkeys.parse_stored(project.host_key) if project.host_key else []
+        return hostkeys.verification_failure_message(
+            project.id, project.remote or "", pinned=pinned, accepted=report_keys, during=during
+        )
 
 
 def _project(row: Any) -> Project:
@@ -396,6 +535,7 @@ def _project(row: Any) -> Project:
         credential_secret=row["credential_secret"],
         credential_username=row["credential_username"],
         created=row["created"],
+        host_key=row["host_key"],
     )
 
 

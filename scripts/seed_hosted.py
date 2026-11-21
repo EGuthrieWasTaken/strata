@@ -149,7 +149,9 @@ def seed(
     for username, (display, actor, role) in USERS.items():
         accounts.add_user(instance.store, username, display_name=display, password=PASSWORD)
         for project in remotes:
-            members_mod.add_member(instance, project, username, actor=actor, role=role)
+            members_mod.add_member(
+                instance, project, username, actor=actor, role=role, by="seed_hosted.py"
+            )
     return {"data": out / "data", **{f"remote:{name}": bare for name, bare in remotes.items()}}
 
 

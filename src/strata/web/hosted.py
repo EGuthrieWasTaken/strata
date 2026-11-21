@@ -35,6 +35,8 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import hmac
+import ipaddress
+import logging
 import re
 import time
 from collections.abc import AsyncIterator, Callable
@@ -59,7 +61,7 @@ from strata.core.sync import Edited
 from strata.hosted import accounts
 from strata.hosted import members as members_mod
 from strata.hosted.instance import Instance, OidcProvider, Project
-from strata.hosted.oidc import OidcClient, OidcError, link_identity, user_for_identity
+from strata.hosted.oidc import OidcClient, OidcError, user_for_identity
 from strata.hosted.secrets import random_token
 from strata.hosted.syncloop import SyncLoop, SyncWorker, identity_for
 from strata.web import uploads
@@ -76,6 +78,7 @@ from strata.web.app import (
 from strata.web.security import CSRF_FIELD_NAME, MUTATING_METHODS, PublicUrl, cookie_name
 
 _HSTS = "max-age=31536000"
+_LOG = logging.getLogger("strata.hosted")
 #: The review's own screens and the MCP endpoint, which check a body's size themselves (an
 #: upload may be large; MCP has its own limit).
 _PROJECT_SCREENS = re.compile(r"^/p/[^/]+/(?!-/)")
@@ -131,6 +134,8 @@ class HostedServer:
         self.oidc_http = oidc_http
         self.background = background
         self.worker: SyncWorker | None = None
+        #: Whether the one warning about an untrusted `X-Forwarded-For` has been given.
+        self.forwarded_warned = False
         self.sync = SyncLoop(instance, clock=clock, on_change=self._wake)
         if background:
             self.worker = SyncWorker(self.sync)
@@ -140,9 +145,12 @@ class HostedServer:
         self._states: dict[str, AppState] = {}
         self._oidc: dict[str, OidcClient] = {}
         # A project added by an older version, or whose config was changed by hand, still runs
-        # only the instance's hooks (see `strata.hosted.instance`).
+        # only the instance's hooks (see `strata.hosted.instance`). One that has a symbolic link
+        # is refused on its own: the instance and its other projects start.
         for project in instance.list_projects():
-            instance.secure_project(project.id)
+            refusal = instance.check_project(project.id)
+            if refusal is not None:
+                _LOG.warning("%s", refusal)
 
     # -- small helpers ---------------------------------------------------------------------
 
@@ -372,6 +380,7 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
                     "project": project,
                     "membership": membership,
                     "sync": server.sync.status(project.id).as_view(),
+                    "unavailable": instance.unavailable(project.id),
                 }
             )
         return server.render(
@@ -455,6 +464,58 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
         response = RedirectResponse("/signin", status_code=303)
         response.delete_cookie(server.session_cookie, path="/")
         return response
+
+    async def password(request: Request) -> Response:
+        current = server.current(request)
+        if current is None:
+            if request.method == "GET":
+                return RedirectResponse("/signin?next=/account/password", status_code=303)
+            return PlainTextResponse("sign in first", status_code=401)
+        session, user = current
+
+        def page(error: str | None = None, status_code: int = 200) -> Response:
+            return server.render(
+                request,
+                "hosted/password.html",
+                {
+                    "error": error,
+                    "changed": request.query_params.get("changed") == "1" and error is None,
+                    "has_password": user.has_password,
+                    "min_length": accounts.MIN_PASSWORD_LENGTH,
+                    "user": user,
+                    "csrf": session.csrf,
+                },
+                status_code=status_code,
+            )
+
+        def refuse(message: str, status_code: int) -> Response:
+            _LOG.warning("password change refused for %s: %s", user.username, message)
+            return page(message, status_code)
+
+        if request.method == "GET":
+            return page()
+        form = await request.form()
+        if not accounts.csrf_matches(session, _str(form.get(CSRF_FIELD_NAME))):
+            return PlainTextResponse("missing or invalid CSRF token", status_code=403)
+        new = str(form.get("new_password") or "")
+        if new != str(form.get("confirm_password") or ""):
+            return refuse(
+                "The two new passwords are different, so your password was not changed. Type the "
+                "same new password in both boxes.",
+                422,
+            )
+        try:
+            await anyio.to_thread.run_sync(
+                lambda: accounts.change_password(
+                    store, user.username, str(form.get("current_password") or ""), new,
+                    keep_session=request.cookies.get(server.session_cookie),
+                    client=_client_of(request.scope), now=server.clock(),
+                )
+            )  # fmt: skip
+        except accounts.PasswordChangeRefused as refused:
+            status_code = {"locked": 429, "wrong-current": 401}.get(refused.reason, 422)
+            return refuse(str(refused), status_code)
+        return RedirectResponse("/account/password?changed=1", status_code=303)
 
     async def invite(request: Request) -> Response:
         token = request.path_params["token"]
@@ -550,10 +611,10 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
                 )
             )
             if identity.invitation is not None:
-                username = accounts.use_invitation(store, identity.invitation, now=server.clock())
-                link_identity(
-                    store, provider=provider.id, subject=identity.subject, username=username
-                )
+                username = accounts.use_invitation(
+                    store, identity.invitation, now=server.clock(),
+                    identity=(provider.id, identity.subject),
+                )  # fmt: skip
             else:
                 linked = user_for_identity(store, provider=provider.id, subject=identity.subject)
                 user = accounts.get_user(store, linked) if linked else None
@@ -570,6 +631,19 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
                         403,
                     )
                 username = user.username
+        except accounts.IdentityAlreadyLinked:
+            message = (
+                f"This {provider.label} account is already linked to another account on this "
+                "instance, so your invitation was not used and is still valid. Open the "
+                f"invitation link again and choose a different {provider.label} account to link "
+                "to it, or sign in with the account this one is already linked to."
+            )
+            _LOG.warning("sign-in with %s refused: %s", provider.id, message)
+            accounts.log_signin(
+                store, username=f"{provider.id}:{identity.subject}", client=client, method=method,
+                outcome="failure", now=server.clock(),
+            )  # fmt: skip
+            return server.message(request, "Sign in", message, 403)
         except (OidcError, accounts.AccountError) as exc:
             return server.message(request, "Sign in", str(exc), 403)
         accounts.log_signin(
@@ -590,6 +664,7 @@ def _routes(server: HostedServer) -> list[Route | Mount]:
         Route("/", projects_page, methods=["GET"]),
         Route("/signin", signin, methods=["GET", "POST"]),
         Route("/signout", signout, methods=["POST"]),
+        Route("/account/password", password, methods=["GET", "POST"]),
         Route("/invite/{token}", invite, methods=["GET", "POST"]),
         Route("/auth/{provider}/start", oidc_start, methods=["GET"]),
         Route("/auth/{provider}/callback", oidc_callback, methods=["GET"]),
@@ -624,6 +699,11 @@ def _member_context(
     if project is None or membership is None:
         # The same answer whether the project exists or not: a non-member learns nothing.
         return PlainTextResponse("there is no such project", status_code=404)
+    refusal = server.instance.unavailable(project.id)
+    if refusal is not None:
+        # Only a member gets this far, so naming the project and its link tells nobody new.
+        _LOG.info("%s refused a request for the unavailable project %s", user.username, project.id)
+        return server.message(request, "Project unavailable", str(refusal), 503)
     return project, session, user, membership
 
 
@@ -650,6 +730,7 @@ def _project_admin_routes(server: HostedServer) -> list[Route]:
                     str(form.get("username") or "").strip(),
                     actor=str(form.get("actor") or ""),
                     role=str(form.get("role") or ""),
+                    by=user.username,
                 )
             except (members_mod.MembershipError, RepoNotFoundError) as exc:
                 error, status_code = str(exc), 422
@@ -676,7 +757,7 @@ def _project_admin_routes(server: HostedServer) -> list[Route]:
         context = _member_context(server, request)
         if isinstance(context, Response):
             return context
-        project, session, _user, membership = context
+        project, session, user, membership = context
         if membership.role != "lead":
             return PlainTextResponse("only a lead of this project manages its members", 403)
         form = await request.form()
@@ -687,7 +768,7 @@ def _project_admin_routes(server: HostedServer) -> list[Route]:
         leads = members_mod.leads_of(instance, project.id)
         if target is not None and target.role == "lead" and len(leads) <= 1:
             return PlainTextResponse("a project keeps at least one lead", status_code=422)
-        members_mod.remove_member(instance, project.id, username)
+        members_mod.remove_member(instance, project.id, username, by=user.username)
         return RedirectResponse(f"/p/{quote(project.id)}/-/members", status_code=303)
 
     async def sync_page(request: Request) -> Response:
@@ -867,6 +948,38 @@ class _ProjectDispatcher:
 # ----------------------------------------------------------------------------- remote MCP
 
 
+def _expired_token_message(expires: float) -> str:
+    """What an MCP client holding an expired token is told. It names neither the account nor the
+    project: whoever holds a stale token is not necessarily who it was made for."""
+    when = time.strftime("%Y-%m-%d", time.gmtime(expires))
+    return (
+        f"This API token expired on {when}, so it was refused. Tokens last a limited time so that "
+        "one that leaks stops working. Ask whoever runs this instance for a new one; they make it "
+        "with `strata host token add USER --project PROJECT`."
+    )
+
+
+def _wrong_project_message(token_project: str, asked_for: str, username: str) -> str:
+    return (
+        f"This API token is for the project {token_project!r}, so it was refused for "
+        f"{asked_for!r}: a token reads only the one project it was made for. To read "
+        f"{asked_for!r}, ask whoever runs this instance for a token for it; they make it with "
+        f"`strata host token add {username} --project {asked_for}`."
+    )
+
+
+async def _mcp_refusal(
+    scope: Scope, receive: Receive, send: Send, status: int, error: str, message: str
+) -> None:
+    """Refuse an MCP request in plain language, to the client and in the log."""
+    _LOG.warning("MCP request refused: %s", message)
+    await JSONResponse(
+        {"error": error, "error_description": message},
+        status_code=status,
+        headers={"WWW-Authenticate": 'Bearer realm="strata"'} if status == 401 else None,
+    )(scope, receive, send)
+
+
 class _McpEndpoint:
     """`/p/<project>/mcp`: the read-only MCP tools over streamable HTTP, for an API token whose
     account is a member of the project."""
@@ -883,8 +996,14 @@ class _McpEndpoint:
         headers = Headers(scope=scope)
         authorization = headers.get("authorization", "")
         token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
-        username = accounts.user_for_api_token(server.instance.store, token, now=server.clock())
-        if username is None:
+        try:
+            api = accounts.api_token(server.instance.store, token, now=server.clock())
+        except accounts.TokenExpired as expired:
+            await _mcp_refusal(
+                scope, receive, send, 401, "invalid_token", _expired_token_message(expired.expires)
+            )
+            return
+        if api is None:
             await JSONResponse(
                 {"error": "invalid_token", "error_description": "a valid API token is required"},
                 status_code=401,
@@ -893,11 +1012,23 @@ class _McpEndpoint:
             return
         project_id = scope.get("path_params", {}).get("project", "")
         project = server.instance.get_project(project_id)
-        membership = members_mod.membership(server.instance, project_id, username)
+        membership = members_mod.membership(server.instance, project_id, api.username)
         if project is None or membership is None:
             await JSONResponse({"error": "there is no such project"}, status_code=404)(
                 scope, receive, send
             )
+            return
+        refusal = server.instance.unavailable(project_id)
+        if refusal is not None:
+            await _mcp_refusal(scope, receive, send, 503, "project_unavailable", str(refusal))
+            return
+        if api.project is not None and api.project != project_id:
+            # A member of both projects holding a token for one of them: it is their own project
+            # and their own token, so say what is wrong and how to get what they want.
+            await _mcp_refusal(
+                scope, receive, send, 403, "token_for_another_project",
+                _wrong_project_message(api.project, project_id, api.username),
+            )  # fmt: skip
             return
         await anyio.to_thread.run_sync(
             lambda: server.sync.pull_before_read(project.id, membership.actor)
@@ -937,19 +1068,93 @@ def create_hosted_app(server: HostedServer) -> Any:
     return _Gate(server, app)
 
 
-def run_hosted(
-    server: HostedServer, *, bind: str, port: int, trusted_proxies: str
-) -> None:  # pragma: no cover - binds a real socket; the app itself is tested in-process
+class _TrustedProxies:
+    """The addresses `--trusted-proxy` names: IP addresses, networks (`10.0.0.0/8`) or `*`."""
+
+    def __init__(self, spec: str) -> None:
+        items = [item.strip() for item in spec.split(",") if item.strip()]
+        self.everyone = "*" in items
+        self.networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+        self.literals: set[str] = set()
+        for item in items:
+            try:
+                self.networks.append(ipaddress.ip_network(item, strict=False))
+            except ValueError:
+                self.literals.add(item)  # not an address: compared as written, as uvicorn does
+
+    def __contains__(self, host: str) -> bool:
+        if self.everyone:
+            return True
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            return host in self.literals
+        return any(address in network for network in self.networks)
+
+
+def _untrusted_forwarded_message(peer: str, trusted: str) -> str:
+    """The warning for an `X-Forwarded-For` header from an address that is not a trusted proxy:
+    what was ignored, why it matters, and what to do (task 4.14)."""
+    limit = accounts.MAX_FAILURES_PER_CLIENT
+    minutes = int(accounts.LOCKOUT // 60)
+    return (
+        f"A request from {peer} carried an X-Forwarded-For header, but {peer} is not one of the "
+        f"trusted proxies ({trusted}), so the header was ignored and the request counted as coming "
+        f"from {peer} itself. If {peer} is your reverse proxy, every request behind it now looks "
+        f"like one client, so {limit} failed sign-ins from anyone lock everyone out of password "
+        f"sign-in for {minutes} minutes. To fix it, start the instance with `--trusted-proxy "
+        f"{peer}` (or set STRATA_TRUSTED_PROXY={peer}). If {peer} is not your proxy, nothing needs "
+        "fixing: someone reaching the instance directly sent the header. This is said once."
+    )
+
+
+class _ForwardedForWatch:
+    """Outside the proxy-header handling, where the connecting address is still the real one,
+    notices an `X-Forwarded-For` header from an address that is not a trusted proxy and says so
+    once. (Inside it, a trusted proxy's address has already been replaced by the client's.)"""
+
+    def __init__(self, app: Any, server: HostedServer, trusted_proxies: str) -> None:
+        self.app = app
+        self.server = server
+        self.trusted_text = trusted_proxies.strip()
+        self.trusted = _TrustedProxies(trusted_proxies)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and not self.server.forwarded_warned:
+            client = scope.get("client")
+            peer = str(client[0]) if client else None
+            if (
+                peer is not None
+                and peer not in self.trusted
+                and any(name == b"x-forwarded-for" for name, _value in scope["headers"])
+            ):
+                self.server.forwarded_warned = True
+                _LOG.warning("%s", _untrusted_forwarded_message(peer, self.trusted_text))
+        await self.app(scope, receive, send)
+
+
+def create_served_app(server: HostedServer, *, trusted_proxies: str) -> Any:
+    """The application as it is served: `X-Forwarded-Proto` and `X-Forwarded-For` are believed
+    from `trusted_proxies` (the reverse proxy terminating TLS) and from nobody else, and a header
+    from anyone else is warned about once."""
+    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+    believed = ProxyHeadersMiddleware(create_hosted_app(server), trusted_hosts=trusted_proxies)
+    return _ForwardedForWatch(believed, server, trusted_proxies)
+
+
+def run_hosted(server: HostedServer, *, bind: str, port: int, trusted_proxies: str) -> None:
     """Serve the instance until interrupted. `trusted_proxies` are the addresses whose
-    `X-Forwarded-Proto`/`X-Forwarded-For` uvicorn believes (the reverse proxy terminating TLS)."""
+    `X-Forwarded-Proto`/`X-Forwarded-For` are believed (the reverse proxy terminating TLS)."""
     import uvicorn
 
     uvicorn.run(
-        create_hosted_app(server),
+        create_served_app(server, trusted_proxies=trusted_proxies),
         host=bind,
         port=port,
-        proxy_headers=True,
-        forwarded_allow_ips=trusted_proxies,
+        # Forwarded headers are handled by `create_served_app`, not by uvicorn, so that the
+        # connecting address can be checked first.
+        proxy_headers=False,
         server_header=False,
         log_level="info",
         # An access log would record invitation links, which carry their token in the path.
