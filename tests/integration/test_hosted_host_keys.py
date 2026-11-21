@@ -385,3 +385,20 @@ def test_setting_a_pin_that_cannot_work_changes_nothing_and_says_why(
     assert "known_hosts" in nonsense
     assert host(data, "project", "host-key", "nope", code=2).count("no project called 'nope'") == 1
     assert Instance(data).get_project("spacing").host_key is None  # type: ignore[union-attr]
+
+
+def test_the_json_for_adding_a_project_carries_the_host_key_only_when_there_is_one(
+    tmp_path: Path, ssh: FakeSsh
+) -> None:
+    data, bare = _instance(tmp_path)
+    Instance(data).secrets.put("deploy", "not a real key")
+
+    added = json.loads(
+        host(
+            data, "project", "add", "spacing", "--remote", _ssh_address(bare), "--credential", "ssh-key:deploy",
+            "--host-key", f"{HOST} ssh-ed25519 {GOOD}", json_output=True,
+        )
+    )  # fmt: skip
+
+    assert added["host_key"]["pinned"] is True
+    assert added["host_key"]["keys"][0]["fingerprint"] == GITHUB_FINGERPRINT

@@ -40,7 +40,7 @@
 - [x] 4.11 Log membership grants, role changes, removals and token creation and revocation, with who did each, beside the sign-in log
 - [x] 4.12 An OpenID Connect invitation is used only once the identity is known not to be linked to another account
 - [x] 4.13 A project with a symbolic link is refused on its own (shown as unavailable, naming the link); the instance and its other projects start
-- [ ] 4.14 Every refusal added by 4.7 to 4.13 says, in plain language, in the log and to the person refused, what was refused, why, and what fixes it (for example: the project, the link's path, and how to remove it and push), without revealing to a non-member that a project exists
+- [x] 4.14 Every refusal added by 4.7 to 4.13 says, in plain language, in the log and to the person refused, what was refused, why, and what fixes it (for example: the project, the link's path, and how to remove it and push), without revealing to a non-member that a project exists
 
 ## 5. Remote MCP
 
