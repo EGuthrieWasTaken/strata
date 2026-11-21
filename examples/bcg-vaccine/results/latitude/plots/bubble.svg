@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 440" width="560" height="440" role="img" aria-labelledby="strata-title strata-desc">
+<title id="strata-title">Bubble plot: BCG vaccine efficacy and latitude</title>
+<desc id="strata-desc">Bubble plot of effect size against ablat; bubble area is proportional to weight, with the fitted line and its confidence band.</desc>
+<style>:root{--ink:#1a1a1a;--muted:#595959;--grid:#d9d9d9;--accent:#0072B2;--accent2:#D55E00;--band:#cce3f1;--tint1:#e6e6e6;--tint2:#d0d0d0;--tint3:#b8b8b8;--surface:#ffffff;}@media (prefers-color-scheme: dark){:root{--ink:#f2f2f2;--muted:#bdbdbd;--grid:#404040;--accent:#56B4E9;--accent2:#E69F00;--band:#1f4f6b;--tint1:#2e2e2e;--tint2:#3d3d3d;--tint3:#4f4f4f;--surface:#121212;}}.s-ink{stroke:var(--ink)}.f-ink{fill:var(--ink)}.s-muted{stroke:var(--muted)}.f-muted{fill:var(--muted)}.s-grid{stroke:var(--grid)}.f-grid{fill:var(--grid)}.s-accent{stroke:var(--accent)}.f-accent{fill:var(--accent)}.s-accent2{stroke:var(--accent2)}.f-accent2{fill:var(--accent2)}.s-band{stroke:var(--band)}.f-band{fill:var(--band)}.s-tint1{stroke:var(--tint1)}.f-tint1{fill:var(--tint1)}.s-tint2{stroke:var(--tint2)}.f-tint2{fill:var(--tint2)}.s-tint3{stroke:var(--tint3)}.f-tint3{fill:var(--tint3)}.s-surface{stroke:var(--surface)}.f-surface{fill:var(--surface)}</style>
+<rect id="rect-252f7085" class="f-surface" x="0" y="0" width="560" height="440"/>
+<text id="text-efbb682d" class="f-ink" x="10" y="18" font-family="Helvetica, Arial, sans-serif" font-size="13" text-anchor="start" font-weight="bold">Bubble plot: BCG vaccine efficacy and latitude</text>
+<polygon id="polygon-f8d1e6ae" class="f-band" points="70,85.6 81.5,91.75 93,97.86 104.5,103.93 116,109.96 127.5,115.92 139,121.83 150.5,127.67 162,133.44 173.5,139.12 185,144.7 196.5,150.18 208,155.54 219.5,160.77 231,165.86 242.5,170.81 254,175.59 265.5,180.22 277,184.68 288.5,188.97 300,193.09 311.5,197.06 323,200.87 334.5,204.55 346,208.09 357.5,211.51 369,214.82 380.5,218.03 392,221.15 403.5,224.2 415,227.17 426.5,230.08 438,232.94 449.5,235.74 461,238.51 472.5,241.23 484,243.92 495.5,246.57 507,249.2 518.5,251.8 530,254.38 530,365 518.5,358.72 507,352.46 495.5,346.22 484,340.02 472.5,333.84 461,327.7 449.5,321.6 438,315.55 426.5,309.54 415,303.59 403.5,297.7 392,291.88 380.5,286.14 369,280.49 357.5,274.94 346,269.5 334.5,264.18 323,258.99 311.5,253.94 300,249.05 288.5,244.31 277,239.74 265.5,235.33 254,231.1 242.5,227.02 231,223.1 219.5,219.34 208,215.71 196.5,212.2 185,208.82 173.5,205.54 162,202.36 150.5,199.26 139,196.24 127.5,193.28 116,190.39 104.5,187.55 93,184.76 81.5,182.01 70,179.3"/>
+<polygon id="polygon-f10e0d00" class="s-accent" fill="none" points="70,85.6 81.5,91.75 93,97.86 104.5,103.93 116,109.96 127.5,115.92 139,121.83 150.5,127.67 162,133.44 173.5,139.12 185,144.7 196.5,150.18 208,155.54 219.5,160.77 231,165.86 242.5,170.81 254,175.59 265.5,180.22 277,184.68 288.5,188.97 300,193.09 311.5,197.06 323,200.87 334.5,204.55 346,208.09 357.5,211.51 369,214.82 380.5,218.03 392,221.15 403.5,224.2 415,227.17 426.5,230.08 438,232.94 449.5,235.74 461,238.51 472.5,241.23 484,243.92 495.5,246.57 507,249.2 518.5,251.8 530,254.38 530,365 518.5,358.72 507,352.46 495.5,346.22 484,340.02 472.5,333.84 461,327.7 449.5,321.6 438,315.55 426.5,309.54 415,303.59 403.5,297.7 392,291.88 380.5,286.14 369,280.49 357.5,274.94 346,269.5 334.5,264.18 323,258.99 311.5,253.94 300,249.05 288.5,244.31 277,239.74 265.5,235.33 254,231.1 242.5,227.02 231,223.1 219.5,219.34 208,215.71 196.5,212.2 185,208.82 173.5,205.54 162,202.36 150.5,199.26 139,196.24 127.5,193.28 116,190.39 104.5,187.55 93,184.76 81.5,182.01 70,179.3"/>
+<line id="line-6a7adc3c" class="s-accent2" x1="70" y1="132.45" x2="530" y2="309.69" stroke-width="2"/>
+<line id="line-c55d660f" class="s-ink" x1="70" y1="380" x2="530" y2="380" stroke-width="1"/>
+<line id="line-cdcf86f6" class="s-ink" x1="70" y1="50" x2="70" y2="380" stroke-width="1"/>
+<line id="line-44f2ac61" class="s-ink" x1="160.61" y1="380" x2="160.61" y2="384" stroke-width="1"/>
+<text id="text-ac6053e6" class="f-muted" x="160.61" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">20</text>
+<line id="line-5eb8ff36" class="s-ink" x1="260.17" y1="380" x2="260.17" y2="384" stroke-width="1"/>
+<text id="text-6b2b824e" class="f-muted" x="260.17" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">30</text>
+<line id="line-298ff30e" class="s-ink" x1="359.74" y1="380" x2="359.74" y2="384" stroke-width="1"/>
+<text id="text-a51f148b" class="f-muted" x="359.74" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">40</text>
+<line id="line-157f427b" class="s-ink" x1="459.31" y1="380" x2="459.31" y2="384" stroke-width="1"/>
+<text id="text-a51b8df4" class="f-muted" x="459.31" y="396" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="middle">50</text>
+<line id="line-7b9e0ff1" class="s-ink" x1="66" y1="255.61" x2="70" y2="255.61" stroke-width="1"/>
+<text id="text-fa60c429" class="f-muted" x="62" y="258.61" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">0.37</text>
+<line id="line-8803efa1" class="s-ink" x1="66" y1="123.78" x2="70" y2="123.78" stroke-width="1"/>
+<text id="text-95bd9876" class="f-muted" x="62" y="126.78" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="end">1</text>
+<circle id="circle-5e19b337" class="f-accent" cx="150.65" cy="337.46" r="10.25"/>
+<circle id="circle-0afac167" class="s-ink" fill="none" cx="150.65" cy="337.46" r="10.25"/>
+<circle id="circle-e21fb0dc" class="f-accent" cx="230.3" cy="185.66" r="13.89"/>
+<circle id="circle-0a26add6" class="s-ink" fill="none" cx="230.3" cy="185.66" r="13.89"/>
+<circle id="circle-25b11e1b" class="f-accent" cx="379.65" cy="301.49" r="8.66"/>
+<circle id="circle-59e4e2be" class="s-ink" fill="none" cx="379.65" cy="301.49" r="8.66"/>
+<circle id="circle-74d6ad96" class="f-accent" cx="290.04" cy="65" r="8.08"/>
+<circle id="circle-b7a71462" class="s-ink" fill="none" cx="290.04" cy="65" r="8.08"/>
+<circle id="circle-6a5ec9b0" class="f-accent" cx="509.09" cy="332.78" r="10.62"/>
+<circle id="circle-fc1b99ab" class="s-ink" fill="none" cx="509.09" cy="332.78" r="10.62"/>
+<circle id="circle-34aa8eb6" class="f-accent" cx="90.91" cy="122.21" r="17"/>
+<circle id="circle-705e0c8e" class="s-ink" fill="none" cx="90.91" cy="122.21" r="17"/>
+<circle id="circle-7cd5d4b8" class="f-accent" cx="399.57" cy="241.02" r="9.26"/>
+<circle id="circle-b589fb65" class="s-ink" fill="none" cx="399.57" cy="241.02" r="9.26"/>
+<circle id="circle-dfbd5019" class="f-accent" cx="140.69" cy="168.52" r="16.32"/>
+<circle id="circle-81a72679" class="s-ink" fill="none" cx="140.69" cy="168.52" r="16.32"/>
+<circle id="circle-378d1b3f" class="f-accent" cx="90.91" cy="152.46" r="14.11"/>
+<circle id="circle-1e7313b9" class="s-ink" fill="none" cx="90.91" cy="152.46" r="14.11"/>
+<circle id="circle-842ff176" class="f-accent" cx="479.22" cy="313.82" r="15.78"/>
+<circle id="circle-41046218" class="s-ink" fill="none" cx="479.22" cy="313.82" r="15.78"/>
+<circle id="circle-24833228" class="f-accent" cx="290.04" cy="126.07" r="13.32"/>
+<circle id="circle-72d3d6ce" class="s-ink" fill="none" cx="290.04" cy="126.07" r="13.32"/>
+<circle id="circle-4e2813d2" class="f-accent" cx="399.57" cy="227.41" r="16.75"/>
+<circle id="circle-cde66f1d" class="s-ink" fill="none" cx="399.57" cy="227.41" r="16.75"/>
+<circle id="circle-777dcb2e" class="f-accent" cx="379.65" cy="304.56" r="13.27"/>
+<circle id="circle-9fbbbabb" class="s-ink" fill="none" cx="379.65" cy="304.56" r="13.27"/>
+<text id="text-6fefc884" class="f-ink" x="300" y="420" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle">ablat</text>
+<text id="text-371eb08c" class="f-ink" x="18" y="215" font-family="Helvetica, Arial, sans-serif" font-size="10" text-anchor="middle" transform="rotate(-90 18 215)">RR</text>
+<text id="text-5a1f38f2" class="f-muted" x="70" y="434" font-family="Helvetica, Arial, sans-serif" font-size="9" text-anchor="start">Bubble area is proportional to weight; the band is the confidence interval of the fitted line.</text>
+</svg>

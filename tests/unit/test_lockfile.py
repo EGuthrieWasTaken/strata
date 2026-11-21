@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from strata.core.repo import LockTimeoutError, Repo, repo_lock
+from tests.unit._locks import held_elsewhere
 
 _HOLDER = """
 import os, sys, time
@@ -142,6 +143,6 @@ def test_a_timeout_when_the_holder_cannot_be_named_says_unknown(tmp_path: Path) 
     repo = _repo(tmp_path)
     lock_path = tmp_path / ".strata" / "lock"
 
-    with repo_lock(repo):
+    with held_elsewhere(repo):  # repo_lock is re-entrant within one thread
         lock_path.write_text("not a number", encoding="ascii")
         _try_to_take(repo, 0.2, match="held by process unknown")

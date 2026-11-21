@@ -116,11 +116,24 @@ itself and always need one. An interactive run is prompted as before.
 ### Requirement: Batched screening commits
 
 Screening decisions MUST be appended to the event log immediately but committed
-in batches: a commit is created when the user ends a session, when 200
-decisions accumulate, or after 15 minutes of inactivity, whichever comes first.
-A routine batch skips the rationale prompt and gets a generated summary
-message. A batch containing any decision that contradicts a previously resolved
-decision MUST prompt for a rationale.
+in batches, one batch per reviewer: a commit is created when the user ends a
+session, when 200 decisions accumulate, or after 15 minutes of inactivity,
+whichever comes first. A batch gets a generated summary message and MUST NOT
+wait for a prompt.
+
+In the web interface a session ends when the reviewer presses Finish session,
+requests any page other than the screening and re-screening screens, or the
+server stops (an interrupt, or the inactivity exit). `strata serve` MUST also
+commit, when it starts, the decisions an earlier server recorded and did not
+commit. A reviewer's pending batch MUST be committed before any other operation
+commits, so that it is never part of another commit.
+
+A decision that changes the same reviewer's earlier decision for the record at
+the stage MUST carry a rationale. The web interface MUST ask for it when the
+decision is made and refuse the decision without it; the rationale is recorded
+in the event (its note) and the batch's message MUST list each changed decision
+with it. A changed decision that reaches the log without one (written by an
+older version) MUST still be committed, listed as having no reason recorded.
 
 #### Scenario: 200 decisions
 
@@ -129,9 +142,23 @@ decision MUST prompt for a rationale.
 
 #### Scenario: Batch contains a change of mind
 
-- **GIVEN** a record previously resolved `include`
-- **WHEN** a batch that re-decides it as `exclude` is committed
-- **THEN** the user is prompted for a rationale
+- **GIVEN** a record a reviewer previously decided `include`
+- **WHEN** the reviewer decides it `exclude` in the browser without a reason
+- **THEN** the decision is refused and the page asks why it changed
+- **AND WHEN** the reviewer gives a reason and the batch is committed
+- **THEN** the commit message lists the record, `include -> exclude`, and the reason
+
+#### Scenario: Leaving the screening screen
+
+- **GIVEN** a reviewer has recorded decisions in the browser that are not committed
+- **WHEN** they open the dashboard
+- **THEN** the decisions are committed as one batch under their name before the page is drawn, and the working tree is clean
+
+#### Scenario: A server that was killed
+
+- **GIVEN** screening decisions on disk that a killed `strata serve` never committed
+- **WHEN** `strata serve` starts again
+- **THEN** it commits them, as a batch of their reviewer's own, before it serves a page
 
 ### Requirement: gitattributes
 
@@ -250,3 +277,16 @@ it was started by a path that is not on `PATH`.
 
 - **WHEN** a user needs to correct a pushed screening decision
 - **THEN** the correction is a new event in a new commit and no published commit is rewritten
+
+### Requirement: Integration mapping files merge by union
+
+The `.gitattributes` of a review linked to a reference manager MUST give
+`integrations/*.ndjson` the `merge=union` driver, added by the first link if
+`strata init` did not write it, so that two collaborators linking at once never
+conflict: a changed link is a new row, never an edited one.
+
+#### Scenario: Two people link at once
+
+- **GIVEN** two clones that each ran `strata zotero link` and appended rows to `integrations/zotero.ndjson`
+- **WHEN** one merges the other's branch
+- **THEN** the file holds both sets of rows and the merge does not conflict

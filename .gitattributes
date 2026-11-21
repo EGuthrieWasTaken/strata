@@ -1,5 +1,7 @@
 tests/golden/plots/* -text
 tests/golden/prisma/* -text
+# Compared byte for byte with a rebuild (tests/e2e/test_worked_example_bcg.py).
+examples/bcg-vaccine/results/** -text
 # Scripts and the Dockerfile run on Linux (in CI and in the container): never CRLF.
 *.sh text eol=lf
 Dockerfile text eol=lf

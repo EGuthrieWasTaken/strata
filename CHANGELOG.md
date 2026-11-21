@@ -7,6 +7,25 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **A worked example** (`examples/bcg-vaccine/`): the 13 BCG vaccine trials of Colditz et al. (1994), built
+  through the command line, whose pooled risk ratio, heterogeneity and latitude meta-regression match
+  Viechtbauer's (2010) published `metafor` analysis; a test rebuilds it and compares.
+- **Standalone binaries** for Linux, macOS and Windows, built and smoke-tested by
+  `.github/workflows/binaries.yml` and attached to each release; released container images are signed
+  with cosign.
+- **Moving a review from Rayyan, Covidence or EPPI-Reviewer** (OpenSpec change
+  `add-distribution-and-adoption`, tasks 2.1-2.3). `strata import --format rayyan|covidence|eppi-json`
+  imports the records of each tool's export, and `strata screen <stage> --decisions <file> --from <tool>`
+  records the screening decisions in it, attributed to `--by` and marked imported, with `--reviewer`
+  (Rayyan), `--list` (Covidence) and `--reason TEXT=CRITERION`. A decision that cannot be recorded as made
+  here (no matching record, an exclusion reason that names no criterion) is listed, not recorded. Written
+  from each tool's documented export format; not yet checked against a real export.
+- **An agent can draft manuscript sections** (`generate_report`, kind `analysis`): `strata report` now runs
+  on `core/operations`, and the same code backs the MCP write tool.
+- **The Zotero integration is checked against a real Zotero** nightly and on pull requests that touch it
+  (`.github/workflows/zotero-live.yml`): the Web API with a throwaway account, and the current Zotero
+  desktop app under a virtual display.
+
 - **A hosted team instance** (`strata host`; OpenSpec change `add-hosted-team-deployment`). One self-hosted
   instance serves several reviews to several people, each signed in with their own account: local accounts
   (Argon2id passwords, invitations, `strata host user add|invite|disable`) and optional OpenID Connect or
@@ -484,6 +503,22 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **Hosted instance security** (`docs/security-review-hosted.md`): a symbolic link pushed to a project's
+  remote is now checked out as a plain file (it could otherwise lead the screens outside the project), an
+  invitation can no longer be used twice by concurrent requests, a new password signs out the old
+  sessions, the only lead of a project cannot be demoted, and a remote URL with a password in it is
+  refused whatever its scheme.
+- **Commits could interleave.** `strata analyze`, `prisma`, `report`, the interactive commands, several web
+  routes and the screening-batch commit staged and committed without the repository lock, so two at once
+  could fail with git's "Another git process seems to be running" or sweep up each other's files. Every
+  commit now holds the lock (re-entrant within a thread), and `analyze`, `prisma` and `report` hold it
+  from their first write to their commit.
+- **Two writers on one event file could number two events alike** (the web UI and the command line for
+  one reviewer, say), because the next sequence number and chain link are read from the file before the
+  append. Each append now holds the repository lock.
+- **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
+  another process's operation; they now run through `core/operations` under the lock, as `criteria add`
+  does.
 - **The Zotero link, after its first run against a real Zotero** (10.0.8; `docs/zotero-real-run.md`).
   `strata zotero link` and `pull` failed through the desktop app's local API, which sends each item's
   CSL-JSON as a string; it is now read, and the probe checks the shape it reads. One item with a date such as

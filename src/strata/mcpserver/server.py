@@ -682,6 +682,20 @@ class WriteTools:
         stale."""
         return self._act("prisma", {"format": format, "columns": columns}, model, rationale, ctx)
 
+    def generate_report(
+        self,
+        model: str,
+        rationale: str,
+        section: str,
+        format: str | None = None,
+        ctx: Context | None = None,
+    ) -> dict[str, Any]:
+        """Analysis: draft a section of the manuscript from the repository into `reports/`
+        (`section` methods, results, characteristics, amendments, checklist, rob or manuscript;
+        `format` md, html, docx or latex, csv for characteristics, svg for rob). strata never
+        writes a Discussion or a Conclusion. Refused while the counts do not close."""
+        return self._act("report", {"section": section, "format": format}, model, rationale, ctx)
+
     # -- criteria
     def add_criterion(
         self,
@@ -762,6 +776,7 @@ WRITE_TOOLS: tuple[str, ...] = (
     "retire_criterion",
     "run_analysis",
     "draw_prisma",
+    "generate_report",
 )
 
 READ_TOOLS: tuple[str, ...] = (

@@ -367,6 +367,34 @@ def _parse_decisions_tsv(text: str) -> list[dict[str, str]]:
     return rows
 
 
+def screen_events_path(repo: Repo, stage: str, actor: str) -> Path:
+    """Where `actor`'s screening events for `stage` are appended."""
+    return _screen_events_path(repo, stage, actor)
+
+
+def build_imported_body(
+    repo: Repo,
+    *,
+    stage: str,
+    record_id: str,
+    decision: str,
+    cited: list[str],
+    note: str | None,
+) -> dict[str, Any]:
+    """A `screen` event body for a decision imported from elsewhere, checked exactly as a decision
+    made here is (`ScreeningError` for one that could not be made here), marked `imported`."""
+    return _validate_and_build_body(
+        repo,
+        stage=stage,
+        record_id=record_id,
+        decision=decision,
+        cited=cited,
+        note=note,
+        confidence=None,
+        imported=True,
+    )
+
+
 def import_decisions_tsv(repo: Repo, *, stage: str, text: str, actor: str) -> list[dict[str, Any]]:
     """`strata screen --decisions <file>` (openspec:cli#non-interactive-use).
 
