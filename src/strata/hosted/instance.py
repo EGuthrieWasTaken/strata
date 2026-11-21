@@ -29,6 +29,7 @@ and the credential is named instead (`strata.hosted.secrets`).
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import re
 import time
@@ -50,6 +51,8 @@ from strata.hosted import hostkeys
 from strata.hosted.errors import InstanceError as InstanceError  # re-exported
 from strata.hosted.secrets import SecretStore, git_credential_env
 from strata.hosted.store import Store
+
+_LOG = logging.getLogger("strata.hosted")
 
 PROJECT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 DEFAULT_DATA_DIR = Path("/data")
@@ -83,6 +86,22 @@ def _unavailable_message(project_id: str, links: list[str]) -> str:
         "if git does not track it), commit, and `git push` from there. The project returns when "
         "its page is next opened."
     )
+
+
+def _say_tokens_were_expired(count: int) -> None:
+    """Tell the operator, in the log, that bringing the instance's state up to date ended the API
+    tokens made before they named a project and expired, and what to do about it. Said once: the
+    upgrade finds them only the first time it runs
+    (openspec:hosted-deployment#api-tokens-name-one-project-and-expire)."""
+    if count:
+        _LOG.warning(
+            "Upgrading the instance's state expired %d %s made before tokens named a project and "
+            "expired, so that none of them reads every project its owner is in. Whoever holds one "
+            "is told it expired: make a replacement with `strata host token add USER --project "
+            "PROJECT` (`strata host audit` lists whose).",
+            count,
+            "API token" if count == 1 else "API tokens",
+        )
 
 
 class ProjectUnavailable(InstanceError):
@@ -247,14 +266,14 @@ class Instance:
             )
         if self.store.needs_upgrade():
             # State made by an earlier version: bring it up to date, keeping what it holds.
-            self.store.upgrade()
+            _say_tokens_were_expired(self.store.upgrade())
 
     def initialise(self, *, public_url: str | None = None) -> None:
         """Create the instance's state (idempotent: an existing instance keeps what it has)."""
         for directory in (self.projects_dir, self.state_dir):
             directory.mkdir(parents=True, exist_ok=True)
         self.state_dir.chmod(0o700)
-        self.store.create()
+        _say_tokens_were_expired(self.store.create())
         self.secrets.ensure_key()
         if not self.settings_path.exists():
             doc = tomlkit.document()

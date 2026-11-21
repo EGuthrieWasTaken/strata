@@ -106,12 +106,22 @@ choices to the maintainer, who decided them on 20 November 2026. Each is built.
   matching is refused and reported in words, on the project's sync page and in
   the log, with the command that pins a new one.
 - **API tokens are narrow and expire.** A token names one project and lasts 90
-  days unless the operator says otherwise, so a leaked token gives one review for
-  a while rather than every review its owner is in. Tokens made before are not
-  revoked at upgrade, which would silently break working MCP clients: they keep
-  working, reading every project their owner is in, until revoked. State made by
-  an earlier version is brought up to date in place the first time the new version
-  runs.
+  days unless the operator says otherwise, and never more than 365, so a leaked
+  token gives one review for a while rather than every review its owner is in. The
+  limit is a year because a token that must be made again at least that often
+  cannot sit forgotten in a client for years; it is the maintainer's to move
+  (`MAX_TOKEN_DAYS`). State made by an earlier version is brought up to date in
+  place the first time the new version runs, and that upgrade expires the tokens
+  made before, which name no project and never lapse: leaving them would keep a
+  token that leaked long ago reading every project its owner is in, which is what
+  the change exists to end. They are expired, not deleted, so a client holding one
+  is told it expired, and on what day, rather than that the token is unknown, and
+  it can still be revoked. Each is in the audit log, naming whose it was and its
+  label, and the log says how many were expired. An MCP client that worked before
+  stops working until its token is replaced, which the operator is told to do. As
+  a second line, a token row that names no project or has no expiry is refused as
+  expired wherever it is found, so correctness does not depend on the upgrade
+  having seen it.
 - **Changing a password.** It needs the current password, and wrong guesses share
   the sign-in limiter, so a stolen session cannot be used to guess it; the cost is
   that such guesses can cool off the account for 15 minutes. It ends the person's

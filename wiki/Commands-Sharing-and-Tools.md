@@ -345,7 +345,7 @@ strata host token add [OPTIONS] USERNAME
 | Option | Takes | Default | Meaning |
 |---|---|---|---|
 | `--project` (required) | str |  | The one project the token reads (the user must be a member) |
-| `--days` | int | `90` | How many days until the token expires |
+| `--days` | int | `90` | How many days until the token expires (1 to 365) |
 | `--label` | str | `mcp` | What the token is for |
 | `--data` | path |  | The instance's data directory (default: $STRATA_DATA or /data) (environment variable `STRATA_DATA`) |
 

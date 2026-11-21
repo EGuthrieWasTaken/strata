@@ -1,6 +1,6 @@
-"""API tokens name one project and expire; ones made before keep working until revoked
-(openspec:hosted-deployment#remote-mcp-access and #isolation-between-projects; tasks 4.8 and
-4.14)."""
+"""API tokens name one project and expire, for at most a year; ones made before are expired by the
+upgrade (openspec:hosted-deployment#api-tokens-name-one-project-and-expire and
+#isolation-between-projects; tasks 4.8 and 4.14)."""
 
 # ruff: noqa: E501
 
@@ -143,10 +143,12 @@ def test_an_expired_token_is_refused_and_says_so_without_naming_anyone(tmp_path:
     assert token not in refused.text
 
 
-def test_a_token_made_before_projects_were_named_still_reads_every_project_its_owner_is_in(
+def test_a_token_made_before_projects_were_named_reads_nothing_and_says_it_expired(
     tmp_path: Path,
 ) -> None:
-    h, other_ids = _two_projects(tmp_path)
+    """The upgrade expires these (tests/unit/test_hosted_store_upgrade.py); this is the answer a
+    client holding one gets, including from a row the upgrade did not see."""
+    h, _other_ids = _two_projects(tmp_path)
     members_mod.add_member(
         h.instance, "secret-trial", "sam.okonkwo", actor="sam", role="screener", by="test"
     )
@@ -156,9 +158,45 @@ def test_a_token_made_before_projects_were_named_still_reads_every_project_its_o
         "VALUES (?, 'sam.okonkwo', 'old', 0, NULL, NULL)",
         (accounts._digest(legacy),),
     )
-    h.clock.advance(10 * 365 * DAY)  # it has no expiry
 
-    assert _tool(h.client(), "spacing", legacy, "status")["title"] == "Spacing review"
-    assert [r["id"] for r in _tool(h.client(), "secret-trial", legacy, "records")] == other_ids
+    for project in ("spacing", "secret-trial"):
+        refused = _mcp(h.client(), project, legacy, "initialize")
+        assert refused.status_code == 401
+        description = refused.json()["error_description"]
+        assert "expired" in description and "strata host token add" in description
+        assert "sam.okonkwo" not in description and legacy not in refused.text
+
+    # It stays in the instance's state until revoked, which then makes it simply unknown.
     assert accounts.revoke_api_tokens(h.instance.store, "sam.okonkwo", by="admin") == 1
-    assert _mcp(h.client(), "spacing", legacy, "initialize").status_code == 401
+    unknown = _mcp(h.client(), "spacing", legacy, "initialize")
+    assert unknown.status_code == 401 and "expired" not in unknown.json()["error_description"]
+
+
+# ------------------------------------------------------------------------- how long one lasts
+
+
+def test_a_token_can_last_the_longest_allowed_and_no_longer(tmp_path: Path) -> None:
+    world = hosted(tmp_path)
+    longest = accounts.MAX_TOKEN_DAYS
+
+    found = accounts.api_token(
+        world.instance.store,
+        _token(world, "sam.okonkwo", days=longest),
+        now=world.clock(),
+    )
+    assert found is not None and found.expires == world.clock() + longest * DAY
+
+    with pytest.raises(accounts.AccountError) as refused:
+        _token(world, "sam.okonkwo", days=longest + 1)
+    message = str(refused.value)
+    assert f"at most {longest} days" in message  # what was refused and the limit
+    assert f"{longest + 1} days" in message  # what was asked for
+    assert f"--days {longest}" in message and "new one" in message  # what fixes it
+
+
+@pytest.mark.parametrize("days", [float("inf"), float("nan"), 10.0**9])
+def test_a_nonsense_length_makes_no_token(tmp_path: Path, days: float) -> None:
+    world = hosted(tmp_path)
+    with pytest.raises(accounts.AccountError):
+        _token(world, "sam.okonkwo", days=days)
+    assert not world.instance.store.all("SELECT 1 FROM api_tokens")

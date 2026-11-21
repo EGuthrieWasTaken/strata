@@ -34,7 +34,7 @@
 - [x] 4.5 Remote credentials and OIDC secrets from operator-supplied secrets or encrypted at rest; never in a review repository or echoed in the UI
 - [ ] 4.6 Security review before release
 - [x] 4.7 Host keys: keep trust on first use as the default, let the operator pin a project's SSH host key when adding it, and print the accepted key's fingerprint at the first clone
-- [x] 4.8 API tokens name one project and expire (`strata host token add --project --days`); existing tokens keep working until revoked
+- [x] 4.8 API tokens name one project and expire (`strata host token add --project --days`, at most 365 days); existing tokens are expired by the upgrade *(decided as "keep working until revoked"; the maintainer then asked for them to be expired on upgrade and `--days` to be capped, which is what is built)*
 - [x] 4.9 A signed-in person can change their own password with their current one; their other sessions end
 - [x] 4.10 Warn once when `X-Forwarded-For` arrives from an address not in `--trusted-proxy`
 - [x] 4.11 Log membership grants, role changes, removals and token creation and revocation, with who did each, beside the sign-in log
@@ -105,9 +105,14 @@
   of reviewer that wrote the code, so 4.6 stays open for the maintainer's decision on an independent review.
 - 4.7 to 4.14 are built, each with tests written first (the maintainer's decisions of 20 November 2026,
   `docs/security-review-hosted.md`). Choices the decisions left open: a new token lasts 90 days unless
-  `--days` says otherwise (`--project` is required; there is no upper bound), and a token made before keeps
-  working, naming no project and never expiring, until it is revoked; the instance's state is brought up to
-  date in place the first time the new version runs (`Store.upgrade`, schema version 2). The audit log
+  `--days` says otherwise (`--project` is required), and the instance's state is brought up to
+  date in place the first time the new version runs (`Store.upgrade`, schema version 2). Two changes the
+  maintainer asked for afterwards, once the suite was green: that upgrade **expires** the tokens made before,
+  which name no project and never lapsed (they are kept so they can be revoked and so a holder is told the
+  token expired and when; the log says how many and the audit log names each), and `--days` is capped at
+  365 (`accounts.MAX_TOKEN_DAYS`, a number chosen here because none was given). So an MCP client that used
+  an old token stops working until it is given a new one. A token row that names no project or has no
+  expiry is also refused as expired wherever it is found. The audit log
   (`strata host audit`, beside `signins`) records an administrator at a shell as `command line (<login>)`.
   Disabling an account ends its tokens but is not logged as a revocation, since the decision lists token
   revocation, not account changes. A project with a symbolic link is refused on its own: its members get a 503

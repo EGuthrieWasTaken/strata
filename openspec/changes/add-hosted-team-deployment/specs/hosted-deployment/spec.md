@@ -28,7 +28,8 @@ be retrievable in full by cloning its repository.
 accounts, memberships, sessions, the sign-in log, the audit log, and secrets —
 MUST be stored separately from every review repository and MUST never be
 committed to one. State made by an earlier version MUST be brought up to date in
-place, keeping what it holds.
+place, keeping what it holds apart from the API tokens that name no project,
+which it expires.
 
 #### Scenario: Two projects on one instance
 
@@ -37,9 +38,9 @@ place, keeping what it holds.
 
 #### Scenario: Upgrading
 
-- **GIVEN** an instance whose state was made by an earlier version and holds an API token
+- **GIVEN** an instance whose state was made by an earlier version, with accounts, memberships and an API token
 - **WHEN** the new version starts on it
-- **THEN** the state is brought up to date and the token still works
+- **THEN** the state is brought up to date, the accounts and memberships are kept, and the token is expired, which the log and the audit log say
 
 ### Requirement: Per-user authentication
 
@@ -295,10 +296,11 @@ memberships, and MUST remain unable to commit a screening or criteria decision.
 ### Requirement: API tokens name one project and expire
 
 An API token MUST name one project of which its owner is a member and MUST
-expire (after 90 days unless the operator chooses another number of days). It
-MUST be refused outside its project and after its expiry. A token made before
-tokens named a project, which has no project and no expiry, MUST keep working
-for every project its owner belongs to until it is revoked.
+expire: after 90 days unless the operator chooses another number of days, and
+after no more than 365. It MUST be refused outside its project and after its
+expiry. A token made before tokens named a project MUST be expired when the
+instance's state is first brought up to date, so that it no longer reads every
+project its owner belongs to.
 
 #### Scenario: Own project
 
@@ -322,20 +324,25 @@ for every project its owner belongs to until it is revoked.
 - **WHEN** an operator makes a token for a user who is not a member of the project
 - **THEN** it is refused, no token is made, and the message says how to make them a member
 
+#### Scenario: Longer than a year
+
+- **WHEN** an operator asks for a token to last more than 365 days
+- **THEN** it is refused, no token is made, and the message gives the longest allowed and says to make a new token when it expires
+
 #### Scenario: Tokens from before
 
 - **GIVEN** a token made before tokens named a project
-- **WHEN** it is used after the instance is upgraded, at any later time
-- **THEN** it reads every project its owner belongs to, until it is revoked
+- **WHEN** the instance is upgraded, and the token is then used
+- **THEN** it is refused as expired, with the day of the upgrade, and reads no project; it stays until revoked, and the log says how many were expired
 
 ### Requirement: Audit log of access changes
 
 The instance MUST record membership grants, role changes and removals, and API
-token creation and revocation, in instance state beside the sign-in log, with who
-did each and when. An entry MUST be written in the same transaction as the
-change, and MUST NOT contain a token. Who did it is the user name when a person
-did it in the browser, and the operating-system login when an administrator did
-it with `strata host`.
+token creation, revocation and expiry by an upgrade, in instance state beside the
+sign-in log, with who did each and when. An entry MUST be written in the same
+transaction as the change, and MUST NOT contain a token. Who did it is the user
+name when a person did it in the browser, the operating-system login when an
+administrator did it with `strata host`, and the instance itself for an upgrade.
 
 #### Scenario: Role change in the browser
 

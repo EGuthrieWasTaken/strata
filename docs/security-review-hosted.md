@@ -88,6 +88,12 @@ stand-in for `ssh` (there is no SSH client where it was built), not against Open
 the change's `tasks.md`. This is still a reading of the code by the kind of reviewer that wrote it:
 task 4.6 stays open.
 
+**Changed afterwards, at the maintainer's request** (once the full suite was green on the build above):
+decision 2 said existing tokens work until revoked. They are now **expired by the upgrade** (kept, so they
+can be revoked and the holder is told the token expired; the log and the audit log say which), and
+`--days` is **capped at 365**, a number picked when none was given. An MCP client that used an old token
+needs a new one.
+
 The choices as they were put:
 
 1. **Host keys are trusted on first use** (`StrictHostKeyChecking=accept-new`). An attacker in the

@@ -116,9 +116,11 @@ strata_...
 ```
 
 A token reads **one project**, the one you name (its owner must be a member of it), and **expires**: after 90
-days unless you say otherwise with `--days`. A leaked token then gives a stranger one review for a while, not
-every review its owner is in for ever. It has the same blinding as its owner and can never record a decision.
-Used for another project, or after it expires, the client is told so in words (which project the token is for,
-or when it expired, and how to get another). `strata host token revoke sam.okonkwo` withdraws a person's
-tokens. Tokens made by an earlier version, which named no project and never expired, keep working until you
-revoke them.
+days unless you say otherwise with `--days`, which may be anything from 1 to 365. A leaked token then gives a
+stranger one review for a while, not every review its owner is in for ever, and you make a new one when it
+runs out. It has the same blinding as its owner and can never record a decision. Used for another project, or
+after it expires, the client is told so in words (which project the token is for, or when it expired, and how
+to get another). `strata host token revoke sam.okonkwo` withdraws a person's tokens. Tokens made by an earlier
+version, which named no project and never expired, are expired when the instance is first upgraded: the
+client holding one is told the token expired, on the day of the upgrade, and needs a new token from you.
+`strata host audit` lists whose they were.

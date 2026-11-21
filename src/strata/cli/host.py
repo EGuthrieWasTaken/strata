@@ -616,7 +616,9 @@ def token_add(
         ..., "--project", help="The one project the token reads (the user must be a member)"
     ),
     days: int = typer.Option(
-        accounts.DEFAULT_TOKEN_DAYS, "--days", help="How many days until the token expires"
+        accounts.DEFAULT_TOKEN_DAYS,
+        "--days",
+        help=f"How many days until the token expires (1 to {accounts.MAX_TOKEN_DAYS})",
     ),
     label: str = typer.Option("mcp", "--label", help="What the token is for"),
     data: Path | None = _DATA_OPTION,
@@ -634,8 +636,7 @@ def token_add(
     except (accounts.AccountError, InstanceError) as exc:
         raise _fail(str(exc)) from None
     found = accounts.api_token(instance.store, token)
-    expires = found.expires if found is not None else None
-    until = time.strftime("%Y-%m-%d", time.gmtime(expires)) if expires is not None else "never"
+    until = time.strftime("%Y-%m-%d", time.gmtime(found.expires)) if found is not None else "?"
     if _json(ctx):
         _print_json(
             {

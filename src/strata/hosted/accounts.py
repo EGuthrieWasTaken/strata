@@ -16,9 +16,10 @@ sign-in half of openspec:hosted-deployment#hosted-security-baseline.
   Each session has its own CSRF token, separate from the cookie.
 - **API tokens** let an MCP client authenticate as a user
   (openspec:hosted-deployment#remote-mcp-access); stored hashed like sessions. A token names one
-  project and expires (90 days unless asked otherwise), so a leaked one reads one review for a
-  while rather than every review its owner is in, for ever. Tokens made before that, which name no
-  project and never expire, keep working until they are revoked.
+  project and expires (90 days unless asked otherwise, 365 at most), so a leaked one reads one
+  review for a while rather than every review its owner is in, for ever. Tokens made before that,
+  which name no project and never expire, are expired by the upgrade that adds the columns
+  (`Store.upgrade`), and are refused as expired here wherever one is found.
 
 Disabled accounts cannot sign in and lose their sessions and tokens at once.
 """
@@ -49,6 +50,9 @@ FAILURE_WINDOW = 15 * 60.0
 LOCKOUT = 15 * 60.0
 INVITATION_LIFETIME = 7 * 24 * 3600.0
 DEFAULT_TOKEN_DAYS = 90
+#: The longest an API token may last, however long the operator asks for. A token that leaks stops
+#: working within a year at most, and a client's owner asks for a new one.
+MAX_TOKEN_DAYS = 365
 
 _HASHER = PasswordHasher()  # Argon2id
 #: Verified against when the account does not exist, so a missing account takes as long to
@@ -500,15 +504,15 @@ def csrf_matches(session: Session, submitted: str | None) -> bool:
 
 @dataclass(frozen=True)
 class ApiToken:
-    """What the instance knows about a token it was shown. `project` and `expires` are `None` for
-    a token made before tokens named a project and expired: it reads every project its owner is
-    in, and lasts until it is revoked."""
+    """What the instance knows about a token it was shown that still works: whose it is, the one
+    project it reads, and when it stops. A token made before tokens named a project and expired has
+    neither, and is refused (`api_token`) rather than described."""
 
     username: str
     label: str
-    project: str | None
+    project: str
     created: float
-    expires: float | None
+    expires: float
 
 
 class TokenExpired(Exception):
@@ -533,13 +537,21 @@ def create_api_token(
     days: float = DEFAULT_TOKEN_DAYS,
     now: float | None = None,
 ) -> str:
-    """A token for `username` that reads `project` and expires after `days`; returned once and
-    stored only as a hash. The creation is written to the audit log, as `by`."""
-    if days < 1:
+    """A token for `username` that reads `project` and expires after `days` (from one to
+    `MAX_TOKEN_DAYS`); returned once and stored only as a hash. The creation is written to the audit
+    log, as `by`."""
+    if not days >= 1:  # also a length that is not a number
         raise AccountError(
             f"a token must last at least one day, not {days:g}: ask for a longer one "
             "(for example --days 1, or leave --days out for "
             f"{_plural(DEFAULT_TOKEN_DAYS, 'day')})"
+        )
+    if days > MAX_TOKEN_DAYS:
+        raise AccountError(
+            f"a token can last at most {_plural(MAX_TOKEN_DAYS, 'day')}, not "
+            f"{_plural(days, 'day')}: ask for a shorter one (for example --days {MAX_TOKEN_DAYS}, "
+            f"or leave --days out for {_plural(DEFAULT_TOKEN_DAYS, 'day')}) and make a new one "
+            "when it expires"
         )
     user = get_user(store, username)
     if user is None:
@@ -577,15 +589,21 @@ def api_token(store: Store, token: str | None, *, now: float | None = None) -> A
     )
     if row is None or row["disabled"]:
         return None
-    if row["expires"] is not None and row["expires"] <= current:
-        raise TokenExpired(row["expires"])
+    project, expires = row["project"], row["expires"]
+    if project is None or expires is None:
+        # Made before tokens named a project and expired. The upgrade ends these, so one found
+        # here slipped past it (or was written by hand): refuse it rather than believe it reads
+        # every project its owner is in and never stops.
+        raise TokenExpired(current if expires is None else min(expires, current))
+    if expires <= current:
+        raise TokenExpired(expires)
     store.execute("UPDATE api_tokens SET last_used = ? WHERE token_hash = ?", (current, digest))
     return ApiToken(
         username=row["username"],
         label=row["label"],
-        project=row["project"],
+        project=project,
         created=row["created"],
-        expires=row["expires"],
+        expires=expires,
     )
 
 

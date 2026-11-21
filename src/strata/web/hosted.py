@@ -1022,7 +1022,7 @@ class _McpEndpoint:
         if refusal is not None:
             await _mcp_refusal(scope, receive, send, 503, "project_unavailable", str(refusal))
             return
-        if api.project is not None and api.project != project_id:
+        if api.project != project_id:
             # A member of both projects holding a token for one of them: it is their own project
             # and their own token, so say what is wrong and how to get what they want.
             await _mcp_refusal(

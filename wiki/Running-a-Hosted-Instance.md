@@ -198,7 +198,9 @@ docker compose up -d
 ```
 
 Review repositories need no migration (the instance does not change their format). The instance's own state
-is brought up to date the first time the new version runs, keeping what it holds: API tokens made before
-tokens named a project keep working, reading every project their owner is in, until you revoke them (new ones
-name one project and expire). Sessions survive an upgrade; a screening batch that was not yet committed is safe
-on disk and is committed at the next sync.
+is brought up to date the first time the new version runs, keeping what it holds, with one exception: API
+tokens made before tokens named a project, which read every project their owner is in and never expired, are
+**expired** by the upgrade. The log says how many (`Upgrading the instance's state expired 2 API tokens ...`)
+and `strata host audit` lists whose, so you know which MCP clients to give a new token
+(`strata host token add USER --project PROJECT`; new ones name one project and expire). Sessions survive an
+upgrade; a screening batch that was not yet committed is safe on disk and is committed at the next sync.

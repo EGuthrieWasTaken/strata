@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from typing import TYPE_CHECKING
 
-from strata.hosted.store import Store
+if TYPE_CHECKING:  # the store imports this module (its upgrade writes entries), not the reverse
+    from strata.hosted.store import Store
 
 MEMBER_GRANT = "member-grant"
 ROLE_CHANGE = "role-change"
@@ -28,6 +30,9 @@ ACTOR_CHANGE = "actor-change"
 MEMBER_REMOVE = "member-remove"
 TOKEN_CREATE = "token-create"
 TOKEN_REVOKE = "token-revoke"
+#: A token expired by the instance itself, not by a person: the upgrade that ended the tokens made
+#: before they named a project and expired.
+TOKEN_EXPIRE = "token-expire"
 
 
 def record(

@@ -462,6 +462,18 @@ def test_a_token_for_an_unknown_project_or_a_nonsense_length_is_refused_in_plain
     )
     out = host(data, "token", "add", "sam", "--project", "spacing", "--days", "0", code=2)
     assert "at least one day" in out and "--days 1" in out
+    longest = accounts.MAX_TOKEN_DAYS
+    out = host(
+        data, "token", "add", "sam", "--project", "spacing", "--days", str(longest + 1), code=2
+    )
+    assert f"at most {longest} days" in out and f"--days {longest}" in out
+    assert not Instance(data).store.all("SELECT 1 FROM api_tokens")
+    made = json.loads(
+        host(data, "token", "add", "sam", "--project", "spacing", "--days", str(longest),
+             json_output=True)
+    )  # fmt: skip
+    assert made["days"] == longest
+    assert str(longest) in host(data, "token", "add", "--help")  # the limit is in the help
 
 
 # --------------------------------------------------------------------- the audit log (4.11)

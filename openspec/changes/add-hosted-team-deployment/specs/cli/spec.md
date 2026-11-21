@@ -16,7 +16,7 @@ hosted instance:
 | `strata host project list` | List projects with remote and last-sync status, and which are unavailable |
 | `strata host user add\|disable <username>` | Manage local accounts |
 | `strata host member add <project> <username> --actor HANDLE --role ROLE` | Map a user to an actor and role in a project |
-| `strata host token add <username> --project ID [--days N]` | Make an API token that reads one project and expires; shown once |
+| `strata host token add <username> --project ID [--days N]` | Make an API token that reads one project and expires, after 90 days unless `--days` says (1 to 365); shown once |
 | `strata host audit [--limit N]` | Show who changed memberships and tokens, newest first |
 
 These commands MUST operate on instance state only and MUST NOT write accounts,
@@ -34,7 +34,7 @@ memberships, or secrets into any review repository.
 
 #### Scenario: A token needs a project its owner belongs to
 
-- **WHEN** `strata host token add` is run without `--project`, or for a project the user is not a member of
+- **WHEN** `strata host token add` is run without `--project`, for a project the user is not a member of, or with `--days` over 365 or under 1
 - **THEN** it fails with a usage error, makes no token, and says how to fix it
 
 #### Scenario: Pinning at add

@@ -13,13 +13,19 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from strata.hosted import audit
+
 #: 2 added the audit log, API tokens that name a project and expire, and a project's pinned SSH
 #: host key. `Store.upgrade` brings an older database up to date.
 SCHEMA_VERSION = 2
+
+#: Who the audit log names for what an upgrade does by itself.
+UPGRADE_ACTOR = "instance upgrade"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -136,13 +142,32 @@ CREATE TABLE IF NOT EXISTS screening_batches (
 """
 
 #: Columns added after the first release: (table, column, type). A database made before has the
-#: tables without them; `Store.upgrade` adds them, leaving every existing row as it was (a token
-#: with no project and no expiry is one made before tokens named a project, and keeps working).
+#: tables without them; `Store.upgrade` adds them, leaving every existing row as it was, except
+#: that a token with no project and no expiry (one made before tokens named a project and expired)
+#: is given an expiry of the moment of the upgrade, so it stops working.
 _ADDED_COLUMNS = (
     ("api_tokens", "project", "TEXT"),
     ("api_tokens", "expires", "REAL"),
     ("projects", "host_key", "TEXT"),
 )
+
+
+def _expire_tokens_from_before(connection: sqlite3.Connection, now: float) -> int:
+    """End every API token in `api_tokens` at `now`, in the caller's transaction, and say so in the
+    audit log, one entry per token (who it was made for and its label, never the token). Called
+    only when the table has just gained its `expires` column, so each row is one made before tokens
+    named a project and expired."""
+    rows = connection.execute("SELECT username, label FROM api_tokens ORDER BY created").fetchall()
+    connection.execute("UPDATE api_tokens SET expires = ?", (now,))
+    for username, label in rows:
+        audit.record(
+            connection, by=UPGRADE_ACTOR, action=audit.TOKEN_EXPIRE, subject=username, now=now,
+            detail=(
+                f"token {label!r} made before tokens named a project and expired, expired by the "
+                "upgrade so that it no longer reads every project its owner is in"
+            ),
+        )  # fmt: skip
+    return len(rows)
 
 
 class Store:
@@ -169,27 +194,36 @@ class Store:
         finally:
             connection.close()
 
-    def create(self) -> None:
-        """Create the database (or bring an existing one up to this schema)."""
+    def create(self) -> int:
+        """Create the database (or bring an existing one up to this schema). How many API tokens
+        the upgrade expired, as `upgrade` says."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         new = not self.path.exists()
-        self._apply_schema(journal_mode="WAL")
+        expired = self._apply_schema(journal_mode="WAL")
         if new:
             self.path.chmod(0o600)
+        return expired
 
     def needs_upgrade(self) -> bool:
         """Whether the database was made by an earlier version of this schema."""
         row = self.one("SELECT value FROM meta WHERE key = 'schema_version'")
         return row is None or int(row["value"]) < SCHEMA_VERSION
 
-    def upgrade(self) -> None:
+    def upgrade(self, *, now: float | None = None) -> int:
         """Bring an existing database up to this schema, keeping what it holds. Safe to run again,
-        and safe to run in two processes at once."""
+        and safe to run in two processes at once.
+
+        An API token made before tokens named a project and expired would, kept as it was, read
+        every project its owner is in and never stop. The upgrade gives each an expiry of `now`
+        instead (they stay in the database, so they can still be revoked, and a holder is told the
+        token expired) and writes an audit entry for each. How many it expired; only the first run
+        of an upgrade finds any."""
         if not self.exists():
             raise FileNotFoundError(self.path)
-        self._apply_schema()
+        return self._apply_schema(now=now)
 
-    def _apply_schema(self, *, journal_mode: str | None = None) -> None:
+    def _apply_schema(self, *, journal_mode: str | None = None, now: float | None = None) -> int:
+        expired = 0
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
         try:
             if journal_mode is not None:
@@ -204,6 +238,11 @@ class Store:
                     present = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
                     if column not in present:
                         connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+                        if (table, column) == ("api_tokens", "expires"):
+                            # Every token there is now was made before they expired.
+                            expired = _expire_tokens_from_before(
+                                connection, now if now is not None else time.time()
+                            )
                 connection.execute(
                     "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
                     (str(SCHEMA_VERSION),),
@@ -219,6 +258,7 @@ class Store:
             connection.execute("COMMIT")
         finally:
             connection.close()
+        return expired
 
     def exists(self) -> bool:
         return self.path.is_file()
