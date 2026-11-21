@@ -152,7 +152,9 @@ def hosted(
         accounts.add_user(
             instance.store, username, display_name=username.title(), password=PASSWORD
         )
-        members_mod.add_member(instance, "spacing", username, actor=actor, role=role)
+        members_mod.add_member(
+            instance, "spacing", username, actor=actor, role=role, by="test setup"
+        )
     server = HostedServer(
         instance, public_url=parse_public_url(PUBLIC_URL), background=False, clock=clock
     )

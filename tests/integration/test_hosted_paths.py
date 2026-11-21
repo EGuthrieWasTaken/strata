@@ -78,7 +78,9 @@ def test_a_later_batch_counts_only_its_own_decisions(tmp_path: Path) -> None:
 def test_a_project_without_a_remote_is_never_synced(tmp_path: Path) -> None:
     h = hosted(tmp_path)
     h.instance.add_project("pilot", title="Pilot", actor_handle="ethan", actor_name="Ethan")
-    members_mod.add_member(h.instance, "pilot", "ethan.g", actor="ethan", role="lead")
+    members_mod.add_member(
+        h.instance, "pilot", "ethan.g", actor="ethan", role="lead", by="test setup"
+    )
     ethan = h.signed_in("ethan.g")
     assert "This project has no remote" in ethan.get("/p/pilot/").text
     assert (

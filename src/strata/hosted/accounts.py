@@ -15,13 +15,17 @@ sign-in half of openspec:hosted-deployment#hosted-security-baseline.
   reaches its absolute lifetime, when its owner signs out, or when the account is disabled.
   Each session has its own CSRF token, separate from the cookie.
 - **API tokens** let an MCP client authenticate as a user
-  (openspec:hosted-deployment#remote-mcp-access); stored hashed like sessions.
+  (openspec:hosted-deployment#remote-mcp-access); stored hashed like sessions. A token names one
+  project and expires (90 days unless asked otherwise), so a leaked one reads one review for a
+  while rather than every review its owner is in, for ever. Tokens made before that, which name no
+  project and never expire, keep working until they are revoked.
 
 Disabled accounts cannot sign in and lose their sessions and tokens at once.
 """
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import re
@@ -32,6 +36,7 @@ from dataclasses import dataclass
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
+from strata.hosted import audit
 from strata.hosted.secrets import random_token
 from strata.hosted.store import Store
 
@@ -43,6 +48,7 @@ MAX_FAILURES_PER_CLIENT = 20
 FAILURE_WINDOW = 15 * 60.0
 LOCKOUT = 15 * 60.0
 INVITATION_LIFETIME = 7 * 24 * 3600.0
+DEFAULT_TOKEN_DAYS = 90
 
 _HASHER = PasswordHasher()  # Argon2id
 #: Verified against when the account does not exist, so a missing account takes as long to
@@ -52,6 +58,16 @@ _DUMMY_HASH = _HASHER.hash("strata-dummy-password-for-timing")
 
 class AccountError(ValueError):
     pass
+
+
+class IdentityAlreadyLinked(AccountError):
+    """A provider identity that is linked to another account was offered with an invitation, so
+    the invitation was left unused."""
+
+    def __init__(self, provider: str, subject: str) -> None:
+        self.provider = provider
+        self.subject = subject
+        super().__init__("that sign-in is already linked to another account")
 
 
 class SignInRefused(Exception):
@@ -66,6 +82,36 @@ class SignInRefused(Exception):
             else "the user name or password is not right"
         )
         super().__init__(message)
+
+
+class PasswordChangeRefused(Exception):
+    """A change of password that was not made. `reason` is `locked`, `no-password`,
+    `wrong-current` or `too-short`; the message says, in plain words, what was refused, why and
+    what to do, and is what the person is shown and what the log records."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        messages = {
+            "locked": (
+                "Too many wrong passwords were tried for this account, so your password was not "
+                "changed. Wait a few minutes and try again."
+            ),
+            "no-password": (
+                "This account has no password here (it signs in through another provider), so "
+                "there is no password to change. If you want one as well, ask an administrator "
+                "of this instance for an invitation link."
+            ),
+            "wrong-current": (
+                "The current password you gave is not right, so your password was not changed "
+                "and your other sessions are still signed in. Try again, or if you have "
+                "forgotten it, ask an administrator of this instance for a new invitation link."
+            ),
+            "too-short": (
+                f"The new password must be at least {MIN_PASSWORD_LENGTH} characters, so your "
+                "password was not changed. Choose a longer one."
+            ),
+        }
+        super().__init__(messages[reason])
 
 
 @dataclass(frozen=True)
@@ -163,6 +209,57 @@ def set_password(store: Store, username: str, password: str) -> None:
         db.execute("DELETE FROM sessions WHERE username = ?", (username,))
 
 
+def change_password(
+    store: Store,
+    username: str,
+    current: str,
+    new: str,
+    *,
+    keep_session: str | None,
+    client: str,
+    now: float | None = None,
+) -> int:
+    """Change `username`'s own password: it needs the current one, and ends every session of theirs
+    except `keep_session` (the cookie value of the one they are using); how many it ended.
+
+    Guessing the current password from a stolen session is what the check is for, so each wrong
+    attempt is logged and counts against the same limits as a wrong password at sign-in
+    (`is_locked_out`): after too many, the change is refused without looking at the password.
+    """
+    current_time = now if now is not None else time.time()
+
+    def log(outcome: str) -> None:
+        log_signin(
+            store, username=username, client=client, method="password-change", outcome=outcome,
+            now=current_time,
+        )  # fmt: skip
+
+    if is_locked_out(store, username=username, client=client, now=current_time):
+        log("locked")
+        raise PasswordChangeRefused("locked")
+    row = store.one("SELECT password_hash FROM users WHERE username = ?", (username,))
+    stored = row["password_hash"] if row is not None else None
+    if stored is None:
+        raise PasswordChangeRefused("no-password")
+    right: bool = False
+    with contextlib.suppress(VerifyMismatchError, VerificationError, InvalidHashError):
+        right = _HASHER.verify(stored, current)
+    if not right:
+        log("failure")
+        raise PasswordChangeRefused("wrong-current")
+    if len(new) < MIN_PASSWORD_LENGTH:
+        raise PasswordChangeRefused("too-short")
+    hashed = hash_password(new)
+    with store.connect() as db:
+        db.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hashed, username))
+        ended = db.execute(
+            "DELETE FROM sessions WHERE username = ? AND token_hash != ?",
+            (username, _digest(keep_session) if keep_session else ""),
+        ).rowcount
+    log("success")
+    return ended
+
+
 def disable_user(store: Store, username: str) -> None:
     """Disable an account: it can no longer sign in, and its sessions and tokens end now."""
     with store.connect() as db:
@@ -209,16 +306,50 @@ def invitation_user(store: Store, token: str, *, now: float | None = None) -> st
     return str(row["username"])
 
 
-def use_invitation(store: Store, token: str, *, now: float | None = None) -> str:
+def use_invitation(
+    store: Store,
+    token: str,
+    *,
+    now: float | None = None,
+    identity: tuple[str, str] | None = None,
+) -> str:
     """Use an invitation up; its user name. Two requests with the same token cannot both use it:
-    the update that marks it used is also the check that it was not."""
-    username = invitation_user(store, token, now=now)
+    the update that marks it used is also the check that it was not.
+
+    `identity` is a sign-in provider's `(provider, subject)` the person is accepting the invitation
+    with. It is linked to the invited account in the same transaction as the invitation is used,
+    and only if no *other* account has it already: when one does, `IdentityAlreadyLinked` is
+    raised and the invitation is left unused, so the person can try again with another identity
+    rather than needing a new invitation.
+    """
     current = now if now is not None else time.time()
-    if username is None or not store.execute(
-        "UPDATE invitations SET used = 1 WHERE token_hash = ? AND used = 0 AND expires >= ?",
-        (_digest(token), current),
-    ):
-        raise AccountError("this invitation has expired or has already been used")
+    digest = _digest(token)
+    expired = AccountError("this invitation has expired or has already been used")
+    with store.connect() as db:
+        row = db.execute(
+            "SELECT i.username, i.expires, i.used, u.disabled FROM invitations i "
+            "LEFT JOIN users u ON u.username = i.username WHERE i.token_hash = ?",
+            (digest,),
+        ).fetchone()
+        if row is None or row["used"] or row["expires"] < current or row["disabled"] != 0:
+            raise expired
+        username = str(row["username"])
+        if identity is not None:
+            linked = db.execute(
+                "SELECT username FROM identities WHERE provider = ? AND subject = ?", identity
+            ).fetchone()
+            if linked is not None and linked["username"] != username:
+                raise IdentityAlreadyLinked(*identity)
+        if not db.execute(
+            "UPDATE invitations SET used = 1 WHERE token_hash = ? AND used = 0 AND expires >= ?",
+            (digest, current),
+        ).rowcount:
+            raise expired
+        if identity is not None:
+            db.execute(
+                "INSERT OR REPLACE INTO identities (provider, subject, username) VALUES (?, ?, ?)",
+                (*identity, username),
+            )
     return username
 
 
@@ -367,41 +498,118 @@ def csrf_matches(session: Session, submitted: str | None) -> bool:
 # ------------------------------------------------------------------------------- API tokens
 
 
-def create_api_token(store: Store, username: str, *, label: str, now: float | None = None) -> str:
+@dataclass(frozen=True)
+class ApiToken:
+    """What the instance knows about a token it was shown. `project` and `expires` are `None` for
+    a token made before tokens named a project and expired: it reads every project its owner is
+    in, and lasts until it is revoked."""
+
+    username: str
+    label: str
+    project: str | None
+    created: float
+    expires: float | None
+
+
+class TokenExpired(Exception):
+    """The token was made by this instance but has passed its expiry."""
+
+    def __init__(self, expires: float) -> None:
+        self.expires = expires
+        super().__init__("this API token has expired")
+
+
+def _plural(count: float, noun: str) -> str:
+    return f"{count:g} {noun}" + ("" if count == 1 else "s")
+
+
+def create_api_token(
+    store: Store,
+    username: str,
+    *,
+    label: str,
+    project: str,
+    by: str,
+    days: float = DEFAULT_TOKEN_DAYS,
+    now: float | None = None,
+) -> str:
+    """A token for `username` that reads `project` and expires after `days`; returned once and
+    stored only as a hash. The creation is written to the audit log, as `by`."""
+    if days < 1:
+        raise AccountError(
+            f"a token must last at least one day, not {days:g}: ask for a longer one "
+            "(for example --days 1, or leave --days out for "
+            f"{_plural(DEFAULT_TOKEN_DAYS, 'day')})"
+        )
     user = get_user(store, username)
     if user is None:
         raise AccountError(f"there is no account called {username!r}")
     if user.disabled:
         raise AccountError(f"the account {username!r} is disabled")
     token = "strata_" + random_token()
-    store.execute(
-        "INSERT INTO api_tokens (token_hash, username, label, created) VALUES (?, ?, ?, ?)",
-        (_digest(token), username, label, now if now is not None else time.time()),
-    )
+    current = now if now is not None else time.time()
+    expires = current + days * 24 * 3600
+    until = time.strftime("%Y-%m-%d", time.gmtime(expires))
+    with store.connect() as db:
+        db.execute(
+            "INSERT INTO api_tokens (token_hash, username, label, created, project, expires) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (_digest(token), username, label, current, project, expires),
+        )
+        audit.record(
+            db, by=by, action=audit.TOKEN_CREATE, project=project, subject=username, now=current,
+            detail=f"token {label!r} for {project}, valid {_plural(days, 'day')} (until {until})",
+        )  # fmt: skip
     return token
 
 
-def user_for_api_token(store: Store, token: str | None, *, now: float | None = None) -> str | None:
+def api_token(store: Store, token: str | None, *, now: float | None = None) -> ApiToken | None:
+    """The token `token` is, if it is one this instance made and its account is enabled; `None`
+    if not. An expired one raises `TokenExpired`, so a client can be told why it was refused."""
     if not token:
         return None
     digest = _digest(token)
+    current = now if now is not None else time.time()
     row = store.one(
-        "SELECT t.username, u.disabled FROM api_tokens t JOIN users u ON u.username = t.username "
-        "WHERE t.token_hash = ?",
+        "SELECT t.username, t.label, t.project, t.created, t.expires, u.disabled "
+        "FROM api_tokens t JOIN users u ON u.username = t.username WHERE t.token_hash = ?",
         (digest,),
     )
     if row is None or row["disabled"]:
         return None
-    store.execute(
-        "UPDATE api_tokens SET last_used = ? WHERE token_hash = ?",
-        (now if now is not None else time.time(), digest),
+    if row["expires"] is not None and row["expires"] <= current:
+        raise TokenExpired(row["expires"])
+    store.execute("UPDATE api_tokens SET last_used = ? WHERE token_hash = ?", (current, digest))
+    return ApiToken(
+        username=row["username"],
+        label=row["label"],
+        project=row["project"],
+        created=row["created"],
+        expires=row["expires"],
     )
-    return str(row["username"])
 
 
-def revoke_api_tokens(store: Store, username: str, *, label: str | None = None) -> int:
-    if label is None:
-        return store.execute("DELETE FROM api_tokens WHERE username = ?", (username,))
-    return store.execute(
-        "DELETE FROM api_tokens WHERE username = ? AND label = ?", (username, label)
-    )
+def revoke_api_tokens(
+    store: Store,
+    username: str,
+    *,
+    by: str,
+    label: str | None = None,
+    now: float | None = None,
+) -> int:
+    """Revoke `username`'s tokens (those with `label`, or all); how many. Written to the audit
+    log, as `by`, when there were any."""
+    with store.connect() as db:
+        if label is None:
+            count = db.execute("DELETE FROM api_tokens WHERE username = ?", (username,)).rowcount
+        else:
+            count = db.execute(
+                "DELETE FROM api_tokens WHERE username = ? AND label = ?", (username, label)
+            ).rowcount
+        if count:
+            which = f" labelled {label!r}" if label is not None else ""
+            audit.record(
+                db, by=by, action=audit.TOKEN_REVOKE, subject=username, now=now,
+                detail=f"revoked {_plural(count, 'token')}{which}",
+            )  # fmt: skip
+    return count

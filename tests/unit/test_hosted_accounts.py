@@ -108,10 +108,12 @@ def test_sessions_expire_when_idle_and_at_their_lifetime(store: Store) -> None:
 def test_disabling_an_account_ends_its_sessions_and_tokens(store: Store) -> None:
     accounts.add_user(store, "sam", password=PASSWORD)
     token, _ = accounts.create_session(store, "sam", hours=1, now=0.0)
-    api = accounts.create_api_token(store, "sam", label="mcp", now=0.0)
+    api = accounts.create_api_token(
+        store, "sam", label="mcp", project="spacing", by="test", now=0.0
+    )
     accounts.disable_user(store, "sam")
     assert accounts.session_for(store, token, idle_minutes=10, now=1.0) is None
-    assert accounts.user_for_api_token(store, api) is None
+    assert accounts.api_token(store, api, now=1.0) is None
     with pytest.raises(accounts.SignInRefused):
         accounts.sign_in(store, "sam", PASSWORD, client="c", now=2.0)
     accounts.enable_user(store, "sam")
@@ -134,13 +136,16 @@ def test_invitations_are_single_use_and_expire(store: Store) -> None:
 
 def test_api_tokens_are_stored_hashed_and_revocable(store: Store, tmp_path: Path) -> None:
     accounts.add_user(store, "sam", password=PASSWORD)
-    token = accounts.create_api_token(store, "sam", label="laptop", now=0.0)
+    token = accounts.create_api_token(
+        store, "sam", label="laptop", project="spacing", by="test", now=0.0
+    )
     assert token.startswith("strata_")
     assert token.encode() not in (tmp_path / "instance.db").read_bytes()
-    assert accounts.user_for_api_token(store, token) == "sam"
-    assert accounts.user_for_api_token(store, None) is None
-    assert accounts.revoke_api_tokens(store, "sam", label="laptop") == 1
-    assert accounts.user_for_api_token(store, token) is None
+    found = accounts.api_token(store, token, now=1.0)
+    assert found is not None and found.username == "sam"
+    assert accounts.api_token(store, None) is None
+    assert accounts.revoke_api_tokens(store, "sam", label="laptop", by="test") == 1
+    assert accounts.api_token(store, token, now=1.0) is None
 
 
 def test_an_invitation_checked_by_two_requests_at_once_is_used_only_once(
@@ -164,3 +169,34 @@ def test_a_new_password_ends_the_sessions_signed_in_with_the_old_one(store: Stor
     accounts.set_password(store, "ada", "a different long passphrase")
 
     assert accounts.session_for(store, cookie, idle_minutes=60, now=102.0) is None
+
+
+def test_an_invitation_used_for_an_identity_is_used_and_links_it_in_one_step(store: Store) -> None:
+    accounts.add_user(store, "priya")
+    token = accounts.create_invitation(store, "priya", now=0.0)
+    assert accounts.use_invitation(store, token, now=1.0, identity=("university", "u-1")) == "priya"
+    row = store.one(
+        "SELECT username FROM identities WHERE provider = 'university' AND subject = 'u-1'"
+    )
+    assert row is not None and row["username"] == "priya"
+    with pytest.raises(accounts.AccountError, match="already been used"):
+        accounts.use_invitation(store, token, now=2.0, identity=("university", "u-1"))
+
+
+def test_an_invitation_is_left_alone_when_its_identity_belongs_to_another_account(
+    store: Store,
+) -> None:
+    accounts.add_user(store, "sam")
+    accounts.add_user(store, "priya")
+    store.execute(
+        "INSERT INTO identities (provider, subject, username) VALUES ('university', 'u-1', 'sam')"
+    )
+    token = accounts.create_invitation(store, "priya", now=0.0)
+
+    with pytest.raises(accounts.IdentityAlreadyLinked) as refused:
+        accounts.use_invitation(store, token, now=1.0, identity=("university", "u-1"))
+
+    assert (refused.value.provider, refused.value.subject) == ("university", "u-1")
+    assert accounts.invitation_user(store, token, now=1.0) == "priya"  # not used
+    row = store.one("SELECT username FROM identities WHERE subject = 'u-1'")
+    assert row is not None and row["username"] == "sam"

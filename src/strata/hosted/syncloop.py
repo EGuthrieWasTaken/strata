@@ -33,6 +33,7 @@ operation. Commits the loop makes have the acting reviewer as author and the ins
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -48,8 +49,11 @@ from strata.core.screen_batches import (
     commit_screening_batch,
     pending_screening_actors,
 )
+from strata.hosted import hostkeys
 from strata.hosted.instance import Instance, Project
 from strata.hosted.secrets import SecretError
+
+_LOG = logging.getLogger("strata.hosted")
 
 RETRY_BASE = 30.0
 RETRY_CAP = 15 * 60.0
@@ -132,6 +136,12 @@ class SyncLoop:
 
     # -- state -----------------------------------------------------------------------------
 
+    def _blocked(self, project_id: str) -> bool:
+        """Whether the instance refuses to serve the project (it has a symbolic link). Nothing is
+        fetched, merged, committed or pushed in its working copy, where git would follow the
+        link."""
+        return self.instance.unavailable(project_id) is not None
+
     def _lock(self, project_id: str) -> threading.Lock:
         with self._locks_guard:
             return self._locks.setdefault(project_id, threading.Lock())
@@ -204,6 +214,8 @@ class SyncLoop:
 
     def flush(self, project_id: str, *, actor: str | None = None) -> int:
         """Commit pending screening batches (one actor's, or everyone's); how many commits."""
+        if self._blocked(project_id):
+            return 0
         with self._lock(project_id):
             repo = self.instance.open_project(project_id)
             with repo_lock(repo):
@@ -246,7 +258,7 @@ class SyncLoop:
     def pull_before_read(self, project_id: str, actor: str) -> None:
         """Sync once if the last fetch is older than the interval; never waits on a busy sync."""
         project = self.instance.get_project(project_id)
-        if project is None or project.remote is None:
+        if project is None or project.remote is None or self._blocked(project_id):
             return
         now = self._clock()
         status = self.status(project_id)
@@ -267,7 +279,7 @@ class SyncLoop:
     def push(self, project_id: str) -> bool:
         """Push a project's committed work now (fetching and merging first); whether it pushed."""
         project = self.instance.get_project(project_id)
-        if project is None or project.remote is None:
+        if project is None or project.remote is None or self._blocked(project_id):
             return False
         actor = self._last_actor(project_id) or ""
         with self._lock(project_id):
@@ -277,7 +289,7 @@ class SyncLoop:
     def sync_now(self, project_id: str, actor: str) -> SyncStatus:
         """Sync (and push) a project now, whatever the interval; a member asked for it."""
         project = self.instance.get_project(project_id)
-        if project is not None and project.remote is not None:
+        if project is not None and project.remote is not None and not self._blocked(project_id):
             with self._lock(project_id):
                 self._sync_locked(project, actor, push=True)
         return self.status(project_id)
@@ -288,7 +300,7 @@ class SyncLoop:
         """A lead's resolution of the held conflicts: `mine` (the instance's version), `theirs`
         (the remote's), or `Edited` text, by path. Syncs and pushes with it."""
         project = self.instance.get_project(project_id)
-        if project is None or project.remote is None:
+        if project is None or project.remote is None or self._blocked(project_id):
             return self.status(project_id)
 
         def resolver(conflict: sync_mod.Conflict) -> str | sync_mod.Edited | None:
@@ -358,10 +370,15 @@ class SyncLoop:
             status = self.status(project.id)
             failures = status.failures + 1
             delay = min(RETRY_BASE * 2 ** (failures - 1), RETRY_CAP)
+            message = _describe_failure(exc, self.instance, project)
+            if hostkeys.is_verification_failure(_failure_text(exc)):
+                # The one failure that is not just the network being away: say it where an
+                # operator reads, as well as on the project's pages.
+                _LOG.warning("sync of %s refused: %s", project.id, message)
             self._update(
                 project.id,
                 last_fetch=now,
-                last_error=_describe_failure(exc),
+                last_error=message,
                 failures=failures,
                 next_retry=now + delay,
             )
@@ -400,7 +417,13 @@ def _conflict_view(conflict: sync_mod.Conflict) -> dict[str, Any]:
     }
 
 
-def _describe_failure(exc: Exception) -> str:
+def _failure_text(exc: Exception) -> str:
+    return exc.stderr if isinstance(exc, gitio.GitError) else str(exc)
+
+
+def _describe_failure(exc: Exception, instance: Instance, project: Project) -> str:
+    if hostkeys.is_verification_failure(_failure_text(exc)):
+        return instance.host_key_refusal(project, during="sync")
     if isinstance(exc, sync_mod.DirtyTreeError):
         return "the project has uncommitted changes the instance did not make; see its working copy"
     if isinstance(exc, sync_mod.VerifyFailedError):

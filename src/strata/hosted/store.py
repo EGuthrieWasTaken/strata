@@ -17,7 +17,9 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+#: 2 added the audit log, API tokens that name a project and expire, and a project's pinned SSH
+#: host key. `Store.upgrade` brings an older database up to date.
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -52,7 +54,8 @@ CREATE TABLE IF NOT EXISTS projects (
     credential_kind TEXT,
     credential_secret TEXT,
     credential_username TEXT,
-    created REAL NOT NULL
+    created REAL NOT NULL,
+    host_key TEXT
 );
 CREATE TABLE IF NOT EXISTS memberships (
     project TEXT NOT NULL REFERENCES projects(id),
@@ -75,7 +78,9 @@ CREATE TABLE IF NOT EXISTS api_tokens (
     username TEXT NOT NULL REFERENCES users(username),
     label TEXT NOT NULL,
     created REAL NOT NULL,
-    last_used REAL
+    last_used REAL,
+    project TEXT,
+    expires REAL
 );
 CREATE TABLE IF NOT EXISTS signins (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +92,15 @@ CREATE TABLE IF NOT EXISTS signins (
 );
 CREATE INDEX IF NOT EXISTS signins_by_user ON signins (username, ts);
 CREATE INDEX IF NOT EXISTS signins_by_client ON signins (client, ts);
+CREATE TABLE IF NOT EXISTS audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts REAL NOT NULL,
+    performed_by TEXT NOT NULL,
+    action TEXT NOT NULL,
+    project TEXT,
+    subject TEXT,
+    detail TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS oidc_flows (
     state TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
@@ -121,6 +135,15 @@ CREATE TABLE IF NOT EXISTS screening_batches (
 );
 """
 
+#: Columns added after the first release: (table, column, type). A database made before has the
+#: tables without them; `Store.upgrade` adds them, leaving every existing row as it was (a token
+#: with no project and no expiry is one made before tokens named a project, and keeps working).
+_ADDED_COLUMNS = (
+    ("api_tokens", "project", "TEXT"),
+    ("api_tokens", "expires", "REAL"),
+    ("projects", "host_key", "TEXT"),
+)
+
 
 class Store:
     """The instance-state database at `path`."""
@@ -150,19 +173,52 @@ class Store:
         """Create the database (or bring an existing one up to this schema)."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         new = not self.path.exists()
-        connection = sqlite3.connect(self.path)
-        try:
-            connection.execute("PRAGMA journal_mode = WAL")
-            connection.executescript(_SCHEMA)
-            connection.execute(
-                "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
-                (str(SCHEMA_VERSION),),
-            )
-            connection.commit()
-        finally:
-            connection.close()
+        self._apply_schema(journal_mode="WAL")
         if new:
             self.path.chmod(0o600)
+
+    def needs_upgrade(self) -> bool:
+        """Whether the database was made by an earlier version of this schema."""
+        row = self.one("SELECT value FROM meta WHERE key = 'schema_version'")
+        return row is None or int(row["value"]) < SCHEMA_VERSION
+
+    def upgrade(self) -> None:
+        """Bring an existing database up to this schema, keeping what it holds. Safe to run again,
+        and safe to run in two processes at once."""
+        if not self.exists():
+            raise FileNotFoundError(self.path)
+        self._apply_schema()
+
+    def _apply_schema(self, *, journal_mode: str | None = None) -> None:
+        connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        try:
+            if journal_mode is not None:
+                connection.execute(f"PRAGMA journal_mode = {journal_mode}")
+            # New tables arrive with `CREATE TABLE IF NOT EXISTS`; columns added to tables that
+            # exist need `ALTER TABLE`, checked and made in one transaction so that two processes
+            # upgrading at once cannot both add the same column.
+            connection.executescript(_SCHEMA)
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                for table, column, kind in _ADDED_COLUMNS:
+                    present = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+                    if column not in present:
+                        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+                connection.execute(
+                    "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
+                    (str(SCHEMA_VERSION),),
+                )
+                connection.execute(
+                    "UPDATE meta SET value = ? WHERE key = 'schema_version' "
+                    "AND CAST(value AS INTEGER) < ?",
+                    (str(SCHEMA_VERSION), SCHEMA_VERSION),
+                )
+            except BaseException:
+                connection.execute("ROLLBACK")
+                raise
+            connection.execute("COMMIT")
+        finally:
+            connection.close()
 
     def exists(self) -> bool:
         return self.path.is_file()

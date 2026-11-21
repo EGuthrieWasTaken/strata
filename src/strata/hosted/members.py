@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from strata.core import agents as agents_mod
 from strata.core.actor import VALID_ROLES
 from strata.core.repo import open_repo
-from strata.hosted import accounts
+from strata.hosted import accounts, audit
 from strata.hosted.instance import Instance, InstanceError
 
 ROLES = tuple(sorted(VALID_ROLES - {"inactive"}))
@@ -101,9 +101,18 @@ def _membership(row: sqlite3.Row) -> Membership:
 
 
 def add_member(
-    instance: Instance, project_id: str, username: str, *, actor: str, role: str
+    instance: Instance,
+    project_id: str,
+    username: str,
+    *,
+    actor: str,
+    role: str,
+    by: str,
+    now: float | None = None,
 ) -> Membership:
-    """Map `username` to `actor` with `role` in a project. Writes instance state only."""
+    """Map `username` to `actor` with `role` in a project. Writes instance state only, and an
+    entry in the audit log, as `by`, when it grants a membership or changes one (saving what is
+    already there changes nothing and logs nothing)."""
     if instance.get_project(project_id) is None:
         raise MembershipError(f"there is no project called {project_id!r}")
     user = accounts.get_user(instance.store, username)
@@ -140,21 +149,87 @@ def add_member(
         and len(leads_of(instance, project_id)) <= 1
     ):
         raise MembershipError(f"{username!r} is the only lead of {project_id}; a project keeps one")
-    instance.store.execute(
-        "INSERT INTO memberships (project, username, actor, role) VALUES (?, ?, ?, ?) "
-        "ON CONFLICT (project, username) DO UPDATE SET actor = excluded.actor, "
-        "role = excluded.role",
-        (project_id, username, actor, role),
-    )
+    with instance.store.connect() as db:
+        before = db.execute(
+            "SELECT actor, role FROM memberships WHERE project = ? AND username = ?",
+            (project_id, username),
+        ).fetchone()
+        db.execute(
+            "INSERT INTO memberships (project, username, actor, role) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (project, username) DO UPDATE SET actor = excluded.actor, "
+            "role = excluded.role",
+            (project_id, username, actor, role),
+        )
+        if before is None:
+            action, detail = audit.MEMBER_GRANT, f"now acts as {actor} with the role {role}"
+        elif before["role"] != role:
+            action = audit.ROLE_CHANGE
+            detail = f"the role {before['role']} became {role}"
+            if before["actor"] != actor:
+                detail += f", and the actor {before['actor']} became {actor}"
+        elif before["actor"] != actor:
+            action = audit.ACTOR_CHANGE
+            detail = f"the actor {before['actor']} became {actor}, with the same role {role}"
+        else:
+            action = detail = ""
+        if action:
+            audit.record(
+                db, by=by, action=action, project=project_id, subject=username, detail=detail,
+                now=now,
+            )  # fmt: skip
     return Membership(project_id, username, actor, role)
 
 
-def remove_member(instance: Instance, project_id: str, username: str) -> bool:
-    return (
-        instance.store.execute(
+def remove_member(
+    instance: Instance, project_id: str, username: str, *, by: str, now: float | None = None
+) -> bool:
+    """Remove a membership; whether there was one. Logged, as `by`, when there was."""
+    with instance.store.connect() as db:
+        before = db.execute(
+            "SELECT actor, role FROM memberships WHERE project = ? AND username = ?",
+            (project_id, username),
+        ).fetchone()
+        if before is None:
+            return False
+        db.execute(
             "DELETE FROM memberships WHERE project = ? AND username = ?", (project_id, username)
         )
-        > 0
+        audit.record(
+            db, by=by, action=audit.MEMBER_REMOVE, project=project_id, subject=username,
+            detail=f"removed; they were {before['actor']} with the role {before['role']}",
+            now=now,
+        )  # fmt: skip
+    return True
+
+
+def issue_api_token(
+    instance: Instance,
+    username: str,
+    project_id: str,
+    *,
+    by: str,
+    label: str = "mcp",
+    days: float = accounts.DEFAULT_TOKEN_DAYS,
+    now: float | None = None,
+) -> str:
+    """An API token for `username` that reads `project_id` and expires after `days`. A token is
+    only useful to a member of the project, so it is only made for one."""
+    projects = [project.id for project in instance.list_projects()]
+    if project_id not in projects:
+        raise MembershipError(
+            f"there is no project called {project_id!r}, so no token was made; this instance "
+            f"has: {', '.join(projects) or 'no projects yet'}"
+        )
+    if accounts.get_user(instance.store, username) is not None and (
+        membership(instance, project_id, username) is None
+    ):
+        raise MembershipError(
+            f"{username!r} is not a member of {project_id!r}, so a token for it would read "
+            f"nothing and none was made; make them a member first with `strata host member add "
+            f"{project_id} {username} --actor HANDLE --role ROLE`, then ask again"
+        )
+    return accounts.create_api_token(
+        instance.store, username, label=label, project=project_id, days=days, by=by, now=now
     )
 
 

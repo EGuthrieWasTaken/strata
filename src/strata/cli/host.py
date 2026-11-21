@@ -9,18 +9,27 @@ read from a prompt, standard input, or a named environment variable.
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 
-from strata.hosted import accounts
+from strata.hosted import accounts, audit
 from strata.hosted import members as members_mod
-from strata.hosted.instance import Instance, InstanceError, default_data_dir
+from strata.hosted.instance import (
+    HostKeyReport,
+    Instance,
+    InstanceError,
+    ProjectUnavailable,
+    default_data_dir,
+)
 from strata.hosted.secrets import SecretError
 from strata.hosted.syncloop import SyncLoop
 
@@ -53,6 +62,12 @@ _DATA_HELP = "The instance's data directory (default: $STRATA_DATA or /data)"
 
 _DATA_OPTION = typer.Option(None, "--data", help=_DATA_HELP, envvar="STRATA_DATA")
 _NAMES_ARGUMENT = typer.Argument(None, help="Also say where these names would come from")
+_HOST_KEY_OPTION = typer.Option(
+    None,
+    "--host-key",
+    help="Pin the remote's SSH host key: a known_hosts line, as `ssh-keyscan -t ed25519 HOST` "
+    "prints it (repeat for more than one key), instead of trusting it on first use",
+)
 
 
 def _json(ctx: typer.Context) -> bool:
@@ -89,6 +104,16 @@ def _read_password(env: str, prompt: str) -> str:
             return line
         raise _fail(f"no password: set {env}, pipe one on standard input, or use --invite")
     return str(typer.prompt(prompt, hide_input=True, confirmation_prompt=True))
+
+
+def _operator() -> str:
+    """Who an audit entry names for a change made at the command line: an administrator at a shell
+    is known to the instance only by the account they are logged in to the machine with."""
+    try:
+        name = getpass.getuser()
+    except (KeyError, OSError):  # a container user with no passwd entry
+        name = f"uid {os.getuid()}"
+    return f"command line ({name})"
 
 
 def _invitation_url(instance: Instance, token: str) -> str:
@@ -151,6 +176,9 @@ def host(
         f"[green]strata host[/] serving {len(instance.list_projects())} project(s) at "
         f"{parsed.origin} (listening on {bind}:{port})"
     )
+    # A project with a symbolic link is refused on its own; the instance starts without it.
+    for refusal in instance.unavailable_projects():
+        err_console.print(f"[yellow]warning:[/] {escape(str(refusal))}")
     run_hosted(server, bind=bind, port=port, trusted_proxies=trusted_proxy)
 
 
@@ -206,6 +234,37 @@ def init_command(
 # -------------------------------------------------------------------------------- projects
 
 
+def _host_key_payload(report: HostKeyReport | None) -> dict[str, Any]:
+    return {
+        "host": report.host if report else None,
+        "pinned": report.pinned if report else False,
+        "keys": [
+            {"type": k.key_type, "fingerprint": k.fingerprint, "line": k.line}
+            for k in (report.keys if report else [])
+        ],
+    }
+
+
+def _print_host_key(report: HostKeyReport | None, project_id: str, *, first_clone: bool) -> None:
+    """What the operator is told about the SSH host key a project's remote is trusted with."""
+    if report is None:
+        return
+    keys = "\n".join(f"  {k.key_type} {k.fingerprint}" for k in report.keys)
+    if report.pinned:
+        out_console.print(
+            f"host key pinned for {report.host}: ssh will believe only\n{keys}", markup=False
+        )
+    elif report.keys:
+        when = "accepted on first use" if first_clone else "trusted on first use (not pinned)"
+        out_console.print(f"host key for {report.host} {when}:\n{keys}", markup=False)
+        out_console.print(
+            "Compare this fingerprint with the one the git host publishes. If it differs, "
+            "someone may be in the way: pin the right key with "
+            f"`strata host project host-key {project_id} --host-key '<known_hosts line>'`.",
+            markup=False,
+        )
+
+
 @project_app.command("add")
 def project_add(
     ctx: typer.Context,
@@ -219,6 +278,7 @@ def project_add(
     credential_user: str | None = typer.Option(
         None, "--credential-user", help="User name sent with an HTTPS token"
     ),
+    host_key: list[str] | None = _HOST_KEY_OPTION,
     title: str | None = typer.Option(None, "--title"),
     actor: str | None = typer.Option(None, "--actor", help="First actor of a new review"),
     actor_name: str | None = typer.Option(None, "--actor-name"),
@@ -243,16 +303,24 @@ def project_add(
             actor_handle=actor,
             actor_name=actor_name,
             actor_email=actor_email,
+            host_keys=host_key,
         )
     except (InstanceError, SecretError) as exc:
         raise _fail(str(exc)) from None
     except Exception as exc:  # noqa: BLE001 - e.g. the remote is not a strata review
         raise _fail(f"could not add {project_id}: {exc}", EXIT_GENERIC) from None
+    report = instance.host_key_report(project.id)
     if _json(ctx):
-        _print_json({"id": project.id, "title": project.title, "remote": project.remote})
+        _print_json(
+            {
+                "id": project.id, "title": project.title, "remote": project.remote,
+                "host_key": _host_key_payload(report) if report else None,
+            }
+        )  # fmt: skip
         return
     how = f"cloned from {project.remote}" if project.remote else "initialised"
     out_console.print(f"[green]added[/] project {project.id} ({how})")
+    _print_host_key(report, project.id, first_clone=True)
 
 
 @project_app.command("list")
@@ -263,6 +331,7 @@ def project_list(ctx: typer.Context, data: Path | None = _DATA_OPTION) -> None:
     rows = []
     for project in instance.list_projects():
         view = loop.status(project.id).as_view()
+        links = instance.symlinks_in(project.id)  # reads only: listing changes nothing
         rows.append(
             {
                 "id": project.id,
@@ -273,6 +342,8 @@ def project_list(ctx: typer.Context, data: Path | None = _DATA_OPTION) -> None:
                 "last_error": view["last_error"],
                 "conflicts": view["conflicts"],
                 "push_pending": view["push_pending"],
+                "unavailable": str(ProjectUnavailable(project.id, links)) if links else None,
+                "links": links,
             }
         )
     if _json(ctx):
@@ -282,7 +353,9 @@ def project_list(ctx: typer.Context, data: Path | None = _DATA_OPTION) -> None:
         out_console.print("no projects yet; add one with `strata host project add`")
     for row in rows:
         state = (
-            "no remote"
+            f"unavailable: symbolic link at {row['links'][0]}"
+            if row["unavailable"]
+            else "no remote"
             if not row["remote"]
             else "conflict waiting for a lead"
             if row["conflicts"]
@@ -296,6 +369,54 @@ def project_list(ctx: typer.Context, data: Path | None = _DATA_OPTION) -> None:
             markup=False,
             highlight=False,
         )
+        if row["unavailable"]:
+            out_console.print(f"  {row['unavailable']}", markup=False, highlight=False)
+
+
+@project_app.command("host-key")
+def project_host_key(
+    ctx: typer.Context,
+    project_id: str,
+    host_key: list[str] | None = _HOST_KEY_OPTION,
+    clear: bool = typer.Option(False, "--clear", help="Go back to trusting the key on first use"),
+    data: Path | None = _DATA_OPTION,
+) -> None:
+    """Show, pin or unpin the SSH host key a project's remote is trusted with."""
+    instance = _instance(data)
+    if clear and host_key:
+        raise _fail("give --host-key to pin a key or --clear to remove the pin, not both")
+    try:
+        if host_key:
+            instance.set_host_keys(project_id, host_key)
+        elif clear:
+            instance.set_host_keys(project_id, None)
+        elif instance.get_project(project_id) is None:
+            instance.set_host_keys(project_id, None)  # says there is no such project
+        report = instance.host_key_report(project_id)
+    except InstanceError as exc:
+        raise _fail(str(exc)) from None
+    if _json(ctx):
+        _print_json({"project": project_id, **_host_key_payload(report)})
+        return
+    if clear:
+        out_console.print(
+            f"pin removed: {project_id} goes back to trust on first use", markup=False
+        )
+    if report is None:
+        out_console.print(
+            f"{project_id}: no host key is pinned or recorded here: its remote is not reached "
+            "with a deploy key over SSH, so ssh uses the machine's own known_hosts (or the "
+            "remote is https). Pin one with --host-key if the remote is SSH.",
+            markup=False,
+        )
+    else:
+        _print_host_key(report, project_id, first_clone=False)
+        if not report.keys:
+            out_console.print(
+                f"no key recorded yet for {report.host}: the first connection will trust the key "
+                "the host shows",
+                markup=False,
+            )
 
 
 # ---------------------------------------------------------------------------------- users
@@ -408,12 +529,31 @@ def signins(
     if _json(ctx):
         _print_json(rows)
         return
-    import time
-
     for row in rows:
         when = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(float(row["ts"])))  # type: ignore[arg-type]
         out_console.print(
             f"{when}\t{row['username']}\t{row['client']}\t{row['method']}\t{row['outcome']}",
+            markup=False,
+        )
+
+
+@host_app.command("audit")
+def audit_log(
+    ctx: typer.Context,
+    limit: int = typer.Option(50, "--limit"),
+    data: Path | None = _DATA_OPTION,
+) -> None:
+    """Show who granted or changed access (memberships and API tokens), newest first."""
+    instance = _instance(data)
+    rows = audit.entries(instance.store, limit=limit)
+    if _json(ctx):
+        _print_json(rows)
+        return
+    for row in rows:
+        when = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(float(row["ts"])))  # type: ignore[arg-type]
+        out_console.print(
+            f"{when}\t{row['by']}\t{row['action']}\t{row['project'] or '-'}\t"
+            f"{row['subject'] or '-'}\t{row['detail']}",
             markup=False,
         )
 
@@ -433,7 +573,9 @@ def member_add(
     """Map a user to an actor and role in a project."""
     instance = _instance(data)
     try:
-        membership = members_mod.add_member(instance, project, username, actor=actor, role=role)
+        membership = members_mod.add_member(
+            instance, project, username, actor=actor, role=role, by=_operator()
+        )
     except InstanceError as exc:
         raise _fail(str(exc)) from None
     if _json(ctx):
@@ -446,7 +588,7 @@ def member_add(
 def member_remove(project: str, username: str, data: Path | None = _DATA_OPTION) -> None:
     """Remove a user's membership of a project."""
     instance = _instance(data)
-    if not members_mod.remove_member(instance, project, username):
+    if not members_mod.remove_member(instance, project, username, by=_operator()):
         raise _fail(f"{username} is not a member of {project}")
     out_console.print(f"removed {username} from {project}", markup=False)
 
@@ -470,19 +612,43 @@ def member_list(ctx: typer.Context, project: str, data: Path | None = _DATA_OPTI
 def token_add(
     ctx: typer.Context,
     username: str,
+    project: str = typer.Option(
+        ..., "--project", help="The one project the token reads (the user must be a member)"
+    ),
+    days: int = typer.Option(
+        accounts.DEFAULT_TOKEN_DAYS, "--days", help="How many days until the token expires"
+    ),
     label: str = typer.Option("mcp", "--label", help="What the token is for"),
     data: Path | None = _DATA_OPTION,
 ) -> None:
-    """Create an API token for a user's MCP client; shown once, stored only as a hash."""
+    """Create an API token for a user's MCP client; shown once, stored only as a hash.
+
+    A token reads one project and expires, so one that leaks gives a stranger one review for a
+    while rather than every review its owner is in.
+    """
     instance = _instance(data)
     try:
-        token = accounts.create_api_token(instance.store, username, label=label)
-    except accounts.AccountError as exc:
+        token = members_mod.issue_api_token(
+            instance, username, project, label=label, days=days, by=_operator()
+        )
+    except (accounts.AccountError, InstanceError) as exc:
         raise _fail(str(exc)) from None
+    found = accounts.api_token(instance.store, token)
+    expires = found.expires if found is not None else None
+    until = time.strftime("%Y-%m-%d", time.gmtime(expires)) if expires is not None else "never"
     if _json(ctx):
-        _print_json({"username": username, "label": label, "token": token})
+        _print_json(
+            {
+                "username": username, "label": label, "project": project, "days": days,
+                "expires": until, "token": token,
+            }
+        )  # fmt: skip
         return
-    out_console.print(f"API token for {username} ({label}); it is not shown again:", markup=False)
+    out_console.print(
+        f"API token for {username} ({label}), for the project {project}, expires {until}; "
+        "it is not shown again:",
+        markup=False,
+    )
     out_console.print(token, markup=False, highlight=False)
 
 
@@ -494,7 +660,7 @@ def token_revoke(
 ) -> None:
     """Revoke a user's API tokens."""
     instance = _instance(data)
-    count = accounts.revoke_api_tokens(instance.store, username, label=label)
+    count = accounts.revoke_api_tokens(instance.store, username, label=label, by=_operator())
     out_console.print(f"revoked {count} token(s)")
 
 

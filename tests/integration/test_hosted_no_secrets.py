@@ -69,9 +69,13 @@ def test_no_secret_is_ever_written_into_a_review_repository(tmp_path: Path) -> N
     )
     for username, actor, role in (("ethan.g", "ethan", "lead"), ("sam.okonkwo", "sam", "screener")):
         accounts.add_user(instance.store, username, password=PASSWORD)
-        members_mod.add_member(instance, "spacing", username, actor=actor, role=role)
-        members_mod.add_member(instance, "trial", username, actor=actor, role=role)
-    api_token = accounts.create_api_token(instance.store, "sam.okonkwo", label="mcp")
+        members_mod.add_member(
+            instance, "spacing", username, actor=actor, role=role, by="test setup"
+        )
+        members_mod.add_member(instance, "trial", username, actor=actor, role=role, by="test setup")
+    api_token = accounts.create_api_token(
+        instance.store, "sam.okonkwo", label="mcp", project="spacing", by="test setup"
+    )
     clock = FakeClock()
     server = HostedServer(
         instance, public_url=parse_public_url(PUBLIC_URL), background=False, clock=clock

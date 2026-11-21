@@ -5,14 +5,17 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import httpx2
+import pytest
 
 from strata.core import records as records_mod
 from strata.hosted import accounts
 from strata.hosted import members as members_mod
+from strata.hosted.oidc import link_identity, user_for_identity
 from strata.protocol import screening as screening_mod
 from strata.web.hosted import HostedServer
 from strata.web.security import parse_public_url
@@ -57,7 +60,9 @@ def _round_trip(client, fake, start: str) -> object:  # type: ignore[no-untyped-
 def test_an_invited_person_links_a_provider_and_acts_as_their_actor(tmp_path: Path) -> None:
     h, fake = _with_provider(tmp_path)
     accounts.add_user(h.instance.store, "priya", display_name="Priya Raman")
-    members_mod.add_member(h.instance, "spacing", "priya", actor="priya", role="screener")
+    members_mod.add_member(
+        h.instance, "spacing", "priya", actor="priya", role="screener", by="test setup"
+    )
     invitation = accounts.create_invitation(h.instance.store, "priya", now=h.clock())
 
     browser = h.client()
@@ -124,3 +129,52 @@ def test_a_callback_started_in_another_browser_signs_nobody_in(tmp_path: Path) -
     assert response.status_code == 403 and "not started in this browser" in response.text
     assert victim.get("/").status_code == 303
     assert accounts.invitation_user(h.instance.store, invitation, now=h.clock()) == "mallory"
+
+
+# -------------------------------------------- an identity linked elsewhere spends no invitation
+
+
+def test_an_invitation_is_not_used_up_by_an_identity_that_is_linked_to_another_account(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="strata.hosted")
+    h, fake = _with_provider(tmp_path)
+    store = h.instance.store
+    # `u-123`, the identity the stand-in provider presents, already belongs to sam.
+    link_identity(store, provider="university", subject="u-123", username="sam.okonkwo")
+    accounts.add_user(store, "priya", display_name="Priya Raman")
+    invitation = accounts.create_invitation(store, "priya", now=h.clock())
+
+    browser = h.client()
+    refused = _round_trip(browser, fake, f"/auth/university/start?invite={invitation}")
+
+    assert refused.status_code == 403  # type: ignore[attr-defined]
+    text = refused.text  # type: ignore[attr-defined]
+    assert (
+        "University sign-in" in text and "already linked to another account" in text
+    )  # what and why
+    assert "invitation was not used" in text and "still valid" in text
+    assert "different" in text  # what fixes it: another account at the provider
+    assert "already linked to another account" in caplog.text
+    # The invitation is still good, the identity is still sam's, and nobody was signed in.
+    assert accounts.invitation_user(store, invitation, now=h.clock()) == "priya"
+    assert user_for_identity(store, provider="university", subject="u-123") == "sam.okonkwo"
+    assert browser.get("/").status_code == 303
+    assert accounts.signin_log(store)[0]["outcome"] == "failure"
+
+    # With another identity at the provider, the very same invitation works.
+    fake.claims = {"sub": "u-456"}
+    accepted = _round_trip(h.client(), fake, f"/auth/university/start?invite={invitation}")
+    assert accepted.status_code == 200  # type: ignore[attr-defined]
+    assert user_for_identity(store, provider="university", subject="u-456") == "priya"
+    assert accounts.invitation_user(store, invitation, now=h.clock()) is None
+
+
+def test_the_same_person_may_link_an_identity_they_already_have(tmp_path: Path) -> None:
+    h, fake = _with_provider(tmp_path)
+    store = h.instance.store
+    link_identity(store, provider="university", subject="u-123", username="sam.okonkwo")
+    invitation = accounts.create_invitation(store, "sam.okonkwo", now=h.clock())
+    accepted = _round_trip(h.client(), fake, f"/auth/university/start?invite={invitation}")
+    assert accepted.status_code == 200  # type: ignore[attr-defined]
+    assert accounts.invitation_user(store, invitation, now=h.clock()) is None

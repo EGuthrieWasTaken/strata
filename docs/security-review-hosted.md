@@ -82,6 +82,12 @@ For all seven, every refusal says in plain language, in the log and to the perso
 refused, why, and how to fix it (task 4.14). Messages to someone who is not a member still do not
 reveal whether a project exists.
 
+**Built** (tasks 4.7 to 4.14, each with tests that failed first). The option the review calls
+`--trusted-proxies` is `--trusted-proxy` in the code. The host-key behaviour was tested against a
+stand-in for `ssh` (there is no SSH client where it was built), not against OpenSSH; see the notes in
+the change's `tasks.md`. This is still a reading of the code by the kind of reviewer that wrote it:
+task 4.6 stays open.
+
 The choices as they were put:
 
 1. **Host keys are trusted on first use** (`StrictHostKeyChecking=accept-new`). An attacker in the

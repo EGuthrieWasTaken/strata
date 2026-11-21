@@ -28,6 +28,7 @@ import contextlib
 import os
 import re
 import secrets as secrets_lib
+import shlex
 import tempfile
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -174,6 +175,42 @@ class SecretStore:
         return [row["name"] for row in self._store.all("SELECT name FROM secrets ORDER BY name")]
 
 
+def _ssh_command(*, identity: str | None, known_hosts: str, pinned: bool) -> str:
+    """The `GIT_SSH_COMMAND` for a project's remote (see `strata.hosted.hostkeys`).
+
+    Pinned: only the keys in `known_hosts` are believed (`StrictHostKeyChecking=yes`, and no
+    system-wide file adding others). Not pinned: trust on first use (`accept-new`) in the
+    instance's own known_hosts, written in clear (`HashKnownHosts=no`) so the key it accepted can
+    be shown to the operator. Never a prompt (`BatchMode`).
+    """
+    words = ["ssh"]
+    if identity is not None:
+        words += ["-i", identity, "-o", "IdentitiesOnly=yes"]
+    words += [
+        "-o", "BatchMode=yes",
+        "-o", f"StrictHostKeyChecking={'yes' if pinned else 'accept-new'}",
+        "-o", f"UserKnownHostsFile={known_hosts}",
+        "-o", "HashKnownHosts=no",
+    ]  # fmt: skip
+    if pinned:
+        words += ["-o", "GlobalKnownHostsFile=/dev/null"]
+    return " ".join(shlex.quote(word) for word in words)
+
+
+def _write_private(directory: Path, prefix: str, text: str, cleanup: contextlib.ExitStack) -> str:
+    """A 0600 file in `directory` holding `text`, removed when `cleanup` closes."""
+    fd, name = tempfile.mkstemp(prefix=prefix, dir=directory)
+
+    def remove() -> None:
+        with contextlib.suppress(OSError):
+            os.unlink(name)
+
+    cleanup.callback(remove)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
+    return name
+
+
 @contextlib.contextmanager
 def git_credential_env(
     secrets: SecretStore,
@@ -182,6 +219,7 @@ def git_credential_env(
     secret: str | None,
     username: str | None,
     tmp_dir: Path,
+    host_key: str | None = None,
 ) -> Iterator[dict[str, str]]:
     """The environment git needs to reach a project's remote with its credential.
 
@@ -189,48 +227,59 @@ def git_credential_env(
     is the password or token, `username` the name to send with it, `x-access-token` if none). With
     no credential, git uses whatever the container offers (an SSH agent, a credential helper) but
     is still told never to prompt.
+
+    `host_key` is the project's pinned SSH host key (`known_hosts` lines), if it has one: ssh then
+    believes that key and no other, with or without a deploy key. Without one, a deploy key's
+    connections trust the host's key on first use.
     """
     env = dict(NO_PROMPT_ENV)
-    if kind is None or secret is None:
-        yield env
-        return
-    value = secrets.get(secret)
-    if value is None:
-        raise SecretError(
-            f"the remote credential {secret!r} is not available: supply {env_name(secret)}, a "
-            f"file named {secret!r} in the secrets directory, or `strata host secret set {secret}`"
-        )
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    tmp_dir.chmod(0o700)
-    if kind == "ssh-key":
-        fd, key_file = tempfile.mkstemp(prefix="deploy-key-", dir=tmp_dir)
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                handle.write(value if value.endswith("\n") else value + "\n")
-            known_hosts = tmp_dir.parent / "known_hosts"
-            env["GIT_SSH_COMMAND"] = (
-                f"ssh -i '{key_file}' -o IdentitiesOnly=yes -o BatchMode=yes "
-                f"-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile='{known_hosts}'"
+    with contextlib.ExitStack() as cleanup:
+        pinned: str | None = None
+        if host_key and kind != "token":
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_dir.chmod(0o700)
+            pinned = _write_private(tmp_dir, "known-hosts-", host_key.rstrip("\n") + "\n", cleanup)
+        if kind is None or secret is None:
+            if pinned is not None:
+                env["GIT_SSH_COMMAND"] = _ssh_command(
+                    identity=None, known_hosts=pinned, pinned=True
+                )
+            yield env
+            return
+        value = secrets.get(secret)
+        if value is None:
+            raise SecretError(
+                f"the remote credential {secret!r} is not available: supply {env_name(secret)}, a "
+                f"file named {secret!r} in the secrets directory, or `strata host secret set "
+                f"{secret}`"
+            )
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_dir.chmod(0o700)
+        if kind == "ssh-key":
+            key_file = _write_private(
+                tmp_dir, "deploy-key-", value if value.endswith("\n") else value + "\n", cleanup
+            )
+            env["GIT_SSH_COMMAND"] = _ssh_command(
+                identity=key_file,
+                known_hosts=pinned or str(tmp_dir.parent / "known_hosts"),
+                pinned=pinned is not None,
             )
             yield env
-        finally:
-            with contextlib.suppress(OSError):
-                os.unlink(key_file)
-    elif kind == "token":
-        askpass = tmp_dir.parent / "git-askpass.sh"
-        if not askpass.exists() or askpass.read_text(encoding="utf-8") != _ASKPASS:
-            askpass.write_text(_ASKPASS, encoding="utf-8")
-        askpass.chmod(0o700)
-        env.update(
-            {
-                "GIT_ASKPASS": str(askpass),
-                "STRATA_GIT_USERNAME": username or "x-access-token",
-                "STRATA_GIT_PASSWORD": value,
-            }
-        )
-        yield env
-    else:
-        raise SecretError(f"unknown credential kind {kind!r}; use ssh-key or token")
+        elif kind == "token":
+            askpass = tmp_dir.parent / "git-askpass.sh"
+            if not askpass.exists() or askpass.read_text(encoding="utf-8") != _ASKPASS:
+                askpass.write_text(_ASKPASS, encoding="utf-8")
+            askpass.chmod(0o700)
+            env.update(
+                {
+                    "GIT_ASKPASS": str(askpass),
+                    "STRATA_GIT_USERNAME": username or "x-access-token",
+                    "STRATA_GIT_PASSWORD": value,
+                }
+            )
+            yield env
+        else:
+            raise SecretError(f"unknown credential kind {kind!r}; use ssh-key or token")
 
 
 def random_token() -> str:
