@@ -25,13 +25,21 @@ be retrievable in full by cloning its repository.
 ### Requirement: Projects and instance state
 
 `strata host` MUST serve multiple projects from one instance. Instance state —
-accounts, memberships, sessions, the sign-in log, and secrets — MUST be stored
-separately from every review repository and MUST never be committed to one.
+accounts, memberships, sessions, the sign-in log, the audit log, and secrets —
+MUST be stored separately from every review repository and MUST never be
+committed to one. State made by an earlier version MUST be brought up to date in
+place, keeping what it holds.
 
 #### Scenario: Two projects on one instance
 
 - **WHEN** an administrator adds two projects to an instance
 - **THEN** each has its own working copy and neither repository contains any account, session, or credential data
+
+#### Scenario: Upgrading
+
+- **GIVEN** an instance whose state was made by an earlier version and holds an API token
+- **WHEN** the new version starts on it
+- **THEN** the state is brought up to date and the token still works
 
 ### Requirement: Per-user authentication
 
@@ -50,6 +58,55 @@ MUST NOT be able to record decisions.
 
 - **WHEN** an unauthenticated request tries to record a screening decision
 - **THEN** it is refused
+
+### Requirement: Self-service password change
+
+A signed-in person MUST be able to change their own password by giving their
+current one. The change MUST end every other session of theirs and keep the one
+making it. A wrong current password MUST count against the same limit as a wrong
+password at sign-in. An account that has no password (it signs in through a
+provider) has none to change.
+
+#### Scenario: Changing it
+
+- **GIVEN** `sam` is signed in on two devices
+- **WHEN** they change their password on one, giving the current one
+- **THEN** that session stays signed in, the other is ended, and only the new password signs in
+
+#### Scenario: Wrong current password
+
+- **WHEN** the current password given is wrong
+- **THEN** nothing is changed, other sessions stay signed in, and the attempt is logged
+
+#### Scenario: Guessing from a stolen session
+
+- **WHEN** a signed-in session gives wrong current passwords until the sign-in limit is reached
+- **THEN** further attempts are refused for the cooling-off period, even with the right password
+
+#### Scenario: Account with no password
+
+- **WHEN** an account that signs in only through a provider asks to change its password
+- **THEN** the request is refused and says to ask an administrator for an invitation
+
+### Requirement: Invitations with a sign-in provider
+
+A person who accepts an invitation by signing in with a provider has that
+provider identity linked to the invited account. The invitation MUST be used up
+only in the same step that links the identity, and not at all when the identity
+is already linked to a different account, so the person can try another identity
+with the same invitation.
+
+#### Scenario: Identity linked elsewhere
+
+- **GIVEN** a provider identity linked to `sam` and an unused invitation for `priya`
+- **WHEN** `priya` presents that identity with the invitation
+- **THEN** sign-in is refused, nothing is linked, and the invitation is still valid
+
+#### Scenario: The person's own identity
+
+- **GIVEN** a provider identity linked to `sam` and an unused invitation for `sam`
+- **WHEN** `sam` presents that identity with the invitation
+- **THEN** it is accepted and the invitation is used up
 
 ### Requirement: Membership maps users to actors
 
@@ -162,6 +219,24 @@ local-mode inactivity exit MUST be disabled.
 - **WHEN** a hosted instance not started in local-testing mode receives a sign-in over plain HTTP
 - **THEN** no session is issued
 
+### Requirement: Forwarded addresses are believed only from trusted proxies
+
+The instance MUST believe `X-Forwarded-For` and `X-Forwarded-Proto` only from
+the addresses configured as trusted proxies. When a request carries
+`X-Forwarded-For` from any other address, the instance MUST ignore the header
+and warn once in its log, naming the address and the option that trusts it.
+
+#### Scenario: Untrusted address
+
+- **GIVEN** an instance whose only trusted proxy is `10.0.0.2`
+- **WHEN** requests from `203.0.113.7` carry `X-Forwarded-For`
+- **THEN** the header is ignored, and the log warns once, naming `203.0.113.7` and `--trusted-proxy`
+
+#### Scenario: Trusted proxy
+
+- **WHEN** a request from a trusted proxy carries `X-Forwarded-For`
+- **THEN** the client address it names is used for the sign-in limit, and nothing is warned about
+
 ### Requirement: Instance secrets never reach a repository
 
 Remote credentials and identity-provider secrets MUST come from operator-supplied
@@ -174,6 +249,38 @@ UI.
 - **WHEN** an administrator configures a project's remote with a deploy key
 - **THEN** the key is usable by the sync loop and appears in no file inside the project's repository
 
+### Requirement: SSH host keys
+
+For a project reached over SSH, the instance MUST by default trust the git
+host's key on first use, refuse a different key afterwards, and print the
+fingerprint of the key it accepted when the project is first cloned. An operator
+MAY pin the project's host key (one or more `known_hosts` lines) when adding the
+project or later; the instance MUST then believe only the pinned keys. A pin
+applies to SSH remotes only.
+
+#### Scenario: Trust on first use
+
+- **GIVEN** a project added with a deploy key and no pinned key
+- **WHEN** its first clone succeeds
+- **THEN** the command prints the accepted key's type and fingerprint, and a different key from that host later is refused
+
+#### Scenario: Pinned key
+
+- **GIVEN** a project added with its host's key pinned
+- **WHEN** the instance clones or syncs it
+- **THEN** ssh believes only the pinned key, and nothing is trusted on first use for that project
+
+#### Scenario: A host shows another key
+
+- **GIVEN** a pinned key, or a key accepted on first use
+- **WHEN** the host shows a different key
+- **THEN** the connection is refused, nothing is cloned or synced, and the message names the project and host, says the key is not the expected one, and says how to pin a new key after checking its fingerprint
+
+#### Scenario: A pin that cannot match
+
+- **WHEN** a key is given for another host, is malformed, or is given for a remote that is not SSH
+- **THEN** it is refused, nothing is stored, and the message says what a usable key looks like
+
 ### Requirement: Remote MCP access
 
 The read-only MCP tools MUST be reachable over MCP's HTTP transport in hosted
@@ -184,3 +291,113 @@ memberships, and MUST remain unable to commit a screening or criteria decision.
 
 - **WHEN** an MCP client connects over HTTP without valid credentials
 - **THEN** the connection is refused
+
+### Requirement: API tokens name one project and expire
+
+An API token MUST name one project of which its owner is a member and MUST
+expire (after 90 days unless the operator chooses another number of days). It
+MUST be refused outside its project and after its expiry. A token made before
+tokens named a project, which has no project and no expiry, MUST keep working
+for every project its owner belongs to until it is revoked.
+
+#### Scenario: Own project
+
+- **GIVEN** a token for `spacing`
+- **WHEN** an MCP client uses it against `spacing`
+- **THEN** the read-only tools answer
+
+#### Scenario: Another project its owner belongs to
+
+- **GIVEN** an owner who is a member of `spacing` and `secret-trial`, and a token for `spacing`
+- **WHEN** it is used against `secret-trial`
+- **THEN** it is refused, and the answer names both projects and how to get a token for `secret-trial`
+
+#### Scenario: Expired token
+
+- **WHEN** a token is used after its expiry
+- **THEN** it is refused with the date it ended, naming neither the account nor the project
+
+#### Scenario: Owner is not a member
+
+- **WHEN** an operator makes a token for a user who is not a member of the project
+- **THEN** it is refused, no token is made, and the message says how to make them a member
+
+#### Scenario: Tokens from before
+
+- **GIVEN** a token made before tokens named a project
+- **WHEN** it is used after the instance is upgraded, at any later time
+- **THEN** it reads every project its owner belongs to, until it is revoked
+
+### Requirement: Audit log of access changes
+
+The instance MUST record membership grants, role changes and removals, and API
+token creation and revocation, in instance state beside the sign-in log, with who
+did each and when. An entry MUST be written in the same transaction as the
+change, and MUST NOT contain a token. Who did it is the user name when a person
+did it in the browser, and the operating-system login when an administrator did
+it with `strata host`.
+
+#### Scenario: Role change in the browser
+
+- **GIVEN** a lead signed in as `ethan.g`
+- **WHEN** they change `sam.okonkwo`'s role
+- **THEN** the log has an entry naming `ethan.g`, the project, `sam.okonkwo`, and the old and new role
+
+#### Scenario: At the command line
+
+- **WHEN** an administrator makes a token with `strata host token add`
+- **THEN** the log has an entry naming their operating-system login, the token's label, project and expiry, and not the token
+
+#### Scenario: No change, no entry
+
+- **WHEN** a membership is saved with the actor and role it already has
+- **THEN** nothing is logged
+
+### Requirement: A project with a symbolic link is refused alone
+
+If a project's working copy contains a symbolic link, the instance MUST refuse
+that project alone: it MUST start and serve its other projects, MUST show the
+project as unavailable to its members only, naming the link and how to remove
+it, and MUST NOT fetch, commit or push in its working copy. It MUST look at the
+project again on each request, so that removing the link brings it back.
+
+#### Scenario: Other projects carry on
+
+- **GIVEN** two projects, one with a symbolic link
+- **WHEN** the instance starts
+- **THEN** it starts, logs which project it refused and the link's path, and serves the other project
+
+#### Scenario: A non-member
+
+- **WHEN** someone who is not a member of the refused project asks for it
+- **THEN** the answer is the same as for a project that does not exist
+
+#### Scenario: Link removed
+
+- **GIVEN** a refused project
+- **WHEN** the link is removed and its page is next opened
+- **THEN** the project is served again without a restart
+
+### Requirement: Refusals say what, why and how to fix it
+
+A refusal about an SSH host key, an API token, a password change, a provider
+identity or an unavailable project MUST say, in plain language, what was refused,
+why, and what fixes it, to the person refused and, when the running instance made
+it, in its log (a `strata host` command prints it to the operator). It MUST NOT
+reveal to a non-member that a project exists.
+
+#### Scenario: Expired token
+
+- **WHEN** an MCP client presents an expired token
+- **THEN** the answer and the log say the token expired, on what date, and how to get another
+
+#### Scenario: Unavailable project seen by a non-member
+
+- **GIVEN** a project refused because of a symbolic link
+- **WHEN** someone who is not a member asks for it
+- **THEN** the answer says nothing of the link or of the project
+
+#### Scenario: Answers that stay vague on purpose
+
+- **WHEN** a wrong password is given at sign-in, or a non-member asks for a project
+- **THEN** the answer is as it was: it does not say which part of the sign-in was wrong, or whether the project exists

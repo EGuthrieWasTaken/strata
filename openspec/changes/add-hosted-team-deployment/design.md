@@ -90,10 +90,72 @@ on the instance and one on a laptop — never touch the same file.
   instance key. None is ever written to a review repository or shown back in the
   UI.
 
+### Decided after a security review of the first build
+
+A reading of the code by its author (`docs/security-review-hosted.md`) put seven
+choices to the maintainer, who decided them on 20 November 2026. Each is built.
+
+- **SSH host keys.** The default stays trust on first use (`accept-new`):
+  requiring a pin would make a first deployment depend on the operator already
+  holding the host's key. The first clone prints the accepted fingerprint, so
+  the operator can compare it with the one the host publishes. An operator who
+  has the key pins it, when adding the project or later with `strata host project
+  host-key`; ssh then believes that key only (`StrictHostKeyChecking=yes`, no
+  system known_hosts), so there is no first use to be fooled at. A pin is a
+  public key, stored with the project in instance state. A key that stops
+  matching is refused and reported in words, on the project's sync page and in
+  the log, with the command that pins a new one.
+- **API tokens are narrow and expire.** A token names one project and lasts 90
+  days unless the operator says otherwise, so a leaked token gives one review for
+  a while rather than every review its owner is in. Tokens made before are not
+  revoked at upgrade, which would silently break working MCP clients: they keep
+  working, reading every project their owner is in, until revoked. State made by
+  an earlier version is brought up to date in place the first time the new version
+  runs.
+- **Changing a password.** It needs the current password, and wrong guesses share
+  the sign-in limiter, so a stolen session cannot be used to guess it; the cost is
+  that such guesses can cool off the account for 15 minutes. It ends the person's
+  other sessions, not their API tokens, which an administrator revokes.
+- **Forwarded addresses.** `X-Forwarded-For` is believed only from
+  `--trusted-proxy` addresses. A header from anyone else is ignored and warned
+  about once. The check sits outside uvicorn's own proxy handling, because that
+  replaces a trusted proxy's address with the client's before the application
+  sees it. The decision was to warn, not to refuse to start: an instance reached
+  directly legitimately receives such headers from strangers.
+- **Audit log.** Memberships and tokens decide who can read a review, so their
+  grants, role changes, removals and token creation and revocation are recorded in
+  instance state, in the same transaction as the change, beside the sign-in log.
+  An entry holds a token's label, project and expiry, never the token. Who did it
+  is a user name in the browser and, at the command line, the operating-system
+  login of the operator, which is all the instance knows of someone at a shell.
+- **Invitations and identities.** Using an invitation and linking the provider
+  identity are one transaction, and the invitation is left unused when the
+  identity belongs to another account, so the person can try another identity
+  instead of needing a new invitation.
+- **A project with a symbolic link is refused alone.** Projects are cloned with
+  `core.symlinks=false`, so a link in a remote arrives as a plain file; a link
+  already in a working copy would let the screens follow it out of the project.
+  Stopping the whole instance would let one project's contents take every team
+  offline. Instead the instance starts and serves the others, shows the project as
+  unavailable to its members only (a non-member gets the answer for a project that
+  does not exist), and never fetches, commits or pushes in its working copy. It
+  looks at the project again on each request, so removing the link brings it back.
+- **Refusals explain themselves.** A refusal about a host key, a token, a password
+  change, a provider identity or an unavailable project says what was refused,
+  why, and what fixes it, to the person refused and, when the running instance
+  made it, in its log. Answers that are vague on purpose, a wrong password and a
+  project that does not exist, stay vague.
+
 ## Risks / Trade-offs
 
 - **Security surface.** This is the first mode exposed beyond localhost. A
-  dedicated security review is a release gate for this change.
+  dedicated security review is a release gate for this change. The reading above
+  is a second look by the kind of reviewer that wrote the code, not that review,
+  which remains open (task 4.6).
+- **SSH host keys are tested against a stand-in.** The environment the decisions
+  were built in has no SSH client, so the options the instance gives ssh, the
+  known_hosts file it sees and the messages were tested against a stand-in `ssh`;
+  OpenSSH itself has not been run against them.
 - **Governance and support.** Self-hosting shifts operating responsibility to
   teams; the documentation must cover backups (the git remote is the backup of
   record), upgrades, and restoring an instance from remotes alone.

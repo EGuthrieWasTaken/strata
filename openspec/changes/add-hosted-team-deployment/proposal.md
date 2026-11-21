@@ -47,6 +47,13 @@ yet implemented) and the `add-container-image` change.
 - A hosted security baseline: TLS, `Secure` session cookies, rate-limited sign
   in, session expiry, validation against the instance's public URL, and no
   inactivity exit.
+- Hardening decided after a security review of the first build: SSH host keys
+  that can be pinned (trust on first use stays the default); API tokens that name
+  one project and expire; a self-service password change; a warning when
+  `X-Forwarded-For` comes from an untrusted address; an audit log of membership
+  and token changes; invitations that a provider identity already linked elsewhere
+  does not spend; and refusal of a single project that contains a symbolic link
+  rather than of the whole instance. Each refusal says what, why and what fixes it.
 - Instance-held secrets (remote credentials, password hashes) kept outside every
   review repository.
 - The read-only MCP tools exposed over MCP's HTTP transport behind the same
@@ -74,8 +81,11 @@ yet implemented) and the `add-container-image` change.
   local mode; no domain logic moves into it.
 - `gitio`: a per-project background sync loop built on `strata sync`.
 - `mcpserver/`: an HTTP transport.
-- New instance state (accounts, memberships, sessions, sign-in audit log,
-  secrets) under the instance's data volume, never in a review repository.
-- No change to the review repository format; no schema-version bump.
+- New instance state (accounts, memberships, sessions, the sign-in log, an audit
+  log of access changes, pinned host keys, secrets) under the instance's data
+  volume, never in a review repository. It has a schema version of its own
+  (now 2) and is brought up to date in place when a newer version first runs.
+- No change to the review repository format; no review-repository schema-version
+  bump.
 - This is the first mode reachable beyond localhost by design, so it gets a
   security review before release.

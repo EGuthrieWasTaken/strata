@@ -36,7 +36,7 @@
 - [x] 4.7 Host keys: keep trust on first use as the default, let the operator pin a project's SSH host key when adding it, and print the accepted key's fingerprint at the first clone
 - [x] 4.8 API tokens name one project and expire (`strata host token add --project --days`); existing tokens keep working until revoked
 - [x] 4.9 A signed-in person can change their own password with their current one; their other sessions end
-- [x] 4.10 Warn once when `X-Forwarded-For` arrives from an address not in `--trusted-proxies`
+- [x] 4.10 Warn once when `X-Forwarded-For` arrives from an address not in `--trusted-proxy`
 - [x] 4.11 Log membership grants, role changes, removals and token creation and revocation, with who did each, beside the sign-in log
 - [x] 4.12 An OpenID Connect invitation is used only once the identity is known not to be linked to another account
 - [x] 4.13 A project with a symbolic link is refused on its own (shown as unavailable, naming the link); the instance and its other projects start
@@ -115,15 +115,18 @@
   touches its working copy, and it is looked at again on each request, so removing the link brings it back
   without a restart. The `X-Forwarded-For` warning is given once per process by a watcher outside uvicorn's
   own proxy-header handling (uvicorn now runs with `proxy_headers=False` and `create_served_app` does that
-  work); the option is spelled `--trusted-proxy`, as the code always had it, not `--trusted-proxies` as 4.10
-  and the review write it. Beyond the tasks: `strata host audit` (to read the log) and `strata host project
+  work); the option is spelled `--trusted-proxy`, as the code always had it, not `--trusted-proxies` as the
+  review writes it (4.10 now has it right). Beyond the tasks: `strata host audit` (to read the log) and `strata host project
   host-key` (4.14 asks every refusal to say what fixes it, and a changed host key could not be fixed without
   a way to change the pin). The refusals to a command-line operator are printed where they run; there is no
   separate log for the command line. **SSH host-key behaviour was tested against a stand-in `ssh` put first
   on `PATH`** (the options the instance gives it, the known_hosts file it sees, the accepted key read back,
   the fingerprint, which is checked against GitHub's published one, and the messages): there is no SSH client
-  in the environment these were built in, so OpenSSH itself has not been run against it. The delta specs do
-  not yet carry requirements for these decisions; they are in this file and the review only.
+  in the environment these were built in, so OpenSSH itself has not been run against it. The decisions are
+  requirements in the delta specs (`hosted-deployment`: SSH host keys, API tokens name one project and
+  expire, Self-service password change, Invitations with a sign-in provider, Forwarded addresses are believed
+  only from trusted proxies, Audit log of access changes, A project with a symbolic link is refused alone,
+  Refusals say what, why and how to fix it; `cli`: the host commands), and their rationale is in `design.md`.
 - 6.1: `docker/hosted/compose.yaml` and `Caddyfile` were written and structure-tested, then run with Docker
   (see the task). Not exercised: Let's Encrypt (it needs a public DNS name) and a deploy key reaching a real
   git host.
