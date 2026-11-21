@@ -1,0 +1,226 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/groups/6762415/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "20551bfd5a9a42e5891040e548675f02",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "itemType": "attachment",
+        "linkMode": "linked_url",
+        "title": "Publisher page",
+        "accessDate": "",
+        "url": "https://doi.org/10.1111/j.1467-9280.2006.01693.x",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "text/html",
+        "charset": "",
+        "parentItem": "6BQ4WRIB"
+      },
+      {
+        "itemType": "attachment",
+        "linkMode": "imported_file",
+        "title": "Full Text PDF",
+        "accessDate": "",
+        "note": "",
+        "tags": [],
+        "collections": [],
+        "relations": {},
+        "contentType": "application/pdf",
+        "charset": "",
+        "filename": "Pavlik and Anderson - 2008 - Using a model.pdf",
+        "md5": null,
+        "mtime": null,
+        "parentItem": "JRNI4G2X"
+      }
+    ]
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:32:19 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "10"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "S3S8FXX4",
+          "version": 9,
+          "library": {
+            "type": "group",
+            "id": 6762415,
+            "name": "strata-ci-group",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/groups/6762415",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/groups/6762415/items/S3S8FXX4",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415/items/S3S8FXX4",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/groups/6762415/items/6BQ4WRIB",
+              "type": "application/json"
+            }
+          },
+          "meta": {
+            "createdByUser": {
+              "id": 22585168,
+              "username": "strata-review",
+              "name": "",
+              "links": {
+                "alternate": {
+                  "href": "https://www.zotero.org/strata-review",
+                  "type": "text/html"
+                }
+              }
+            }
+          },
+          "data": {
+            "key": "S3S8FXX4",
+            "version": 9,
+            "parentItem": "6BQ4WRIB",
+            "itemType": "attachment",
+            "linkMode": "linked_url",
+            "title": "Publisher page",
+            "accessDate": "",
+            "url": "https://doi.org/10.1111/j.1467-9280.2006.01693.x",
+            "note": "",
+            "contentType": "text/html",
+            "charset": "",
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T06:32:19Z",
+            "dateModified": "2026-11-14T06:32:19Z"
+          }
+        },
+        "1": {
+          "key": "U5JR5IES",
+          "version": 10,
+          "library": {
+            "type": "group",
+            "id": 6762415,
+            "name": "strata-ci-group",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/groups/6762415",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415/items/U5JR5IES",
+              "type": "text/html"
+            },
+            "up": {
+              "href": "https://api.zotero.org/groups/6762415/items/JRNI4G2X",
+              "type": "application/json"
+            }
+          },
+          "meta": {
+            "createdByUser": {
+              "id": 22585168,
+              "username": "strata-review",
+              "name": "",
+              "links": {
+                "alternate": {
+                  "href": "https://www.zotero.org/strata-review",
+                  "type": "text/html"
+                }
+              }
+            },
+            "numChildren": 0
+          },
+          "data": {
+            "key": "U5JR5IES",
+            "version": 10,
+            "parentItem": "JRNI4G2X",
+            "itemType": "attachment",
+            "linkMode": "imported_file",
+            "title": "Full Text PDF",
+            "accessDate": "",
+            "url": "",
+            "note": "",
+            "contentType": "application/pdf",
+            "charset": "",
+            "filename": "Pavlik and Anderson - 2008 - Using a model.pdf",
+            "md5": null,
+            "mtime": null,
+            "tags": [],
+            "relations": {},
+            "dateAdded": "2026-11-14T06:32:19Z",
+            "dateModified": "2026-11-14T06:32:19Z"
+          }
+        }
+      },
+      "success": {
+        "0": "S3S8FXX4",
+        "1": "U5JR5IES"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

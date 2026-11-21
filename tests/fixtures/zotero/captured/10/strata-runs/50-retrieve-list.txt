@@ -1,0 +1,5 @@
+$ strata --why list outstanding reports with Zotero resolution retrieve --by tester --list
+2 reports sought. 2 outstanding. Zotero: 0 attachments found.
+  rpt_6nkmc81132r4p6ag  Cepeda et al. (2008)  [Zotero: none]
+  rpt_rb2mxx0kb7p60v28  Karpicke & Blunt (2011)  [Zotero: none]
+[exit code: 0]

@@ -145,7 +145,8 @@ function check(condition, message) {
   await page.fill('#fix-form textarea[name="rationale"]', "Correcting the title in a real browser");
   await Promise.all([page.waitForURL(origin + recordHref), page.click("#fix-form button")]);
   const corrected = await page.textContent("main");
-  check(/RECORD-AMEND/i.test(corrected) && corrected.includes("A corrected title from the browser test"), "the correction is not in the timeline");
+  check(/corrected the title/.test(corrected) && corrected.includes("A corrected title from the browser test"), "the correction is not in the timeline");
+  check(corrected.includes("Why: Correcting the title in a real browser"), "the timeline does not give the reason for the correction");
   report.corrected = true;
 
   await page.goto(origin + "/criteria/new");

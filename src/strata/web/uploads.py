@@ -348,7 +348,7 @@ class UploadStaging:
 _PDF_MAGIC = b"%PDF-"
 _FULL_TEXT_MESSAGE = (
     "strata does not store full texts: it tracks them by identifier and leaves the document with "
-    "you (or in Zotero). Upload the export from the database search, not the article itself"
+    "you (or in Zotero). Upload the export from the database search, not the article itself."
 )
 
 

@@ -1,0 +1,115 @@
+name: Zotero (live)
+
+# openspec:zotero-integration: the integration against a real Zotero, which the pull-request gate
+# cannot reach. `web` talks to api.zotero.org with the throwaway account's key (the repository
+# secret STRATA_ZOTERO_API_KEY; docs/zotero-real-run.md); `local` downloads the current Zotero
+# release and talks to its local API. Nightly, by hand, and on a pull request that touches the
+# integration (a pull request from a fork has no secrets, so `web` skips its tests there).
+on:
+  schedule:
+    - cron: "17 7 * * *" # after nightly.yml's 07:00 UTC run
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "src/strata/integrations/zotero/**"
+      - "src/strata/integrations/reference_manager.py"
+      - "tests/live/**"
+      - "scripts/zotero_ci.sh"
+      - ".github/workflows/zotero-live.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  # The web tests share one Zotero account; two runs at once would see each other's items.
+  group: zotero-live
+  cancel-in-progress: false
+
+jobs:
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STRATA_ZOTERO_API_KEY: ${{ secrets.STRATA_ZOTERO_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Configure git identity (the tests build review repositories)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      # On a pull request the tests skip without the key (a fork has no secrets); a scheduled or
+      # manual run that cannot use it has checked nothing, and says so.
+      - name: Require the key outside pull requests
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -z "$STRATA_ZOTERO_API_KEY" ]; then
+            echo "::error::the repository secret STRATA_ZOTERO_API_KEY is not set, so nothing was checked against the Web API"
+            exit 1
+          fi
+      - name: Run the Web API tests
+        run: uv run pytest tests/live/test_zotero_web.py -v -p no:cacheprovider -rs
+
+  local:
+    name: local
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      STRATA_ZOTERO_LOCAL: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync
+      - name: Configure git identity (the tests build review repositories)
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+      - name: Install a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libdbus-glib-1-2 libgtk-3-0t64 || \
+            sudo apt-get install -y --no-install-recommends xvfb xauth
+      - name: Install the current Zotero
+        run: scripts/zotero_ci.sh install
+      - name: Start it with the local API on
+        run: scripts/zotero_ci.sh start
+      - name: Seed its library
+        run: scripts/zotero_ci.sh seed
+      - name: Run the local API tests
+        run: uv run pytest tests/live/test_zotero_local.py -v -p no:cacheprovider -rs
+      - name: Zotero's log
+        if: always()
+        run: tail -n 200 "$HOME/zotero-ci/zotero.log" || true
+
+  open-issue-on-failure:
+    name: open-issue-on-failure
+    if: failure() && github.event_name == 'schedule'
+    needs: [web, local]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue for the failing run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          payload=$(jq -n --arg title "Zotero (live) failed: run ${GITHUB_RUN_ID}" \
+                          --arg body "The live Zotero checks failed: ${RUN_URL}" \
+                          '{title: $title, body: $body, labels: ["nightly-failure"]}')
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d "${payload}"

@@ -3,7 +3,12 @@
 # STRATA_DOMAIN (Caddy fetches its TLS certificate from Let's Encrypt):
 #
 #   mkdir -p secrets && python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())' > secrets/strata_instance_key
-#   chmod 600 secrets/strata_instance_key
+#   sudo chown 10001:10001 secrets/strata_instance_key && sudo chmod 600 secrets/strata_instance_key
+#
+# Compose hands a secret file to the container with its owner and mode as they are on the server,
+# and the instance runs as uid 10001: every file in secrets/ must belong to that uid, or the
+# instance cannot read it ("Permission denied"). Run with STRATA_DOMAIN=localhost to try it on one
+# machine: Caddy then uses a certificate of its own, which the browser has to be told to accept.
 #   export STRATA_DOMAIN=strata.example.org
 #   docker compose run --rm strata host init --admin you --invite      # prints your invitation link
 #   docker compose up -d

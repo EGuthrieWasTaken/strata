@@ -4,9 +4,11 @@ A local server is still attack surface -- any page open in the user's
 browser can issue requests to `127.0.0.1`. Every control this module
 implements defends against that, not against a network attacker:
 
-- A per-process session token (`SESSION_COOKIE_NAME`), delivered once via
+- A per-process session token, delivered once via
   the URL `strata serve` opens and then carried as a `SameSite=Strict`,
-  `HttpOnly` cookie. A page on another origin cannot read or set it, and
+  `HttpOnly` cookie (`session_cookie_name`: named after the server's port, because
+  cookies are shared by every port of a host and two servers must not overwrite each
+  other's). A page on another origin cannot read or set it, and
   `SameSite=Strict` keeps the browser from attaching it to a cross-site
   request at all.
 - The same token doubles as the CSRF token, embedded as a hidden form
@@ -30,10 +32,36 @@ import time
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-SESSION_COOKIE_NAME = "strata_session"
+SESSION_COOKIE = "strata_session"
 CSRF_FIELD_NAME = "csrf_token"
 MUTATING_METHODS = frozenset({"POST", "PUT", "DELETE", "PATCH"})
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS = 60 * 60  # openspec:web-ui#localhost-security
+
+
+def cookie_name(base: str, port: int | None) -> str:
+    """`base` made particular to the port a browser reaches the server on.
+
+    A browser keeps one cookie jar per host name, whatever the port, so two servers on
+    `127.0.0.1` that both called their cookie `strata_session` would each replace the other's and
+    sign the reviewer out of the server they had just left. `None` (a public URL on its scheme's
+    default port) leaves the name bare: only one server can be there.
+    """
+    return base if port is None else f"{base}_{port}"
+
+
+def session_cookie_name(port: int, public_url: PublicUrl | None = None) -> str:
+    """The session cookie of the `strata serve` bound to `port` (or reached at `public_url`)."""
+    return cookie_name(SESSION_COOKIE, public_url.port if public_url is not None else port)
+
+
+#: What a request with no session, or another server's, is told. Plain text: the stylesheet needs
+#: the session too.
+NO_SESSION_MESSAGE = (
+    "This page needs the session that `strata serve` started, and this browser does not have it "
+    "(or has one from an earlier run).\n\n"
+    "Open the address `strata serve` printed when it started, the one ending in ?token=..., "
+    "and then come back to this page. If the server was restarted, it printed a new address."
+)
 
 
 def generate_token() -> str:

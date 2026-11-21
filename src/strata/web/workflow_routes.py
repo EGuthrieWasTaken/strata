@@ -21,10 +21,12 @@ from strata.core import fieldedit as fieldedit_mod
 from strata.core import operations as ops
 from strata.core import records as records_mod
 from strata.core.commit import RationaleRejectedError
+from strata.core.fold import sort_events
 from strata.core.repo import LockTimeoutError, Repo
 from strata.core.validate import SchemaValidationError
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import screening as screening_mod
+from strata.web import timeline as timeline_mod
 from strata.web.common import go
 from strata.web.common import state_of as _state
 from strata.web.routes import _error, _render, record_detail_context
@@ -199,13 +201,36 @@ def _assign_page(
                 "count": len(matched),
                 "titles": [by_id[i].get("title") or i for i in matched[:_PREVIEW_TITLES]],
             }
-    queues = [
+    assign_events = screening_mod.all_assign_events(repo)
+    assigned_to: dict[str, int] = {}
+    for record_id in all_ids:
+        for handle in screening_mod.assigned_actors(
+            repo, stage, record_id, assign_events=assign_events
+        ):
+            assigned_to[handle] = assigned_to.get(handle, 0) + 1
+    queues = []
+    for a in actors:
+        waiting = len(screening_mod.stage_queue(repo, stage, a["handle"]))
+        assigned = assigned_to.get(a["handle"], 0)
+        queues.append(
+            {
+                "handle": a["handle"],
+                "name": a.get("name") or a["handle"],
+                "assigned": assigned,
+                "decided": assigned - waiting,
+                "waiting": waiting,
+            }
+        )
+    # Every assignment made at this stage, newest first: the only place they can be seen.
+    assignments = [
         {
-            "handle": a["handle"],
-            "name": a.get("name") or a["handle"],
-            "waiting": len(screening_mod.stage_queue(repo, stage, a["handle"])),
+            "when": timeline_mod.when(e.get("ts")),
+            "by": e.get("actor") or "",
+            "actors": sorted(e["body"]["actors"]),
+            "records": len(e["body"]["records"]),
+            "filter": e["body"].get("filter") or "",
         }
-        for a in actors
+        for e in reversed(sort_events([e for e in assign_events if e["body"]["stage"] == stage]))
     ]
     return _render(
         request,
@@ -215,6 +240,7 @@ def _assign_page(
             "total": len(all_ids),
             "actors": actors,
             "queues": queues,
+            "assignments": assignments,
             "filter_expr": filter_expr,
             "filter_error": filter_error,
             "preview": preview,

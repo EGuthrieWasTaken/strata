@@ -38,6 +38,7 @@ from strata.web import uploads
 from strata.web.app import AppState
 from strata.web.common import go as _go
 from strata.web.common import state_of as _state
+from strata.web.messages import sentence
 from strata.web.routes import _error, _render
 
 router = APIRouter()
@@ -282,7 +283,8 @@ def search_create(request: Request) -> HTMLResponse | RedirectResponse | PlainTe
         )
     except uploads.UploadRefused as exc:
         return refuse(
-            f"{exc.message} Nothing was recorded; choose the files again.", exc.status_code
+            f"{sentence(exc.message)} Nothing was recorded; choose the files again.",
+            exc.status_code,
         )
     except (searches_mod.SearchError, SchemaValidationError, RationaleRejectedError) as exc:
         if staged is not None:

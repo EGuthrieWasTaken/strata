@@ -29,7 +29,7 @@ from tests.integration._zotero import (
     review_with,
 )
 from tests.unit._m3 import decide
-from tests.zotero_fake import API_KEY, LOCAL_HOST, MAJOR_VERSIONS, FakeZotero
+from tests.zotero_fake import API_KEY, LOCAL_HOST, MAJOR_VERSIONS, NO_LOCAL_API, FakeZotero
 
 LIB = "users/12345"
 WHY = "recording what this step did to the review's Zotero link"
@@ -53,7 +53,7 @@ def _commit_subjects(repo) -> list[str]:  # type: ignore[no-untyped-def]
 # --------------------------------------------------------------------------------------- link
 
 
-@pytest.mark.parametrize("major", MAJOR_VERSIONS)
+@pytest.mark.parametrize("major", [NO_LOCAL_API, *MAJOR_VERSIONS])
 def test_link_maps_the_records_it_can_match_by_the_canonical_key_ladder(
     tmp_path: Path, major: str
 ) -> None:
@@ -67,7 +67,10 @@ def test_link_maps_the_records_it_can_match_by_the_canonical_key_ladder(
     assert (rows["AB3D9XYZ"].record, rows["AB3D9XYZ"].via) == (ids[0], "doi")
     assert (rows["CD4E5FGH"].record, rows["CD4E5FGH"].via) == (ids[1], "doi")
     assert (rows["JK6L7MNP"].record, rows["JK6L7MNP"].via) == (ids[2], "signature")
-    assert all(r.library == LIB and r.item_version > 0 for r in rows.values())
+    assert all(r.library == LIB for r in rows.values())
+    # A version read through the desktop app is the app's own, not the Web API's: recorded as
+    # "not known" (0) so it is never compared with a Web version (docs/zotero-real-run.md).
+    assert all((r.item_version == 0) == (major != "6") for r in rows.values())
     assert result.rows_written == 3
     # The library's Okafor item matches nothing in the review: reported, not forced onto a record.
     assert [i.ref.key for i in result.report.unmatched] == ["QR8S2TUV"]
@@ -78,7 +81,7 @@ def test_link_over_the_local_api_asks_for_no_key_and_records_a_read_only_link(
     tmp_path: Path,
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     result = zotero_ops.link(
         repo,
@@ -99,12 +102,12 @@ def test_link_over_the_local_api_asks_for_no_key_and_records_a_read_only_link(
 def test_link_over_the_web_checks_write_permission_now_not_at_push_time(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
 
-    allowed = _link(repo, FakeZotero("7"), web=True)
+    allowed = _link(repo, FakeZotero("10"), web=True)
     assert allowed.transport == "web" and allowed.write is True and allowed.write_note is None
     assert read_link(open_repo(repo.root)).write is True  # type: ignore[union-attr]
 
     repo2, _ = review_with(tmp_path / "second", CEPEDA)
-    denied = _link(repo2, FakeZotero("7", key_can_write=False), web=True)
+    denied = _link(repo2, FakeZotero("10", key_can_write=False), web=True)
     assert denied.write is False
     assert denied.write_note is not None and "cannot write" in denied.write_note
     assert read_link(open_repo(repo2.root)).write is False  # type: ignore[union-attr]
@@ -134,8 +137,8 @@ def test_link_makes_the_mapping_merge_by_union_in_a_review_that_lacks_the_rule(
     )
     assert "integrations/" not in attributes.read_text(encoding="utf-8")
 
-    _link(repo, FakeZotero("7"))
-    _link(repo, FakeZotero("7"))
+    _link(repo, FakeZotero("10"))
+    _link(repo, FakeZotero("10"))
 
     text = attributes.read_text(encoding="utf-8")
     assert text.count("integrations/*.ndjson") == 1
@@ -143,7 +146,7 @@ def test_link_makes_the_mapping_merge_by_union_in_a_review_that_lacks_the_rule(
 
 def test_link_is_idempotent_and_a_rerun_commits_nothing(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path, CEPEDA, ROEDIGER)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     commits = _commit_subjects(repo)
     mapping = (repo.root / "integrations" / "zotero.ndjson").read_bytes()
@@ -167,7 +170,7 @@ def test_a_link_that_would_change_something_is_refused_without_a_rationale_befor
         zotero_ops.link(
             repo,
             actor="ethan",
-            connector=connector_for(FakeZotero("7")),
+            connector=connector_for(FakeZotero("10")),
             library=LIB,
             commit=True,
         )
@@ -181,12 +184,12 @@ def test_link_follows_an_item_edited_in_zotero_with_a_new_row_not_a_rewrite(
     tmp_path: Path,
 ) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
-    _link(repo, fake)
+    fake = FakeZotero("10")
+    _link(repo, fake, web=True)
     first = (repo.root / "integrations" / "zotero.ndjson").read_bytes()
     new_version = fake.edit_item(LIB, "AB3D9XYZ", volume="19")
 
-    _link(repo, fake)
+    _link(repo, fake, web=True)
 
     text = (repo.root / "integrations" / "zotero.ndjson").read_bytes()
     assert text.startswith(first) and len(text.splitlines()) == 2
@@ -197,7 +200,7 @@ def test_link_follows_an_item_edited_in_zotero_with_a_new_row_not_a_rewrite(
 
 def test_link_names_the_libraries_when_there_is_a_choice_and_takes_a_group(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     with pytest.raises(zotero_ops.ZoteroOperationError, match="groups/777 \\(Lab reading group\\)"):
         _link(repo, fake, library=None)
@@ -217,7 +220,7 @@ def test_link_asks_a_person_to_choose_when_given_a_chooser(tmp_path: Path) -> No
         offered.append([lib.library for lib in libraries])
         return "groups/777"
 
-    result = _link(repo, FakeZotero("7"), library=None, choose_library=chooser)
+    result = _link(repo, FakeZotero("10"), library=None, choose_library=chooser)
 
     assert offered == [["users/12345", "groups/777"]] and result.library == "groups/777"
 
@@ -226,7 +229,7 @@ def test_link_reports_a_near_miss_as_a_candidate_for_a_person(tmp_path: Path) ->
     near = {**CEPEDA, "title": CEPEDA["title"].replace("ridgeline", "ridge-line")}
     near.pop("DOI")  # no identifier to match on: only the fuzzy score is left
     repo, ids = review_with(tmp_path, near)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     result = _link(repo, fake)
 
@@ -248,7 +251,7 @@ def _pull(repo, fake, **kwargs):  # type: ignore[no-untyped-def]
 
 def test_a_pull_needs_exactly_one_of_a_search_and_a_via(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
 
     with pytest.raises(ImportPipelineError, match="exactly one of --search or --via"):
@@ -264,10 +267,10 @@ def test_a_pull_before_a_link_says_to_link_first(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path)
 
     with pytest.raises(zotero_ops.NotLinkedError, match="strata zotero link"):
-        _pull(repo, FakeZotero("7"))
+        _pull(repo, FakeZotero("10"))
 
 
-@pytest.mark.parametrize("major", MAJOR_VERSIONS)
+@pytest.mark.parametrize("major", [NO_LOCAL_API, *MAJOR_VERSIONS])
 def test_a_hand_built_collection_is_pulled_as_other_methods_records(
     tmp_path: Path, major: str
 ) -> None:
@@ -315,7 +318,7 @@ def test_a_collection_of_a_database_search_is_pulled_against_that_search(tmp_pat
         search_id="S-01-pubmed",
         query="spacing AND learning",
     )
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
 
     _pull(repo, fake, collection="Hand-searched trials", search_id="S-01-pubmed", via=None)
@@ -328,7 +331,7 @@ def test_a_collection_of_a_database_search_is_pulled_against_that_search(tmp_pat
 
 def test_pulling_an_unchanged_collection_again_changes_nothing(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     _pull(repo, fake)
     commits = _commit_subjects(repo)
@@ -347,7 +350,7 @@ def test_pulling_an_unchanged_collection_again_changes_nothing(tmp_path: Path) -
 
 def test_a_pull_commits_with_its_collection_and_import_in_the_trailers(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
 
     result = _pull(repo, fake)
@@ -362,8 +365,8 @@ def test_a_pull_commits_with_its_collection_and_import_in_the_trailers(tmp_path:
 
 def test_a_title_corrected_in_zotero_is_recorded_as_a_record_amend_event(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ROEDIGER)
-    fake = FakeZotero("7")
-    _link(repo, fake)
+    fake = FakeZotero("10")
+    _link(repo, fake, web=True)
     corrected = "Spacing effects in learning: a temporal ridgeline of optimal retention"
     new_version = fake.edit_item(LIB, "AB3D9XYZ", title=corrected)
 
@@ -398,7 +401,7 @@ def test_a_correction_to_a_record_with_no_doi_keeps_its_id_and_aliases_the_new_i
     tmp_path: Path,
 ) -> None:
     repo, ids = review_with(tmp_path, SMITH)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     fake.edit_item(
         LIB, "JK6L7MNP", title="Spacing effects in a classroom: a quasi-experimental study"
@@ -416,7 +419,7 @@ def test_a_correction_to_a_record_with_no_doi_keeps_its_id_and_aliases_the_new_i
 
 def test_zotero_never_removes_a_field_a_record_has(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)  # Zotero's Cepeda item carries no abstract
 
     result = _pull(repo, fake)
@@ -428,7 +431,7 @@ def test_zotero_never_removes_a_field_a_record_has(tmp_path: Path) -> None:
 def test_a_pull_never_touches_a_screening_decision(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ROEDIGER)
     decide(repo, "title-abstract", ids)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     fake.edit_item(LIB, "AB3D9XYZ", title="A different title entirely about spacing")
     screening = {p.name: p.read_bytes() for p in (repo.root / "events" / "screen").glob("*.ndjson")}
@@ -444,7 +447,7 @@ def test_a_pulled_item_that_matches_an_existing_record_is_added_as_a_source_not_
     tmp_path: Path,
 ) -> None:
     repo, ids = review_with(tmp_path, ROEDIGER)  # already imported from a database search
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
 
     _link(repo, fake)  # links Roediger to CD4E5FGH, but not the collection's other items
     result = zotero_ops.pull(
@@ -464,7 +467,7 @@ def test_an_item_whose_record_has_gone_from_the_review_is_reported_not_reimporte
     tmp_path: Path,
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     records_mod.write_records(repo, [])  # the record is removed from the review
 
@@ -500,11 +503,11 @@ def _push(repo, fake, **kwargs):  # type: ignore[no-untyped-def]
 def test_a_push_needs_a_link_that_can_write(tmp_path: Path) -> None:
     repo, _ = _included(tmp_path, CEPEDA)
     with pytest.raises(zotero_ops.NotLinkedError):
-        _push(repo, FakeZotero("7"))
+        _push(repo, FakeZotero("10"))
 
-    _link(repo, FakeZotero("7"))  # over the local API: read-only
+    _link(repo, FakeZotero("10"))  # over the local API: read-only
     with pytest.raises(zotero_ops.ZoteroOperationError, match="cannot write"):
-        _push(repo, FakeZotero("7"))
+        _push(repo, FakeZotero("10"))
 
 
 def test_only_the_included_set_exists(tmp_path: Path) -> None:
@@ -518,7 +521,7 @@ def test_a_push_adds_what_zotero_has_creates_what_it_lacks_and_records_both(
     tmp_path: Path,
 ) -> None:
     repo, ids = _included(tmp_path, CEPEDA, SMITH, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
 
     result = _push(repo, fake)
@@ -539,7 +542,7 @@ def test_a_push_adds_what_zotero_has_creates_what_it_lacks_and_records_both(
 
 def test_a_push_run_twice_is_a_no_op_the_second_time(tmp_path: Path) -> None:
     repo, _ = _included(tmp_path, CEPEDA, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
     _push(repo, fake)
     writes_before = len(fake.writes())
@@ -556,7 +559,7 @@ def test_an_item_edited_in_zotero_since_the_link_is_refused_and_a_pull_clears_it
     tmp_path: Path,
 ) -> None:
     repo, ids = _included(tmp_path, CEPEDA, SMITH)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
     fake.edit_item(LIB, "JK6L7MNP", title="Spacing effects in a classroom: a quasi-experiment!")
 
@@ -575,7 +578,7 @@ def test_a_push_never_deletes_and_leaves_the_content_of_items_it_did_not_create(
     tmp_path: Path,
 ) -> None:
     repo, _ = _included(tmp_path, CEPEDA, SMITH, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
     before = {k: json.dumps(i["csl"], sort_keys=True) for k, i in fake.libraries[LIB].items.items()}
 
@@ -590,7 +593,7 @@ def test_a_push_never_deletes_and_leaves_the_content_of_items_it_did_not_create(
 
 def test_a_mapped_item_deleted_in_zotero_is_reported_stale_by_a_push(tmp_path: Path) -> None:
     repo, ids = _included(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
     fake.delete_item(LIB, "AB3D9XYZ")
 
@@ -601,7 +604,7 @@ def test_a_mapped_item_deleted_in_zotero_is_reported_stale_by_a_push(tmp_path: P
 
 def test_nothing_included_pushes_nothing(tmp_path: Path) -> None:
     repo, _ = review_with(tmp_path, CEPEDA)  # no decisions
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake, web=True)
 
     result = _push(repo, fake)
@@ -615,7 +618,7 @@ def test_nothing_included_pushes_nothing(tmp_path: Path) -> None:
 
 def test_status_counts_mapped_unmapped_and_stale_links(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ROEDIGER, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     fake.delete_item(LIB, "CD4E5FGH")
 
@@ -629,8 +632,8 @@ def test_status_counts_mapped_unmapped_and_stale_links(tmp_path: Path) -> None:
 
 def test_status_reports_the_counts_even_when_zotero_cannot_be_reached(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    _link(repo, FakeZotero("7"))
-    down = FakeZotero("7", local_running=False)
+    _link(repo, FakeZotero("10"))
+    down = FakeZotero("10", local_running=False)
 
     report = zotero_ops.status(repo, connector=connector_for(down, keychain=False, key=None))
 
@@ -642,7 +645,7 @@ def test_status_reports_the_counts_even_when_zotero_cannot_be_reached(tmp_path: 
 
 def test_status_degrades_on_any_zotero_error_not_only_an_unreachable_one(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    _link(repo, FakeZotero("7"))
+    _link(repo, FakeZotero("10"))
     rejected = FakeZotero("6")  # no local API, so the Web API, which refuses the wrong key
 
     report = zotero_ops.status(
@@ -656,14 +659,14 @@ def test_status_degrades_on_any_zotero_error_not_only_an_unreachable_one(tmp_pat
 
 def test_status_follows_a_link_to_a_record_that_was_merged_into_another(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    _link(repo, FakeZotero("7"))  # links the Cepeda record
+    _link(repo, FakeZotero("10"))  # links the Cepeda record
     cepeda, kept = records_mod.read_records(repo)
     # `strata dedup` later decides Cepeda's record is a duplicate of the other and absorbs it
     kept["strata"] = {**kept["strata"], "absorbed": [cepeda["id"]]}
     cepeda["strata"] = {**cepeda["strata"], "canonical": False}
     records_mod.write_records(repo, [cepeda, kept])
 
-    report = zotero_ops.status(repo, connector=connector_for(FakeZotero("7")))
+    report = zotero_ops.status(repo, connector=connector_for(FakeZotero("10")))
 
     assert report.records == 1 and report.mapped == 1  # the link now serves the record that remains
     assert report.unmapped == () and report.orphaned == ()
@@ -676,7 +679,7 @@ def test_open_goes_to_the_pdf_when_there_is_one_and_the_item_when_there_is_not(
     tmp_path: Path,
 ) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, SMITH)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
 
     pdf = zotero_ops.open_target(repo, ids[0], connector=connector_for(fake))
@@ -688,7 +691,7 @@ def test_open_goes_to_the_pdf_when_there_is_one_and_the_item_when_there_is_not(
 
 def test_open_says_when_a_record_is_not_in_zotero(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA, ONLY_HERE)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
 
     with pytest.raises(zotero_ops.NotLinkedError, match="is not linked to a Zotero item"):
@@ -697,7 +700,7 @@ def test_open_says_when_a_record_is_not_in_zotero(tmp_path: Path) -> None:
 
 def test_open_on_a_deleted_item_says_the_full_text_is_unavailable(tmp_path: Path) -> None:
     repo, ids = review_with(tmp_path, CEPEDA)
-    fake = FakeZotero("7")
+    fake = FakeZotero("10")
     _link(repo, fake)
     fake.delete_item(LIB, "AB3D9XYZ")
 

@@ -56,6 +56,8 @@ def histories(draw: st.DrawFn) -> dict[str, object]:
         "retrieval": draw(st.lists(retrieval_choice, min_size=60, max_size=60)),
         "ft": draw(st.lists(choice, min_size=60, max_size=60)),
         "group": draw(st.booleans()),
+        "split": draw(st.integers(min_value=0, max_value=3)),
+        "split_first": draw(st.booleans()),
         "dedup": draw(st.booleans()),
     }
 
@@ -97,6 +99,21 @@ def _build(root: Path, history: dict[str, object]) -> counts_mod.Counts:
     )
     kept = [i for i in got if ft.get(i) == "include"]
     decide(repo, "full-text", kept, "include")
+    parts = int(history["split"])  # type: ignore[call-overload]
+
+    def split() -> None:
+        # One report describing several studies (a multi-experiment paper): 0 and 1 mean no split.
+        if parts >= 2 and kept:
+            studies_mod.split_report(
+                repo,
+                report=report_id(kept[0]),
+                parts=parts,
+                actor="ethan",
+                rationale="Independent experiments.",
+            )
+
+    if history["split_first"]:
+        split()
     if history["group"] and len(kept) >= 2:
         studies_mod.group_reports(
             repo,
@@ -104,6 +121,8 @@ def _build(root: Path, history: dict[str, object]) -> counts_mod.Counts:
             actor="ethan",
             rationale="Same trial.",
         )
+    if not history["split_first"]:
+        split()
     return counts_mod.compute(repo)
 
 
@@ -117,6 +136,8 @@ def test_p11_the_identities_hold_for_any_review_history(history: dict[str, objec
         assert t.identified == counts.identification["identified_total"]
         assert t.records_screened == t.identified - t.removed_before_screening
         assert t.reports_included <= t.reports_assessed <= t.reports_sought <= t.records_screened
-        assert counts.studies_included <= t.reports_included
+        assert counts.studies_included <= t.reports_included + counts.studies_from_split_reports
+        assert counts.reports_of_included_studies == t.reports_included
+        assert (counts.studies_included > 0) == (t.reports_included > 0)
         finished = t.awaiting_tiab + t.awaiting_retrieval + t.awaiting_ft == 0
         assert counts.complete == (finished and counts.stale_decisions == 0)

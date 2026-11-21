@@ -141,13 +141,29 @@ def default_data_dir() -> Path:
     return Path(configured) if configured else DEFAULT_DATA_DIR
 
 
+#: Set in every project's git configuration (`Instance.secure_project`).
+SECURE_GIT_CONFIG = {"core.symlinks": "false"}
+
+
+def _symlinks_in(root: Path) -> list[Path]:
+    found: list[Path] = []
+    for directory, dirnames, filenames in os.walk(root):
+        if ".git" in dirnames:
+            dirnames.remove(".git")
+        for name in [*dirnames, *filenames]:
+            path = Path(directory) / name
+            if path.is_symlink():
+                found.append(path)
+    return sorted(found)
+
+
 def check_remote_url(url: str) -> str:
     """A remote URL fit to store: no password or token embedded in it."""
     text = url.strip()
     if not text:
         raise InstanceError("the remote URL is empty")
     parts = urlsplit(text)
-    if parts.scheme in ("http", "https") and (parts.password or parts.username):
+    if (parts.scheme in ("http", "https") and parts.username) or parts.password:
         raise InstanceError(
             "the remote URL has a user name or token in it, which would be stored in plain text; "
             "give the URL without it and name the credential with --credential"
@@ -206,7 +222,24 @@ class Instance:
             self.settings_path.write_text(tomlkit.dumps(doc), encoding="utf-8")
 
     def secure_project(self, project_id: str) -> None:
-        """Make a project's git run the instance's own hooks, never the repository's."""
+        """Make a project's git run the instance's own hooks, never the repository's, and check
+        out no symbolic links.
+
+        A symbolic link committed to a project's remote would otherwise be checked out as one, and
+        the screens that read and write a review's files would follow it out of the project: to
+        the instance's own state, its key, its hooks or another project. With `core.symlinks`
+        off, git writes such a link as a small file holding the link's text.
+        """
+        root = self.project_dir(project_id)
+        for key, value in SECURE_GIT_CONFIG.items():
+            if gitio.get_config(root, key) != value:
+                gitio.set_config(root, key, value)
+        for link in _symlinks_in(root):
+            raise InstanceError(
+                f"project {project_id!r} has a symbolic link in its working tree "
+                f"({link.relative_to(root)}), which an instance does not serve; remove it from the "
+                "remote, then add the project again"
+            )
         self.hooks_dir.mkdir(parents=True, exist_ok=True)
         for name, script in HOOK_SCRIPTS.items():
             path = self.hooks_dir / name
@@ -303,7 +336,8 @@ class Instance:
         try:
             if stored_remote is not None:
                 with self.git_env(pending):
-                    gitio.clone(stored_remote, dest)
+                    # No symbolic links, from the first checkout on (see `secure_project`).
+                    gitio.clone(stored_remote, dest, config=SECURE_GIT_CONFIG)
                 try:
                     repo = open_repo(dest)
                 except RepoNotFoundError:

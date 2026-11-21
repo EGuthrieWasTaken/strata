@@ -1,0 +1,269 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "https://api.zotero.org/groups/6762415/items?itemKey=6BQ4WRIB,JRNI4G2X&format=json",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 06:33:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Total-Results",
+        "2"
+      ],
+      [
+        "Link",
+        "<https://www.zotero.org/groups/6762415/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "11"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "JRNI4G2X",
+        "version": 5,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/items/JRNI4G2X",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/JRNI4G2X",
+            "type": "text/html"
+          },
+          "attachment": {
+            "href": "https://api.zotero.org/groups/6762415/items/U5JR5IES",
+            "type": "application/json",
+            "attachmentType": "application/pdf",
+            "attachmentSize": 665
+          }
+        },
+        "meta": {
+          "createdByUser": {
+            "id": 22585168,
+            "username": "strata-review",
+            "name": "",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "creatorSummary": "Pavlik and Anderson",
+          "parsedDate": "2008-06",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "JRNI4G2X",
+          "version": 5,
+          "itemType": "journalArticle",
+          "title": "Using a model to compute the optimal schedule of practice",
+          "creators": [
+            {
+              "creatorType": "author",
+              "firstName": "Philip I.",
+              "lastName": "Pavlik"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "John R.",
+              "lastName": "Anderson"
+            }
+          ],
+          "abstractNote": "",
+          "publicationTitle": "Journal of Experimental Psychology: Applied",
+          "publisher": "",
+          "place": "",
+          "date": "2008-06",
+          "volume": "14",
+          "issue": "2",
+          "section": "",
+          "partNumber": "",
+          "partTitle": "",
+          "pages": "101-117",
+          "series": "",
+          "seriesTitle": "",
+          "seriesText": "",
+          "journalAbbreviation": "",
+          "DOI": "10.1037/1076-898X.14.2.101",
+          "citationKey": "",
+          "url": "",
+          "accessDate": "",
+          "PMID": "18590367",
+          "PMCID": "",
+          "ISSN": "",
+          "archive": "",
+          "archiveLocation": "",
+          "shortTitle": "",
+          "language": "en",
+          "libraryCatalog": "",
+          "callNumber": "",
+          "rights": "",
+          "extra": "",
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:19Z",
+          "dateModified": "2026-11-14T06:32:19Z"
+        }
+      },
+      {
+        "key": "6BQ4WRIB",
+        "version": 4,
+        "library": {
+          "type": "group",
+          "id": 6762415,
+          "name": "strata-ci-group",
+          "links": {
+            "alternate": {
+              "href": "https://www.zotero.org/groups/6762415",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "https://api.zotero.org/groups/6762415/items/6BQ4WRIB",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/groups/6762415/items/6BQ4WRIB",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "createdByUser": {
+            "id": 22585168,
+            "username": "strata-review",
+            "name": "",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "creatorSummary": "Roediger and Karpicke",
+          "parsedDate": "2006-03",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "6BQ4WRIB",
+          "version": 4,
+          "itemType": "journalArticle",
+          "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+          "creators": [
+            {
+              "creatorType": "author",
+              "firstName": "Henry L.",
+              "lastName": "Roediger"
+            },
+            {
+              "creatorType": "author",
+              "firstName": "Jeffrey D.",
+              "lastName": "Karpicke"
+            }
+          ],
+          "abstractNote": "",
+          "publicationTitle": "Psychological Science",
+          "publisher": "",
+          "place": "",
+          "date": "2006-03",
+          "volume": "17",
+          "issue": "3",
+          "section": "",
+          "partNumber": "",
+          "partTitle": "",
+          "pages": "249-255",
+          "series": "",
+          "seriesTitle": "",
+          "seriesText": "",
+          "journalAbbreviation": "",
+          "DOI": "10.1111/j.1467-9280.2006.01693.x",
+          "citationKey": "",
+          "url": "",
+          "accessDate": "",
+          "PMID": "16507066",
+          "PMCID": "",
+          "ISSN": "",
+          "archive": "",
+          "archiveLocation": "",
+          "shortTitle": "",
+          "language": "en",
+          "libraryCatalog": "",
+          "callNumber": "",
+          "rights": "",
+          "extra": "",
+          "tags": [],
+          "collections": [
+            "JDXU647J"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T06:32:18Z",
+          "dateModified": "2026-11-14T06:32:18Z"
+        }
+      }
+    ]
+  }
+}

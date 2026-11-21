@@ -34,7 +34,15 @@ WEB_HOST = "api.zotero.org"
 API_KEY = "TESTKEYTESTKEYTESTKEY"
 
 #: The Zotero majors the integration tests are pinned to.
-MAJOR_VERSIONS = ("6", "7")
+MAJOR_VERSIONS = ("10",)
+
+#: Not a supported version: a stand-in for a Zotero too old to have a local API, kept so the
+#: fall back to the Web API stays tested.
+NO_LOCAL_API = "6"
+
+#: How far the desktop app's own item versions sit from the Web API's in a profile whose
+#: `local_versions` is `own` (seen in Zotero 10: the same item was 14 locally and 4 on the Web).
+LOCAL_VERSION_OFFSET = 100000
 
 
 @dataclass
@@ -83,7 +91,7 @@ class FakeZotero:
 
     def __init__(
         self,
-        major: str = "7",
+        major: str = "10",
         *,
         local_running: bool = True,
         local_api_enabled: bool = True,
@@ -201,7 +209,8 @@ class FakeZotero:
         if self.profile["local_api_needs_preference"] and not self.local_api_enabled:
             return _text(403, "Local API is not enabled")
         if method != "GET" and not self.profile["local_api_writable"]:
-            return _text(501, "Method Not Implemented")
+            status, text = self.profile.get("local_write_refusal", [501, "Method Not Implemented"])
+            return _text(status, text)
         if self.reshape_local:
             return _json(200, {"items": []})
         api_path = path[len("/api") :]
@@ -259,13 +268,16 @@ class FakeZotero:
                 )  # fmt: skip
             if m := re.fullmatch(r"/collections/(\w+)/items/top", rest):
                 keys = [k for k, i in library.items.items() if m.group(1) in i["collections"]]
-                return self._page([self._item(library, k, query) for k in sorted(keys)], query)
+                return self._page(
+                    [self._item(library, k, query, local=local) for k in sorted(keys)], query
+                )
             if rest == "/items/top":
                 return self._page(
-                    [self._item(library, k, query) for k in sorted(library.items)], query
+                    [self._item(library, k, query, local=local) for k in sorted(library.items)],
+                    query,
                 )
             if rest == "/items":
-                return self._items(library, query)
+                return self._items(library, query, local=local)
             if m := re.fullmatch(r"/items/(\w+)/children", rest):
                 return self._page(self._children(library, m.group(1)), query)
         elif method == "POST" and rest == "/items":
@@ -291,37 +303,67 @@ class FakeZotero:
         limit = int(query.get("limit", 25))
         return _json(200, rows[start : start + limit], {"Total-Results": str(len(rows))})
 
-    def _items(self, library: Library, query: dict[str, str]) -> HttpResponse:
+    def _items(self, library: Library, query: dict[str, str], *, local: bool) -> HttpResponse:
         if "itemKey" in query:
             wanted = query["itemKey"].split(",")
-            if len(wanted) > 50:
-                return _text(400, "'itemKey' can't have more than 50 keys")
-            return _json(200, [self._item(library, k, query) for k in wanted if k in library.items])
+            if len(set(wanted)) > 50:
+                # Seen from a running Zotero: the filter is dropped, not refused.
+                return self._page(
+                    [self._item(library, k, query, local=local) for k in sorted(library.items)],
+                    query,
+                )
+            rows = [
+                self._item(library, k, query, local=local) for k in wanted if k in library.items
+            ]
+            if local and self.profile.get("local_itemkey_includes_children"):
+                rows += [
+                    self._attachment_json(library, a)
+                    for a in library.attachments.values()
+                    if a["parent"] in wanted
+                ]
+            return _json(200, rows)
         if query.get("itemType") == "attachment":
             rows = [
                 self._attachment_json(library, a)
                 for a in sorted(library.attachments.values(), key=lambda a: a["key"])
             ]
             return self._page(rows, query)
-        return self._page([self._item(library, k, query) for k in sorted(library.items)], query)
+        return self._page(
+            [self._item(library, k, query, local=local) for k in sorted(library.items)], query
+        )
 
-    def _item(self, library: Library, key: str, query: dict[str, str]) -> dict[str, Any]:
+    def _item(
+        self, library: Library, key: str, query: dict[str, str], *, local: bool = False
+    ) -> dict[str, Any]:
         item = library.items[key]
+        version = item["version"]
+        if local and self.profile.get("local_versions") == "own":
+            version += LOCAL_VERSION_OFFSET
         data = {
             "key": key,
-            "version": item["version"],
+            "version": version,
             "itemType": _zotero_type(item["csl"]),
             "title": item["csl"].get("title", ""),
             "collections": list(item["collections"]),
         }
         out: dict[str, Any] = {
             "key": key,
-            "version": item["version"],
+            "version": version,
             "library": {"type": library.meta["type"], "id": library.meta["id"]},
             "data": data,
         }
         if "csljson" in query.get("include", ""):
-            out["csljson"] = {"id": f"{library.meta['id']}/{key}", **item["csl"]}
+            csl = {"id": f"{library.meta['id']}/{key}", **item["csl"]}
+            if local and self.profile.get("local_csljson") == "string":
+                # The desktop app: a string holding a one-element list, year parts as strings.
+                csl = copy.deepcopy(csl)
+                csl["id"] = f"http://zotero.org/{library.library_id}/items/{key}"
+                for row in csl.get("issued", {}).get("date-parts", []):
+                    if row:
+                        row[0] = str(row[0])
+                out["csljson"] = json.dumps([csl], indent="\t")
+            else:
+                out["csljson"] = csl
         return out
 
     def _children(self, library: Library, parent: str) -> list[dict[str, Any]]:
@@ -353,28 +395,38 @@ class FakeZotero:
         )
         if not writable:
             return _text(403, "Write access denied")
-        if not isinstance(body, list) or len(body) > 50:
-            return _text(413, "Too many items")
+        if not isinstance(body, list):
+            return _text(400, "Uploaded data must be a JSON array")
+        if len(body) > 50:
+            return _text(413, "Cannot add more than 50 items at a time")
         successful: dict[str, Any] = {}
+        success: dict[str, str] = {}
         failed: dict[str, Any] = {}
         for index, obj in enumerate(body):
             slot = str(index)
             if "key" in obj:
                 item = library.items.get(obj["key"])
                 if item is None:
-                    failed[slot] = {"key": obj["key"], "code": 404, "message": "Item not found"}
-                elif obj.get("version") != item["version"]:
+                    failed[slot] = {"code": 404, "message": "Item doesn't exist"}
+                elif "version" not in obj:
                     failed[slot] = {
-                        "key": obj["key"],
+                        "code": 428,
+                        "message": "Either If-Unmodified-Since-Version or 'version' property "
+                        "must be provided for key-based writes",
+                    }
+                elif obj["version"] < item["version"]:
+                    # As the Web API words it: no key in the entry, none in the message.
+                    failed[slot] = {
                         "code": 412,
-                        "message": f"Item {obj['key']} has been modified since specified version "
-                        f"(expected {obj.get('version')}, found {item['version']})",
+                        "message": "Item has been modified since specified version "
+                        f"(expected {obj['version']}, found {item['version']})",
                     }
                 else:
                     if "collections" in obj:
                         item["collections"] = list(obj["collections"])
                     item["version"] = library.bump()
-                    successful[slot] = {"key": obj["key"], "version": item["version"]}
+                    successful[slot] = self._item(library, obj["key"], {})
+                    success[slot] = obj["key"]
                 continue
             template = self.templates.get(obj.get("itemType", ""))
             unknown = sorted(set(obj) - set(template or {}))
@@ -395,10 +447,11 @@ class FakeZotero:
                 "csl": csl,
                 "zotero": obj,
             }
-            successful[slot] = {"key": key, "version": version}
+            successful[slot] = self._item(library, key, {})
+            success[slot] = key
         return _json(
             200,
-            {"successful": successful, "success": {}, "unchanged": {}, "failed": failed},
+            {"successful": successful, "success": success, "unchanged": {}, "failed": failed},
             {"Last-Modified-Version": str(library.version)},
         )
 
@@ -417,8 +470,12 @@ def _zotero_type(csl: Mapping[str, Any]) -> str:
 def _csl_of(obj: Mapping[str, Any]) -> dict[str, Any]:
     """The CSL an item created through the API reads back as (enough for the tests that read it)."""
     csl: dict[str, Any] = {"type": "article-journal", "title": obj.get("title", "")}
-    if obj.get("DOI"):
-        csl["DOI"] = obj["DOI"]
+    # Only native fields come back under their own CSL name; `extra` comes back as `note`.
+    for name in ("DOI", "PMID", "PMCID"):
+        if obj.get(name):
+            csl[name] = obj[name]
+    if obj.get("extra"):
+        csl["note"] = obj["extra"]
     authors = [
         {"family": c["lastName"], "given": c.get("firstName", "")}
         for c in obj.get("creators", [])

@@ -3,18 +3,32 @@
 {% block content %}
 {% if record is none %}
 <h1>{{ stage }} screening</h1>
-<p class="done-note">Nothing left to screen for {{ actor }} at this stage.</p>
+<p class="done-note">Nothing left to screen for {{ actor }} at this stage{% if total %}: all {{ total }} decided{% endif %}.</p>
+<form method="post" action="{{ root }}/session/finish" class="finish-session">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <button type="submit" class="btn">Finish session</button>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; {% if hosted %}so does signing out, and the instance does it for you after 15 minutes without a decision.{% else %}so does leaving this screen.{% endif %}</span>
+</form>
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 {% else %}
 <div class="screen-header" data-testid="screen-header">
   <h1>{{ stage }} screening &mdash; {{ position }} of {{ total }}</h1>
   {% if total %}
-  <progress class="progress-bar" value="{{ position }}" max="{{ total }}" aria-label="Progress through the {{ stage }} queue">{{ position }} of {{ total }}</progress>
+  <progress class="progress-bar" value="{{ decided }}" max="{{ total }}" aria-label="Decided so far in the {{ stage }} queue">{{ decided }} of {{ total }} decided</progress>
   {% endif %}
+  <p class="field-meta" data-testid="screen-counts">{{ decided }} of {{ total }} decided{% if skipped %} &middot; {{ skipped }} skipped for now, offered again at the end{% endif %}</p>
 </div>
 
+{% if again %}
+<p class="notice" role="status">Everything else is decided. These are the records you skipped.</p>
+{% endif %}
 {% if error %}
-<p class="error" role="alert">{{ error }}</p>
+<div class="error" role="alert"><p>{{ error }}</p>{% if error_detail %}<p class="field-meta error-detail">{{ error_detail }}</p>{% endif %}</div>
+{% endif %}
+{% if before %}
+<div class="notice" data-testid="earlier-decision">
+  <p><strong>You decided {{ before.decision | upper }} for this record</strong>{% if before.criteria %}, citing {{ before.criteria | join(", ") }}{% endif %}. Choosing the same again changes nothing; a different decision replaces it and needs a reason below.</p>
+</div>
 {% endif %}
 
 <article class="record-card">
@@ -33,7 +47,7 @@
   {% endif %}
 </article>
 
-<form method="post" action="{{ root }}/screen/{{ stage }}" id="screen-form" data-require-exclusion-reason="{{ 'true' if require_exclusion_reason else 'false' }}">
+<form method="post" action="{{ root }}/screen/{{ stage }}" id="screen-form" data-require-exclusion-reason="{{ 'true' if require_exclusion_reason and active_criteria else 'false' }}">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="record_id" value="{{ record.id }}">
   <input type="hidden" name="skip" value="{{ skip_csv }}">
@@ -49,24 +63,29 @@
       <kbd>m</kbd> Maybe
     </button>
   </div>
+  <p class="error" id="screen-hint" role="alert" hidden></p>
 
   {% if active_criteria %}
   <fieldset class="criteria-list">
-    <legend>Exclusion criteria{% if require_exclusion_reason %} (required when excluding){% endif %}</legend>
+    <legend>Reasons for excluding{% if require_exclusion_reason %} (at least one is needed to exclude){% endif %}</legend>
+    <p class="field-meta" id="criteria-hint">Tick every one that applies, an exclusion criterion the record meets or an inclusion criterion it does not, then choose Exclude. <span class="js-only-hint" hidden>Keys <kbd>1</kbd>&ndash;<kbd>9</kbd> tick and untick; nothing is recorded until you press <kbd>e</kbd>.</span></p>
     {% for c in active_criteria %}
     <label class="criterion" title="{{ c.definition }}">
-      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}">
+      <input type="checkbox" name="criteria" value="{{ c.id }}" data-shortcut-digit="{{ loop.index }}"{% if c.id in ticked %} checked{% endif %}>
       <span class="criterion-num">{{ loop.index }}</span>
       <span class="criterion-id">{{ c.id }}</span>
-      <span class="criterion-label">{{ c.label }}</span>
+      <span class="criterion-label">{% if c.kind == "inclusion" %}<span class="criterion-kind">Not met:</span> {% endif %}{{ c.label }}</span>
     </label>
     {% endfor %}
   </fieldset>
   {% endif %}
 
+  {% if not active_criteria and require_exclusion_reason %}
+  <p class="notice">No criteria apply at this stage, so there is no reason to give for an exclusion yet. <a href="{{ root }}/criteria">Add a criterion</a> first.</p>
+  {% endif %}
   <label class="note-field">
-    Note (optional)
-    <textarea name="note" id="note-field" accesskey=","></textarea>
+    {% if before %}Why the change? (needed if you decide differently from before){% else %}Note (optional){% endif %}
+    <textarea name="note" id="note-field" accesskey=",">{{ note }}</textarea>
   </label>
 
   <div class="nav-links">
@@ -74,11 +93,16 @@
       <kbd>s</kbd> Skip
     </a>
     {% if prev_id %}
-    <a href="{{ root }}/screen/{{ stage }}?redo={{ prev_id }}" accesskey="u" id="undo-link">
+    <a href="{{ root }}/screen/{{ stage }}?redo={{ prev_id }}{% if skip_csv %}&amp;skip={{ skip_csv }}{% endif %}" accesskey="u" id="undo-link">
       <kbd>u</kbd> Undo previous decision
     </a>
     {% endif %}
   </div>
+</form>
+<form method="post" action="{{ root }}/session/finish" class="finish-session">
+  <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
+  <button type="submit" class="btn">Finish session</button>
+  <span class="field-meta">Your decisions are saved as you make them. Finishing commits them to the review's history; {% if hosted %}so does signing out, and the instance does it for you after 15 minutes without a decision.{% else %}so does leaving this screen.{% endif %}</span>
 </form>
 {% endif %}
 {% endblock %}

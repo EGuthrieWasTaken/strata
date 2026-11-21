@@ -175,3 +175,9 @@ def test_ensure_local_exclude_outside_a_repository_does_nothing(tmp_path: Path) 
     gitio.ensure_local_exclude(tmp_path, ["/.strata/tmp/"])
 
     assert not (tmp_path / ".git").exists()
+
+
+def test_git_reads_never_take_the_index_lock() -> None:
+    # `git status` outside strata's repository lock would otherwise take `index.lock` for a moment
+    # and make a concurrent command's `git add` fail (seen once in CI with four commands at once).
+    assert gitio._command_env()["GIT_OPTIONAL_LOCKS"] == "0"

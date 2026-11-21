@@ -246,9 +246,11 @@ def test_not_retrieved_needs_a_reason_and_other_needs_words(tmp_path: Path) -> N
     )
 
     assert no_reason.status_code == 422
-    assert "a report marked not retrievable needs a reason from" in _text(no_reason)
+    # in the reviewer's words, not the stored codes (#90)
+    assert "Choose why the report could not be retrieved, under “Why not”" in _text(no_reason)
+    assert "'no-access'" not in _text(no_reason)
     assert other.status_code == 422
-    assert "reason 'other' needs free text saying what happened" in _text(other)
+    assert "You chose “Other”: say what happened in the box beside it." in _text(other)
     assert _count(repo) == before and _clean(repo)
 
 

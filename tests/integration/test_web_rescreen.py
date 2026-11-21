@@ -94,7 +94,7 @@ def test_rescreen_shows_prior_decision_and_reason(tmp_path: Path) -> None:
     assert "A test record" in r.text
     assert "INCLUDE" in r.text
     assert "criterion-added" in r.text
-    assert "1 stale" in r.text
+    assert "1 of your decisions" in r.text
 
 
 def test_rescreen_post_keep_previous_reaffirms_the_same_decision(tmp_path: Path) -> None:
@@ -125,15 +125,25 @@ def test_rescreen_post_keep_previous_reaffirms_the_same_decision(tmp_path: Path)
 def test_rescreen_post_new_decision_with_citation(tmp_path: Path) -> None:
     repo = _repo_with_one_stale_record(tmp_path)
     client = _client(repo)
+    form = {
+        "csrf_token": _TOKEN,
+        "record_id": "rec_0000000000000001",
+        "decision": "exclude",
+        "criteria": "EXC-07",
+        "skip": "",
+    }
+    # The earlier decision was include: changing it needs a reason
+    # (openspec:git-integration#batched-screening-commits), asked for on the same page with the
+    # tick kept.
+    refused = client.post("/rescreen/title-abstract", data=form, follow_redirects=False)
+    assert refused.status_code == 422
+    assert "You decided INCLUDE for this record before" in refused.text
+    assert 'value="EXC-07" data-shortcut-digit="1" checked' in refused.text
+    assert len(all_screen_events(open_repo(repo.root), "title-abstract")) == 1
+
     r = client.post(
         "/rescreen/title-abstract",
-        data={
-            "csrf_token": _TOKEN,
-            "record_id": "rec_0000000000000001",
-            "decision": "exclude",
-            "criteria": "EXC-07",
-            "skip": "",
-        },
+        data={**form, "note": "The new criterion rules it out."},
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -142,6 +152,7 @@ def test_rescreen_post_new_decision_with_citation(tmp_path: Path) -> None:
     events = all_screen_events(repo, "title-abstract")
     assert events[-1]["body"]["decision"] == "exclude"
     assert events[-1]["body"]["criteria"] == ["EXC-07"]
+    assert events[-1]["body"]["note"] == "The new criterion rules it out."
 
     r2 = client.get("/rescreen/title-abstract")
     assert "Nothing stale" in r2.text
@@ -186,7 +197,9 @@ def test_rescreen_skip_moves_past_a_record_without_deciding(tmp_path: Path) -> N
     repo = _repo_with_one_stale_record(tmp_path)
     client = _client(repo)
     r = client.get("/rescreen/title-abstract?skip=rec_0000000000000001")
-    assert "Nothing stale" in r.text
+    # It was the only stale record, so it comes round again rather than the page saying nothing is
+    # stale while one still is.
+    assert "Nothing stale" not in r.text and "A test record" in r.text
     events = all_screen_events(repo, "title-abstract")
     assert len(events) == 1  # only the original include, nothing new decided
 
@@ -245,3 +258,18 @@ def test_rescreen_post_success_carries_skip_list_into_redirect(tmp_path: Path) -
     )
     assert r.status_code == 303
     assert "skip=rec_0000000000000099" in r.headers["location"]
+
+
+def test_the_two_stale_counts_say_what_each_one_counts(tmp_path: Path) -> None:
+    """The dashboard counts records for the whole review; the rescreen screen counts the
+    reviewer's own decisions. Each says so (#88)."""
+    repo = _repo_with_one_stale_record(tmp_path)
+    client = _client(repo)
+    dashboard = client.get("/").text
+    assert '<th scope="col">Stale records</th>' in dashboard
+    assert "Rescreen 1 of your decision &rarr;" in dashboard
+    assert 'data-testid="stale-definition"' in dashboard
+    page = client.get("/rescreen/title-abstract").text
+    assert "title-abstract rescreen &mdash; 1 of your decisions" in page
+    assert "1 of your own title-abstract decision is stale" in page
+    assert "counts records for the whole review" in page

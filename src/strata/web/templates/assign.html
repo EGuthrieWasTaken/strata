@@ -5,23 +5,65 @@
 <p><a href="{{ root }}/">&larr; Back to dashboard</a></p>
 
 {% if done %}
-<p class="notice" role="status" data-testid="assigned-note">Assignment recorded. Each reviewer's queue is shown below.</p>
+<p class="notice" role="status" data-testid="assigned-note">Assignment recorded{% if assignments %}: {{ assignments[0].records }} record{{ "s" if assignments[0].records != 1 else "" }} at {{ stage }} {{ "are" if assignments[0].records != 1 else "is" }} now assigned to {{ assignments[0].actors | join(", ") }}, and to nobody else{% endif %}. A reviewer who had already decided a record has nothing new waiting for it, so &ldquo;Waiting&rdquo; below may not move.</p>
 {% endif %}
 {% if error %}
 <p class="error" role="alert" data-testid="form-error">{{ error }}</p>
 {% endif %}
 
-<h2>Who is queued now</h2>
-<table class="stage-table stack-table">
+<h2>Who has what</h2>
+<table class="stage-table stack-table" data-testid="assignment-summary">
+  <caption class="visually-hidden">Records assigned to each reviewer at {{ stage }}</caption>
   <thead>
-    <tr><th scope="col">Reviewer</th><th scope="col">Records waiting for a decision</th></tr>
+    <tr>
+      <th scope="col">Reviewer</th>
+      <th scope="col">Assigned</th>
+      <th scope="col">Decided</th>
+      <th scope="col">Waiting for a decision</th>
+    </tr>
   </thead>
   <tbody>
     {% for q in queues %}
-    <tr><th scope="row">{{ q.name }} ({{ q.handle }})</th><td data-label="Waiting">{{ q.waiting }}</td></tr>
+    <tr>
+      <th scope="row">{{ q.name }} ({{ q.handle }})</th>
+      <td data-label="Assigned">{{ q.assigned }}</td>
+      <td data-label="Decided">{{ q.decided }}</td>
+      <td data-label="Waiting">{{ q.waiting }}</td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>
+<p class="field-meta">Of {{ total }} record{{ "s" if total != 1 else "" }} at this stage. A record nobody has been assigned by name goes to the review&rsquo;s default reviewers.</p>
+
+<h2>Assignments made at this stage</h2>
+{% if assignments %}
+<table class="stage-table stack-table" data-testid="assignment-list">
+  <caption class="visually-hidden">Assignments made at {{ stage }}, newest first</caption>
+  <thead>
+    <tr>
+      <th scope="col">When</th>
+      <th scope="col">By</th>
+      <th scope="col">Assigned to</th>
+      <th scope="col">Records</th>
+      <th scope="col">Chosen by</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in assignments %}
+    <tr>
+      <th scope="row">{{ a.when }}</th>
+      <td data-label="By">{{ a.by }}</td>
+      <td data-label="Assigned to">{{ a.actors | join(", ") }}</td>
+      <td data-label="Records">{{ a.records }}</td>
+      <td data-label="Chosen by">{% if a.filter %}the filter <code>{{ a.filter }}</code>{% else %}every record{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="field-meta">Newest first. The latest assignment that names a record decides who screens it; the reason for each is in <a href="{{ root }}/history">History</a>.</p>
+{% else %}
+<p class="field-meta">None yet: every record goes to the review&rsquo;s default reviewers.</p>
+{% endif %}
 
 <h2>Which records?</h2>
 <p>{{ total }} record{{ "s" if total != 1 else "" }} at this stage. Assign all of them, or narrow them with a <a href="{{ root }}/records">filter</a> such as <code>year &gt;= 2010</code>.</p>
@@ -44,6 +86,9 @@
 </div>
 
 <h2>Assign</h2>
+{% if filter_error %}
+<p class="notice" data-testid="assign-blocked">The filter above cannot be read, so there is nothing to assign to yet. Correct it and check how many records match.</p>
+{% else %}
 <form method="post" action="{{ root }}/assign/{{ stage }}" id="assign-form">
   <input type="hidden" name="{{ csrf_field_name }}" value="{{ session_token }}">
   <input type="hidden" name="filter" value="{{ filter_expr }}">
@@ -64,4 +109,5 @@
   </label>
   <button type="submit" class="btn btn-include">Assign and commit</button>
 </form>
+{% endif %}
 {% endblock %}

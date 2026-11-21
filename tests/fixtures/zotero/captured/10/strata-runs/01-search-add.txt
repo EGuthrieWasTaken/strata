@@ -1,0 +1,3 @@
+$ strata --why record the search before import search add --database MEDLINE --platform PubMed --by tester --query spacing effect AND retrieval practice
+recorded search S-01-medline
+[exit code: 0]

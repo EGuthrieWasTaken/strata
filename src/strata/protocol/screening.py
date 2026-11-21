@@ -36,7 +36,12 @@ _DECISIONS_TSV_HEADER = ("record_id", "decision", "criteria", "note")
 
 
 class ScreeningError(ValueError):
-    pass
+    """`code`, when given, is a short stable name for the refusal, so a screen can say it in its
+    own words (`strata.web.messages`)."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def configured_stages(repo: Repo) -> list[str]:
@@ -275,12 +280,14 @@ def _validate_and_build_body(
         if stage == "full-text":
             raise ScreeningError(
                 "an exclude decision at full-text always requires at least one cited "
-                "criterion (openspec:screening#screening-surface-contract)"
+                "criterion (openspec:screening#screening-surface-contract)",
+                code="full-text-exclusion-needs-reason",
             )
         if require_reason:
             raise ScreeningError(
                 "an exclude decision requires at least one cited criterion "
-                "(screening.require_exclusion_reason is set)"
+                "(screening.require_exclusion_reason is set)",
+                code="exclusion-needs-reason",
             )
 
     doc = criteria_mod.read_criteria_doc(repo)
@@ -358,6 +365,34 @@ def _parse_decisions_tsv(text: str) -> list[dict[str, str]]:
             )
         rows.append(dict(zip(_DECISIONS_TSV_HEADER, cells, strict=True)))
     return rows
+
+
+def screen_events_path(repo: Repo, stage: str, actor: str) -> Path:
+    """Where `actor`'s screening events for `stage` are appended."""
+    return _screen_events_path(repo, stage, actor)
+
+
+def build_imported_body(
+    repo: Repo,
+    *,
+    stage: str,
+    record_id: str,
+    decision: str,
+    cited: list[str],
+    note: str | None,
+) -> dict[str, Any]:
+    """A `screen` event body for a decision imported from elsewhere, checked exactly as a decision
+    made here is (`ScreeningError` for one that could not be made here), marked `imported`."""
+    return _validate_and_build_body(
+        repo,
+        stage=stage,
+        record_id=record_id,
+        decision=decision,
+        cited=cited,
+        note=note,
+        confidence=None,
+        imported=True,
+    )
 
 
 def import_decisions_tsv(repo: Repo, *, stage: str, text: str, actor: str) -> list[dict[str, Any]]:

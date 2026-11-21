@@ -1,0 +1,49 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items/TI5GQH7I/file/view",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 302,
+    "reason": "undefined",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Location",
+        "file:///home/USER/Zotero%20strata-test/storage/TI5GQH7I/Roediger%20and%20Karpicke%20-%202006%20-%20Test-enhanced%20learning.pdf"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ]
+    ],
+    "body_encoding": "text",
+    "body": ""
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "analysis": "primary",
+  "back_transformed": {
+    "ci_lb": 0.344074306107,
+    "ci_ub": 0.696166066716,
+    "estimate": 0.489420939826,
+    "scale": "ratio"
+  },
+  "dependency": {
+    "handling": "none",
+    "rho": null,
+    "studies_with_multiple_effects": []
+  },
+  "direction": "higher-is-better",
+  "double_zero_excluded": 0,
+  "excluded": {},
+  "k_effects": 13,
+  "k_pooled": 13,
+  "k_studies": 13,
+  "label": "preregistered",
+  "measure": "logRR",
+  "model": {
+    "ci_method": "wald",
+    "level": 0.95,
+    "tau2_estimator": "REML",
+    "type": "random-effects"
+  },
+  "pooled": {
+    "ci_method": "wald",
+    "coefficients": [
+      {
+        "ci_lb": -1.06689763881,
+        "ci_ub": -0.362167045506,
+        "df": null,
+        "estimate": -0.714532342158,
+        "name": "intrcpt",
+        "p": 7.05425810168e-05,
+        "se": 0.179781516105,
+        "statistic": -3.97444830613
+      }
+    ],
+    "conventions": {
+      "i2": "Q-based",
+      "prediction_df": "k-2",
+      "tau2_estimator": "REML",
+      "weights": "1/(v+tau2)"
+    },
+    "heterogeneity": {
+      "H2": 12.6860840069,
+      "I2": 92.1173468546,
+      "Q": 152.233008082,
+      "Q_df": 12,
+      "Q_p": 1.99676459085e-26,
+      "tau": 0.559681389843,
+      "tau2": 0.313243258137,
+      "tau2_ci": [
+        0.119718361141,
+        1.11147908406
+      ],
+      "tau_ci": [
+        0.346003412037,
+        1.05426708384
+      ]
+    },
+    "hk_truncation": null,
+    "k": 13,
+    "level": 0.95,
+    "model": "random-effects",
+    "prediction_interval": {
+      "convention": "t distribution on k-2 degrees of freedom",
+      "df": 11,
+      "lb": -2.00837590692,
+      "reason": null,
+      "ub": 0.579311222607
+    },
+    "tau": 0.559681389843,
+    "tau2": 0.313243258137,
+    "tau2_estimator": "REML",
+    "warnings_from_fit": []
+  },
+  "title": "BCG vaccine and tuberculosis",
+  "warnings": [
+    "high-heterogeneity"
+  ]
+}

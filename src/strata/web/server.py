@@ -122,7 +122,13 @@ async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
     """
     import uvicorn
 
-    from strata.web.app import create_app
+    from strata.core.repo import open_repo
+    from strata.core.screen_batches import RECOVERED_BODY, flush_under_lock
+    from strata.web.app import commit_due_batches, create_app, flush_screening_for_request
+
+    # Decisions an earlier server recorded and never committed (it was killed, or the machine went
+    # down) are committed before this one starts, as a batch of their reviewer's own.
+    flush_under_lock(open_repo(params.repo_root), body=RECOVERED_BODY)
 
     app = create_app(
         repo_root=params.repo_root,
@@ -134,7 +140,8 @@ async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
         public_url=params.public_url,
         max_upload_bytes=params.max_upload_mb * MIB,
     )
-    clock = app.state.strata.clock
+    state = app.state.strata
+    clock = state.clock
 
     config = uvicorn.Config(app, host=params.host, port=params.port, log_level="warning")
     server = uvicorn.Server(config)
@@ -143,7 +150,13 @@ async def serve_until_idle_or_interrupted(params: ServeParams) -> None:
         poll_interval = min(30.0, max(1.0, params.inactivity_timeout / 10))
         while not server.should_exit:
             await asyncio.sleep(poll_interval)
+            # A reviewer who has decided nothing for 15 minutes has their batch committed.
+            await asyncio.to_thread(commit_due_batches, state)
             if clock.is_expired():
                 server.should_exit = True
 
-    await asyncio.gather(server.serve(), _watchdog())
+    try:
+        await asyncio.gather(server.serve(), _watchdog())
+    finally:
+        # Stopping the server (Ctrl-C, or the inactivity exit) ends the session too.
+        flush_screening_for_request(state)

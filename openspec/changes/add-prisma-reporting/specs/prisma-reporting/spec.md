@@ -37,9 +37,19 @@ reports_sought             = reports_retrieved + reports_not_retrieved
 reports_retrieved          = reports_assessed
 reports_assessed           = reports_excluded_ft + reports_included
 reports_excluded_ft        = sum over exclusion reasons of count_per_reason
-studies_included          <= reports_included
+studies_included          <= reports_included + studies_from_split_reports
+studies_included           > 0 exactly when reports_included > 0
 reports_of_included_studies = reports_included
 ```
+
+A study can have several reports (a grouping) and one report can describe several studies (a
+split, as PRISMA 2020 allows), so `reports_of_included_studies` counts each report once however
+many studies it belongs to, and `studies_from_split_reports` is the number of studies beyond one
+per report that splits account for. A split is a decision, never a counting error.
+
+Wherever a failed identity is shown to a reviewer (the web interface), it MUST be said in words
+(which counts do not add up, and what to do), with the code and the identity kept for whoever has
+to look them up.
 
 `marked_ineligible_by_automation` MUST exist in the schema (0 in v1). Each count
 MUST be partitioned by `via` for the two-column diagram. The identities MUST
@@ -49,6 +59,12 @@ hold for any randomly generated review history (property P11).
 
 - **WHEN** counts are generated for a completed review
 - **THEN** every identity holds and `counts.json` records the assertions
+
+#### Scenario: A report split into two studies
+
+- **GIVEN** a finished review in which one included report is split into two studies
+- **WHEN** counts are generated
+- **THEN** every identity holds, the studies included are one more than before and the reports of included studies are unchanged
 
 #### Scenario: Broken identity
 

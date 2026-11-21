@@ -10,8 +10,11 @@ from the commands. Run `uv run python scripts/build_wiki_reference.py` after cha
 # ruff: noqa: E501
 from __future__ import annotations
 
+import pathlib
 import re
 import sys
+import types
+import typing
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -185,10 +188,43 @@ def _default(param: Any) -> str:
     return f"`{default}`"
 
 
+def _annotation_name(annotation: Any) -> str:
+    """Name a declared type as older typer releases named it: `str`, `int`, `path`, `<str str>`."""
+    if annotation is None:
+        return ""
+    args = typing.get_args(annotation)
+    origin = typing.get_origin(annotation)
+    if origin in (typing.Union, types.UnionType):
+        inner = [a for a in args if a is not type(None)]
+        return _annotation_name(inner[0]) if len(inner) == 1 else ""
+    if origin in (list, set, frozenset):
+        return _annotation_name(args[0]) if args else ""
+    if origin is tuple:
+        return "<" + " ".join(_annotation_name(a) for a in args) + ">"
+    if isinstance(annotation, type) and issubclass(annotation, pathlib.PurePath):
+        return "path"
+    return getattr(annotation, "__name__", "")
+
+
+def _argument_label(argument: Any) -> str:
+    """An argument's name as help shows it: its metavar if it has one (typer 0.29 and later drop
+    `human_readable_name`)."""
+    if hasattr(argument, "human_readable_name"):
+        return str(argument.human_readable_name)
+    return str(getattr(argument, "metavar", None) or argument.name)
+
+
 def _type_name(param: Any) -> str:
     if getattr(param, "is_flag", False):
         return "flag"
-    name = getattr(getattr(param, "type", None), "name", "") or ""
+    param_type = getattr(param, "type", None)
+    if param_type is not None:
+        name = getattr(param_type, "name", "") or ""
+    else:
+        # typer 0.29 and later keep the declared type on `type_descriptor` instead.
+        name = _annotation_name(
+            getattr(getattr(param, "type_descriptor", None), "annotation", None)
+        )
     shown = {"text": "text", "integer": "number", "float": "number", "boolean": "flag"}.get(
         name, name
     )
@@ -216,11 +252,7 @@ def _usage(path: list[str], command: Any) -> str:
     if hasattr(command, "commands") and command.commands:
         parts.append("COMMAND")
     for argument in arguments:
-        name = (
-            argument.human_readable_name.upper()
-            if hasattr(argument, "human_readable_name")
-            else argument.name.upper()
-        )
+        name = _argument_label(argument).upper()
         parts.append(name if argument.required else f"[{name}]")
     return " ".join(parts)
 
@@ -242,11 +274,7 @@ def _render_command(path: list[str], command: Any, depth: int) -> Iterable[str]:
         yield "| Argument | | Meaning |"
         yield "|---|---|---|"
         for argument in arguments:
-            name = (
-                argument.human_readable_name
-                if hasattr(argument, "human_readable_name")
-                else argument.name
-            )
+            name = _argument_label(argument)
             need = "required" if argument.required else "optional"
             yield f"| `{name}` | {need} | {_cell(getattr(argument, 'help', '') or '')} |"
         yield ""

@@ -36,7 +36,12 @@ _DISCUSS_SUBJECT = "adjudication-discuss"
 
 
 class AdjudicationError(ValueError):
-    pass
+    """`code`, when given, is a short stable name for the refusal, so a screen can say it in its
+    own words (`strata.web.messages`)."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def is_adjudicator(repo: Repo, actor: str) -> bool:
@@ -108,7 +113,8 @@ def record_adjudication(
     if not is_adjudicator(repo, actor):
         raise AdjudicationError(
             f"{actor!r} is not an adjudicator for this review "
-            "(screening.adjudicators or role 'adjudicator'/'lead')"
+            "(screening.adjudicators or role 'adjudicator'/'lead')",
+            code="not-an-adjudicator",
         )
     if not rationale.strip():
         raise AdjudicationError(
@@ -134,7 +140,8 @@ def record_adjudication(
     if decision == "exclude" and not cited_ids and stage == "full-text":
         raise AdjudicationError(
             "an exclude decision at full-text always requires at least one cited "
-            "criterion (openspec:screening#screening-surface-contract)"
+            "criterion (openspec:screening#screening-surface-contract)",
+            code="full-text-exclusion-needs-reason",
         )
 
     state = screening_mod.resolve_record_state(repo, stage, record_id)

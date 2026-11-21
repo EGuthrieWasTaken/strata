@@ -1,0 +1,172 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "https://api.zotero.org/users/22585168/items",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Write-Token": "ce84831b5db84fa9a1a76c9e57ef001a",
+      "Zotero-API-Key": "REDACTED"
+    },
+    "body": [
+      {
+        "key": "PXURCE4Y",
+        "version": 46,
+        "collections": [
+          "EBGRU5QN"
+        ]
+      }
+    ]
+  },
+  "note": "puts the item the person added in the app into strata-test so strata can pull it (membership only)",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.1",
+    "headers": [
+      [
+        "Date",
+        "Sat, 14 Nov 2026 18:35:07 GMT"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Connection",
+        "keep-alive"
+      ],
+      [
+        "Server",
+        "Apache"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "42"
+      ],
+      [
+        "Last-Modified-Version",
+        "61"
+      ],
+      [
+        "Strict-Transport-Security",
+        "max-age=31536000; includeSubDomains; preload"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "successful": {
+        "0": {
+          "key": "PXURCE4Y",
+          "version": 61,
+          "library": {
+            "type": "user",
+            "id": 22585168,
+            "name": "strata-review",
+            "links": {
+              "alternate": {
+                "href": "https://www.zotero.org/strata-review",
+                "type": "text/html"
+              }
+            }
+          },
+          "links": {
+            "self": {
+              "href": "https://api.zotero.org/users/22585168/items/PXURCE4Y",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/strata-review/items/PXURCE4Y",
+              "type": "text/html"
+            },
+            "attachment": {
+              "href": "https://api.zotero.org/users/22585168/items/UII52E7P",
+              "type": "application/json",
+              "attachmentType": "application/pdf",
+              "attachmentSize": 697477
+            }
+          },
+          "meta": {
+            "creatorSummary": "Hedges and Olkin",
+            "parsedDate": "1984",
+            "numChildren": 1
+          },
+          "data": {
+            "key": "PXURCE4Y",
+            "version": 61,
+            "itemType": "journalArticle",
+            "title": "Nonparametric estimators of effect size in meta-analysis.",
+            "creators": [
+              {
+                "creatorType": "author",
+                "firstName": "Larry V.",
+                "lastName": "Hedges"
+              },
+              {
+                "creatorType": "author",
+                "firstName": "Ingram",
+                "lastName": "Olkin"
+              }
+            ],
+            "abstractNote": "",
+            "publicationTitle": "Psychological Bulletin",
+            "publisher": "",
+            "place": "",
+            "date": "11/1984",
+            "volume": "96",
+            "issue": "3",
+            "section": "",
+            "partNumber": "",
+            "partTitle": "",
+            "pages": "573-580",
+            "series": "",
+            "seriesTitle": "",
+            "seriesText": "",
+            "journalAbbreviation": "Psychological Bulletin",
+            "DOI": "10.1037/0033-2909.96.3.573",
+            "citationKey": "",
+            "url": "https://doi.apa.org/doi/10.1037/0033-2909.96.3.573",
+            "accessDate": "2026-11-14T05:26:38Z",
+            "PMID": "",
+            "PMCID": "",
+            "ISSN": "1939-1455, 0033-2909",
+            "archive": "",
+            "archiveLocation": "",
+            "shortTitle": "",
+            "language": "en",
+            "libraryCatalog": "DOI.org (Crossref)",
+            "callNumber": "",
+            "rights": "",
+            "extra": "",
+            "tags": [],
+            "collections": [
+              "EBGRU5QN"
+            ],
+            "relations": {},
+            "dateAdded": "2026-11-14T05:26:38Z",
+            "dateModified": "2026-11-14T05:26:38Z"
+          }
+        }
+      },
+      "success": {
+        "0": "PXURCE4Y"
+      },
+      "unchanged": {},
+      "failed": {}
+    }
+  }
+}

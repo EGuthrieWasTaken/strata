@@ -1,0 +1,53 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "http://127.0.0.1:23119/api/local/authorize",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "Zotero-Server-ID": "dx2OEZVeHz9j"
+    },
+    "body": {
+      "appName": "strata real-run capture"
+    }
+  },
+  "note": "asks the person in Zotero: Allow / Always Allow / Deny",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": {
+      "key": "REDACTED-LOCAL-KEY",
+      "remember": true
+    }
+  }
+}

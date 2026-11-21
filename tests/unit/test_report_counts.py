@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from strata.core.repo import Repo
 from strata.report import counts as counts_mod
 from tests.unit._m5 import finished_review
 
@@ -168,3 +169,75 @@ def test_records_merged_away_are_duplicates_removed_from_the_origin_that_found_t
         counts.by_origin["website"].duplicates_removed == 1
     )  # found by a website, kept as MEDLINE's
     assert counts.by_origin["searches"].records_screened == 2
+
+
+def _included_reports(repo: Repo) -> list[str]:
+    from strata.protocol import studies as studies_mod
+
+    return studies_mod.included_reports(repo)
+
+
+def test_a_report_split_into_two_studies_still_reconciles(tmp_path: Path) -> None:
+    """One paper describing two experiments is one report and two studies (#84)."""
+    from strata.protocol import studies as studies_mod
+
+    repo, _ = finished_review(tmp_path)
+    before = counts_mod.compute(repo)
+    reports = _included_reports(repo)
+    alone = next(r for r, s in studies_mod.study_map(repo).members.items() if len(s) == 1)
+    report = studies_mod.study_map(repo).members[alone][0]
+    studies_mod.split_report(
+        repo, report=report, parts=2, actor="ethan", rationale="Two experiments."
+    )
+    counts = counts_mod.compute(repo)
+    assert counts.reconciled, counts.failures
+    assert counts.studies_included == before.studies_included + 1
+    assert counts.studies_from_split_reports == 1
+    assert counts.reports_of_included_studies == counts.totals.reports_included == len(reports)
+    counts_mod.require_reconciled(counts)
+
+
+def test_a_split_report_grouped_with_another_counts_each_report_once(tmp_path: Path) -> None:
+    from strata.protocol import studies as studies_mod
+
+    repo, _ = finished_review(tmp_path)
+    reports = _included_reports(repo)
+    assert len(reports) >= 2
+    studies_mod.split_report(
+        repo, report=reports[0], parts=3, actor="ethan", rationale="Three experiments."
+    )
+    first = studies_mod.study_map(repo).studies_of[reports[0]][0]
+    studies_mod.group_reports(
+        repo,
+        reports=[reports[0], reports[1]],
+        actor="ethan",
+        rationale="The second paper follows up the first experiment.",
+        study=first,
+    )
+    counts = counts_mod.compute(repo)
+    assert counts.reconciled, counts.failures
+    assert counts.reports_of_included_studies == len(reports)
+    assert counts.studies_included <= len(reports) + counts.studies_from_split_reports
+
+
+def test_a_failed_identity_is_said_in_words(tmp_path: Path) -> None:
+    repo, _ = finished_review(tmp_path)
+    counts = counts_mod.compute(repo)
+    counts.assertions = [
+        {
+            "identity": "reports_retrieved = reports_assessed [website]",
+            "lhs": 3,
+            "rhs": 2,
+            "holds": False,
+        },
+        {"identity": "something new", "lhs": 1, "rhs": 0, "holds": False},
+        {"identity": "reports_retrieved = reports_assessed", "lhs": 3, "rhs": 3, "holds": True},
+    ]
+    words = counts_mod.failures_in_words(counts)
+    assert len(words) == 2
+    assert words[0].startswith("The reports retrieved (3) are not the reports assessed")
+    assert 'column for "website"' in words[0]
+    assert "something new does not hold (1 against 0)" in words[1]
+    # every identity the generator asserts has its own sentence
+    for assertion in counts_mod.compute(repo).assertions:
+        assert "does not hold" not in counts_mod.in_words(assertion), assertion["identity"]

@@ -83,6 +83,7 @@ review (`openspec:repository-format#format-versioning`).
 | [adjudication](specs/adjudication/spec.md) | Resolving conflicts |
 | [full-text-retrieval](specs/full-text-retrieval/spec.md) | The retrieval queue, the manifest of documents by identifier and version, not-retrieved reasons, opt-in open-access links |
 | [study-grouping](specs/study-grouping/spec.md) | Reports into studies, splitting multi-study reports, suggestions that are never applied |
+| [zotero-integration](specs/zotero-integration/spec.md) | The optional Zotero link: local and Web API transports, the identity mapping, pull, push, full texts through Zotero (Zotero 10 or later) |
 | [data-extraction](specs/data-extraction/spec.md) | The coding form, units, effect entry, data-quality guards, dual extraction and reconciliation, effect export |
 | [risk-of-bias](specs/risk-of-bias/spec.md) | RoB 2 suggestions with recorded overrides, ROBINS-I, Newcastle-Ottawa, custom instruments, filters |
 | [cli](specs/cli/spec.md) | Global options, exit codes, commands, status, errors |
@@ -107,7 +108,6 @@ review (`openspec:repository-format#format-versioning`).
 | `add-container-image` | M5.1 (can land any time) |
 | `add-hosted-team-deployment` | M5.1 |
 | `add-distribution-and-adoption` | M6 |
-| `add-zotero-integration` | M6 |
 | `add-review-repository-ci` | M6 |
 | `add-web-ui-write-surfaces` | M6 |
 | `add-ai-participation` | M6 (proposed; not yet on the roadmap, does not gate `1.0.0`) |

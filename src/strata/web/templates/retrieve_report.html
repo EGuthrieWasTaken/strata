@@ -13,7 +13,7 @@
 </article>
 
 {% if error %}
-<p class="error" role="alert" data-testid="form-error">{{ error }}</p>
+<div class="error" role="alert" data-testid="form-error"><p>{{ error }}</p>{% if error_detail %}<p class="field-meta error-detail">{{ error_detail }}</p>{% endif %}</div>
 {% endif %}
 
 <form method="post" action="{{ root }}/retrieve/{{ report }}" id="retrieve-form">

@@ -15,6 +15,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
+from tests.unit._locks import held_elsewhere
 
 
 def test_find_repo_root_walks_up_from_subdirectory(tmp_path: Path) -> None:
@@ -129,9 +130,23 @@ def _wait_for_the_lock(repo: Repo, timeout: float) -> None:
 def test_repo_lock_times_out_when_held_and_names_the_holder(tmp_path: Path) -> None:
     _write_minimal_manifest(tmp_path)
     repo = open_repo(tmp_path)
-    with repo_lock(repo), pytest.raises(LockTimeoutError, match=str(os.getpid())) as caught:
+    with held_elsewhere(repo), pytest.raises(LockTimeoutError, match=str(os.getpid())) as caught:
         _wait_for_the_lock(repo, 0.2)
     assert "timed out after 0.2s" in str(caught.value)
+
+
+def test_repo_lock_is_reentrant_within_a_thread_and_released_by_the_outermost(
+    tmp_path: Path,
+) -> None:
+    _write_minimal_manifest(tmp_path)
+    repo = open_repo(tmp_path)
+    lock_path = repo.path(".strata", "lock")
+    with repo_lock(repo, timeout=0.2), repo_lock(repo, timeout=0.2) as inner:
+        assert inner.reclaimed_from is None
+        assert lock_path.exists()
+    assert not lock_path.exists()
+    with repo_lock(repo, timeout=0.2):  # and taken again afterwards
+        pass
 
 
 def test_repo_lock_reclaims_a_lock_whose_holder_is_gone(tmp_path: Path) -> None:

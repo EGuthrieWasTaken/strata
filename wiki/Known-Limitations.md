@@ -9,7 +9,6 @@ items are fixed.
 | Limitation | What to do |
 |---|---|
 | **`strata config` does not commit.** It changes `strata.toml` and leaves the change uncommitted, so `strata sync` will refuse until you commit it | `git commit -am "settings: ..."` after `strata config` |
-| **Screening in the browser is not committed when you leave the screen.** `strata serve` writes each decision to disk at once, but nothing commits it until the next change to the review is committed. Until then the working tree is dirty, `strata verify` reports derived files out of date (`E_DERIVED_DRIFT`), and `strata sync` refuses | Run `strata verify --fix`, then `git add -A && git commit -m "screening: title-abstract"`. Or make any other change through `strata`, which commits the pending decisions too. A hosted instance commits them for you |
 | **A command run without a reason, in a script, does its work and then fails.** In a non-interactive run without `--why`, some commands (`actor add`, `dedup`, `criteria add`, `extract init`, ...) change files and only then discover that no reason was given, leaving the tree uncommitted. (A fix is queued.) | Always pass `--why "..."` in scripts. If it happens, `git checkout . && git clean -fd` discards the uncommitted work, then run the command again with `--why` |
 | **`strata verify --fast` (the pre-commit hook) does not check that derived files are up to date, and `strata verify --fix` repairs only those.** The full `strata verify` reports `E_DERIVED_DRIFT` for a file under `derived/` that regeneration would write differently, and `--fix` regenerates it. The fast check skips this (regenerating the views does not yet fit the two seconds it is allowed), and `--fix` does not yet re-link a broken hash chain or truncate a half-written line | Run the full `strata verify` before you share (`strata sync` and the review-repository CI do); repair a broken chain as in [Recovery](Recovery-and-Troubleshooting) |
 | **The screening-state filter fields are not available.** `tiab`, `fulltext`, `stale`, `criteria` and `actor_decision.<handle>` are part of the [filter language](Filter-Language) but report "not available yet". As a result `strata assign --filter` and `strata screen --filter` cannot select by screening state, and **the full-text queue is not narrowed to records that passed title-abstract**: it lists every record, and `strata status` shows the never-assessed remainder as "unscreened" at full text | Select by `id in [...]` using the ids in `derived/pool.tsv` ([Screening](Screening#moving-to-full-text)) |
@@ -37,11 +36,12 @@ items are fixed.
   them. Watch the review queue on your own data.
 - **Containers.** The image is built and smoke-tested in CI on amd64 and arm64 and published to GitHub's
   registry, but not yet tried on Docker Desktop for macOS or Windows, with an SSH agent for `strata sync`, or
-  with `compose.yaml`. It is not signed yet ([Running in a container](Running-in-a-Container)).
+  with `compose.yaml` there (it has run on Linux). It is not signed yet ([Running in a container](Running-in-a-Container)).
 - **A hosted instance** (`strata host`) is tested in-process and has run on one machine in local-testing
-  mode, but the example `docker/hosted/compose.yaml` with Caddy and a real certificate has not been run, sign-in
-  with a real OpenID Connect provider or GitHub has only been tested against a stand-in, and the security
-  review that is to precede a release has not been done ([Running a hosted instance](Running-a-Hosted-Instance)).
+  mode, and the example `docker/hosted/compose.yaml` with Caddy has run on one machine with a certificate
+  of Caddy's own, not with Let's Encrypt. Sign-in with a real OpenID Connect provider or GitHub has only
+  been tested against a stand-in, and the security review that is to precede a release has had two passes
+  by the same kind of reviewer that wrote the code, not an independent one ([Running a hosted instance](Running-a-Hosted-Instance)).
   Screening batches on an instance are committed with a generated message and no rationale, even when a batch
   changes an earlier decision; the decision's note is where to say why.
 - **Checks on pull requests** (`strata init --ci`): the workflow and the code behind it are tested, but the
@@ -51,12 +51,14 @@ items are fixed.
 
 ## Zotero
 
-- **Never tried against a running Zotero.** The link is tested against a stand-in written from Zotero's
-  published API documentation, for Zotero 6 and 7. The local API in particular has not been seen answering,
-  so how Zotero 7 actually replies, and whether its replies carry what `strata` reads, is unconfirmed. If
-  `strata zotero link` says the local API "did not answer as Zotero's API does", `strata` falls back to the
-  Web API; please report what you saw.
-- The local API is read-only, so pushing always goes through the Web API and needs a key.
+- **Zotero 10 or later is what is supported**, and it has been tried against one running Zotero only:
+  version 10.0.8 on Linux, with a personal and a group library. macOS and Windows have not been tried, and
+  an older Zotero is not supported (with one too old to have a local API, `strata` uses the Web API). If `strata zotero link` says the local API "did not answer as Zotero's API does", `strata`
+  falls back to the Web API; please report what you saw.
+- Pushing always goes through the Web API and needs a key. (Zotero 10's local API can take writes, but only
+  with a permission you grant in the app; `strata` does not use it.)
+- A link made through the local API does not know Zotero's version of each item, so the first push after it
+  cannot tell whether an item was edited in Zotero meanwhile. It only ever adds the item to a collection.
 - A pull brings in journal articles, books and the like but not notes or attachments as records of their own.
 - Pushing creates a plain item (title, authors, journal, date, abstract, identifiers) and attaches no
   files.

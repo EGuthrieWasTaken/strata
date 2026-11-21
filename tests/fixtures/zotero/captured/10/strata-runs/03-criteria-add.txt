@@ -1,0 +1,3 @@
+$ strata --why one inclusion criterion so screening can finish criteria add --kind exclusion --label Not about learning --definition Not about learning or memory. --applies-at title-abstract,full-text --by tester
+added EXC-01 (criteria v1)
+[exit code: 0]

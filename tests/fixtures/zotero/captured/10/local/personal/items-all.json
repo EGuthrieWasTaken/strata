@@ -1,0 +1,1127 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items?limit=100",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "every item incl. attachments",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "15"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items?limit=100>; rel=\"last\", <https://www.zotero.org/users/22585168/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "G9PKINI3",
+        "version": 3,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/G9PKINI3",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/G9PKINI3",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Scratch",
+          "parsedDate": "2026",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "G9PKINI3",
+          "version": 3,
+          "itemType": "journalArticle",
+          "title": "Scratch item for write probes",
+          "date": "2026",
+          "language": "en",
+          "creators": [
+            {
+              "firstName": "Probe",
+              "lastName": "Scratch",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EDKUIRII"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:32Z",
+          "dateModified": "2026-11-14T04:34:32Z"
+        }
+      },
+      {
+        "key": "GM5XVZAN",
+        "version": 19,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/GM5XVZAN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/GM5XVZAN",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/VTFDUQN2",
+            "type": "application/json"
+          },
+          "enclosure": {
+            "href": "file:///home/USER/Zotero%20strata-test/storage/GM5XVZAN/Snapshot.html",
+            "type": "text/html",
+            "title": "Snapshot.html",
+            "length": 181
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "GM5XVZAN",
+          "version": 19,
+          "itemType": "attachment",
+          "title": "Snapshot",
+          "url": "https://doi.org/10.1037/0033-2909.132.3.354",
+          "parentItem": "VTFDUQN2",
+          "linkMode": "imported_url",
+          "contentType": "text/html",
+          "charset": "",
+          "filename": "Snapshot.html",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z",
+          "mtime": 1794630872086,
+          "md5": "3c948944dc05d417d923bbf8d8ae7a1a"
+        }
+      },
+      {
+        "key": "TI5GQH7I",
+        "version": 18,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/TI5GQH7I",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/TI5GQH7I",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/CFI7USQX",
+            "type": "application/json"
+          },
+          "enclosure": {
+            "href": "file:///home/USER/Zotero%20strata-test/storage/TI5GQH7I/Roediger%20and%20Karpicke%20-%202006%20-%20Test-enhanced%20learning.pdf",
+            "type": "application/pdf",
+            "title": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+            "length": 671
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "TI5GQH7I",
+          "version": 18,
+          "itemType": "attachment",
+          "title": "Full Text PDF",
+          "parentItem": "CFI7USQX",
+          "linkMode": "imported_file",
+          "contentType": "application/pdf",
+          "charset": "",
+          "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z",
+          "mtime": 1794630871537,
+          "md5": "2b05a13fe8b9f59a8d9106ab125cd447"
+        }
+      },
+      {
+        "key": "CWRCUFQN",
+        "version": 17,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/CWRCUFQN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/CWRCUFQN",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "CWRCUFQN",
+          "version": 17,
+          "itemType": "attachment",
+          "title": "Publisher page",
+          "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+          "parentItem": "BEITJ9RM",
+          "linkMode": "linked_url",
+          "contentType": "text/html",
+          "charset": "",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z"
+        }
+      },
+      {
+        "key": "8ZM89RUI",
+        "version": 4,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/8ZM89RUI",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/8ZM89RUI",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Pashler et al.",
+          "parsedDate": "2007",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "8ZM89RUI",
+          "version": 4,
+          "itemType": "report",
+          "title": "Organizing instruction and study to improve student learning",
+          "date": "2007",
+          "language": "en",
+          "place": "Washington, DC",
+          "institution": "National Center for Education Research, Institute of Education Sciences, U.S. Department of Education",
+          "reportNumber": "NCER 2007-2004",
+          "creators": [
+            {
+              "firstName": "Harold",
+              "lastName": "Pashler",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Patrice M.",
+              "lastName": "Bain",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Brian A.",
+              "lastName": "Bottge",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Arthur",
+              "lastName": "Graesser",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Kenneth",
+              "lastName": "Koedinger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Mark",
+              "lastName": "McDaniel",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Janet",
+              "lastName": "Metcalfe",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "GMCCX6GH",
+        "version": 5,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/GMCCX6GH",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/GMCCX6GH",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Jost",
+          "parsedDate": "1897",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "GMCCX6GH",
+          "version": 5,
+          "itemType": "journalArticle",
+          "title": "Die Assoziationsfestigkeit in ihrer Abhängigkeit von der Verteilung der Wiederholungen",
+          "date": "1897",
+          "language": "de",
+          "volume": "16",
+          "pages": "436-472",
+          "publicationTitle": "Zeitschrift für Psychologie und Physiologie der Sinnesorgane",
+          "creators": [
+            {
+              "firstName": "Adolf",
+              "lastName": "Jost",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "ZJVWVFUA",
+        "version": 6,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/ZJVWVFUA",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/ZJVWVFUA",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Shannon",
+          "parsedDate": "1937",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "ZJVWVFUA",
+          "version": 6,
+          "itemType": "thesis",
+          "title": "A Symbolic Analysis of Relay and Switching Circuits",
+          "date": "1937",
+          "language": "en",
+          "place": "Cambridge, MA",
+          "thesisType": "Master's thesis",
+          "university": "Massachusetts Institute of Technology",
+          "creators": [
+            {
+              "firstName": "Claude E.",
+              "lastName": "Shannon",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "PN4APK5M",
+        "version": 7,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/PN4APK5M",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/PN4APK5M",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Vaswani et al.",
+          "parsedDate": "2017-06-12",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "PN4APK5M",
+          "version": 7,
+          "itemType": "preprint",
+          "title": "Attention Is All You Need",
+          "date": "2017-06-12",
+          "DOI": "10.48550/arXiv.1706.03762",
+          "url": "https://arxiv.org/abs/1706.03762",
+          "language": "en",
+          "repository": "arXiv",
+          "archiveID": "arXiv:1706.03762",
+          "creators": [
+            {
+              "firstName": "Ashish",
+              "lastName": "Vaswani",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Noam",
+              "lastName": "Shazeer",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Niki",
+              "lastName": "Parmar",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Jakob",
+              "lastName": "Uszkoreit",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Llion",
+              "lastName": "Jones",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Aidan N.",
+              "lastName": "Gomez",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Lukasz",
+              "lastName": "Kaiser",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Illia",
+              "lastName": "Polosukhin",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "26DVGR6X",
+        "version": 8,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/26DVGR6X",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/26DVGR6X",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Bjork⁩ and ⁨Bjork⁩",
+          "parsedDate": "1992",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "26DVGR6X",
+          "version": 8,
+          "itemType": "bookSection",
+          "title": "A new theory of disuse and an old theory of stimulus fluctuation",
+          "date": "1992",
+          "language": "en",
+          "volume": "2",
+          "publisher": "Lawrence Erlbaum Associates",
+          "place": "Hillsdale, NJ",
+          "pages": "35-67",
+          "bookTitle": "From learning processes to cognitive processes: Essays in honor of William K. Estes",
+          "creators": [
+            {
+              "firstName": "Robert A.",
+              "lastName": "Bjork",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Elizabeth L.",
+              "lastName": "Bjork",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Alice F.",
+              "lastName": "Healy",
+              "creatorType": "editor"
+            },
+            {
+              "firstName": "Stephen M.",
+              "lastName": "Kosslyn",
+              "creatorType": "editor"
+            },
+            {
+              "firstName": "Richard M.",
+              "lastName": "Shiffrin",
+              "creatorType": "editor"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "ZZHHPIS3",
+        "version": 9,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/ZZHHPIS3",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/ZZHHPIS3",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Brown et al.",
+          "parsedDate": "2014",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "ZZHHPIS3",
+          "version": 9,
+          "itemType": "book",
+          "title": "Make It Stick: The Science of Successful Learning",
+          "date": "2014",
+          "language": "en",
+          "publisher": "Belknap Press of Harvard University Press",
+          "place": "Cambridge, MA",
+          "ISBN": "978-0-674-72901-8",
+          "creators": [
+            {
+              "firstName": "Peter C.",
+              "lastName": "Brown",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Henry L.",
+              "lastName": "Roediger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Mark A.",
+              "lastName": "McDaniel",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "8REME2HU",
+        "version": 10,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/8REME2HU",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/8REME2HU",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Pavlik⁩ and ⁨Anderson⁩",
+          "parsedDate": "2008-06",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "8REME2HU",
+          "version": 10,
+          "itemType": "journalArticle",
+          "title": "Using a model to compute the optimal schedule of practice",
+          "date": "2008-06",
+          "DOI": "10.1037/1076-898X.14.2.101",
+          "language": "en",
+          "extra": "PMID: 18590367",
+          "volume": "14",
+          "pages": "101-117",
+          "publicationTitle": "Journal of Experimental Psychology: Applied",
+          "issue": "2",
+          "creators": [
+            {
+              "firstName": "Philip I.",
+              "lastName": "Pavlik",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "John R.",
+              "lastName": "Anderson",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "NR9FXZUN",
+        "version": 11,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/NR9FXZUN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/NR9FXZUN",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Dunlosky et al.",
+          "parsedDate": "2013-01",
+          "numChildren": 0
+        },
+        "data": {
+          "key": "NR9FXZUN",
+          "version": 11,
+          "itemType": "journalArticle",
+          "title": "Improving students' learning with effective learning techniques: Promising directions from cognitive and educational psychology",
+          "date": "2013-01",
+          "DOI": "10.1177/1529100612453266",
+          "language": "en",
+          "extra": "PMID: 26173288",
+          "volume": "14",
+          "pages": "4-58",
+          "publicationTitle": "Psychological Science in the Public Interest",
+          "issue": "1",
+          "creators": [
+            {
+              "firstName": "John",
+              "lastName": "Dunlosky",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Katherine A.",
+              "lastName": "Rawson",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Elizabeth J.",
+              "lastName": "Marsh",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Mitchell J.",
+              "lastName": "Nathan",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Daniel T.",
+              "lastName": "Willingham",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "VTFDUQN2",
+        "version": 12,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/VTFDUQN2",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/VTFDUQN2",
+            "type": "text/html"
+          },
+          "attachment": {
+            "href": "http://localhost:23119/api/users/22585168/items/GM5XVZAN",
+            "type": "application/json",
+            "attachmentType": "text/html",
+            "attachmentSize": 181
+          }
+        },
+        "meta": {
+          "creatorSummary": "Cepeda et al.",
+          "parsedDate": "2006-05",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "VTFDUQN2",
+          "version": 12,
+          "itemType": "journalArticle",
+          "title": "Distributed practice in verbal recall tasks: A review and quantitative synthesis",
+          "date": "2006-05",
+          "DOI": "10.1037/0033-2909.132.3.354",
+          "language": "en",
+          "extra": "PMID: 16719566",
+          "volume": "132",
+          "pages": "354-380",
+          "publicationTitle": "Psychological Bulletin",
+          "issue": "3",
+          "creators": [
+            {
+              "firstName": "Nicholas J.",
+              "lastName": "Cepeda",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Harold",
+              "lastName": "Pashler",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Edward",
+              "lastName": "Vul",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "John T.",
+              "lastName": "Wixted",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Doug",
+              "lastName": "Rohrer",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "CFI7USQX",
+        "version": 13,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/CFI7USQX",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/CFI7USQX",
+            "type": "text/html"
+          },
+          "attachment": {
+            "href": "http://localhost:23119/api/users/22585168/items/TI5GQH7I",
+            "type": "application/json",
+            "attachmentType": "application/pdf",
+            "attachmentSize": 671
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Roediger⁩ and ⁨Karpicke⁩",
+          "parsedDate": "2006-03",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "CFI7USQX",
+          "version": 13,
+          "itemType": "journalArticle",
+          "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+          "date": "2006-03",
+          "DOI": "10.1111/j.1467-9280.2006.01693.x",
+          "language": "en",
+          "extra": "PMID: 16507066",
+          "volume": "17",
+          "pages": "249-255",
+          "publicationTitle": "Psychological Science",
+          "ISSN": "0956-7976",
+          "issue": "3",
+          "creators": [
+            {
+              "firstName": "Henry L.",
+              "lastName": "Roediger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Jeffrey D.",
+              "lastName": "Karpicke",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "BEITJ9RM",
+        "version": 14,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/BEITJ9RM",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Cepeda et al.",
+          "parsedDate": "2008-11",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "BEITJ9RM",
+          "version": 14,
+          "itemType": "journalArticle",
+          "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+          "date": "2008-11",
+          "DOI": "10.1111/j.1467-9280.2008.02209.x",
+          "language": "en",
+          "extra": "PMID: 19076480",
+          "volume": "19",
+          "pages": "1095-1102",
+          "publicationTitle": "Psychological Science",
+          "ISSN": "0956-7976",
+          "issue": "11",
+          "creators": [
+            {
+              "firstName": "Nicholas J.",
+              "lastName": "Cepeda",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Edward",
+              "lastName": "Vul",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Doug",
+              "lastName": "Rohrer",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "John T.",
+              "lastName": "Wixted",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Harold",
+              "lastName": "Pashler",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      }
+    ]
+  }
+}

@@ -16,6 +16,7 @@ import re
 import shutil
 import sys
 import webbrowser
+from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 from pathlib import Path
@@ -66,7 +67,7 @@ from strata.core.repo import (
     open_repo,
     repo_lock,
 )
-from strata.core.screen_batches import flush_pending_screening, flush_under_lock
+from strata.core.screen_batches import batch_summary, flush_under_lock
 from strata.core.validate import SchemaValidationError
 from strata.dedup import engine as engine_mod
 from strata.extract import export as export_mod
@@ -78,6 +79,7 @@ from strata.ingest import pipeline as pipeline_mod
 from strata.ingest.enrich import unpaywall as unpaywall_mod
 from strata.integrations.reference_manager import ReferenceManagerError
 from strata.integrations.zotero import connect as zotero_connect
+from strata.integrations.zotero import launch as zotero_launch
 from strata.integrations.zotero import operations as zotero_ops
 from strata.integrations.zotero import retrieval as zotero_retrieval
 from strata.mcpserver import server as mcp_server_mod
@@ -85,6 +87,7 @@ from strata.protocol import adjudication as adjudication_mod
 from strata.protocol import audit as audit_mod
 from strata.protocol import criteria as criteria_mod
 from strata.protocol import irr as irr_mod
+from strata.protocol import migrated_decisions as migrated_mod
 from strata.protocol import pool as pool_mod
 from strata.protocol import rescreen as rescreen_mod
 from strata.protocol import retrieval as retrieval_mod
@@ -95,7 +98,6 @@ from strata.protocol import suggestions as suggestions_mod
 from strata.report import bibliography as bibliography_mod
 from strata.report import checklist as checklist_mod
 from strata.report import counts as counts_mod
-from strata.report import facts as facts_mod
 from strata.report import flow as flow_mod
 from strata.report import package as package_mod
 from strata.report import sections as sections_mod
@@ -260,6 +262,19 @@ def _warn_lock_reclaimed(previous_holder: int | None) -> None:
             "is no longer running; it may have stopped part-way through a write. This run carried "
             "on; `strata verify` checks that nothing was left half-done."
         )
+
+
+@contextlib.contextmanager
+def _holding_lock(repo: Repo) -> Iterator[None]:
+    """The repository lock for a command's write and commit
+    (openspec:architecture#concurrency-and-locking); a lock held elsewhere for too long ends the
+    command with the holder named."""
+    try:
+        with repo_lock(repo) as held:
+            _warn_lock_reclaimed(held.reclaimed_from)
+            yield
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 def _lock_busy(exc: LockTimeoutError) -> NoReturn:
@@ -789,8 +804,9 @@ def _commit_manifest_op(
     commit_obj = StructuredCommit(
         op=op, scope=scope, summary=summary, body=rationale, trailers=trailers
     )
-    gitio.add(repo.root, ["strata.toml"])
-    gitio.commit(repo.root, commit_obj.message())
+    with _holding_lock(repo):
+        gitio.add(repo.root, ["strata.toml"])
+        gitio.commit(repo.root, commit_obj.message())
 
 
 @actor_app.command("add")
@@ -1366,7 +1382,7 @@ def import_command(
         None,
         "--format",
         help="Override format detection: csl-json | ris | bibtex | medline | endnote-xml | "
-        "csv | tsv | xlsx | citation-list",
+        "csv | tsv | xlsx | citation-list, or a tool's export: rayyan | covidence | eppi-json",
     ),
     sheet: str | None = typer.Option(
         None, "--sheet", help="For .xlsx: the sheet name or position (default: the first sheet)"
@@ -1496,7 +1512,10 @@ def _commit_domain_op(
     summary: str,
     by: str,
     extra_trailers: dict[str, str] | None = None,
+    did: str | None = None,
 ) -> None:
+    """`did` is what the rationale prompt says was done, when the commit's summary does not read
+    as a sentence after "You"."""
     ops_mod.commit_domain_work(
         repo,
         op=op,
@@ -1505,7 +1524,7 @@ def _commit_domain_op(
         actor=by,
         extra_trailers=extra_trailers,
         commit=not ctx.obj["no_commit"],
-        rationale=lambda: _get_rationale(ctx, repo, f"You {summary}."),
+        rationale=lambda: _get_rationale(ctx, repo, f"You {did or summary}."),
     )
 
 
@@ -1888,33 +1907,6 @@ def _split_stages(raw: str) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def _commit_criteria_op(
-    ctx: typer.Context,
-    repo: Repo,
-    *,
-    op: str,
-    criterion_id: str,
-    summary: str,
-    by: str,
-    rationale: str,
-) -> None:
-    # Regenerated regardless of --no-commit: a criteria change can make
-    # decisions stale even when the caller doesn't want a commit yet.
-    pool_mod.regenerate_all(repo)
-    if ctx.obj["no_commit"]:
-        return
-    commit_obj = StructuredCommit(
-        op=op,
-        scope=criterion_id,
-        summary=summary,
-        body=rationale,
-        trailers={"Op": op, "Criterion": criterion_id, "Actor": by},
-    )
-    flush_pending_screening(repo)
-    gitio.add(repo.root, ["protocol/criteria.yaml", "events/criteria", "derived"])
-    gitio.commit(repo.root, commit_obj.message())
-
-
 @criteria_app.command("add")
 def criteria_add(
     ctx: typer.Context,
@@ -1977,36 +1969,34 @@ def criteria_edit(
     (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are editing {criterion_id} ({direction}).")
+
+    def say_what_was_edited(changed: ops_mod.CriterionChanged) -> None:
+        _warn_lock_reclaimed(changed.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json(changed.criterion)
+        else:
+            out_console.print(
+                f"[green]edited[/] {criterion_id} (criteria v{changed.version}, {direction})"
+            )
+
     try:
-        updated = criteria_mod.edit_criterion(
+        ops_mod.edit_criterion(
             repo,
             criterion_id,
-            direction=direction,  # type: ignore[arg-type]
+            direction=direction,
             actor=by,
             rationale=rationale,
             label=label,
             definition=definition,
             applies_at=_split_stages(applies_at) if applies_at is not None else None,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_edited,
         )
     except (criteria_mod.CriteriaError, SchemaValidationError) as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json(updated)
-    else:
-        out_console.print(f"[green]edited[/] {criterion_id} (criteria v{version}, {direction})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-edit",
-        criterion_id=criterion_id,
-        summary=f"edit criterion {criterion_id} ({direction})",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("retire")
@@ -2017,27 +2007,28 @@ def criteria_retire(
     (openspec:criteria-management#declaring-the-direction-of-a-change)."""
     repo = _resolve_repo(ctx)
     rationale = _get_required_rationale(ctx, repo, f"You are retiring {criterion_id}.")
+
+    def say_what_was_retired(changed: ops_mod.CriterionChanged) -> None:
+        _warn_lock_reclaimed(changed.lock_reclaimed_from)
+        if ctx.obj["json"]:
+            _print_json({"id": criterion_id, "status": "retired"})
+        else:
+            out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{changed.version})")
+
     try:
-        criteria_mod.retire_criterion(repo, criterion_id, actor=by, rationale=rationale)
+        ops_mod.retire_criterion(
+            repo,
+            criterion_id,
+            actor=by,
+            rationale=rationale,
+            commit=not ctx.obj["no_commit"],
+            on_written=say_what_was_retired,
+        )
     except criteria_mod.CriteriaError as exc:
         err_console.print(f"[red]error:[/] {exc}")
         raise typer.Exit(EXIT_USAGE) from None
-
-    version = criteria_mod.read_criteria_doc(repo)["version"]
-    if ctx.obj["json"]:
-        _print_json({"id": criterion_id, "status": "retired"})
-    else:
-        out_console.print(f"[yellow]retired[/] {criterion_id} (criteria v{version})")
-
-    _commit_criteria_op(
-        ctx,
-        repo,
-        op="criteria-retire",
-        criterion_id=criterion_id,
-        summary=f"retire criterion {criterion_id}",
-        by=by,
-        rationale=rationale,
-    )
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
 
 
 @criteria_app.command("list")
@@ -2133,6 +2124,75 @@ def _render_screen_record(
     return "\n".join(lines)
 
 
+def _screen_from_tool(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    stage: str,
+    by: str,
+    path: Path,
+    tool: str,
+    reviewer: str | None,
+    covidence_list: str | None,
+    reasons: list[str],
+) -> None:
+    mapped: dict[str, str] = {}
+    for item in reasons:
+        text, sep, criterion = item.rpartition("=")
+        if not sep or not text.strip() or not criterion.strip():
+            err_console.print(f"[red]error:[/] --reason {item!r} is not REASON=CRITERION")
+            raise typer.Exit(EXIT_USAGE)
+        mapped[text.strip()] = criterion.strip()
+    if not path.is_file():
+        err_console.print(f"[red]error:[/] no such file: {path}")
+        raise typer.Exit(EXIT_USAGE)
+    _preflight_rationale(ctx, repo)
+    try:
+        with repo_lock(repo):
+            result = migrated_mod.import_tool_decisions(
+                repo,
+                stage=stage,
+                tool=tool,
+                raw=path.read_bytes(),
+                actor=by,
+                reviewer=reviewer,
+                covidence_list=covidence_list,
+                reasons=mapped,
+            )
+            if result.recorded:
+                pool_mod.regenerate_all(repo)
+                _commit_domain_op(
+                    ctx,
+                    repo,
+                    op="screen-import",
+                    scope=stage,
+                    summary=f"imported {len(result.recorded)} {stage} decisions from {tool}",
+                    by=by,
+                )
+    except screening_mod.ScreeningError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    except LockTimeoutError as exc:
+        _lock_busy(exc)
+    if ctx.obj["json"]:
+        _print_json(
+            {
+                "stage": stage,
+                "recorded": len(result.recorded),
+                "skipped": [{"title": s.title, "why": s.why} for s in result.skipped],
+            }
+        )
+        return
+    out_console.print(f"[green]recorded[/] {len(result.recorded)} imported decision(s) for {stage}")
+    for skipped in result.skipped:
+        out_console.print(f"  [yellow]not recorded:[/] {skipped.title[:70]}: {skipped.why}")
+
+
+_REASON_OPTION = typer.Option(
+    None, "--reason", help="--from: 'REASON=CRITERION', an exclusion reason as a criterion"
+)
+
+
 @app.command("screen")
 def screen_command(
     ctx: typer.Context,
@@ -2141,12 +2201,46 @@ def screen_command(
     filter_expr: str | None = typer.Option(None, "--filter", help="Narrow the queue"),
     limit: int | None = typer.Option(None, "--limit", help="Screen at most N records"),
     decisions_file: str | None = typer.Option(
-        None, "--decisions", help="TSV of record_id/decision/criteria/note"
+        None, "--decisions", help="TSV of record_id/decision/criteria/note, or a tool's export"
     ),
+    from_tool: str | None = typer.Option(
+        None,
+        "--from",
+        help="The --decisions file is an export from rayyan | covidence | eppi-json",
+    ),
+    reviewer: str | None = typer.Option(
+        None, "--reviewer", help="--from: whose decisions to take, as the export names them"
+    ),
+    covidence_list: str | None = typer.Option(
+        None, "--list", help="--from covidence: irrelevant | excluded | included"
+    ),
+    reason: list[str] | None = _REASON_OPTION,
 ) -> None:
-    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`."""
+    """Open the screening queue for `stage`, or bulk-import decisions with `--decisions`.
+
+    With `--from`, the decisions file is an export from another tool (whose records were imported
+    with `strata import --format <tool>`); every decision is attributed to `--by` and marked
+    imported. Example: strata screen title-abstract --by ada --decisions articles.csv
+    --from rayyan --reviewer Ada --reason "wrong population=EXC-01"
+    """
     repo = _resolve_repo(ctx)
 
+    if from_tool is not None and not decisions_file:
+        err_console.print("[red]error:[/] --from needs --decisions FILE")
+        raise typer.Exit(EXIT_USAGE)
+    if decisions_file and from_tool is not None:
+        _screen_from_tool(
+            ctx,
+            repo,
+            stage=stage,
+            by=by,
+            path=Path(decisions_file),
+            tool=from_tool,
+            reviewer=reviewer,
+            covidence_list=covidence_list,
+            reasons=reason or [],
+        )
+        return
     if decisions_file:
         _preflight_rationale(ctx, repo)
         text = Path(decisions_file).read_text(encoding="utf-8")
@@ -2197,6 +2291,7 @@ def screen_command(
     )
 
     decided = 0
+    made: Counter[str] = Counter()
     last_decided_index: int | None = None
     index = 0
     while index < len(queue):
@@ -2251,18 +2346,22 @@ def screen_command(
             continue
 
         decided += 1
+        made[decision] += 1
         last_decided_index = index
         index += 1
 
     if decided:
         pool_mod.regenerate_all(repo)
+        # The subject the browser's batches get, so a session reads the same in the history
+        # wherever it was recorded (openspec:git-integration#batched-screening-commits).
         _commit_domain_op(
             ctx,
             repo,
             op="screen",
             scope=stage,
-            summary=f"screened {decided} {stage} record(s)",
+            summary=batch_summary(made),
             by=by,
+            did=f"screened {decided} {stage} record(s)",
         )
     if ctx.obj["json"]:
         _print_json({"stage": stage, "decided": decided})
@@ -2383,6 +2482,7 @@ def rescreen_command(
 
     records = records_mod.index_by_id(records_mod.read_records(repo))
     decided = 0
+    made: Counter[str] = Counter()
     index = 0
     while index < len(queue):
         s, stale = queue[index]
@@ -2433,6 +2533,7 @@ def rescreen_command(
             continue
 
         decided += 1
+        made[decision] += 1
         index += 1
 
     if decided:
@@ -2442,8 +2543,9 @@ def rescreen_command(
             repo,
             op="rescreen",
             scope=stage,
-            summary=f"re-screened {decided} stale record(s)",
+            summary=batch_summary(made, verb="rescreen"),
             by=by,
+            did=f"re-screened {decided} stale record(s)",
         )
     if ctx.obj["json"]:
         _print_json({"decided": decided})
@@ -2773,7 +2875,10 @@ def retrieve_command(
             continue
         if choice == "o" and document is not None and document.uri is not None:
             out_console.print(f"opening {document.uri}")
-            if not webbrowser.open(document.uri):
+            opener = (
+                zotero_launch.open_link if document.uri.startswith("zotero:") else webbrowser.open
+            )
+            if not opener(document.uri):
                 out_console.print(
                     "[yellow]could not open it; paste the link above into a browser[/]"
                 )
@@ -3341,7 +3446,7 @@ def zotero_open_command(
         _print_json({"record": target.record_id, "kind": target.kind, "uri": target.uri})
         return
     out_console.print(target.uri, soft_wrap=True, markup=False, highlight=False)
-    if not print_only and not webbrowser.open(target.uri):
+    if not print_only and not zotero_launch.open_link(target.uri):
         err_console.print("[yellow]note:[/] could not launch Zotero from here; use the link above")
 
 
@@ -4741,12 +4846,32 @@ def analyze_command(
     if not check:
         _preflight_rationale(ctx, repo)
     summaries: list[dict[str, Any]] = []
+    with contextlib.ExitStack() as locked:
+        if not check:
+            locked.enter_context(_holding_lock(repo))
+        _analyze_targets(ctx, repo, targets, summaries, check, force, ack or [], plot_format)
+    if ctx.obj["json"]:
+        _print_json({"checked" if check else "ran": summaries})
+        return
+    _say_analyzed(summaries, check)
+
+
+def _analyze_targets(
+    ctx: typer.Context,
+    repo: Repo,
+    targets: list[str],
+    summaries: list[dict[str, Any]],
+    check: bool,
+    force: bool,
+    ack: list[str],
+    plot_format: str,
+) -> None:
     try:
         for target in targets:
             if check:
                 spec = analysis_mod_spec.load_spec(repo, target)
                 selection = analysis_rows.build_rows(repo, spec)
-                warnings = analysis_engine.check_analysis(spec, selection, ack or [])
+                warnings = analysis_engine.check_analysis(spec, selection, ack)
                 summaries.append(
                     {
                         "analysis": target,
@@ -4759,7 +4884,7 @@ def analyze_command(
                 )
                 continue
             outcome = analysis_run.run_analysis(
-                repo, target, force=force, acknowledged=ack or [], plot_format=plot_format
+                repo, target, force=force, acknowledged=ack, plot_format=plot_format
             )
             summaries.append(_analysis_summary(outcome))
     except analysis_guardrails.BlockingGuardrail as exc:
@@ -4785,9 +4910,9 @@ def analyze_command(
             summary="ran " + ", ".join(s["analysis"] for s in summaries),
             by=_acting_handle(repo),
         )
-    if ctx.obj["json"]:
-        _print_json({"checked" if check else "ran": summaries})
-        return
+
+
+def _say_analyzed(summaries: list[dict[str, Any]], check: bool) -> None:
     for item in summaries:
         if check:
             out_console.print(
@@ -4813,6 +4938,42 @@ def _acting_handle(repo: Repo) -> str:
         if actor.get("role") != "inactive":
             return str(actor["handle"])
     return "strata"
+
+
+def _draw_prisma(
+    ctx: typer.Context,
+    repo: Repo,
+    *,
+    fmt: str,
+    columns: str,
+    allow_stale: bool,
+    out: str | None,
+) -> tuple[list[str], counts_mod.Counts] | None:
+    try:
+        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    except flow_mod.StaleDecisionsError as exc:
+        err_console.print(f"[red]refused:[/] {exc}")
+        raise typer.Exit(EXIT_GUARDRAIL) from None
+    except flow_mod.FlowError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    counts = rendered.counts
+    if out == "-":
+        sys.stdout.write(rendered.payload.decode("utf-8"))
+        return None
+    written = [
+        str(p)
+        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
+    ]
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    return written, counts
 
 
 @app.command("prisma")
@@ -4850,30 +5011,11 @@ def prisma_command(
         raise typer.Exit(EXIT_USAGE)
     if not out:  # --out writes elsewhere and commits nothing
         _preflight_rationale(ctx, repo)
-    try:
-        rendered = ops_mod.render_prisma(repo, fmt=fmt, columns=columns, allow_stale=allow_stale)
-    except counts_mod.CountReconcileError as exc:
-        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
-        raise typer.Exit(EXIT_VALIDATION) from None
-    except flow_mod.StaleDecisionsError as exc:
-        err_console.print(f"[red]refused:[/] {exc}")
-        raise typer.Exit(EXIT_GUARDRAIL) from None
-    except flow_mod.FlowError as exc:
-        err_console.print(f"[red]error:[/] {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    counts = rendered.counts
-    if out == "-":
-        sys.stdout.write(rendered.payload.decode("utf-8"))
+    with _holding_lock(repo):
+        drawn = _draw_prisma(ctx, repo, fmt=fmt, columns=columns, allow_stale=allow_stale, out=out)
+    if drawn is None:
         return
-    written = [
-        str(p)
-        for p in ops_mod.write_prisma(repo, rendered, fmt=fmt, target=Path(out) if out else None)
-    ]
-    if not out:
-        _commit_domain_op(
-            ctx, repo, op="prisma", scope=None, summary=f"drew the PRISMA flow diagram ({fmt})",
-            by=_acting_handle(repo),
-        )  # fmt: skip
+    written, counts = drawn
     draft = not counts.complete
     if ctx.obj["json"]:
         _print_json({"written": written, "draft": draft, "counts": counts.to_dict()["totals"]})
@@ -4885,14 +5027,46 @@ def prisma_command(
         )
 
 
-_REPORT_EXT = {
-    "md": "md",
-    "html": "html",
-    "docx": "docx",
-    "latex": "tex",
-    "csv": "csv",
-    "svg": "svg",
-}
+def _write_report_section(
+    ctx: typer.Context, repo: Repo, *, name: str, fmt: str, out: str | None, status: bool
+) -> list[str] | None:
+    try:
+        facts = ops_mod.report_facts(repo, name)
+    except counts_mod.CountReconcileError as exc:
+        err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
+        raise typer.Exit(EXIT_VALIDATION) from None
+    if name == "checklist" and status:
+        summary = checklist_mod.status(checklist_mod.build(facts))
+        if ctx.obj["json"]:
+            _print_json(summary)
+        else:
+            out_console.print(
+                f"{summary['auto_filled']} auto-filled, {summary['auto_located']} auto-located, "
+                f"{summary['author']} for the author (of {summary['items']} items and sub-items)"
+            )
+            if summary["needs_author"]:
+                out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
+        return None
+    try:
+        outputs = ops_mod.render_report(repo, name, fmt, facts)
+    except sections_mod.PandocError as exc:
+        err_console.print(f"[red]error:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
+    if out == "-":
+        if len(outputs) != 1 or fmt in ("docx",):
+            err_console.print(
+                "[red]error:[/] this output has more than one file or is binary; give --out FILE"
+            )
+            raise typer.Exit(EXIT_USAGE)
+        sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
+        return None
+    written = [str(p) for p in ops_mod.write_report(repo, outputs, out=Path(out) if out else None)]
+    if not out:
+        _commit_domain_op(
+            ctx, repo, op="report", scope=name, summary=f"generated the {name} report",
+            by=_acting_handle(repo),
+        )  # fmt: skip
+    return written
 
 
 @app.command("report")
@@ -4917,103 +5091,20 @@ def report_command(
     Example: strata report manuscript --format docx
     """
     repo = _resolve_repo(ctx)
-    name = section.lower()
-    if "discussion" in name or "conclusion" in name:
-        err_console.print(f"[red]refused:[/] {sections_mod.DISCUSSION_REFUSAL}")
-        raise typer.Exit(EXIT_USAGE)
-    if name not in sections_mod.SECTIONS:
-        err_console.print(
-            f"[red]error:[/] unknown report section {section!r}; "
-            f"the sections are {', '.join(sections_mod.SECTIONS)}"
-        )
-        raise typer.Exit(EXIT_USAGE)
-    allowed = (
-        {"md", "html", "docx", "latex"}
-        | ({"csv"} if name == "characteristics" else set())
-        | ({"svg"} if name == "rob" else set())
-    )
-    if fmt not in allowed:
-        err_console.print(
-            f"[red]error:[/] --format for {name} must be one of {', '.join(sorted(allowed))}"
-        )
-        raise typer.Exit(EXIT_USAGE)
+    try:
+        name = ops_mod.check_report_request(section, fmt)
+    except ops_mod.ReportRequestError as exc:
+        err_console.print(f"[red]{'refused' if exc.refused else 'error'}:[/] {exc}")
+        raise typer.Exit(EXIT_USAGE) from None
     if status and name != "checklist":
         err_console.print("[red]error:[/] --status applies to the checklist only")
         raise typer.Exit(EXIT_USAGE)
     if not out and not status:  # --out writes elsewhere; --status only reports (checklist)
         _preflight_rationale(ctx, repo)
-    facts = facts_mod.collect(repo)
-    counts_mod.regenerate_counts_json(repo, facts.counts)
-    if name != "amendments":
-        try:
-            counts_mod.require_reconciled(facts.counts)
-        except counts_mod.CountReconcileError as exc:
-            err_console.print(f"[red]{exc.code}:[/] the counts do not close: {exc}")
-            raise typer.Exit(EXIT_VALIDATION) from None
-    if name == "checklist" and status:
-        summary = checklist_mod.status(checklist_mod.build(facts))
-        if ctx.obj["json"]:
-            _print_json(summary)
-        else:
-            out_console.print(
-                f"{summary['auto_filled']} auto-filled, {summary['auto_located']} auto-located, "
-                f"{summary['author']} for the author (of {summary['items']} items and sub-items)"
-            )
-            if summary["needs_author"]:
-                out_console.print("Still yours: " + ", ".join(summary["needs_author"]))
+    with _holding_lock(repo):
+        written = _write_report_section(ctx, repo, name=name, fmt=fmt, out=out, status=status)
+    if written is None:
         return
-    outputs: dict[str, bytes] = {}
-    try:
-        if name == "checklist":
-            outputs["prisma-checklist.md"] = checklist_mod.render(facts).encode("utf-8")
-        elif name == "rob":
-            if fmt != "svg":
-                outputs["rob.md"] = sections_mod.rob_markdown(repo, facts).encode("utf-8")
-            plot = sections_mod.rob_svg(repo)
-            if plot is not None and fmt in ("md", "svg"):
-                outputs["rob-traffic-light.svg"] = plot
-        elif name == "characteristics" and fmt == "csv":
-            columns, rows = sections_mod.characteristics_rows(repo)
-            table = "\n".join(
-                "\t".join(c.replace("\t", " ").replace("\n", " ") for c in row)
-                for row in [columns, *rows]
-            )
-            outputs["characteristics.tsv"] = (table + "\n").encode("utf-8")
-        else:
-            text = {
-                "methods": lambda: sections_mod.methods(facts),
-                "results": lambda: sections_mod.results(facts),
-                "characteristics": lambda: sections_mod.characteristics_markdown(repo, facts),
-                "amendments": lambda: sections_mod.amendments_section(facts),
-                "manuscript": lambda: sections_mod.manuscript(facts),
-            }[name]()
-            outputs[f"{name}.{_REPORT_EXT[fmt]}"] = sections_mod.convert(
-                text, fmt, title=str(facts.project.get("title", ""))
-            )
-    except sections_mod.PandocError as exc:
-        err_console.print(f"[red]error:[/] {exc}")
-        raise typer.Exit(EXIT_USAGE) from None
-    if out == "-":
-        if len(outputs) != 1 or fmt in ("docx",):
-            err_console.print(
-                "[red]error:[/] this output has more than one file or is binary; give --out FILE"
-            )
-            raise typer.Exit(EXIT_USAGE)
-        sys.stdout.write(next(iter(outputs.values())).decode("utf-8"))
-        return
-    written = []
-    for filename, payload in outputs.items():
-        target = Path(out) if out else repo.path("reports", filename)
-        if out and len(outputs) > 1:
-            target = Path(out).parent / filename
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(payload)
-        written.append(str(target))
-    if not out:
-        _commit_domain_op(
-            ctx, repo, op="report", scope=name, summary=f"generated the {name} report",
-            by=_acting_handle(repo),
-        )  # fmt: skip
     if ctx.obj["json"]:
         _print_json({"section": name, "written": written})
         return

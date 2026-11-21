@@ -55,6 +55,7 @@ _CAPABILITIES: dict[str, frozenset[str]] = {
 _WRITE_CAPABILITY = {
     "screen": SCREEN,
     "rescreen": SCREEN,
+    "session": SCREEN,  # ending a screening session commits one's own pending decisions
     "adjudicate": ADJUDICATE,
     "extract": EXTRACT,
     "rob": EXTRACT,
@@ -131,6 +132,14 @@ def add_member(
             f"{actor!r} already belongs to {taken['username']!r} in {project_id}; one actor is "
             "one person"
         )
+    current = membership(instance, project_id, username)
+    if (
+        current is not None
+        and current.role == "lead"
+        and role != "lead"
+        and len(leads_of(instance, project_id)) <= 1
+    ):
+        raise MembershipError(f"{username!r} is the only lead of {project_id}; a project keeps one")
     instance.store.execute(
         "INSERT INTO memberships (project, username, actor, role) VALUES (?, ?, ?, ?) "
         "ON CONFLICT (project, username) DO UPDATE SET actor = excluded.actor, "

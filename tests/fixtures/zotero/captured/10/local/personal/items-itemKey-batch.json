@@ -1,0 +1,326 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:23119/api/users/0/items?itemKey=BEITJ9RM,CFI7USQX&format=json",
+    "headers": {
+      "Zotero-API-Version": "3",
+      "User-Agent": "strata-capture/0",
+      "Accept": "application/json"
+    },
+    "body": null
+  },
+  "note": "how strata resolves current versions",
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "http_version": "HTTP/1.0",
+    "headers": [
+      [
+        "X-Zotero-Version",
+        "10.0.8"
+      ],
+      [
+        "X-Zotero-Connector-API-Version",
+        "3"
+      ],
+      [
+        "Total-Results",
+        "4"
+      ],
+      [
+        "Link",
+        "<http://127.0.0.1:23119/api/users/0/items?itemKey=BEITJ9RM%2CCFI7USQX&format=json>; rel=\"last\", <https://www.zotero.org/users/22585168/items>; rel=\"alternate\""
+      ],
+      [
+        "Last-Modified-Version",
+        "19"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ],
+      [
+        "Zotero-API-Version",
+        "3"
+      ],
+      [
+        "Zotero-Schema-Version",
+        "44"
+      ],
+      [
+        "Zotero-Server-ID",
+        "dx2OEZVeHz9j"
+      ]
+    ],
+    "body_encoding": "json",
+    "body": [
+      {
+        "key": "TI5GQH7I",
+        "version": 18,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/TI5GQH7I",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/TI5GQH7I",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/CFI7USQX",
+            "type": "application/json"
+          },
+          "enclosure": {
+            "href": "file:///home/USER/Zotero%20strata-test/storage/TI5GQH7I/Roediger%20and%20Karpicke%20-%202006%20-%20Test-enhanced%20learning.pdf",
+            "type": "application/pdf",
+            "title": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+            "length": 671
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "TI5GQH7I",
+          "version": 18,
+          "itemType": "attachment",
+          "title": "Full Text PDF",
+          "parentItem": "CFI7USQX",
+          "linkMode": "imported_file",
+          "contentType": "application/pdf",
+          "charset": "",
+          "filename": "Roediger and Karpicke - 2006 - Test-enhanced learning.pdf",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z",
+          "mtime": 1794630871537,
+          "md5": "2b05a13fe8b9f59a8d9106ab125cd447"
+        }
+      },
+      {
+        "key": "CWRCUFQN",
+        "version": 17,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/CWRCUFQN",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/CWRCUFQN",
+            "type": "text/html"
+          },
+          "up": {
+            "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          }
+        },
+        "meta": {
+          "numChildren": 0
+        },
+        "data": {
+          "key": "CWRCUFQN",
+          "version": 17,
+          "itemType": "attachment",
+          "title": "Publisher page",
+          "url": "https://doi.org/10.1111/j.1467-9280.2008.02209.x",
+          "parentItem": "BEITJ9RM",
+          "linkMode": "linked_url",
+          "contentType": "text/html",
+          "charset": "",
+          "tags": [],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:31Z",
+          "dateModified": "2026-11-14T04:34:31Z"
+        }
+      },
+      {
+        "key": "CFI7USQX",
+        "version": 13,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/CFI7USQX",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/CFI7USQX",
+            "type": "text/html"
+          },
+          "attachment": {
+            "href": "http://localhost:23119/api/users/22585168/items/TI5GQH7I",
+            "type": "application/json",
+            "attachmentType": "application/pdf",
+            "attachmentSize": 671
+          }
+        },
+        "meta": {
+          "creatorSummary": "⁨Roediger⁩ and ⁨Karpicke⁩",
+          "parsedDate": "2006-03",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "CFI7USQX",
+          "version": 13,
+          "itemType": "journalArticle",
+          "title": "Test-enhanced learning: Taking memory tests improves long-term retention",
+          "date": "2006-03",
+          "DOI": "10.1111/j.1467-9280.2006.01693.x",
+          "language": "en",
+          "extra": "PMID: 16507066",
+          "volume": "17",
+          "pages": "249-255",
+          "publicationTitle": "Psychological Science",
+          "ISSN": "0956-7976",
+          "issue": "3",
+          "creators": [
+            {
+              "firstName": "Henry L.",
+              "lastName": "Roediger",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Jeffrey D.",
+              "lastName": "Karpicke",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      },
+      {
+        "key": "BEITJ9RM",
+        "version": 14,
+        "library": {
+          "type": "user",
+          "id": 22585168,
+          "name": "My Library",
+          "links": {
+            "self": {
+              "href": "http://localhost:23119/api/users/22585168",
+              "type": "application/json"
+            },
+            "alternate": {
+              "href": "https://www.zotero.org/users/22585168",
+              "type": "text/html"
+            }
+          }
+        },
+        "links": {
+          "self": {
+            "href": "http://localhost:23119/api/users/22585168/items/BEITJ9RM",
+            "type": "application/json"
+          },
+          "alternate": {
+            "href": "https://www.zotero.org/users/22585168/items/BEITJ9RM",
+            "type": "text/html"
+          }
+        },
+        "meta": {
+          "creatorSummary": "Cepeda et al.",
+          "parsedDate": "2008-11",
+          "numChildren": 1
+        },
+        "data": {
+          "key": "BEITJ9RM",
+          "version": 14,
+          "itemType": "journalArticle",
+          "title": "Spacing effects in learning: A temporal ridgeline of optimal retention",
+          "date": "2008-11",
+          "DOI": "10.1111/j.1467-9280.2008.02209.x",
+          "language": "en",
+          "extra": "PMID: 19076480",
+          "volume": "19",
+          "pages": "1095-1102",
+          "publicationTitle": "Psychological Science",
+          "ISSN": "0956-7976",
+          "issue": "11",
+          "creators": [
+            {
+              "firstName": "Nicholas J.",
+              "lastName": "Cepeda",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Edward",
+              "lastName": "Vul",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Doug",
+              "lastName": "Rohrer",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "John T.",
+              "lastName": "Wixted",
+              "creatorType": "author"
+            },
+            {
+              "firstName": "Harold",
+              "lastName": "Pashler",
+              "creatorType": "author"
+            }
+          ],
+          "tags": [],
+          "collections": [
+            "EBGRU5QN"
+          ],
+          "relations": {},
+          "dateAdded": "2026-11-14T04:34:30Z",
+          "dateModified": "2026-11-14T04:34:30Z"
+        }
+      }
+    ]
+  }
+}

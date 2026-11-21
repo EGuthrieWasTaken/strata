@@ -7,6 +7,25 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Added
 
+- **A worked example** (`examples/bcg-vaccine/`): the 13 BCG vaccine trials of Colditz et al. (1994), built
+  through the command line, whose pooled risk ratio, heterogeneity and latitude meta-regression match
+  Viechtbauer's (2010) published `metafor` analysis; a test rebuilds it and compares.
+- **Standalone binaries** for Linux, macOS and Windows, built and smoke-tested by
+  `.github/workflows/binaries.yml` and attached to each release; released container images are signed
+  with cosign.
+- **Moving a review from Rayyan, Covidence or EPPI-Reviewer** (OpenSpec change
+  `add-distribution-and-adoption`, tasks 2.1-2.3). `strata import --format rayyan|covidence|eppi-json`
+  imports the records of each tool's export, and `strata screen <stage> --decisions <file> --from <tool>`
+  records the screening decisions in it, attributed to `--by` and marked imported, with `--reviewer`
+  (Rayyan), `--list` (Covidence) and `--reason TEXT=CRITERION`. A decision that cannot be recorded as made
+  here (no matching record, an exclusion reason that names no criterion) is listed, not recorded. Written
+  from each tool's documented export format; not yet checked against a real export.
+- **An agent can draft manuscript sections** (`generate_report`, kind `analysis`): `strata report` now runs
+  on `core/operations`, and the same code backs the MCP write tool.
+- **The Zotero integration is checked against a real Zotero** nightly and on pull requests that touch it
+  (`.github/workflows/zotero-live.yml`): the Web API with a throwaway account, and the current Zotero
+  desktop app under a virtual display.
+
 - **A hosted team instance** (`strata host`; OpenSpec change `add-hosted-team-deployment`). One self-hosted
   instance serves several reviews to several people, each signed in with their own account: local accounts
   (Argon2id passwords, invitations, `strata host user add|invite|disable`) and optional OpenID Connect or
@@ -401,8 +420,41 @@ All notable changes to `strata` are documented here. Format follows
   record, and the criteria preview keeping the session token out of the address. `STRATA_REQUIRE_BROWSER=1` makes a
   missing stack fail the tests instead of skipping them, so a broken install cannot look like a pass. Dependabot
   keeps Playwright current.
+- **The hosted instance in a real browser** (#91). `scripts/seed_hosted.py` builds a scratch instance (two
+  projects on bare remotes, a lead, a screener and an observer), and `tests/browser/test_hosted_browser.py`
+  drives it in Chromium with each person in a browser context of their own: layout, contrast and motion on its
+  own pages, no token-carrying form sent with GET, blinding, roles, the last-sync indicator, a conflict with the
+  remote resolved by the lead, the sign-in rate limit and the end of a session. A new `keys` scenario drives the
+  screening shortcuts and Finish session. `docs/chrome-pass.md` gains Part H for the same by hand.
 
 ### Changed
+
+- **A digit key on the screening screen ticks a reason and no longer excludes** (#86). `1` to `9` tick or
+  untick; `e` records the exclusion, and with nothing ticked says so in place. Reasons are numbered as
+  `strata screen` numbers them and an inclusion criterion reads "Not met: ...". Skipped records are offered
+  again when the rest are done, the counter counts decisions, and a refused decision comes back on the same
+  screen with the place, the ticks and the note kept.
+- **Changing your own screening decision in the browser needs a reason** (#83). It is kept in the event's
+  note and listed in the batch's commit message. On the re-screening screen the last reason given is offered
+  again.
+- **Screening commits have one generated subject**, from the browser and the command line alike:
+  `screen(title-abstract): screen 200 records (183 exclude, 17 include)`.
+- **The dashboard counts distinct records**, as `/records` does, and says how many were imported and how many
+  merged as duplicates; its "Stale records" column and the re-screening screen's "N of your decisions" each say
+  what they count (#87, #88).
+- **`/history` has When and Why columns and a record's provenance is written as sentences** with dates and
+  reasons, in place of event names, stored keys and Python values (#87). Times are shown in UTC.
+- **`/assign/<stage>` shows who has what** (assigned, decided, waiting) and lists the assignments made;
+  analysis pages say what "current" means and warn when screening decisions are stale (#88).
+- **Refusals in the browser are in the reviewer's words**, with the setting or code in a muted line beneath
+  (#90). The command line's messages are unchanged.
+- **`/records`, `/history` and the other short tables stack into cards on a narrow screen**; the wide tables'
+  scroll boxes have names of their own and are tab stops only while they scroll (#89).
+- **`strata serve`'s session cookie is named after its port** (`strata_session_<port>`), so a browser with a
+  cookie from an earlier version opens the printed address once more (#85).
+- **`derived/counts.json` gains `studies_from_split_reports`** and two reworded identities (#84); it is
+  regenerated by the next command that commits. Until then `strata verify` reports the file out of date, and
+  `strata verify --fix` brings it up to date.
 
 - **Only the opinions of the actors assigned to a record resolve it.** The specification has always said
   `opinions = latest event per assigned actor`, but the fold reduced every actor's events and compared
@@ -451,6 +503,44 @@ All notable changes to `strata` are documented here. Format follows
 
 ### Fixed
 
+- **Hosted instance security** (`docs/security-review-hosted.md`): a symbolic link pushed to a project's
+  remote is now checked out as a plain file (it could otherwise lead the screens outside the project), an
+  invitation can no longer be used twice by concurrent requests, a new password signs out the old
+  sessions, the only lead of a project cannot be demoted, and a remote URL with a password in it is
+  refused whatever its scheme.
+- **Commits could interleave.** `strata analyze`, `prisma`, `report`, the interactive commands, several web
+  routes and the screening-batch commit staged and committed without the repository lock, so two at once
+  could fail with git's "Another git process seems to be running" or sweep up each other's files. Every
+  commit now holds the lock (re-entrant within a thread), and `analyze`, `prisma` and `report` hold it
+  from their first write to their commit.
+- **Two writers on one event file could number two events alike** (the web UI and the command line for
+  one reviewer, say), because the next sequence number and chain link are read from the file before the
+  append. Each append now holds the repository lock.
+- **`strata criteria edit` and `retire` took no repository lock**, so either could interleave with
+  another process's operation; they now run through `core/operations` under the lock, as `criteria add`
+  does.
+- **The Zotero link, after its first run against a real Zotero** (10.0.8; `docs/zotero-real-run.md`).
+  `strata zotero link` and `pull` failed through the desktop app's local API, which sends each item's
+  CSL-JSON as a string; it is now read, and the probe checks the shape it reads. One item with a date such as
+  `11/1984` no longer stops a whole pull. A PMID is pushed into Zotero's own PMID field where the item type
+  has one and is read back from `extra`, so a record with only a PMID matches. `strata zotero open` hands the
+  link to the operating system instead of the browser, which did nothing until a prompt was approved. The
+  desktop app's item versions, which are not the Web API's, are no longer recorded as if they were. The test
+  stand-in follows the captured responses, which `tests/unit/test_zotero_real_captures.py` replays.
+- **Screening in the browser was never committed** (#83). `strata serve` now commits each reviewer's batch
+  when the session ends (the new **Finish session** button, any other page, stopping the server), at the 200th
+  uncommitted decision, after 15 minutes without one, and at startup for what an earlier server left. One web
+  decision used to leave a dirty tree, four `E_DERIVED_DRIFT` errors and a `strata sync` that refused.
+- **Splitting a report into two studies made `/prisma` refuse to draw** with `E_COUNT_RECONCILE` (#84).
+  Reports of included studies are counted once each and the bound on studies allows for splits. A failed
+  identity is said in words on the page.
+- **Two `strata serve` processes on one host signed each other out** (#85): cookies ignore ports and both
+  called theirs `strata_session`. The "missing or invalid session" page now says what to do.
+- **"Nothing left to screen" appeared while a skipped record was still undecided**, and the counter counted
+  skipped records as done (#86).
+- **The hosted conflict page scrolled sideways on a narrow screen**; found by the new browser test of the
+  hosted instance (#91).
+- The refused PDF upload ran two sentences together (#90).
 - The interactive `strata retrieve` menu printed without its key letters (`I have the file`, `open DOI in
   browser`, ...): Rich read `[f]`, `[u]`, `[n]` as markup and dropped them.
 - `strata import` checked the import manifest after it had written the records, so a manifest that could not
