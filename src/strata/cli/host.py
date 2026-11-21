@@ -311,12 +311,12 @@ def project_add(
         raise _fail(f"could not add {project_id}: {exc}", EXIT_GENERIC) from None
     report = instance.host_key_report(project.id)
     if _json(ctx):
-        _print_json(
-            {
-                "id": project.id, "title": project.title, "remote": project.remote,
-                "host_key": _host_key_payload(report) if report else None,
-            }
-        )  # fmt: skip
+        payload: dict[str, Any] = {
+            "id": project.id, "title": project.title, "remote": project.remote,
+        }  # fmt: skip
+        if report is not None:  # only where the instance chose a host key to trust
+            payload["host_key"] = _host_key_payload(report)
+        _print_json(payload)
         return
     how = f"cloned from {project.remote}" if project.remote else "initialised"
     out_console.print(f"[green]added[/] project {project.id} ({how})")
