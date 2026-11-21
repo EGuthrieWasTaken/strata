@@ -74,6 +74,7 @@ RESERVED_FOR_PEOPLE = frozenset(
         # (openspec:hosted-deployment). None of it touches a review's content.
         "host init",
         "host project add",
+        "host project host-key",  # which SSH host key a project's remote is trusted with
         "host user add",
         "host user invite",
         "host user disable",
@@ -121,6 +122,7 @@ READ_ONLY = frozenset(
         "host member list",
         "host secret list",
         "host signins",
+        "host audit",
     }
 )
 
